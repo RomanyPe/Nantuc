@@ -22,14 +22,15 @@ const string source =
 using var host = VMHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicy(Console.Out);
 
-var device = host.Emulator.CreateDevice(
+var deviceId = host.Emulator.CreateAndAddDevice(
     ramSize: RamSize.MB128,
+    sector: 0,
     processorFaultPolicy: lfPolicy,
     name: "ConsoleVM"
 );
 
+var device = host.Emulator.GetDeviceContext(deviceId)!;
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
-host.Emulator.AddDevice(device, 0);
 host.Emulator.AddDevice(iostream, "console", 1);
 
 var resIl = host.Project.Compiler.CompileToIL(source, 0, true, SourceLanguage.Asm);

@@ -11,334 +11,275 @@ internal class Program
 {
     const string text1 =
     """
-int main() {
-    asm{
-    LDI r0, 0;
-    LDI r1, 10000000;
+        LDI r0, 0;
+        LDI r1, 10000000;
 
-loop:
-    CALL Sum;
-    DEC r1;
-    TEST r1, r1;
-    JNZ loop;
+    loop:
+        CALL Sum;
+        DEC r1;
+        TEST r1, r1;
+        JNZ loop;
 
-    END;
+        END;
 
-Sum:
-    ADD r0, r1;
-    RET;
-    }
-    return 0;
-}
-""";
+    Sum:
+        ADD r0, r1;
+        RET;
+    """;
 
     const string text2 =
     """
-int main() {
-    asm{
-    LDI r0, 0;
-    LDI r1, 10000000;
+        LDI r0, 0;
+        LDI r1, 10000000;
 
-loop:
-    ADD r0, r1;
-    DEC r1;
-    TEST r1, r1;
-    JNZ loop;
+    loop:
+        ADD r0, r1;
+        DEC r1;
+        TEST r1, r1;
+        JNZ loop;
 
-    END;
-    }
-    return 0;
-}
-""";
+        END;
+    """;
 
     const string text3 =
     """
-int main() {
-    asm{
-    LDI r0, 0;
-    LDI r7, 1;
-    LDI r6, 2500000;
+        LDI r0, 0;
+        LDI r7, 1;
+        LDI r6, 2500000;
 
-loop:
-    ADD r0, r7;
-    ADD r0, r7;
-    ADD r0, r7;
-    ADD r0, r7;
-    DEC r6;
-    TEST r6, r6;
-    JNZ loop;
+    loop:
+        ADD r0, r7;
+        ADD r0, r7;
+        ADD r0, r7;
+        ADD r0, r7;
+        DEC r6;
+        TEST r6, r6;
+        JNZ loop;
 
-    END;
-    }
-    return 0;
-}
-""";
+        END;
+    """;
 
     const string text3a =
     """
-int main() {
-    asm{
-    LDI r0, 0;
-    LDI r1, 0;
-    LDI r2, 0;
-    LDI r3, 0;
-    LDI r7, 1;
-    LDI r6, 2500000;
+        LDI r0, 0;
+        LDI r1, 0;
+        LDI r2, 0;
+        LDI r3, 0;
+        LDI r7, 1;
+        LDI r6, 2500000;
 
-loop:
-    ADD r0, r7;
-    ADD r1, r7;
-    ADD r2, r7;
-    ADD r3, r7;
-    DEC r6;
-    TEST r6, r6;
-    JNZ loop;
+    loop:
+        ADD r0, r7;
+        ADD r1, r7;
+        ADD r2, r7;
+        ADD r3, r7;
+        DEC r6;
+        TEST r6, r6;
+        JNZ loop;
 
-    END;
-    }
-    return 0;
-}
-""";
+        END;
+    """;
 
     const string text4 =
     """
-int main() {
-    asm{
-    LDI r8, 100;
-    LDI r0, 200000;
-    ALLOC r7;
-    MOV r1, r7;
-    LDI r2, 0;
-    LDI r4, 4;
+        LDI r8, 100;
+        LDI r0, 200000;
+        MOV r7, rHP;        // <-- замена ALLOC r7
+        ADD rHP, r0;        // <-- сдвигаем heap pointer за блоком
+        MOV r1, r7;
+        LDI r2, 0;
+        LDI r4, 4;
 
-outer:
-    MOV r1, r7;
-    LDI r2, 0;
-    LDI r6, 50000;
+    outer:
+        MOV r1, r7;
+        LDI r2, 0;
+        LDI r6, 50000;
 
-fill:
-    STORE_IND.S32 r2, r1;
-    ADD r1, r4;
-    INC r2;
-    DEC r6;
-    TEST r6, r6;
-    JNZ fill;
+    fill:
+        STORE_IND.S32 r2, r1;
+        ADD r1, r4;
+        INC r2;
+        DEC r6;
+        TEST r6, r6;
+        JNZ fill;
 
-    MOV r1, r7;
-    LDI r0, 0;
-    LDI r6, 50000;
+        MOV r1, r7;
+        LDI r0, 0;
+        LDI r6, 50000;
 
-sum:
-    LOAD_IND.S32 r5, r1;
-    ADD r0, r5;
-    ADD r1, r4;
-    DEC r6;
-    TEST r6, r6;
-    JNZ sum;
+    sum:
+        LOAD_IND.S32 r5, r1;
+        ADD r0, r5;
+        ADD r1, r4;
+        DEC r6;
+        TEST r6, r6;
+        JNZ sum;
 
-    DEC r8;
-    TEST r8, r8;
-    JNZ outer;
+        DEC r8;
+        TEST r8, r8;
+        JNZ outer;
 
-END;
-    }
-    return 0;
-}
-""";
+    END;
+    """;
 
     const string text4u =
     """
-int main() {
-    asm{
-    LDI r8, 100;
-    LDI r0, 200000;
-    ALLOC r7;
-    MOV r1, r7;
-    LDI r2, 0;
-    LDI r4, 4;
+        LDI r8, 100;
+        LDI r0, 200000;
+        MOV r7, rHP;        // <-- замена ALLOC r7
+        ADD rHP, r0;        // <-- сдвигаем heap pointer за блоком
+        MOV r1, r7;
+        LDI r2, 0;
+        LDI r4, 4;
 
-outer:
-    MOV r1, r7;
-    LDI r2, 0;
-    LDI r6, 50000;
+    outer:
+        MOV r1, r7;
+        LDI r2, 0;
+        LDI r6, 50000;
 
-fill:
-    STORE_IND_UNSAFE.S32 r2, r1;
-    ADD r1, r4;
-    INC r2;
-    DEC r6;
-    TEST r6, r6;
-    JNZ fill;
+    fill:
+        STORE_IND_UNSAFE.S32 r2, r1;
+        ADD r1, r4;
+        INC r2;
+        DEC r6;
+        TEST r6, r6;
+        JNZ fill;
 
-    MOV r1, r7;
-    LDI r0, 0;
-    LDI r6, 50000;
+        MOV r1, r7;
+        LDI r0, 0;
+        LDI r6, 50000;
 
-sum:
-    LOAD_IND_UNSAFE.S32 r5, r1;
-    ADD r0, r5;
-    ADD r1, r4;
-    DEC r6;
-    TEST r6, r6;
-    JNZ sum;
+    sum:
+        LOAD_IND_UNSAFE.S32 r5, r1;
+        ADD r0, r5;
+        ADD r1, r4;
+        DEC r6;
+        TEST r6, r6;
+        JNZ sum;
 
-    DEC r8;
-    TEST r8, r8;
-    JNZ outer;
+        DEC r8;
+        TEST r8, r8;
+        JNZ outer;
 
-END;
-    }
-    return 0;
-}
-""";
+    END;
+    """;
 
     const string text5 =
     """
-int main() {
-    asm{
-    LDI r0, 0;
-    LDI r6, 10000000;
+        LDI r0, 0;
+        LDI r6, 10000000;
 
-loop:
-    PUSH r0;
-    POP  r0;
-    DEC  r6;
-    TEST r6, r6;
-    JNZ  loop;
+    loop:
+        PUSH r0;
+        POP  r0;
+        DEC  r6;
+        TEST r6, r6;
+        JNZ  loop;
 
-    END;
-    }
-    return 0;
-}
-""";
+        END;
+    """;
 
     const string text6 =
     """
-int main() {
-    asm{
-    LDI r0, 1;
-    LDI r1, 1;
-    LDI r6, 10000000;
+        LDI r0, 1;
+        LDI r1, 1;
+        LDI r6, 10000000;
 
-loop:
-    SHR r0, r1;
-    AND r2, r0;
-    OR  r3, r0;
-    XOR r4, r0;
-    DEC r6;
-    TEST r6, r6;
-    JNZ loop;
+    loop:
+        SHR r0, r1;
+        AND r2, r0;
+        OR  r3, r0;
+        XOR r4, r0;
+        DEC r6;
+        TEST r6, r6;
+        JNZ loop;
 
-    END;
-    }
-    return 0;
-}
-""";
-
+        END;
+    """;
 
     const string text7 =
     """
-int main() {
-    asm{
-    LDI r0, 1;
-    LDI r1, 3;
-    LDI r6, 10000000;
+        LDI r0, 1;
+        LDI r1, 3;
+        LDI r6, 10000000;
 
-loop:
-    MULT_INT r0, r1;
-    DEC r6;
-    TEST r6, r6;
-    JNZ loop;
+    loop:
+        MULT_INT r0, r1;
+        DEC r6;
+        TEST r6, r6;
+        JNZ loop;
 
-    END;
-    }
-    return 0;
-}
-""";
+        END;
+    """;
 
     const string text8 =
     """
-int main() {
-    asm{
-    LDI r5, 1000000;
-    LDI r6, 0;
-    LDI r10, 1;
+        LDI r5, 1000000;
+        LDI r6, 0;
+        LDI r10, 1;
 
-loop:
-    INC r6;
-    TEST r6, r10;       // Z = (r6 & 1) == 0
-    JZ  even;
-odd:
-    INC r2;
-    JMP next;
-even:
-    INC r3;
-next:
-    DEC r5;
-    TEST r5, r5;
-    JNZ loop;
+    loop:
+        INC r6;
+        TEST r6, r10;       // Z = (r6 & 1) == 0
+        JZ  even;
+    odd:
+        INC r2;
+        JMP next;
+    even:
+        INC r3;
+    next:
+        DEC r5;
+        TEST r5, r5;
+        JNZ loop;
 
-END;
-    }
-    return 0;
-}
-""";
+    END;
+    """;
 
     const string text3m =
-"""
-int main() {
-    asm{
-    LDI r0, 0;
-    LDI r1, 0;
-    LDI r2, 0;
-    LDI r3, 0;
-    LDI r7, 1;
-    LDI r6, 2500000;
+    """
+        LDI r0, 0;
+        LDI r1, 0;
+        LDI r2, 0;
+        LDI r3, 0;
+        LDI r7, 1;
+        LDI r6, 2500000;
 
-loop:
-    ADD r0, r7;
-    SUB r1, r7;      // SUB с вычитанием 1 — уйдёт в минус, но нам важен тайминг
-    AND r2, r7;      // r2 = r2 & 1 (остаётся 0 или 1)
-    OR  r3, r7;      // r3 = r3 | 1 (всегда 1 после первого)
-    DEC r6;
-    TEST r6, r6;
-    JNZ loop;
+    loop:
+        ADD r0, r7;
+        SUB r1, r7;      // SUB с вычитанием 1 — уйдёт в минус, но нам важен тайминг
+        AND r2, r7;      // r2 = r2 & 1 (остаётся 0 или 1)
+        OR  r3, r7;      // r3 = r3 | 1 (всегда 1 после первого)
+        DEC r6;
+        TEST r6, r6;
+        JNZ loop;
 
-    END;
-    }
-    return 0;
-}
-""";
+        END;
+    """;
 
     const string text3m2 =
-"""
-int main() {
-    asm{
-    LDI r0, 0;
-    LDI r1, 0;
-    LDI r2, 0;
-    LDI r3, 0;
-    LDI r7, 1;
-    LDI r6, 2500000;
+    """
+        LDI r0, 0;
+        LDI r1, 0;
+        LDI r2, 0;
+        LDI r3, 0;
+        LDI r7, 1;
+        LDI r6, 2500000;
 
-loop:
-    ADD r0, r7;
-    ADD r1, r7;
-    ADD r2, r7;
-    ADD r3, r7;
-    DEC r6;
-    TEST r6, r6;
-    JNZ loop;
+    loop:
+        ADD r0, r7;
+        ADD r1, r7;
+        ADD r2, r7;
+        ADD r3, r7;
+        DEC r6;
+        TEST r6, r6;
+        JNZ loop;
 
-    END;
-    }
-    return 0;
-}
-""";
+        END;
+    """;
 
 
-    private static readonly int _runs = 30;
-    private static readonly int _runsWarmup = 10;
+    private static readonly int _runs = 3;
+    private static readonly int _runsWarmup = 1;
 
     private static void Main()
     {
@@ -370,7 +311,7 @@ loop:
     };
 
         var sb = new StringBuilder();
-        var runners = cases.Select(c => new BenchRunner(host, deviceId, c, fileService)).ToArray();
+        var runners = cases.Select(c => new BenchRunner(host, deviceId, c)).ToArray();
 
         // Общий план: сколько всего шагов (warm + run) по всем тестам
         int totalSteps = runners.Sum(r => r.Case.WarmupRuns + r.Case.Runs);

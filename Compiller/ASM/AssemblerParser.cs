@@ -235,10 +235,13 @@ public partial class AssemblerParser
 
             // LOAD/STORE: регистр, адрес (константа)
             case "LOAD":
-            case "STORE":
             case "LOAD_UNSAFE":
+                FormatLOAD__STORE(tokens, size, baseMnemonic, isLoad: true);
+                break;
+
+            case "STORE":
             case "STORE_UNSAFE":
-                FormatLOAD__STORE(tokens, size, baseMnemonic);
+                FormatLOAD__STORE(tokens, size, baseMnemonic, isLoad: false);
                 break;
 
             case "LOAD_IND":
@@ -297,18 +300,21 @@ public partial class AssemblerParser
             ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rInd1 = ParseReg(tokens[1]);
         RegType rInd2 = ParseReg(tokens[2]);
-        _asm.EmitInstruction(InstructionEncoder.EncodeRS(opCode.ToUint(), (uint)rInd1, (uint)rInd2, size.ToUint()));
+        _asm.EmitInstruction(InstructionEncoder.Encode(opCode.ToUint(), (uint)rInd1, (uint)rInd2, size.ToUint()));
     }
 
-    private void FormatLOAD__STORE(string[] tokens, OpCodeSize size, string baseMnemonic)
+    private void FormatLOAD__STORE(string[] tokens, OpCodeSize size, string baseMnemonic, bool isLoad)
     {
         if (tokens.Length < 3)
             ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+
         RegType rMem = ParseReg(tokens[1]);
         ulong addr = ParseNumber(tokens[2]);
-        uint encoded = baseMnemonic == "LOAD"
-            ? InstructionEncoder.EncodeLOAD((uint)rMem, size.ToUint())
-            : InstructionEncoder.EncodeSTORE((uint)rMem, size.ToUint());
+
+        uint encoded = isLoad
+            ? InstructionEncoder.EncodeLOAD(rMem.ToUint(), size.ToUint())
+            : InstructionEncoder.EncodeSTORE(rMem.ToUint(), size.ToUint());
+
         _asm.EmitInstruction64(encoded, addr);
     }
 
@@ -386,20 +392,20 @@ public static class AsmLanguageDefinition
     static AsmLanguageDefinition()
     {
         Mnemonics = new HashSet<string>() {
-            "NOP", "END", "RET", "PRINT", "MOV", "ADD", "SUB", "AND", "OR", "XOR",
+            "NOP", "END", "RET", "MOV", "ADD", "SUB", "AND", "OR", "XOR",
             "INC", "DEC", "NOT", "PUSH", "POP",
             "LDI", "LOAD", "STORE",
             "LOAD_UNSAFE", "STORE_UNSAFE", "JMP", "JZ",
             "JNZ", "JG", "JL", "CALL", "LOAD_IND", "STORE_IND","LOAD_IND_UNSAFE", "STORE_IND_UNSAFE",
-            "PRINT_INT", "ALLOC",
-            "IN", "OUT", "INT", "IRET", "SHR", "MULT_INT", "DIV", "HALT", "WAKE", "WAKE_INT",
+            "IN", "OUT", "SHR", "MULT_INT", "DIV", "HALT", "WAKE", "WAKE_INT", "CMP", "TEST",
             "JMP_IND", "CALL_IND"
         }.ToFrozenSet();
 
         Registers = new HashSet<string>() {
-            "rZ", "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
+            "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11", "r12", "r13", "r14", "r15", "r16", "r17", "r18", "r19",
-            "r20", "r21","r22", "r23", "r24", "rCD", "rFL",  "rCL",  "rSP", "rHP", "rIP"
+            "r20", "r21", "r22", "r23", "r24", "r25", "r26", "r27",
+            "rFL", "rSP", "rHP", "rIP"
         }.ToFrozenSet();
 
         _mnemonicsRegex = new(GetMnemonicsPattern(), RegexOptions.IgnoreCase);

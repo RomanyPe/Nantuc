@@ -23,7 +23,7 @@ public enum BiosStatus : byte
 
     NullDeviceOutput,
 
-    InfinityLoopWarning,
+    InfinityLoop,
 
     DivOnZero,
     NotSupportedOpCode,

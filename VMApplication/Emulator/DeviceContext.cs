@@ -5,20 +5,16 @@ using VMApplication.Project;
 
 namespace VMApplication.Emulator;
 
-public class DeviceContext : IDisposable
+public class DeviceContext
 {
     private readonly Device _device;
-    private int _disposed;
-
 
     internal Device UnsafeGetDevice => _device;
-    internal DeviceContext(Device device, string? name = null)
+    internal DeviceContext(Device device)
     {
         _device = device;
-        Name = name;
     }
 
-    public string? Name { get; } 
     public bool IsRunning => _device.IsRunning;
     public long StepCount => _device.StepCount;
     public ulong MaxRamSize => _device.MaxRamSize;
@@ -29,7 +25,7 @@ public class DeviceContext : IDisposable
 
     public void LoadProgram(byte[] program, ulong loadAddress = ProjectBuilder.ZeroAdressProgram)
     {
-        ThrowIfRunning(IsRunning, "Cannot load program while device is running. Call Stop() first.");
+        ThrowIfRunning("Cannot load program while device is running. Call Stop() first.");
         _device.LoadProgram(program, loadAddress);
     }
 
@@ -51,43 +47,45 @@ public class DeviceContext : IDisposable
     }
     public void Run(LaunchOptions? opt = null)
     {
-        ThrowIfRunning(IsRunning);
+        ThrowIfRunning();
 
         opt ??= LaunchOptions.Default;
-        _device.RunSimulation(opt.StartAddress,
-            opt.DelayMs,
+        _device.Run(opt.StartAddress,
             opt.ShowTimer,
             opt.OnLaunch,
-            opt.OnStart,
             opt.OnEnd);
     }
 
-    public void SetStepMode(
-        ulong startAddress = ProjectBuilder.ZeroAdressProgram,
+    public void DebugRun(LaunchOptionsDebug? opt = null)
+    {
+        ThrowIfRunning();
+        opt ??= LaunchOptionsDebug.Default;
+        _device.DebugRun(opt.StartAddress,
+                         opt.StepLimit,
+                         opt.DelayMs,
+                         opt.OnLaunch,
+                         opt.OnStep,
+                         opt.OnEnd);
+
+    }
+
+
+    public void SetStepMode(ulong startAddress = ProjectBuilder.ZeroAdressProgram,
         Action<IDeviceLoggerContext>? titleAct = null)
     {
-        ThrowIfRunning(IsRunning);
+        ThrowIfRunning();
         _device.BreakPointerLaunchDevice(startAddress, titleAct);
     }
 
-    private static void ThrowIfRunning(
-        bool isRunning, 
+    private void ThrowIfRunning(
         string msg = "Cannot launch program while device is running. Call Stop() first.")
     {
-        if (isRunning)
+        if (IsRunning)
             throw new InvalidOperationException(msg);
-
     }
     public void SingleStep() => _device.NextStepProcessor();
     public void MultiStep(int count = 5) => _device.NextStepProcessorCount(count);
 
-    public void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _device.Dispose();
-        GC.SuppressFinalize(this);
-
-    }
     public void ResetMemoryRam() => _device.ResetMemoryRam();
     public byte ReadPort(ulong offset) => _device.ReadPort(offset);
     public void ResetRegisters() => _device.ClearRegisters();

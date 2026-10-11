@@ -41,13 +41,6 @@ public static class InstructionEncoder
     }
 
     /// <summary>
-    /// Кодирует инструкцию формата R (регистр-регистр): ADD, SUB, MOV, AND, OR, XOR
-    /// </summary>
-    public static uint EncodeRS(uint opcode, uint regDst, uint regSrc, uint sizeCode)
-    {
-        return opcode | (regDst << 8) | (regSrc << 13) | (sizeCode << 18);
-    }
-    /// <summary>
     /// Кодирует инструкцию формата I (регистр-константа/адрес): LDI, LOAD, STORE
     /// sizeCode - размер операнда (S8, S16, S32, S64)
     /// Для LDI: sizeCode определяет, сколько байт значащие
@@ -165,12 +158,12 @@ public static class InstructionEncoder
 
     public static uint EncodeLOAD_IND(uint regDst, uint regAddr, uint sizeCode)
     {
-        return EncodeRS(OpCode.LOAD_IND.ToUint(), regDst, regAddr, sizeCode);
+        return Encode(OpCode.LOAD_IND.ToUint(), regDst, regAddr, sizeCode);
     }
 
     public static uint EncodeSTORE_IND(uint regSrc, uint regAddr, uint sizeCode)
     {
-        return EncodeRS(OpCode.STORE_IND.ToUint(), regSrc, regAddr, sizeCode);
+        return Encode(OpCode.STORE_IND.ToUint(), regSrc, regAddr, sizeCode);
     }
 
     public static uint EncodeSHR(uint regDst, uint regSrc) => EncodeR(OpCode.SHR.ToUint(), regDst, regSrc);
@@ -337,6 +330,8 @@ public static class InstructionEncoder
         OpCode.STORE_UNSAFE => "STORE_UNSAFE",
         OpCode.STORE_IND_UNSAFE => "STORE_IND_UNSAFE",
         OpCode.LOAD_IND_UNSAFE => "LOAD_IND_UNSAFE",
+        OpCode.CMP => "CMP",
+        OpCode.TEST => "TEST",
         _ => op.ToUint().ToString()
     };
     

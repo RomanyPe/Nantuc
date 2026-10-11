@@ -21,7 +21,7 @@ public static class VMHostFactory
         var logger = loggerBuilder.Build();
 
         // Создаём проект
-        var res = projectConfig ?? new DefaultProjectFilesConfig();
+        var res = projectConfig ?? IProjectFilesConfig.Default;
 
         var projectBuilder = new VMHostProjectBuilder()
             .WithLogger(logger)

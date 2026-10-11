@@ -6,7 +6,7 @@ using VMApplication.Project;
 
 namespace TestVMSpeed;
 
-public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase, IFileService fileService)
+public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase)
 {
     private readonly VMHost _host = host;
     private readonly int _deviceId = deviceId;
@@ -14,7 +14,6 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase, IFileSe
     private readonly List<double> _mipsLogs = [];
     private readonly List<double> _elapsedSecondsLogs = [];
     private readonly List<long> _stepsLogs = [];
-    private readonly IFileService _fileService = fileService;
 
     public BenchCase Case => _case;
     public IReadOnlyList<double> MipsLogs => _mipsLogs;
@@ -40,9 +39,8 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase, IFileSe
     public bool TryPrepare()
     {
         IsPrepared = false;
-        _fileService.SaveFile($"test.mic", _case.ProgramText);
 
-        var il = _host.Project.CompileToIL(ProjectBuilder.BaseAdressProgram, true);
+        var il = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.ZeroAdressProgram, true, SourceLanguage.Asm);
         var res = _host.Project.Compile(il);
         if (!res.Success)
         {
@@ -58,7 +56,6 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase, IFileSe
             Console.WriteLine($"Ошибка при загрузке программы для метрики блока {_case.Name}");
             Console.WriteLine(errorMath);
             Console.ReadLine();
-            ctx?.Dispose();
             return false;
         }
         GC.Collect(2, GCCollectionMode.Forced, true);
@@ -80,14 +77,9 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase, IFileSe
     public static void Launch(
         List<double> log, List<double> logTime, List<long> logSteps, DeviceContext? launchMode)
     {
-        var opt = new LaunchOptions(ShowTimer: true,OnEnd: GetOnEnd(log, logTime, logSteps));
+        var opt = new LaunchOptions(ShowTimer: true,
+            OnEnd: (ctx, res) => Metric(res!, logTime, log, logSteps));
         launchMode?.Run(opt);
-    }
-    private static Action<IDeviceLoggerContext, ISimulationResult?>?
-        GetOnEnd(List<double> log, List<double> logTime, List<long> logSteps)
-    {
-        return (ctx, res) => Metric(res!, logTime, log, logSteps);
-        
     }
 }
 

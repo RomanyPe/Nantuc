@@ -122,7 +122,7 @@ public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
                 return new AsmInstruction(raw, original.Immediate!.Value);
 
             case OpCode.LOAD_IND_UNSAFE:
-                raw = InstructionEncoder.EncodeRS(
+                raw = InstructionEncoder.Encode(
                     OpCode.LOAD_IND_UNSAFE.ToUint(),
                     original.FirstReg.ToUint(),
                     original.SecondReg.ToUint(),
@@ -130,7 +130,7 @@ public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
                 return new AsmInstruction(raw);
 
             case OpCode.STORE_IND_UNSAFE:
-                raw = InstructionEncoder.EncodeRS(
+                raw = InstructionEncoder.Encode(
                     OpCode.STORE_IND_UNSAFE.ToUint(),
                     original.FirstReg.ToUint(),
                     original.SecondReg.ToUint(),

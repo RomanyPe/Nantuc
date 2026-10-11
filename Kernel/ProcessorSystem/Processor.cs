@@ -1,19 +1,16 @@
-﻿using Kernel.BiosSystem;
-using Kernel.Common;
+﻿using Kernel.Common;
 using Kernel.Contracts;
 using Kernel.ControllersData;
 using Kernel.RamSystem;
 using System.Collections.Concurrent;
-using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
-using System.Text;
 using static Kernel.Common.InstructionDecoder;
 
 namespace Kernel.ProcessorSystem;
 
 public sealed class Processor(MemoryBus ram,
                               PortBus portBus,
-                              IProcessorFaultPolicy? processorFaultPolicy)
+                              IProcessorFaultPolicy processorFaultPolicy)
 {
 
     [InlineArray(CountReg)]
@@ -28,7 +25,7 @@ public sealed class Processor(MemoryBus ram,
 
     private readonly ConcurrentQueue<uint> _externalCommands = new();
     private readonly ConcurrentQueue<BiosStatus> _statusFromSimulation = [];
-    private readonly IProcessorFaultPolicy _processorFaultPolicy = processorFaultPolicy ?? IProcessorFaultPolicy.Default;
+    private readonly IProcessorFaultPolicy _processorFaultPolicy = processorFaultPolicy;
     private readonly MemoryBus _ram = ram;
     private readonly PortBus _portBus = portBus;
 
@@ -124,6 +121,7 @@ public sealed class Processor(MemoryBus ram,
         }
         Volatile.Write(ref _hasSimulationStatus, false);
     }
+
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Step()
@@ -252,13 +250,15 @@ public sealed class Processor(MemoryBus ram,
         return BiosStatus.Success;
     }
 
-
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private BiosStatus SetStatusNotImplementedOpCode(OpCode code)
     {
         _lastFaultData = (ulong)code;
         return BiosStatus.NotImplementedOpCode;
     }
 
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private BiosStatus SetStatusNotSupportedOpCode(OpCode code)
     {
         _lastFaultData = (ulong)code;

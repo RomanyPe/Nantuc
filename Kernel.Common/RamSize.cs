@@ -24,14 +24,17 @@ public readonly struct RamSize : IEquatable<RamSize>, IComparable<RamSize>
     public static RamSize B256 => new(8);
     public static RamSize B512 => new(9);
     public static RamSize KB1 => new(10);
+    public static RamSize KB2 => new(11);
     public static RamSize KB4 => new(12);
     public static RamSize KB8 => new(13);
     public static RamSize KB16 => new(14);
+    public static RamSize KB32 => new(15);
     public static RamSize KB64 => new(16);
     public static RamSize KB128 => new(17);
     public static RamSize KB256 => new(18);
     public static RamSize KB512 => new(19);
     public static RamSize MB1 => new(20);
+    public static RamSize MB2 => new(21);
     public static RamSize MB4 => new(22);
     public static RamSize MB8 => new(23);
     public static RamSize MB16 => new(24);

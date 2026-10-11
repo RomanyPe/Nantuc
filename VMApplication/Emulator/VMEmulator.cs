@@ -39,22 +39,20 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator, VMHostLogger o
                                       string? name = null,
                                       IProcessorFaultPolicy? processorFaultPolicy = null)
     {
-        var ctx = CreateDevice(ramSize, deviceCtx, name, processorFaultPolicy);
-        return AddDevice(ctx, sector);
+        var ctx = CreateDevice(ramSize, name, deviceCtx, processorFaultPolicy);
+        return AddDevice(ctx.UnsafeGetDevice, name, sector);
     }
 
-    public int AddDevice(DeviceContext ctx, uint sector) => AddDevice(ctx.UnsafeGetDevice, ctx.Name, sector);
-
-    public DeviceContext CreateDevice(RamSize? ramSize = null,
-                                      IDeviceLoggerContext? deviceCtx = null,
-                                      string? name = null,
-                                      IProcessorFaultPolicy? processorFaultPolicy = null)
+    private DeviceContext CreateDevice(RamSize? ramSize,
+                                      string? name,
+                                      IDeviceLoggerContext? deviceCtx,
+                                      IProcessorFaultPolicy? processorFaultPolicy)
     {
         ramSize ??= RamSize.MB1;
         deviceCtx ??= _outputView.CreateDefaultLoggerContext(new NameDeviceToken(name));
         processorFaultPolicy ??= IProcessorFaultPolicy.Default;
         var device = _emulator.CreateDevice(ramSize.Value, deviceCtx, processorFaultPolicy);
-        return new DeviceContext(device, name);
+        return new DeviceContext(device);
     }
 
     public bool RemoveDevice(int id) => _emulator.RemoveDevice(id);

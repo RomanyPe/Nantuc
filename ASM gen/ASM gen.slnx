@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/Элементы решения/">
+    <File Path="../API.md" />
     <File Path="../README.md" />
   </Folder>
   <Folder Name="/Элементы решения/includes/">
