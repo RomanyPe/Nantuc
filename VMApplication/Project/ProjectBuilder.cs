@@ -10,7 +10,7 @@ namespace VMApplication.Project;
 
 public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
 {
-    public const int ZeroAdressProgram = 0x0;
+    public const int BaseAddressProgram = 0x00;
 
     private static readonly string[] _defaultAsmExtensions = [".soe", ".asm"];
     private static readonly string[] _defaultMiniCExtensions = [".mic", ".c"];
@@ -121,7 +121,7 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
     private static bool IsAsm(IProjectFilesConfig config, string name)
     {
         var extensions = config.ExtensionsAsm;
-        if (extensions.Length == 0)
+        if (extensions.Count == 0)
             extensions = _defaultAsmExtensions;
 
         return HasExtension(extensions, Path.GetExtension(name));
@@ -130,13 +130,13 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
     private static bool IsMiniC(IProjectFilesConfig config, string name)
     {
         var extensions = config.ExtensionsMiniC;
-        if (extensions.Length == 0)
+        if (extensions.Count == 0)
             extensions = _defaultMiniCExtensions;
 
         return HasExtension(extensions, Path.GetExtension(name));
     }
 
-    private static bool HasExtension(string[] extensions, string fileExt)
+    private static bool HasExtension(IReadOnlyList<string> extensions, string fileExt)
     {
         foreach (var ext in extensions)
         {

@@ -15,12 +15,21 @@ namespace Compiller.ASM;
 /// </summary>
 public static class InstructionEncoder
 {
-    
-    public static uint ToUint(this OpCode c) => (uint)c;
-    
-    public static uint ToUint(this OpCodeSize s) => (uint)s;
-   
-    public static uint ToUint(this RegType reg) => (uint)reg;
+
+    extension(OpCode c)
+    {
+        public uint ToUint() => (uint)c;
+    }
+
+    extension(OpCodeSize s)
+    {
+        public uint ToUint() => (uint)s;
+    }
+
+    extension(RegType reg)
+    {
+        public uint ToUint() => (uint)reg;
+    }
 
     #region Методы кодирования
 
@@ -121,40 +130,42 @@ public static class InstructionEncoder
     /// </summary>
     public static uint EncodeNOP() => OpCode.NOP.ToUint();
 
-    
+
+    extension(BinaryWriter writer)
+    {
     #endregion
 
-    #region Вспомогательные методы для работы с буфером
+        #region Вспомогательные методы для работы с буфером
 
-    /// <summary>
-    /// Записывает инструкцию и выравнивает поток под 8 байт (для последующего 64-битного данного)
-    /// </summary>
-    public static void WriteInstruction(this BinaryWriter writer, uint instruction)
-    {
-        writer.Write(instruction);
-    }
+        /// <summary>
+        /// Записывает инструкцию и выравнивает поток под 8 байт (для последующего 64-битного данного)
+        /// </summary>
+        public void WriteInstruction(uint instruction)
+        {
+            writer.Write(instruction);
+        }
 
-    /// <summary>
-    /// Выравнивает поток до границы 8 байт (для 64-битных операндов)
-    /// </summary>
-    public static void Align8(this BinaryWriter writer)
-    {
-        long pos = writer.BaseStream.Position;
-        long pad = ((pos + 7) & ~7) - pos;
-        if (pad > 0)
-            writer.Write(new byte[pad]);
-    }
+        /// <summary>
+        /// Выравнивает поток до границы 8 байт (для 64-битных операндов)
+        /// </summary>
+        public void Align8()
+        {
+            long pos = writer.BaseStream.Position;
+            long pad = ((pos + 7) & ~7) - pos;
+            if (pad > 0)
+                writer.Write(new byte[pad]);
+        }
 
-    /// <summary>
-    /// Записывает инструкцию + 64-битный операнд (с выравниванием)
-    /// </summary>
-    public static void WriteInstructionWithData64(this BinaryWriter writer, uint instruction, ulong data)
-    {
-        writer.Write(instruction);
-        Align8(writer);
-        writer.Write(data);
+        /// <summary>
+        /// Записывает инструкцию + 64-битный операнд (с выравниванием)
+        /// </summary>
+        public void WriteInstructionWithData64(uint instruction, ulong data)
+        {
+            writer.Write(instruction);
+            Align8(writer);
+            writer.Write(data);
+        }
     }
-    
 
     public static uint EncodeLOAD_IND(uint regDst, uint regAddr, uint sizeCode)
     {
@@ -172,8 +183,8 @@ public static class InstructionEncoder
 
     #region Декодирование (для отладки)
 
-    private static string R1(uint i) => GetReg1(i).Name();
-    private static string R2(uint i) => GetReg2(i).Name();
+    private static string R1(uint i) => GetReg1(i).RegName();
+    private static string R2(uint i) => GetReg2(i).RegName();
     private static string Size(uint i) => GetDataSizeCode(i).SizeName();
 
     /// <summary>
@@ -240,101 +251,108 @@ public static class InstructionEncoder
         };
     }
 
-    
-    public static string SizeName(this OpCodeSize size) => size switch
+
+    extension(OpCodeSize size)
     {
-        OpCodeSize.S8 => "S8",
-        OpCodeSize.S16 => "S16",
-        OpCodeSize.S32 => "S32",
-        OpCodeSize.S64 => "S64",
-        _ => "???"
-    };
-    
-    
-    public static string Name(this RegType r) => r switch
+        public string SizeName() => size switch
+        {
+            OpCodeSize.S8 => "S8",
+            OpCodeSize.S16 => "S16",
+            OpCodeSize.S32 => "S32",
+            OpCodeSize.S64 => "S64",
+            _ => "???"
+        };
+    }
+
+    extension(RegType r)
     {
-        RegType.r0 => "rZ",
-        RegType.r1 => "r0",
-        RegType.r2 => "r1",
-        RegType.r3 => "r2",
-        RegType.r4 => "r3",
-        RegType.r5 => "r4",
-        RegType.r6 => "r5",
-        RegType.r7 => "r6",
-        RegType.r8 => "r7",
-        RegType.r9 => "r8",
-        RegType.r10 => "r9",
-        RegType.r11 => "r10",
-        RegType.r12 => "r11",
-        RegType.r13 => "r12",
-        RegType.r14 => "r13",
-        RegType.r15 => "r14",
-        RegType.r16 => "r15",
-        RegType.r17 => "r16",
-        RegType.r18 => "r17",
-        RegType.r19 => "r18",
-        RegType.r20 => "r19",
-        RegType.r21 => "r20",
-        RegType.r22 => "r21",
-        RegType.r23 => "r22",
-        RegType.r24 => "r23",
-        RegType.r25 => "r24",
-        RegType.r26 => "r26",
-        RegType.rFL => "rFL",
-        RegType.r27 => "r27",
-        RegType.rSP => "rSP",
-        RegType.rHP => "rHP",
-        RegType.rIP => "rIP",
-        _ => "r?"
-    };
-    
-    
-    public static string OpName(this OpCode op) => op switch
+        public string RegName() => r switch
+        {
+            RegType.r0 => "rZ",
+            RegType.r1 => "r0",
+            RegType.r2 => "r1",
+            RegType.r3 => "r2",
+            RegType.r4 => "r3",
+            RegType.r5 => "r4",
+            RegType.r6 => "r5",
+            RegType.r7 => "r6",
+            RegType.r8 => "r7",
+            RegType.r9 => "r8",
+            RegType.r10 => "r9",
+            RegType.r11 => "r10",
+            RegType.r12 => "r11",
+            RegType.r13 => "r12",
+            RegType.r14 => "r13",
+            RegType.r15 => "r14",
+            RegType.r16 => "r15",
+            RegType.r17 => "r16",
+            RegType.r18 => "r17",
+            RegType.r19 => "r18",
+            RegType.r20 => "r19",
+            RegType.r21 => "r20",
+            RegType.r22 => "r21",
+            RegType.r23 => "r22",
+            RegType.r24 => "r23",
+            RegType.r25 => "r24",
+            RegType.r26 => "r26",
+            RegType.rFL => "rFL",
+            RegType.r27 => "r27",
+            RegType.rSP => "rSP",
+            RegType.rHP => "rHP",
+            RegType.rIP => "rIP",
+            _ => "r?"
+        };
+    }
+
+    extension(OpCode op)
     {
-        OpCode.NOP => "NOP",
-        OpCode.END => "END",
-        OpCode.MOV => "MOV",
-        OpCode.LOAD => "LOAD",
-        OpCode.STORE => "STORE",
-        OpCode.LDI => "LDI",
-        OpCode.LOAD_IND => "LOAD_IND",
-        OpCode.STORE_IND => "STORE_IND",
-        OpCode.ADD => "ADD",
-        OpCode.SUB => "SUB",
-        OpCode.MULT_INT => "MULT_INT",
-        OpCode.SHR => "SHR",
-        OpCode.INC => "INC",
-        OpCode.DEC => "DEC",
-        OpCode.DIV => "DIV",
-        OpCode.AND => "AND",
-        OpCode.OR => "OR",
-        OpCode.XOR => "XOR",
-        OpCode.NOT => "NOT",
-        OpCode.JMP => "JMP",
-        OpCode.JZ => "JZ",
-        OpCode.JNZ => "JNZ",
-        OpCode.JG => "JG",
-        OpCode.JL => "JL",
-        OpCode.PUSH => "PUSH",
-        OpCode.POP => "POP",
-        OpCode.CALL => "CALL",
-        OpCode.RET => "RET",
-        OpCode.IN => "IN",
-        OpCode.OUT => "OUT",
-        OpCode.CALL_IND => "CALL_IND",
-        OpCode.JMP_IND => "JMP_INT",
-        OpCode.HALT => "HALT",
-        OpCode.WAKE => "WAKE",
-        OpCode.WAKE_INT => "WAKE_INT",
-        OpCode.LOAD_UNSAFE => "LOAD_UNSAFE",
-        OpCode.STORE_UNSAFE => "STORE_UNSAFE",
-        OpCode.STORE_IND_UNSAFE => "STORE_IND_UNSAFE",
-        OpCode.LOAD_IND_UNSAFE => "LOAD_IND_UNSAFE",
-        OpCode.CMP => "CMP",
-        OpCode.TEST => "TEST",
-        _ => op.ToUint().ToString()
-    };
-    
+        public string OpName() => op switch
+        {
+            OpCode.NOP => "NOP",
+            OpCode.END => "END",
+            OpCode.MOV => "MOV",
+            OpCode.LOAD => "LOAD",
+            OpCode.STORE => "STORE",
+            OpCode.LDI => "LDI",
+            OpCode.LOAD_IND => "LOAD_IND",
+            OpCode.STORE_IND => "STORE_IND",
+            OpCode.ADD => "ADD",
+            OpCode.SUB => "SUB",
+            OpCode.MULT_INT => "MULT_INT",
+            OpCode.SHR => "SHR",
+            OpCode.INC => "INC",
+            OpCode.DEC => "DEC",
+            OpCode.DIV => "DIV",
+            OpCode.AND => "AND",
+            OpCode.OR => "OR",
+            OpCode.XOR => "XOR",
+            OpCode.NOT => "NOT",
+            OpCode.JMP => "JMP",
+            OpCode.JZ => "JZ",
+            OpCode.JNZ => "JNZ",
+            OpCode.JG => "JG",
+            OpCode.JL => "JL",
+            OpCode.PUSH => "PUSH",
+            OpCode.POP => "POP",
+            OpCode.CALL => "CALL",
+            OpCode.RET => "RET",
+            OpCode.IN => "IN",
+            OpCode.OUT => "OUT",
+            OpCode.CALL_IND => "CALL_IND",
+            OpCode.JMP_IND => "JMP_INT",
+            OpCode.HALT => "HALT",
+            OpCode.WAKE => "WAKE",
+            OpCode.WAKE_INT => "WAKE_INT",
+            OpCode.LOAD_UNSAFE => "LOAD_UNSAFE",
+            OpCode.STORE_UNSAFE => "STORE_UNSAFE",
+            OpCode.STORE_IND_UNSAFE => "STORE_IND_UNSAFE",
+            OpCode.LOAD_IND_UNSAFE => "LOAD_IND_UNSAFE",
+            OpCode.CMP => "CMP",
+            OpCode.TEST => "TEST",
+            _ => op.ToUint().ToString()
+        };
+    }
+
     #endregion
 
 }

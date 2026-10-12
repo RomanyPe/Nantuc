@@ -23,7 +23,7 @@ public class DeviceContext
 
     public void Stop() => _device.Stop();
 
-    public void LoadProgram(byte[] program, ulong loadAddress = ProjectBuilder.ZeroAdressProgram)
+    public void LoadProgram(byte[] program, ulong loadAddress = ProjectBuilder.BaseAddressProgram)
     {
         ThrowIfRunning("Cannot load program while device is running. Call Stop() first.");
         _device.LoadProgram(program, loadAddress);
@@ -70,11 +70,11 @@ public class DeviceContext
     }
 
 
-    public void SetStepMode(ulong startAddress = ProjectBuilder.ZeroAdressProgram,
-        Action<IDeviceLoggerContext>? titleAct = null)
+    public void SetStepMode(ulong startAddress = ProjectBuilder.BaseAddressProgram,
+        Action<IDeviceLoggerContext>? onLaunch = null)
     {
         ThrowIfRunning();
-        _device.BreakPointerLaunchDevice(startAddress, titleAct);
+        _device.BreakPointerLaunchDevice(startAddress, onLaunch);
     }
 
     private void ThrowIfRunning(
@@ -91,4 +91,15 @@ public class DeviceContext
     public void ResetRegisters() => _device.ClearRegisters();
     public void CopyRegisters(Span<ulong> destination) => _device.CopyRegisters(destination);
     public ulong[]? GetRegistersSnapshot() => _device.GetRegistersSnapshot();
+}
+
+
+public static class UnsafeKernel
+{
+    // Позволяет получить "кишки" контекста в явном unsafe-стиле
+    public static Device GetDevice(DeviceContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return context.UnsafeGetDevice;
+    }
 }

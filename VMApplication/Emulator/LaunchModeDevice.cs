@@ -1,22 +1,23 @@
-﻿using Kernel.BiosSystem;
-using Kernel.Contracts;
+﻿using Kernel.Contracts;
 using VMApplication.Project;
 
 namespace VMApplication.Emulator;
 
-public record class LaunchOptions(ulong StartAddress = ProjectBuilder.ZeroAdressProgram,
-                             bool ShowTimer = false,
-                             Action<IDeviceLoggerContext>? OnLaunch = null,
-                             Action<IDeviceLoggerContext, ISimulationResult?>? OnEnd = null)
+public record class LaunchOptions(ulong StartAddress,
+                             bool ShowTimer,
+                             Action<IDeviceLoggerContext>? OnLaunch,
+                             Action<IDeviceLoggerContext, ISimulationResult?>? OnEnd)
 { 
-    public static LaunchOptions Default { get; } = new();
+    public static LaunchOptions Default { get; } = new(ProjectBuilder.BaseAddressProgram, false, null, null);
 }
-public record class LaunchOptionsDebug(ulong StartAddress = ProjectBuilder.ZeroAdressProgram,
-                             int DelayMs = 0,
-                             long StepLimit = long.MaxValue,
-                             Action<IDeviceLoggerContext>? OnLaunch = null,
-                             Action<IProcessorReader>? OnStep = null,
-                             Action<IDeviceLoggerContext>? OnEnd = null)
+
+
+public record class LaunchOptionsDebug(ulong StartAddress,
+                             int DelayMs,
+                             long StepLimit,
+                             Action<IDeviceLoggerContext>? OnLaunch,
+                             Action<IProcessorReader>? OnStep,
+                             Action<IDeviceLoggerContext>? OnEnd)
 { 
-    public static LaunchOptionsDebug Default { get; } = new();
+    public static LaunchOptionsDebug Default { get; } = new(ProjectBuilder.BaseAddressProgram, 0, long.MaxValue, null, null, null);
 }

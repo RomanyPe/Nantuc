@@ -17,22 +17,14 @@ public static partial class MiniCLanguageDefinition
     static MiniCLanguageDefinition()
     {
         // Ключевые слова (регистрозависимы, как в C)
-        Keywords = FrozenSet.ToFrozenSet(
-        [
-            "int", "char", "void", "if", "else", "while", "for", "return",
-            "break", "struct", "byte", "ushort", "ulong", "new", "asm", "extern"
-        ]);
+        Keywords = ["int", "char", "void", "if", "else", "while", "for", "return",
+            "break", "struct", "byte", "ushort", "ulong", "new", "asm", "extern"];
 
         // Операторы (одиночные символы)
-        Operators = FrozenSet.ToFrozenSet(
-        [
-            '+', '-', '*', '/', '%', '=', '!', '<', '>', '&', '|', '^', '~', '#'
-        ]);
+        Operators = ['+', '-', '*', '/', '%', '=', '!', '<', '>', '&', '|', '^', '~', '#'];
 
         // Знаки пунктуации
-        Punctuation = FrozenSet.ToFrozenSet(
-            ['(', ')', '{', '}', '[', ']', ';', ',', '.', ':']
-        );
+        Punctuation = ['(', ')', '{', '}', '[', ']', ';', ',', '.', ':'];
 
         // Построение регулярных выражений после инициализации коллекций
         _keywordRegex = new(GetKeywordPattern(), RegexOptions.Compiled);

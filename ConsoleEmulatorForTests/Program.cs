@@ -22,7 +22,7 @@ const string source =
 using var host = VMHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicy(Console.Out);
 
-var deviceId = host.Emulator.CreateAndAddDevice(
+int deviceId = host.Emulator.CreateAndAddDevice(
     ramSize: RamSize.MB128,
     sector: 0,
     processorFaultPolicy: lfPolicy,
@@ -33,8 +33,8 @@ var device = host.Emulator.GetDeviceContext(deviceId)!;
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 host.Emulator.AddDevice(iostream, "console", 1);
 
-var resIl = host.Project.Compiler.CompileToIL(source, 0, true, SourceLanguage.Asm);
-var resCompile = host.Project.Compiler.Compile(resIl);
+CompilationToILResult resIl = host.Project.Compiler.CompileToIL(source, 0, true, SourceLanguage.Asm);
+CompilationResult resCompile = host.Project.Compiler.Compile(resIl);
 
 if (!resCompile.Success)
 {

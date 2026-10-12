@@ -69,37 +69,37 @@ public static class InstructionDecoder
 
 public static class AlignmentExtensions
 {
-    /// <summary>
-    /// Выравнивает значение вверх до ближайшего числа, кратного alignment.
-    /// alignment должно быть степенью двойки (1, 2, 4, 8, ...).
-    /// </summary>
-    public static T AlignUp<T>(this T value, T alignment)
-        where T : IBinaryInteger<T>
+    extension<T>(T value) where T : IBinaryInteger<T>
     {
-        IsOutOfRangeException(alignment);
-        return (value + (alignment - T.One)) & ~(alignment - T.One);
-    }
+        /// <summary>
+        /// Выравнивает значение вверх до ближайшего числа, кратного alignment.
+        /// alignment должно быть степенью двойки (1, 2, 4, 8, ...).
+        /// </summary>
+        public T AlignUp(T alignment)
+        {
+            IsOutOfRangeException(alignment);
+            return (value + (alignment - T.One)) & ~(alignment - T.One);
+        }
 
-    /// <summary>
-    /// Выравнивает значение вниз до ближайшего числа, кратного alignment.
-    /// alignment должно быть степенью двойки (1, 2, 4, 8, ...).
-    /// </summary>
-    public static T AlignDown<T>(this T value, T alignment)
-        where T : IBinaryInteger<T>
-    {
-        IsOutOfRangeException(alignment);
-        return value & ~(alignment - T.One);
-    }
+        /// <summary>
+        /// Выравнивает значение вниз до ближайшего числа, кратного alignment.
+        /// alignment должно быть степенью двойки (1, 2, 4, 8, ...).
+        /// </summary>
+        public T AlignDown(T alignment)
+        {
+            IsOutOfRangeException(alignment);
+            return value & ~(alignment - T.One);
+        }
 
-    public static T AlignUpArithmetic<T>(this T value, T alignment)
-        where T : IBinaryInteger<T>
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(alignment, T.Zero);
+        public T AlignUpArithmetic(T alignment)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(alignment, T.Zero);
 
-        T remainder = value % alignment;
-        if (remainder == T.Zero)
-            return value;
-        return value + (alignment - remainder);
+            T remainder = value % alignment;
+            if (remainder == T.Zero)
+                return value;
+            return value + (alignment - remainder);
+        }
     }
 
     [Conditional("DEBUG")]

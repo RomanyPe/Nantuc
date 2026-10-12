@@ -40,7 +40,7 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase)
     {
         IsPrepared = false;
 
-        var il = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.ZeroAdressProgram, true, SourceLanguage.Asm);
+        var il = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.Asm);
         var res = _host.Project.Compile(il);
         if (!res.Success)
         {
