@@ -61,10 +61,11 @@ public static class InstructionDecoder
         return [.. table];
     }
 
-    
-    public static int IndexReg(this RegType reg) => (int)reg;
-    public static int Int(this RegType reg) => (int)reg;
-    
+
+    extension(RegType reg)
+    {
+        public int Int() => (int)reg;
+    }
 }
 
 public static class AlignmentExtensions

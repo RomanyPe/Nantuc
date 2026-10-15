@@ -21,12 +21,12 @@ public static class VMHostFactory
         var logger = loggerBuilder.Build();
 
         // Создаём проект
-        var res = projectConfig ?? IProjectFilesConfig.Default;
+        projectConfig ??= IProjectFilesConfig.Default;
 
         var projectBuilder = new VMHostProjectBuilder()
             .WithLogger(logger)
-            .WithPaths(res)
-            .WithFileService(fileService ?? new DefaultFileService(res.ProjectPath));
+            .WithPaths(projectConfig)
+            .WithFileService(fileService ?? new DefaultFileService(projectConfig.ProjectPath));
         var project = projectBuilder.Build();
 
         // Создаём эмулятор

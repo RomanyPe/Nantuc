@@ -1,5 +1,4 @@
 ﻿using Kernel.Common;
-using Kernel.Contracts;
 
 namespace VMApplication.Logger;
 

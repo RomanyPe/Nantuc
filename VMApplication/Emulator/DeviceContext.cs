@@ -92,14 +92,3 @@ public class DeviceContext
     public void CopyRegisters(Span<ulong> destination) => _device.CopyRegisters(destination);
     public ulong[]? GetRegistersSnapshot() => _device.GetRegistersSnapshot();
 }
-
-
-public static class UnsafeKernel
-{
-    // Позволяет получить "кишки" контекста в явном unsafe-стиле
-    public static Device GetDevice(DeviceContext context)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        return context.UnsafeGetDevice;
-    }
-}

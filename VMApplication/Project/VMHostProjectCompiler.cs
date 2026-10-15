@@ -163,7 +163,7 @@ public sealed class VMHostProjectCompiler(
 
     public CompilationToILResult CompileToIL(IEnumerable<string> sources, ulong baseAddress, bool optimize, SourceLanguage language = SourceLanguage.C)
         => CompileToIL(
-            sources.Select((s, i) => new SourceFile($"source{i}", s, language)),
+            sources.Select((s, i) => new SourceFile($"source_{i}", s, language)),
             baseAddress,
             optimize);
 
