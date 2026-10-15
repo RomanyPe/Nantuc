@@ -18,7 +18,7 @@ public class VMHostProjectBuilder
         _projectPaths = paths;
         return this;
     }
-    public VMHostProjectBuilder WithFileSevice(IFileService proj)
+    public VMHostProjectBuilder WithFileService(IFileService proj)
     {
         _fileService = proj;
         return this;

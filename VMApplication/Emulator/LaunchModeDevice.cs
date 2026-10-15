@@ -3,21 +3,21 @@ using VMApplication.Project;
 
 namespace VMApplication.Emulator;
 
-public record class LaunchOptions(ulong StartAddress,
-                             bool ShowTimer,
-                             Action<IDeviceLoggerContext>? OnLaunch,
-                             Action<IDeviceLoggerContext, ISimulationResult?>? OnEnd)
+public record class LaunchOptions(ulong StartAddress = ProjectBuilder.BaseAddressProgram,
+                             bool ShowTimer = false,
+                             Action<IDeviceLoggerContext>? OnLaunch = null,
+                             Action<IDeviceLoggerContext, ISimulationResult?>? OnEnd = null)
 { 
-    public static LaunchOptions Default { get; } = new(ProjectBuilder.BaseAddressProgram, false, null, null);
+    public static LaunchOptions Default { get; } = new();
 }
 
 
-public record class LaunchOptionsDebug(ulong StartAddress,
-                             int DelayMs,
-                             long StepLimit,
-                             Action<IDeviceLoggerContext>? OnLaunch,
-                             Action<IProcessorReader>? OnStep,
-                             Action<IDeviceLoggerContext>? OnEnd)
+public record class LaunchOptionsDebug(ulong StartAddress = ProjectBuilder.BaseAddressProgram,
+                             int DelayMs = 0,
+                             long StepLimit = long.MaxValue,
+                             Action<IDeviceLoggerContext>? OnLaunch = null,
+                             Action<IProcessorReader>? OnStep = null,
+                             Action<IDeviceLoggerContext>? OnEnd = null)
 { 
-    public static LaunchOptionsDebug Default { get; } = new(ProjectBuilder.BaseAddressProgram, 0, long.MaxValue, null, null, null);
+    public static LaunchOptionsDebug Default { get; } = new();
 }

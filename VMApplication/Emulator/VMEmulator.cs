@@ -26,11 +26,11 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator, VMHostLogger o
         => [.. _emulator.AllDeviceInfo];
 
 
-    public int AddDevice(IPortController device,
+    public int AddDevice(IPortController ioDevice,
         string? name,
         uint sector)
     {
-        return _emulator.AddDevice(device, name, sector);
+        return _emulator.AddDevice(ioDevice, name, sector);
     }
     
     public int CreateAndAddDevice(RamSize ramSize,

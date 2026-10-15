@@ -1,5 +1,4 @@
 ﻿using Kernel.Common;
-using System.Runtime.CompilerServices;
 using static Kernel.Common.InstructionDecoder;
 
 namespace Compiller.ASM;
@@ -11,26 +10,10 @@ namespace Compiller.ASM;
 ///   Bits 8-12:  Reg1 (целевой/основной регистр)
 ///   Bits 13-17: Reg2 (второй регистр-источник)
 ///   Bits 18-19: OpCodeSize (размер данных: 0=S8, 1=S16, 2=S32, 3=S64)
-///   Bits 20-31: Зарезервированы
+///   Bits 20-31: Не используется
 /// </summary>
 public static class InstructionEncoder
 {
-
-    extension(OpCode c)
-    {
-        public uint ToUint() => (uint)c;
-    }
-
-    extension(OpCodeSize s)
-    {
-        public uint ToUint() => (uint)s;
-    }
-
-    extension(RegType reg)
-    {
-        public uint ToUint() => (uint)reg;
-    }
-
     #region Методы кодирования
 
     /// <summary>
@@ -201,8 +184,7 @@ public static class InstructionEncoder
             OpCode.END or 
             OpCode.HALT or 
             OpCode.WAKE or 
-            OpCode.RET or 
-            OpCode.JMP_IND
+            OpCode.RET
                 => op,
 
             OpCode.WAKE_INT or
@@ -211,7 +193,8 @@ public static class InstructionEncoder
             OpCode.NOT or 
             OpCode.PUSH or 
             OpCode.POP or 
-            OpCode.CALL_IND
+            OpCode.CALL_IND or
+            OpCode.JMP_IND
                 => $"{op} {R1(instruction)}",
 
             OpCode.MOV or 
@@ -254,6 +237,7 @@ public static class InstructionEncoder
 
     extension(OpCodeSize size)
     {
+        public uint ToUint() => (uint)size;
         public string SizeName() => size switch
         {
             OpCodeSize.S8 => "S8",
@@ -266,6 +250,8 @@ public static class InstructionEncoder
 
     extension(RegType r)
     {
+        public uint ToUint() => (uint)r;
+
         public string RegName() => r switch
         {
             RegType.r0 => "rZ",
@@ -306,6 +292,8 @@ public static class InstructionEncoder
 
     extension(OpCode op)
     {
+        public uint ToUint() => (uint)op;
+
         public string OpName() => op switch
         {
             OpCode.NOP => "NOP",

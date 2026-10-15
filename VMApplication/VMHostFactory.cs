@@ -26,7 +26,7 @@ public static class VMHostFactory
         var projectBuilder = new VMHostProjectBuilder()
             .WithLogger(logger)
             .WithPaths(res)
-            .WithFileSevice(fileService ?? new DefaultFileService(res.ProjectPath));
+            .WithFileService(fileService ?? new DefaultFileService(res.ProjectPath));
         var project = projectBuilder.Build();
 
         // Создаём эмулятор

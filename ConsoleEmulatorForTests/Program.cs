@@ -29,11 +29,20 @@ int deviceId = host.Emulator.CreateAndAddDevice(
     name: "ConsoleVM"
 );
 
-var device = host.Emulator.GetDeviceContext(deviceId)!;
+var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
-host.Emulator.AddDevice(iostream, "console", 1);
 
-CompilationToILResult resIl = host.Project.Compiler.CompileToIL(source, 0, true, SourceLanguage.Asm);
+host.Emulator.AddDevice(
+    ioDevice: iostream,
+    name: "console",
+    sector: 1);
+
+CompilationToILResult resIl = host.Project.Compiler.CompileToIL(
+    source: source,
+    baseAddress: 0,
+    optimize: true,
+    SourceLanguage.Asm);
+
 CompilationResult resCompile = host.Project.Compiler.Compile(resIl);
 
 if (!resCompile.Success)
@@ -43,9 +52,9 @@ if (!resCompile.Success)
     return;
 }
 
-if (!device.TryFastLoadProgram(resCompile.Program, 0, out var error))
+if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
 {
-    Console.WriteLine(error!);
+    Console.WriteLine(error);
     return;
 }
-device.Run();
+deviceCtx.Run();

@@ -32,6 +32,7 @@ public class MemoryBus(RamSize size) : IDisposable
     {
         _memory.LoadProgram(prog, startAdresProg);
     }
+
     /// <summary>
     /// Метод для чтения 8 битового целого числа (Int8)
     /// </summary>
