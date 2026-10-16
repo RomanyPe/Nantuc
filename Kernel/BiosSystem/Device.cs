@@ -30,7 +30,7 @@ public sealed class Device : IPortController
     public INativeReadOnlyBuffer NativeReadOnlyBuffer => _ram.NativeReadOnlyBuffer;
     public bool IsRunning => _processor.IsRunning;
     public ulong MaxRamSize => _ram.Length;
-    public long StepCount => _processor.IsRunning ? -1 : stepCounter;
+    public long StepCount => stepCounter;
 
     public Device(PortBus portBus, RamSize size, IDeviceLoggerContext deviceCtx, IProcessorFaultPolicy? processorFaultPolicy)
     {
@@ -186,7 +186,7 @@ public sealed class Device : IPortController
             {
                 stepCounter++;
             }
-            if (stepCounter > stepLimit)
+            if (stepCounter >= stepLimit)
             {
                 _processorFaultPolicy.ShouldContinue(new(BiosStatus.InfinityLoop, (ulong)stepCounter, _processor.GetRegValue(RegType.rIP), (OpCode)255));
                 break;
@@ -223,7 +223,7 @@ public sealed class Device : IPortController
         _processor.EnqueueExternalCommand(instruction);
         _wakeSignal.Set();
     }
-    public void NextStepProcessor(Action<IProcessorReader>? OnStep = null)
+    public void NextStepProcessor(Action<IProcessorReader>? OnStep)
     {
         if (!_processor.IsRunning) return;
 
@@ -235,7 +235,7 @@ public sealed class Device : IPortController
         }
     }
 
-    public void NextStepProcessorCount(int count = 5, Action<IProcessorReader>? OnStep = null)
+    public void NextStepProcessorCount(int count, Action<IProcessorReader>? OnStep)
     {
         if (!_processor.IsRunning) return;
         bool needLog = OnStep != null;

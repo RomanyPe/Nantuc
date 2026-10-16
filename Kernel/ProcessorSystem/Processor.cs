@@ -137,8 +137,10 @@ public sealed class Processor(MemoryBus ram,
 
             _hasCommand = false;
 
-            if (!_isRunning | _isSleeping) return;
         }
+
+        if (!_isRunning | _isSleeping) return;
+
 
         ulong ip = _registers[RegType.rIP.Int()];        
 

@@ -19,4 +19,5 @@
   <Project Path="../TestVMSpeed/TestVMSpeed.csproj" Id="ca2eb761-5c06-4622-8663-b639d3da1812" />
   <Project Path="../VMApplication/VMApplication.csproj" />
   <Project Path="Kernel.Contracts/Kernel.Contracts.csproj" Id="3b7898ca-010b-4d99-9da1-81a6b1740138" />
+  <Project Path="VMApplication.Tests/VMApplication.Tests.csproj" Id="fa42793f-01b9-4025-87d5-a624d0a0e1f8" />
 </Solution>
