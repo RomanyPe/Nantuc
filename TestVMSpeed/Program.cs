@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text;
 using VMApplication;
 using VMApplication.Default;
+using VMApplication.Emulator;
 
 namespace TestVMSpeed;
 
@@ -285,30 +286,30 @@ internal class Program
     {
         BenchmarkOptimizer.OptimizeCurrentProcess();
         FileService fileService = new();
-        ConsoleOutputView console = new();
 
-        using var host = VMHostFactory.CreateDefault(fileService: fileService, outputView: console);
-        int deviceId = host.Emulator.CreateAndAddDevice(
-            ramSize: RamSize.MB64,
-            sector: 0,
-            name: "ConsoleVM"
+        using var host = VMHostFactory.CreateDefault(fileService: fileService);
+
+        DeviceHandle deviceHandle = host.Emulator.NewDevice(ramSize: RamSize.MB64, name: "ConsoleVM");
+        int deviceId = host.Emulator.RegisterDevice(
+            handle: deviceHandle,
+            sector: 0
         );
 
         var cases = new[]
         {
-        new BenchCase("Memory",       text4,  Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("MemoryUnsafe", text4u, Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("Math",         text2,  Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("AluTput1",     text3,  Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("AluTput4",     text3a, Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("AluTputM1",    text3m, Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("AluTputM2",    text3m2,Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("Call",         text1,  Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("PushPop",      text5,  Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("BitOps",       text6,  Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("Mul",          text7,  Runs: _runs, WarmupRuns: _runsWarmup),
-        new BenchCase("Branch",       text8,  Runs: _runs, WarmupRuns: _runsWarmup),
-    };
+            new BenchCase("Memory",       text4,  Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("MemoryUnsafe", text4u, Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Math",         text2,  Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("AluTput1",     text3,  Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("AluTput4",     text3a, Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("AluTputM1",    text3m, Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("AluTputM2",    text3m2,Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Call",         text1,  Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("PushPop",      text5,  Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("BitOps",       text6,  Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Mul",          text7,  Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Branch",       text8,  Runs: _runs, WarmupRuns: _runsWarmup),
+        };
 
         var sb = new StringBuilder();
         var runners = cases.Select(c => new BenchRunner(host, deviceId, c)).ToArray();

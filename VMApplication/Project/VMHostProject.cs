@@ -1,24 +1,40 @@
 ﻿using Compiller.ASM.Optimizators;
-using VMApplication.Logger;
 
 namespace VMApplication.Project;
 
 public readonly struct CompilationToILResult
 {
     internal readonly IRAssembler? Assembler;
+    public IReadOnlyList<string>? Errors { get; }
     internal OptimizationResultLog? OptimizationResultLog { get; }
-    internal CompilationToILResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog)
+    internal CompilationToILResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors = null)
     {
         Assembler = assembler;
         OptimizationResultLog = optimizationResultLog;
+        Errors = errors;
+    }
+
+    public CompilationResult Build()
+    {
+        try
+        {
+            var asm = Assembler;
+            return asm != null
+                ? new CompilationResult(asm.Build(), asm.BaseAddress, null, OptimizationResultLog)
+                : new CompilationResult(null, 0, Errors, null);
+        }
+        catch (Exception ex)
+        {
+            return new CompilationResult(null, 0, [ex.Message], null);
+        }
     }
 }
 
-public sealed class VMHostProject(IProjectFilesConfig paths, VMHostLogger logger, IFileService fileService)
+public sealed class VMHostProject(IProjectFilesConfig paths, IFileService fileService)
 {
     private readonly IProjectFilesConfig _projectPaths = paths;
     private readonly IFileService _fileService = fileService;
-    private readonly VMHostProjectCompiler _compiler = new(paths, logger, fileService);
+    private readonly VMHostProjectCompiler _compiler = new(paths, fileService);
     public VMHostProjectCompiler Compiler => _compiler;
 
     public string IncludePath => _projectPaths.IncludePath;
@@ -30,8 +46,6 @@ public sealed class VMHostProject(IProjectFilesConfig paths, VMHostLogger logger
            => _compiler.CompileToIL(baseAddress, optimize);
     public CompilationResult Compile(ulong baseAddress, bool optimize)
         => _compiler.Compile(baseAddress, optimize);
-    public CompilationResult Compile(CompilationToILResult res)
-        => _compiler.Compile(res);
     public CompilationResult Compile(CompilationToILResult res, int peepholeOptimizationCount)
         => _compiler.Compile(res, peepholeOptimizationCount);
     public CompilationToILResult CompileToIL(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize)

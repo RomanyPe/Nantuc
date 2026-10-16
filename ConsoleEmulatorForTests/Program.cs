@@ -6,44 +6,39 @@ using VMApplication.Project;
 
 const string source =
     """
-    main:
-        LDI  r1, 0x41          // r1 = данные ('A')
-        LDI  r2, 0x10          // r2 = адрес порта Data
-        OUT  r1, r2            // OUT regSrc=r1, regPort=r2
+    LDI  r1, 0x41          // r1 = данные ('A')
+    LDI  r2, 0x10          // r2 = адрес порта Data
+    OUT  r1, r2            // OUT regSrc=r1, regPort=r2
 
-        LDI  r1, 1             // данные для Flush
-        LDI  r2, 0x12          // адрес порта Flush
-        OUT  r1, r2
+    LDI  r1, 1             // данные для Flush
+    LDI  r2, 0x12          // адрес порта Flush
+    OUT  r1, r2
 
-        END
+    END
     """;
 
 
 using var host = VMHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicy(Console.Out);
 
-int deviceId = host.Emulator.CreateAndAddDevice(
+var handle = host.Emulator.NewDevice(
     ramSize: RamSize.MB128,
-    sector: 0,
     processorFaultPolicy: lfPolicy,
     name: "ConsoleVM"
 );
 
-var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 
-host.Emulator.AddDevice(
-    ioDevice: iostream,
-    name: "console",
-    sector: 1);
+var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
+host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
 
-CompilationToILResult resIl = host.Project.Compiler.CompileToIL(
+var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
+var resCompile = host.Project.Compiler.CompileToIL(
     source: source,
-    baseAddress: 0,
+    baseAddress: 0,  
     optimize: true,
-    SourceLanguage.Asm);
+    SourceLanguage.Asm).Build();
 
-CompilationResult resCompile = host.Project.Compiler.Compile(resIl);
 
 if (!resCompile.Success)
 {

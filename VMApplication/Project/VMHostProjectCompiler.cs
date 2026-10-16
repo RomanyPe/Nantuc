@@ -1,20 +1,16 @@
 ﻿using Compiller.ASM;
 using Compiller.ASM.Optimizators;
 using Compiller.C;
-using Kernel.Common;
 using System.Data;
 using System.Text.RegularExpressions;
-using VMApplication.Logger;
 
 namespace VMApplication.Project;
 
 public sealed class VMHostProjectCompiler(
     IProjectFilesConfig paths,
-    VMHostLogger logger,
     IFileService fileService)
 {
     private readonly VMCompilerOptimizator _optimizator = new();
-    private readonly VMHostLogger _logger = logger;
     private readonly ProjectBuilder _projectBuilder = new(fileService, paths);
 
     public static Regex AsmMnemonics => AsmLanguageDefinition.GetMnemonicRegex();
@@ -45,8 +41,7 @@ public sealed class VMHostProjectCompiler(
         }
         catch (Exception ex)
         {
-            _logger.AppendLine(ex.Message, LogLevel.Error);
-            return new CompilationToILResult(null, null);
+            return new CompilationToILResult(null, null, [ex.Message]);
         }
     }
 
@@ -72,23 +67,6 @@ public sealed class VMHostProjectCompiler(
         }
         catch (Exception ex)
         {
-            _logger.AppendLine(ex.Message, LogLevel.Error);
-            return new CompilationResult(null, 0, [ex.Message], null);
-        }
-    }
-
-    public CompilationResult Compile(CompilationToILResult res)
-    {
-        try
-        {
-            var asm = res.Assembler;
-            return asm != null
-                ? new CompilationResult(asm.Build(), asm.BaseAddress, null, res.OptimizationResultLog)
-                : new CompilationResult(null, 0, ["Unkown error, assembler is null"], null);
-        }
-        catch (Exception ex)
-        {
-            _logger.AppendLine(ex.Message, LogLevel.Error);
             return new CompilationResult(null, 0, [ex.Message], null);
         }
     }
@@ -115,7 +93,6 @@ public sealed class VMHostProjectCompiler(
         }
         catch (Exception ex)
         {
-            _logger.AppendLine(ex.Message, LogLevel.Error);
             return new CompilationResult(null, 0, [ex.Message], null);
         }
     }
@@ -132,9 +109,8 @@ public sealed class VMHostProjectCompiler(
 
             return new CompilationToILResult(assembler, res);
         }
-        catch (Exception ex)
+        catch
         {
-            _logger.AppendLine(ex.Message, LogLevel.Error);
             return new CompilationToILResult(null, null);
         }
     }
@@ -153,7 +129,6 @@ public sealed class VMHostProjectCompiler(
         }
         catch (Exception ex)
         {
-            _logger.AppendLine(ex.Message, LogLevel.Error);
             return new CompilationResult(null, 0, [ex.Message], null);
         }
     }

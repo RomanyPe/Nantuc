@@ -29,8 +29,7 @@ public static class VMHostRunExtensions
             string deviceName = "run")
         {
             ram ??= RamSize.MB16;
-            var il = host.Project.CompileToIL(source, 0, optimize, lang);
-            var comp = host.Project.Compile(il);
+            var comp = host.Project.CompileToIL(source, 0, optimize, lang).Build();
 
             if (!comp.Success)
                 return new(null, null, comp, 0, false, comp.Errors ?? []);
