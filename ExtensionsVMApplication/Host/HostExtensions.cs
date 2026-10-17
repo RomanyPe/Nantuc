@@ -1,4 +1,6 @@
 ﻿using Kernel.Common;
+using Kernel.Contracts;
+using System.Xml.Linq;
 using VMApplication;
 using VMApplication.Emulator;
 using VMApplication.Project;
@@ -35,7 +37,8 @@ public static class VMHostRunExtensions
                 return new(null, null, comp, 0, false, comp.Errors ?? []);
             // device пока не создавали — возвращать нечего
 
-            int id = host.Emulator.CreateAndAddDevice(ram.Value, sector: 0, name: deviceName);
+            var spec = DeviceSpec.Create(ram, name: deviceName);
+            int id = host.Emulator.RegisterDevice(spec, 0);
             var ctx = host.Emulator.GetDeviceContext(id)!;
 
             if (!ctx.TryFastLoadProgram(comp.Program!, 0, out var err))

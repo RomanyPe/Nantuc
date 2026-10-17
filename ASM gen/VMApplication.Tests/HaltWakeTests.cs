@@ -41,10 +41,11 @@ public class HaltWakeTests
     {
         using var host = VMHostFactory.CreateDefault();
         var faultPolicy = new CapturingFaultPolicy();
-        var handle = host.Emulator.NewDevice(
+        var handle = DeviceSpec.Create(
             RamSize.MB16,
             processorFaultPolicy: faultPolicy,
             name: "cpu");
+
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
@@ -113,7 +114,7 @@ public class HaltWakeTests
     {
         using var host = VMHostFactory.CreateDefault();
         var faultPolicy = new CapturingFaultPolicy();
-        var handle = host.Emulator.NewDevice(
+        var handle = DeviceSpec.Create(
             RamSize.MB16,
             processorFaultPolicy: faultPolicy,
             name: "cpu");
@@ -148,7 +149,7 @@ public class HaltWakeTests
         var wakeable = new FakeWakingDevice();
         host.Emulator.RegisterDevice(wakeable, name: "wakeable", sector: 1);
 
-        var handle = host.Emulator.NewDevice(RamSize.MB16, name: "cpu");
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "cpu");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
@@ -177,7 +178,7 @@ public class HaltWakeTests
         var wakeable = new FakeWakingDevice();
         host.Emulator.RegisterDevice(wakeable, name: "wakeable", sector: 2); // base = 0x20
 
-        var handle = host.Emulator.NewDevice(RamSize.MB16, name: "cpu");
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "cpu");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
@@ -208,7 +209,7 @@ public class HaltWakeTests
     {
         using var host = VMHostFactory.CreateDefault();
         var faultPolicy = new CapturingFaultPolicy();
-        var handle = host.Emulator.NewDevice(
+        var handle = DeviceSpec.Create(
             RamSize.MB16,
             processorFaultPolicy: faultPolicy,
             name: "cpu");
@@ -275,7 +276,7 @@ public class HaltWakeTests
     {
         using var host = VMHostFactory.CreateDefault();
         var faultPolicy = new CapturingFaultPolicy();
-        var handle = host.Emulator.NewDevice(
+        var handle = DeviceSpec.Create(
             RamSize.MB16, processorFaultPolicy: faultPolicy, name: "cpu");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
@@ -321,7 +322,7 @@ public class HaltWakeTests
         using var host = VMHostFactory.CreateDefault();
         var faultPolicy = new CapturingFaultPolicy();
         var deviceId = host.Emulator.RegisterDevice(
-            host.Emulator.NewDevice(RamSize.MB16, processorFaultPolicy: faultPolicy, name: "cpu"),
+            DeviceSpec.Create(RamSize.MB16, processorFaultPolicy: faultPolicy, name: "cpu"),
             sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
@@ -362,7 +363,7 @@ public class HaltWakeTests
     {
         using var host = VMHostFactory.CreateDefault();
         var faultPolicy = new CapturingFaultPolicy();
-        var handle = host.Emulator.NewDevice(
+        var handle = DeviceSpec.Create(
             RamSize.MB16,
             processorFaultPolicy: faultPolicy,
             name: "cpu");
@@ -415,7 +416,7 @@ public class HaltWakeTests
     public async Task HALT_RaisesSleepingFlag_DebugRun()
     {
         using var host = VMHostFactory.CreateDefault();
-        var handle = host.Emulator.NewDevice(RamSize.MB16, name: "cpu");
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "cpu");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 

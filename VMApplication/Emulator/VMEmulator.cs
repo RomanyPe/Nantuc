@@ -18,7 +18,6 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
 
     public IPortController? GetDevice(int id) => _emulator.GetDevice(id);
 
-
     public bool ChangeDeviceSector(int id, uint newSector) => _emulator.ChangeDeviceSector(id, newSector);
 
     public IReadOnlyCollection<DeviceInfo> GetAllDevices()
@@ -32,30 +31,10 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
         return _emulator.AddDevice(ioDevice, name, sector);
     }
     
-    public int RegisterDevice<T>(T handle, uint sector) where T : IDeviceHandle
+    public int RegisterDevice(DeviceSpec handle, uint sector)
     {
-        return RegisterDevice(handle.Device, handle.Name, sector);
-    }
-    public int CreateAndAddDevice(RamSize ramSize,
-                                      uint sector,
-                                      IDeviceLoggerContext? deviceCtx = null,
-                                      string? name = null,
-                                      IProcessorFaultPolicy? processorFaultPolicy = null)
-    {
-        var ctx = NewDevice(ramSize, name, deviceCtx, processorFaultPolicy);
-        return RegisterDevice(ctx.Device, name, sector);
-    }
-
-    public DeviceHandle NewDevice(RamSize? ramSize = null,
-                                      string? name = null,
-                                      IDeviceLoggerContext? deviceCtx = null,
-                                      IProcessorFaultPolicy? processorFaultPolicy = null)
-    {
-        ramSize ??= RamSize.MB1;
-        deviceCtx ??= IDeviceLoggerContext.NullContext;
-        processorFaultPolicy ??= IProcessorFaultPolicy.Default;
-        var device = _emulator.CreateDevice(ramSize.Value, deviceCtx, processorFaultPolicy);
-        return new DeviceHandle(device, name);
+        var device = _emulator.CreateDevice(handle.RamSize, handle.DeviceCtx, handle.ProcessorFaultPolicy);
+        return RegisterDevice(device, handle.Name, sector);
     }
 
     public bool RemoveDevice(int id) => _emulator.RemoveDevice(id);
@@ -63,14 +42,17 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
     public void Dispose() => _emulator.Dispose();
 }
 
-public readonly struct DeviceHandle(Device device, string? name) : IDeviceHandle
+public readonly record struct DeviceSpec(RamSize RamSize, IDeviceLoggerContext DeviceCtx, string? Name, IProcessorFaultPolicy ProcessorFaultPolicy)
 {
-    public IPortController Device => device;
-    public string? Name => name;
-}
+    public static DeviceSpec Create(RamSize? ramSize = null,
+                                      string? name = null,
+                                      IDeviceLoggerContext? deviceCtx = null,
+                                      IProcessorFaultPolicy? processorFaultPolicy = null)
+    {
+        ramSize ??= RamSize.MB1;
+        deviceCtx ??= IDeviceLoggerContext.NullContext;
+        processorFaultPolicy ??= IProcessorFaultPolicy.Default;
+        return new(ramSize.Value, deviceCtx, name, processorFaultPolicy);
 
-public interface IDeviceHandle
-{
-    IPortController Device { get; }
-    string? Name { get; }
+    }
 }

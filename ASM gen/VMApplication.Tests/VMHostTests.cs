@@ -21,7 +21,7 @@ public class VMHostTests
 
         host.Emulator.RegisterDevice(ioDevice, "console", sector: 1);
 
-        var handle = host.Emulator.NewDevice(RamSize.MB16, name: "test");
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
@@ -104,7 +104,7 @@ public class VMHostTests
     public void StepMode_ShouldExecuteInstructionsOneByOne()
     {
         using var host = VMHostFactory.CreateDefault();
-        var handle = host.Emulator.NewDevice(RamSize.MB16, name: "test");
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
@@ -139,7 +139,7 @@ public class VMHostTests
     public void DebugRun_ShouldStopAfterStepLimit()
     {
         using var host = VMHostFactory.CreateDefault();
-        var handle = host.Emulator.NewDevice(RamSize.MB16, name: "test");
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
@@ -163,7 +163,7 @@ public class VMHostTests
     public void Run_ShouldInvokeOnEnd()
     {
         using var host = VMHostFactory.CreateDefault();
-        var handle = host.Emulator.NewDevice(RamSize.MB16, name: "test");
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
@@ -186,7 +186,7 @@ public class VMHostTests
         var ioDevice = new QueuedIOStream(writer, PortCharEncoding.BytePerChar);
         host.Emulator.RegisterDevice(ioDevice, "console", sector: 1);
 
-        var handle = host.Emulator.NewDevice(RamSize.MB16, name: "test");
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 

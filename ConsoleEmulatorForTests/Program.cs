@@ -2,6 +2,7 @@
 using ExtensionsVMApplication.Emulator.IO;
 using Kernel.Common;
 using VMApplication;
+using VMApplication.Emulator;
 using VMApplication.Project;
 
 const string source =
@@ -21,7 +22,7 @@ const string source =
 using var host = VMHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicy(Console.Out);
 
-var handle = host.Emulator.NewDevice(
+var handle = DeviceSpec.Create(
     ramSize: RamSize.MB128,
     processorFaultPolicy: lfPolicy,
     name: "ConsoleVM"

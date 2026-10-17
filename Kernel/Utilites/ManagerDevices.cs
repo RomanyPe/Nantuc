@@ -138,19 +138,6 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return true;
     }
 
-    public void Clear()
-    {
-        for (int i = 0; i < _devices.Count; i++)
-        {
-            _devices[i].Device?.Dispose();
-            _devices[i].Device = null;
-            _devices[i].Name = null;
-            _devices[i].IsFreed = true;
-        }
-        _devices.Clear();
-        _nextId = 0;
-    }
-
     public bool ChangeSector(int id, uint newSector)
     {
         var e = FindValid(id);
@@ -167,7 +154,15 @@ public class ManagerDevices(PortBus portBus) : IDisposable
     public void Dispose()
     {
         if (_disposed) return;
-        Clear();
+        for (int i = 0; i < _devices.Count; i++)
+        {
+            _devices[i].Device?.Dispose();
+            _devices[i].Device = null;
+            _devices[i].Name = null;
+            _devices[i].IsFreed = true;
+        }
+        _devices.Clear();
+        _nextId = 0;
         _disposed = true;
         GC.SuppressFinalize(this);
     }

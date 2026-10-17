@@ -289,7 +289,7 @@ internal class Program
 
         using var host = VMHostFactory.CreateDefault(fileService: fileService);
 
-        DeviceHandle deviceHandle = host.Emulator.NewDevice(ramSize: RamSize.MB64, name: "ConsoleVM");
+        DeviceSpec deviceHandle = DeviceSpec.Create(ramSize: RamSize.MB64, name: "ConsoleVM");
         int deviceId = host.Emulator.RegisterDevice(
             handle: deviceHandle,
             sector: 0
