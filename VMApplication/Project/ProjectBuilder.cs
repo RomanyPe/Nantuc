@@ -93,7 +93,7 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
     {
         var files = new List<SourceFile>();
 
-        foreach (string fileName in fileService.GetSourceFiles())
+        foreach (string fileName in fileService.GeNameFiles())
         {
             SourceLanguage lang = FindLang(path, fileName);
             if (lang == SourceLanguage.None) continue;

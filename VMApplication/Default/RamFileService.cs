@@ -10,10 +10,10 @@ public class RamFileService : IFileService
 
     public bool Exist(string fileName) => _files.ContainsKey(fileName);
 
-    public IEnumerable<string> GetSourceFiles() => _files.Keys;
+    public IEnumerable<string> GeNameFiles() => _files.Keys;
 
     public string ReadFile(string fileName) => _files[fileName];
-
+    public void SafeFile(string fileName, string content) => _files[fileName] = content;
     public string ReadIncludes(string fileName, IProjectFilesConfig pathConfig)
     {
         string projPath = pathConfig.ProjectPath;

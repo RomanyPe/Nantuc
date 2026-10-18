@@ -9,7 +9,7 @@ public sealed class DefaultFileService(string? projectPath = null) : IFileServic
         ? AppDomain.CurrentDomain.BaseDirectory 
         : projectPath;
 
-    public IEnumerable<string> GetSourceFiles()
+    public IEnumerable<string> GeNameFiles()
     {
         return Directory.EnumerateFiles(_projectPath, "*.*", SearchOption.AllDirectories);
     }
@@ -20,6 +20,11 @@ public sealed class DefaultFileService(string? projectPath = null) : IFileServic
         return File.ReadAllText(fullPath);
     }
 
+    public void SafeFile(string fileName, string content)
+    {
+        var fullPath = Path.Combine(_projectPath, fileName);
+        File.WriteAllText(fullPath, content);
+    }
     public bool Exist(string fileName)
     {
         var fullPath = Path.Combine(_projectPath, fileName);

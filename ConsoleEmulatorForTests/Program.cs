@@ -4,24 +4,37 @@ using ExtensionsVMApplication.Host;
 using Kernel.Common;
 using VMApplication;
 using VMApplication.Emulator;
-using VMApplication.Project;
 
-const string source =
+const string source1 =
     """
-    LDI  r1, 0x41          // r1 = данные ('A')
-    LDI  r2, 0x10          // r2 = адрес порта Data
-    OUT  r1, r2            // OUT regSrc=r1, regPort=r2
+    void main(){
+        log();
+    }
+    """;
 
-    LDI  r1, 1             // данные для Flush
-    LDI  r2, 0x12          // адрес порта Flush
-    OUT  r1, r2
+const string source2 =
+    """
+    void log() {
+        asm {
+            LDI  r1, 0x41;          // r1 = данные ('A')
+            LDI  r2, 0x10;          // r2 = адрес порта Data
+            OUT  r1, r2;            // OUT regSrc=r1, regPort=r2
 
-    END
+            LDI  r1, 1;             // данные для Flush
+            LDI  r2, 0x12;          // адрес порта Flush
+            OUT  r1, r2;
+
+            END;
+        }
+    }
     """;
 
 
 using var host = VMHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicy(Console.Out);
+
+host.Project.FileService.SafeFile("main.c", source1);
+host.Project.FileService.SafeFile("foo.c", source2);
 
 var handle = DeviceSpec.Create(
     ramSize: RamSize.MB128,
@@ -31,16 +44,16 @@ var handle = DeviceSpec.Create(
 
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 
-var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
+int deviceId = host.Emulator.RegisterDevice(handle: handle, sector: 0);
 host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
 
 var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
-var resCompile = host.Project.CompileToIL(
-    source: source,
-    baseAddress: 0,  
-    optimize: true,
-    SourceLanguage.Asm).Build();
 
+
+
+var resCompile = host.Project.CompileToIL(
+    baseAddress: 0,  
+    optimize: true ).Build();
 
 if (!resCompile.Success)
 {
