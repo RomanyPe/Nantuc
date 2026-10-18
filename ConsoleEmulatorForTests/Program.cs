@@ -1,5 +1,6 @@
 ﻿using ConsoleEmulatorForTests;
 using ExtensionsVMApplication.Emulator.IO;
+using ExtensionsVMApplication.Host;
 using Kernel.Common;
 using VMApplication;
 using VMApplication.Emulator;
@@ -34,7 +35,7 @@ var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
 host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
 
 var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
-var resCompile = host.Project.Compiler.CompileToIL(
+var resCompile = host.Project.CompileToIL(
     source: source,
     baseAddress: 0,  
     optimize: true,

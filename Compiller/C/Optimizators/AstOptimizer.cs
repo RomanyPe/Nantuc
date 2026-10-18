@@ -1,38 +1,18 @@
-﻿using Compiller.ASM.Optimizators;
-using Kernel.Contracts;
-using System.Text;
+﻿using Kernel.Contracts;
 
 namespace Compiller.C.Optimizators;
 
 
-public class ASTNodesOptimization(StringBuilder logs, OptimizationId type) : ILogOptimization
+public class OptimizationResult(OptimizationId type) : ILogOptimization
 {
+    private readonly List<OptimizationLogEntry> _entries = [];
     public OptimizationId Id => type;
 
-    public void Append(string text) => logs.Append(text);
+    public void Append(int pass, string message) =>
+            _entries.Add(new OptimizationLogEntry(pass, message));
+    public void Clear() => _entries.Clear();
 
-    public void AppendLine(string text) => logs.AppendLine(text);
-
-    public string GetLogs() => logs.ToString();
-}
-
-
-public interface ILogOptimization : IReadOnlyLogOptimization
-{
-    void Append(string text);
-    void AppendLine(string text);
-
-}
-
-
-public interface IAstOptimizationRule
-{
-    OptimizationId Type { get; }
-    /// <summary>
-    /// Применяет оптимизацию к программе.
-    /// Возвращает true, если были внесены изменения.
-    /// </summary>
-    IReadOnlyLogOptimization Optimize(ProgramNode program);
+    public IReadOnlyList<OptimizationLogEntry> GetLogs() => _entries;
 }
 
 

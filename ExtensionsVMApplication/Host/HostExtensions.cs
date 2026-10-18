@@ -43,7 +43,7 @@ public static class VMHostRunExtensions
 
             if (!ctx.TryFastLoadProgram(comp.Program!, 0, out var err))
             {
-                host.Emulator.RemoveDevice(id);
+                host.Emulator.UnregisterDevice(id);
                 return new(null, null, comp, 0, false, [err]);
             }
 
@@ -61,7 +61,7 @@ public static class VMHostRunExtensions
             ram ??= RamSize.MB16;
 
             var res = host.RunAndKeep(source, lang, ram, optimize);
-            if (res.Device != null && res.DeviceId.HasValue) host.Emulator.RemoveDevice(res.DeviceId.Value);
+            if (res.Device != null && res.DeviceId.HasValue) host.Emulator.UnregisterDevice(res.DeviceId.Value);
             return res.Success;
         }
 
@@ -69,7 +69,7 @@ public static class VMHostRunExtensions
         public RunOutcome RunOnce(string source, SourceLanguage lang, RamSize? ram = null, bool optimize = false)
         {
             var res = host.RunAndKeep(source, lang, ram, optimize);
-            if (res.Device is not null) host.Emulator.RemoveDevice(res.DeviceId!.Value);
+            if (res.Device is not null) host.Emulator.UnregisterDevice(res.DeviceId!.Value);
             return res with { Device = null, DeviceId = null };
         }
     }

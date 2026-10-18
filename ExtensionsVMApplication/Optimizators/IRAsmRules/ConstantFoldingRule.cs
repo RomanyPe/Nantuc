@@ -1,12 +1,21 @@
 ﻿using Compiller.ASM;
 using Compiller.ASM.Optimizators;
 using Kernel.Common;
+using Kernel.Contracts;
 
 namespace ExtensionsVMApplication.Optimizators.IRAsmRules;
 
 public sealed class ConstantFoldingRule : IPeepholeRule
 {
-    public bool TryOptimize(List<AsmItem> items, int index, PeepholeLog log, out int newIndex)
+    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.ConstantFolding);
+    public IReadOnlyLogOptimization GetLogs()
+    {
+        log.Clear();
+        return log;
+    }
+    public void Clear() => log.Clear();
+
+    public bool TryOptimize(List<AsmItem> items, int index, int passCount, out int newIndex)
     {
         newIndex = index;
         if (index < 2 || items[index] is not AsmInstruction opInstr)
@@ -50,9 +59,9 @@ public sealed class ConstantFoldingRule : IPeepholeRule
             (uint)opInstr.Size);
         var newLdi = new AsmInstruction(newRaw, result);
 
-        log.AppendLine(items[index]);
-        log.AppendLine(items[index - 1]);
-        log.AppendLine(items[index - 2]);
+        log.Append(passCount, items[index]);
+        log.Append(passCount, items[index - 1]);
+        log.Append(passCount,items[index - 2]);
 
         // Заменяем три инструкции одной
         items.RemoveAt(index);

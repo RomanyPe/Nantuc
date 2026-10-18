@@ -285,9 +285,8 @@ internal class Program
     private static void Main()
     {
         BenchmarkOptimizer.OptimizeCurrentProcess();
-        FileService fileService = new();
 
-        using var host = VMHostFactory.CreateDefault(fileService: fileService);
+        using var host = VMHostFactory.CreateDefault();
 
         DeviceSpec deviceHandle = DeviceSpec.Create(ramSize: RamSize.MB64, name: "ConsoleVM");
         int deviceId = host.Emulator.RegisterDevice(

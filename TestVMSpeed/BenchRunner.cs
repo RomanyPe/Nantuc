@@ -1,4 +1,4 @@
-﻿using Kernel.Common;
+﻿using ExtensionsVMApplication.Host;
 using Kernel.Contracts;
 using VMApplication;
 using VMApplication.Emulator;
@@ -40,7 +40,7 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase)
     {
         IsPrepared = false;
 
-        var res = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.Asm).Build();
+        var res = _host.Project.Compiler.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.Asm).Build();
         if (!res.Success)
         {
             Console.WriteLine(res.Errors);

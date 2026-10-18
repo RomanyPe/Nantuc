@@ -1,4 +1,6 @@
-﻿namespace Compiller.ASM.Optimizators;
+﻿using Kernel.Contracts;
+
+namespace Compiller.ASM.Optimizators;
 
 
 public class PeepholeOptimizer
@@ -10,8 +12,10 @@ public class PeepholeOptimizer
     public void RemoveAt(int index) => _rules.RemoveAt(index);
     public int Count => _rules.Count;
 
-    public string Optimize(List<AsmItem> items, PeepholeLog log, int maxPasses = 5)
+    public IEnumerable<IReadOnlyLogOptimization> Optimize(List<AsmItem> items, int maxPasses = 5)
     {
+        _rules.ForEach(rule => rule.Clear());
+
         bool changed;
         int passCount = 0;
 
@@ -30,7 +34,7 @@ public class PeepholeOptimizer
                 bool ruleApplied = false;
                 foreach (var rule in _rules)
                 {
-                    if (rule.TryOptimize(items, i, log, out int nextIndex))
+                    if (rule.TryOptimize(items, i, passCount, out int nextIndex))
                     {
                         if (nextIndex < 0)
                             nextIndex = 0;
@@ -50,7 +54,7 @@ public class PeepholeOptimizer
             passCount++;
         }
         while (changed && passCount < maxPasses);
-        return log.ToString();
+        return _rules.Select(static rule => rule.GetLogs());
     }
 }
 

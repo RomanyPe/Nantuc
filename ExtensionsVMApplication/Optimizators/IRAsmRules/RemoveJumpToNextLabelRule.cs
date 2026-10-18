@@ -1,11 +1,21 @@
 ﻿using Compiller.ASM.Optimizators;
 using Kernel.Common;
+using Kernel.Contracts;
 
 namespace ExtensionsVMApplication.Optimizators.IRAsmRules;
 
 public sealed class RemoveJumpToNextLabelRule : IPeepholeRule
 {
-    public bool TryOptimize(List<AsmItem> items, int index, PeepholeLog log, out int newIndex)
+    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.RemoveJumpToNextLabel);
+
+    public IReadOnlyLogOptimization GetLogs()
+    {
+        log.Clear();
+        return log;
+    }
+    public void Clear() => log.Clear();
+
+    public bool TryOptimize(List<AsmItem> items, int index, int passCount, out int newIndex)
     {
         newIndex = index;
         if (items[index] is not AsmInstruction instr)
@@ -17,7 +27,7 @@ public sealed class RemoveJumpToNextLabelRule : IPeepholeRule
             items[index + 1] is AsmLabel nextLabel &&
             nextLabel.Name == instr.TargetLabel)
         {
-            log.AppendLine(items[index]);
+            log.Append(passCount, items[index]);
 
             items.RemoveAt(index);
             newIndex = index - 1;

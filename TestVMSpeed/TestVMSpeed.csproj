@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\VMApplication\VMApplication.csproj" />
+    <ProjectReference Include="..\ExtensionsVMApplication\ExtensionsVMApplication.csproj" />
   </ItemGroup>
 
 </Project>

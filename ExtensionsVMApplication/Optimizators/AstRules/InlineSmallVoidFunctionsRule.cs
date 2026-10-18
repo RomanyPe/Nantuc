@@ -13,8 +13,7 @@ public class InlineSmallVoidFunctionsRule : IAstOptimizationRule
 
     public IReadOnlyLogOptimization Optimize(ProgramNode program)
     {
-        var sb = new StringBuilder();
-        var log = new ASTNodesOptimization(sb, Type);
+        var log = new OptimizationResult(Type);
         InlineSmallVoidFunctions(program, MaxWeightInlineSize, log);
         return log;
     }
@@ -61,7 +60,7 @@ public class InlineSmallVoidFunctionsRule : IAstOptimizationRule
                     var inlineBlock = CreateInlineBlock(call, target);
                     newStatements.AddRange(inlineBlock.Statements);
                     inlined.Add(target.Name);
-                    inlinedFunc.AppendLine($"Inlined call to '{call.Name}' (replaced with inline block)");
+                    inlinedFunc.Append(0, $"Inlined call to '{call.Name}' (replaced with inline block)");
                     break;
 
                 case IfNode ifNode:

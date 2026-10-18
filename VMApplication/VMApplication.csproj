@@ -10,6 +10,7 @@
   <ItemGroup>
 	<ProjectReference Include="..\Compiller\Compiller.csproj" />
 	<ProjectReference Include="..\Kernel.Common\Kernel.Common.csproj" />
+	<ProjectReference Include="..\Kernel.Contracts\Kernel.Contracts.csproj" />
 	<ProjectReference Include="..\Kernel\Kernel.csproj" />
   </ItemGroup>
 

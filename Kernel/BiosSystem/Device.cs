@@ -32,9 +32,9 @@ public sealed class Device : IPortController
     public ulong MaxRamSize => _ram.Length;
     public long StepCount => stepCounter;
 
-    public Device(PortBus portBus, RamSize size, IDeviceLoggerContext deviceCtx, IProcessorFaultPolicy? processorFaultPolicy)
+    public Device(PortBus portBus, RamSize size, IDeviceLoggerContext deviceCtx, IProcessorFaultPolicy processorFaultPolicy)
     {
-        _processorFaultPolicy = processorFaultPolicy ?? IProcessorFaultPolicy.Default;
+        _processorFaultPolicy = processorFaultPolicy;
         _portBus = portBus;
         _ram = new MemoryBus(size);
         _processor = new Processor(_ram, _portBus, _processorFaultPolicy);

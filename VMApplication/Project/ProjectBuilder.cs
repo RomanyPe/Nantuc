@@ -84,38 +84,25 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
     {
         foreach (string inc in includes)
         {
-            string localPath = _fileService.CombinePath(_path.ProjectPath, inc);
-            string sharedPath = _fileService.CombinePath(_path.IncludePath, inc);
-
-            string? chosenPath = null;
-            if (_fileService.Exist(localPath))
-                chosenPath = localPath;
-            else if (_fileService.Exist(sharedPath))
-                chosenPath = sharedPath;
-
-            if (chosenPath == null)
-                throw new Exception($"Included file not found: '{inc}'. Searched in project folder and in '{_path.IncludePath}'.");
-
-            string asmCode = _fileService.ReadFile(chosenPath);
+            string asmCode = _fileService.ReadIncludes(inc, _path);
             asmParser.Assemble(asmCode, assembler);
         }
     }
 
-    internal IEnumerable<IReadOnlyLogOptimization> BuildProject(bool optimize, AssemblerBase assembler, AstOptimizer astOptimizer)
+    public static IEnumerable<SourceFile> GetSourceFiles(IFileService fileService, IProjectFilesConfig path)
     {
         var files = new List<SourceFile>();
 
-        foreach (string fileName in _fileService.GetSourceFiles())
+        foreach (string fileName in fileService.GetSourceFiles())
         {
-            SourceLanguage lang = FindLang(_path, fileName);
+            SourceLanguage lang = FindLang(path, fileName);
             if (lang == SourceLanguage.None) continue;
 
-            string source = _fileService.ReadFile(fileName);
+            string source = fileService.ReadFile(fileName);
 
             files.Add(new SourceFile(fileName, source, lang));
         }
-
-        return Build(files, optimize, assembler, astOptimizer);
+        return files;
     }
 
     private static bool IsAsm(IProjectFilesConfig config, string name)

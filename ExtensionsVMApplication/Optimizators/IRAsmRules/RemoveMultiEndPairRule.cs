@@ -1,5 +1,6 @@
 ﻿using Compiller.ASM.Optimizators;
 using Kernel.Common;
+using Kernel.Contracts;
 
 namespace ExtensionsVMApplication.Optimizators.IRAsmRules;
 
@@ -9,7 +10,16 @@ namespace ExtensionsVMApplication.Optimizators.IRAsmRules;
 /// </summary>
 public sealed class RemoveMultiEndPairRule : IPeepholeRule
 {
-    public bool TryOptimize(List<AsmItem> items, int index, PeepholeLog log, out int newIndex)
+    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.RemoveMultiEnd);
+
+    public IReadOnlyLogOptimization GetLogs()
+    {
+        log.Clear();
+        return log;
+    }
+    public void Clear() => log.Clear();
+
+    public bool TryOptimize(List<AsmItem> items, int index, int passCount, out int newIndex)
     {
         newIndex = index;
 
@@ -31,7 +41,7 @@ public sealed class RemoveMultiEndPairRule : IPeepholeRule
 
         // Удаляем второй END
         items.RemoveAt(index + 1);
-        log.AppendLine($"Removed extra END at position {index + 1}");
+        log.Append(passCount,$"Removed extra END at position {index + 1}");
 
         // Возвращаем тот же индекс, чтобы проверить, не остались ли ещё END подряд.
         newIndex = index;

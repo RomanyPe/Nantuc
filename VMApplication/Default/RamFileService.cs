@@ -5,9 +5,8 @@ namespace VMApplication.Default;
 public class RamFileService : IFileService
 {
     private readonly Dictionary<string, string> _files = [];
-    public string ProjectPath => "this";
 
-    public string CombinePath(string path1, string path2) => Path.Combine(path1, path2);
+    private static string CombinePath(string path1, string path2) => path1 + "\\" + path2;
 
     public bool Exist(string fileName) => _files.ContainsKey(fileName);
 
@@ -15,5 +14,31 @@ public class RamFileService : IFileService
 
     public string ReadFile(string fileName) => _files[fileName];
 
-    public void SaveFile(string fileName, string content) => _files[fileName] = content;
+    public string ReadIncludes(string fileName, IProjectFilesConfig pathConfig)
+    {
+        string projPath = pathConfig.ProjectPath;
+        string includePath = pathConfig.IncludePath;
+
+        string fullPath = CombinePath(projPath, fileName);
+        string fullPathInc = CombinePath(includePath, fileName);
+
+        bool projExist = Exist(fullPath);
+        bool incExist = Exist(fullPathInc);
+
+        if (projExist && incExist)
+            throw new InvalidOperationException($"The file {fileName} exists in both {projPath} and {includePath}; please select a specific file.");
+        
+
+        if (projExist)
+        {
+            return ReadFile(fullPath);
+        }
+        else if (incExist) 
+        {
+            return  ReadFile(fullPathInc);
+        }
+
+        throw new FileNotFoundException(
+                $"Included file not found: '{fileName}'. Searched in paths: {projPath}, {includePath}");
+    }
 }

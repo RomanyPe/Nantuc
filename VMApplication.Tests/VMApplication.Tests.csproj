@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\ExtensionsVMApplication\ExtensionsVMApplication.csproj" />
+    <ProjectReference Include="..\ExtensionsVMApplication\ExtensionsVMApplication.csproj" />
   </ItemGroup>
 
   <ItemGroup>

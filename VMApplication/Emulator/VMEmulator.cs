@@ -16,8 +16,6 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
             : null;
     }
 
-    public IPortController? GetDevice(int id) => _emulator.GetDevice(id);
-
     public bool ChangeDeviceSector(int id, uint newSector) => _emulator.ChangeDeviceSector(id, newSector);
 
     public IReadOnlyCollection<DeviceInfo> GetAllDevices()
@@ -28,7 +26,7 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
         string? name,
         uint sector)
     {
-        return _emulator.AddDevice(ioDevice, name, sector);
+        return _emulator.RegisterDevice(ioDevice, name, sector);
     }
     
     public int RegisterDevice(DeviceSpec handle, uint sector)
@@ -37,7 +35,7 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
         return RegisterDevice(device, handle.Name, sector);
     }
 
-    public bool RemoveDevice(int id) => _emulator.RemoveDevice(id);
+    public bool UnregisterDevice(int id) => _emulator.UnregisterDevice(id);
 
     public void Dispose() => _emulator.Dispose();
 }

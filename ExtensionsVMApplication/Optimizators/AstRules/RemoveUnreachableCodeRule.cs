@@ -11,8 +11,7 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
 
     public IReadOnlyLogOptimization Optimize(ProgramNode program)
     {
-        var sb = new StringBuilder();
-        var log = new ASTNodesOptimization(sb, Type);
+        var log = new OptimizationResult(Type);
         RemoveUnreachableCode(program, log);
         return log;
     }
@@ -43,7 +42,7 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
             {
                 for (int i = block.Statements.IndexOf(stmt); i < block.Statements.Count; i++)
                 {
-                    removedNodesLog.AppendLine($"Unreachable node removed: {block.Statements[i].GetType().Name}");
+                    removedNodesLog.Append(0, $"Unreachable node removed: {block.Statements[i].GetType().Name}");
                 }
                 break;
             }
@@ -99,17 +98,17 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
                 {
                     if (ifNode.ElseBlock != null)
                     {
-                        removedNodesLog.AppendLine($"IfNode removed (then-block discarded, else-block kept): {ifNode.GetType().Name}");
+                        removedNodesLog.Append(0, $"IfNode removed (then-block discarded, else-block kept): {ifNode.GetType().Name}");
                         simplified.AddRange(ifNode.ElseBlock.Statements);
                     }
                     else
                     {
-                        removedNodesLog.AppendLine($"IfNode removed (no else): {ifNode.GetType().Name}");
+                        removedNodesLog.Append(0, $"IfNode removed (no else): {ifNode.GetType().Name}");
                     }
                 }
                 else if (IsConstantTrue(ifNode.Condition))
                 {
-                    removedNodesLog.AppendLine($"IfNode removed (condition always true, else-block discarded): {ifNode.GetType().Name}");
+                    removedNodesLog.Append(0, $"IfNode removed (condition always true, else-block discarded): {ifNode.GetType().Name}");
                     simplified.AddRange(ifNode.ThenBlock.Statements);
                 }
                 else
@@ -119,11 +118,11 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
             }
             else if (stmt is WhileNode whileNode && IsConstantFalse(whileNode.Condition))
             {
-                removedNodesLog.AppendLine($"WhileNode removed (condition false): {whileNode.GetType().Name}");
+                removedNodesLog.Append(0, $"WhileNode removed (condition false): {whileNode.GetType().Name}");
             }
             else if (stmt is ForNode forNode && forNode.Condition != null && IsConstantFalse(forNode.Condition))
             {
-                removedNodesLog.AppendLine($"ForNode removed (condition false): {forNode.GetType().Name}");
+                removedNodesLog.Append(0, $"ForNode removed (condition false): {forNode.GetType().Name}");
             }
             else
             {

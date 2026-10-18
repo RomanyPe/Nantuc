@@ -7,9 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<ProjectReference Include="..\ASM gen\Kernel.Contracts\Kernel.Contracts.csproj" />
-	<ProjectReference Include="..\Kernel.Common\Kernel.Common.csproj" />
-	<ProjectReference Include="..\Kernel.Diagnostics\Kernel.Diagnostics.csproj" />
+    <ProjectReference Include="..\Kernel.Common\Kernel.Common.csproj" />
+    <ProjectReference Include="..\Kernel.Contracts\Kernel.Contracts.csproj" />
+    <ProjectReference Include="..\Kernel.Diagnostics\Kernel.Diagnostics.csproj" />
   </ItemGroup>
+
+  
 
 </Project>

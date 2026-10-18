@@ -1,14 +1,23 @@
 ﻿using Compiller.ASM;
 using Compiller.ASM.Optimizators;
 using Kernel.Common;
+using Kernel.Contracts;
 
 namespace ExtensionsVMApplication.Optimizators.IRAsmRules;
 
 public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
 {
+    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.ReplaceSafeAccess);
+
+    public IReadOnlyLogOptimization GetLogs()
+    {
+        return log;
+    }
+
+    public void Clear() => log.Clear();
     public RamSize SizeRam { get; set; }
 
-    public bool TryOptimize(List<AsmItem> items, int index, PeepholeLog log, out int newIndex)
+    public bool TryOptimize(List<AsmItem> items, int index, int passCount, out int newIndex)
     {
         newIndex = index;
 
@@ -73,7 +82,7 @@ public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
         // Заменяем элемент списка
         items[index] = newInstr;
 
-        log.AppendLine($"Replaced {instr.OpCode} with {unsafeOp} at index {index}, address=0x{address:X}");
+        log.Append(passCount, $"Replaced {instr.OpCode} with {unsafeOp} at index {index}, address=0x{address:X}");
 
         // После замены можно проверить следующую инструкцию (но не откатываемся)
         newIndex = index + 1;

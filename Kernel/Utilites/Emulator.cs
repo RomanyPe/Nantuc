@@ -24,7 +24,7 @@ public class Emulator : IDisposable
 
     public IEnumerable<DeviceInfo> AllDeviceInfo => _manager.GetAllDevices();
 
-    public int AddDevice(
+    public int RegisterDevice(
         IPortController device,
         string? name,
         uint sector)
@@ -35,7 +35,7 @@ public class Emulator : IDisposable
     public Device CreateDevice(
         RamSize size,
         IDeviceLoggerContext ctx,
-        IProcessorFaultPolicy? processorFaultPolicy = null)
+        IProcessorFaultPolicy processorFaultPolicy)
     {
         return new Device(_portBus, size, ctx, processorFaultPolicy);
     }
@@ -43,14 +43,11 @@ public class Emulator : IDisposable
 
     public IPortController? GetDevice(int id) => _manager.GetDevice(id);
 
-    public T? GetDeviceAs<T>(int id) where T : class, IPortController
-        => _manager.GetDeviceAs<T>(id);
-
     public bool TryGetDevice<T>(int id, [NotNullWhen(true)] out T? device)
         where T : class, IPortController => _manager.TryGetDevice(id, out device);
 
 
-    public bool RemoveDevice(int id) => _manager.RemoveDevice(id);
+    public bool UnregisterDevice(int id) => _manager.RemoveDevice(id);
 
     public bool ChangeDeviceSector(int id, uint newSector) => _manager.ChangeSector(id, newSector);
 

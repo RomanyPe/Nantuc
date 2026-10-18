@@ -11,8 +11,7 @@ public class RemoveUnusedVariablesRule : IAstOptimizationRule
 
     public IReadOnlyLogOptimization Optimize(ProgramNode program)
     {
-        var sb = new StringBuilder();
-        var log = new ASTNodesOptimization(sb, Type);
+        var log = new OptimizationResult(Type);
         RemoveUnusedVariables(program, log);
         return log;
     }
@@ -115,7 +114,7 @@ public class RemoveUnusedVariablesRule : IAstOptimizationRule
         {
             if (stmt is VariableNode varNode && !used.Contains(varNode.Name) && IsSideEffectFree(varNode.Initializer))
             {
-                log.AppendLine($"Removed unused variable: {varNode.Name}");
+                log.Append(0, $"Removed unused variable: {varNode.Name}");
                 continue;
             }
 

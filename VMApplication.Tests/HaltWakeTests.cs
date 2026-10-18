@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using Xunit;
-using VMApplication;
-using VMApplication.Emulator;
-using VMApplication.Project;
-using VMApplication.Emulator.Abstraction;
+﻿using ExtensionsVMApplication.Host;
 using Kernel.Common;
 using Kernel.Contracts;
+using VMApplication.Emulator;
+using VMApplication.Emulator.Abstraction;
+using VMApplication.Project;
 
 namespace VMApplication.Tests;
 
@@ -56,7 +53,7 @@ public class HaltWakeTests
         END
         """;
 
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
@@ -128,7 +125,7 @@ public class HaltWakeTests
             END
             """;
 
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
@@ -159,7 +156,7 @@ public class HaltWakeTests
             END
             """;
 
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
@@ -190,7 +187,7 @@ public class HaltWakeTests
             END
             """;
 
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
@@ -222,7 +219,7 @@ public class HaltWakeTests
         END
         """;
 
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
@@ -287,7 +284,7 @@ public class HaltWakeTests
         END
         """;
 
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
@@ -333,7 +330,7 @@ public class HaltWakeTests
         END
         """;
 
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
@@ -376,7 +373,7 @@ public class HaltWakeTests
         END
         """;
 
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
@@ -425,7 +422,7 @@ public class HaltWakeTests
         HALT
         END
         """;
-        var comp = host.Project.Compiler
+        var comp = host.Project
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));

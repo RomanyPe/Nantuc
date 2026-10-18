@@ -11,13 +11,12 @@ public class PropagateConstantsRule : IAstOptimizationRule
 
     public IReadOnlyLogOptimization Optimize(ProgramNode program)
     {
-        var sb = new StringBuilder();
-        var log = new ASTNodesOptimization(sb, Type);
+        var log = new OptimizationResult(Type);
         PropagateConstants(program, log);
         return log;
     }
 
-    private static void PropagateConstants(ProgramNode program, ASTNodesOptimization log)
+    private static void PropagateConstants(ProgramNode program, OptimizationResult log)
     {
         foreach (var func in program.FunctionNodes)
         {
@@ -32,7 +31,7 @@ public class PropagateConstantsRule : IAstOptimizationRule
 
             foreach (var kv in constantVars)
             {
-                log.AppendLine($"Propagated constant: {kv.Key} -> {kv.Value}");
+                log.Append(0, $"Propagated constant: {kv.Key} -> {kv.Value}");
             }
 
             ReplaceVariablesWithConstants(func.Body, constantVars);

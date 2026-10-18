@@ -12,8 +12,7 @@ public class FoldConstantsRule : IAstOptimizationRule
 
     public IReadOnlyLogOptimization Optimize(ProgramNode program)
     {
-        var sb = new StringBuilder();
-        var log = new ASTNodesOptimization(sb, Type);
+        var log = new OptimizationResult(Type);
         FoldConstants(program, log);
         return log;
     }
@@ -85,7 +84,7 @@ public class FoldConstantsRule : IAstOptimizationRule
                     long oldLeft = left.Value;
                     long oldRight = right.Value;
                     long result = ExpressionGenerator.ComputeConstant(left.Value, right.Value, binop.Operator);
-                    log.AppendLine($"Folded constant: {oldLeft} {binop.Operator} {oldRight} = {result}");
+                    log.Append(0, $"Folded constant: {oldLeft} {binop.Operator} {oldRight} = {result}");
                     return new NumberNode(result);
                 }
                 return binop;
@@ -102,7 +101,7 @@ public class FoldConstantsRule : IAstOptimizationRule
                         "~" => ~num.Value,
                         _ => num.Value
                     };
-                    log.AppendLine($"Folded unary: {unop.Operator} {oldValue} = {result}");
+                    log.Append(0, $"Folded unary: {unop.Operator} {oldValue} = {result}");
                     return new NumberNode(result);
                 }
                 return unop;

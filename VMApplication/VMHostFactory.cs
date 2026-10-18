@@ -13,16 +13,11 @@ public static class VMHostFactory
         PortSize? portBusSize = null,
         DevicePortSize? portsPerDevice = null)
     {
-
-        // Создаём проект
-        projectConfig ??= IProjectFilesConfig.Default;
-
         var projectBuilder = new VMHostProjectBuilder()
-            .WithPaths(projectConfig)
-            .WithFileService(fileService ?? new DefaultFileService(projectConfig.ProjectPath));
+            .WithPaths(projectConfig ?? IProjectFilesConfig.Default)
+            .WithFileService(fileService ?? new RamFileService());
         var project = projectBuilder.Build();
 
-        // Создаём эмулятор
         var emulatorBuilder = new VMEmulatorBuilder()
             .WithPortBusSize(portBusSize ?? PortSize.KB64)
             .WithPortsPerDevice(portsPerDevice ?? DevicePortSize.B16);

@@ -20,11 +20,18 @@ public static class AstOptimizerExtension
         }
     }
 
-
-    public static readonly OptimizationId FunctionInlined = new("inline.func");
-    public static readonly OptimizationId ConstantPropagated = new("const.propagate");
-    public static readonly OptimizationId ConstantFolded = new("const.fold");
-    public static readonly OptimizationId NodeRemoved = new("node.removed");
-    public static readonly OptimizationId VariableRemoved = new("node.removed.variable-unused");
+    extension(OptimizationId id)
+    {
+        public OptimizationId WithASTNodePrefix()
+        {
+            return new OptimizationId("astnode-opt." + id.Value);
+        }
+    }
+    private static OptimizationId AstNode(string value) => new OptimizationId(value).WithASTNodePrefix();
+    public static readonly OptimizationId FunctionInlined = AstNode("inline-func");
+    public static readonly OptimizationId ConstantPropagated = AstNode("const-propagate");
+    public static readonly OptimizationId ConstantFolded = AstNode("const-fold");
+    public static readonly OptimizationId NodeRemoved = AstNode("remove-node");
+    public static readonly OptimizationId VariableRemoved = AstNode("remove-variable-unused");
 
 }

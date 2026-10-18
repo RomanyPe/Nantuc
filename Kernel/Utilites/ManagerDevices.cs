@@ -70,9 +70,6 @@ public class ManagerDevices(PortBus portBus) : IDisposable
 
     public IPortController? GetDevice(int id) => FindValid(id)?.Device;
 
-    public T? GetDeviceAs<T>(int id) where T : class, IPortController
-        => FindValid(id)?.Device as T;
-
     public bool TryGetDevice<T>(int id, [NotNullWhen(true)] out T? device)
     where T : class, IPortController
     {

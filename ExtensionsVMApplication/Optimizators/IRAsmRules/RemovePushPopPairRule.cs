@@ -1,11 +1,21 @@
 ﻿using Compiller.ASM.Optimizators;
 using Kernel.Common;
+using Kernel.Contracts;
 
 namespace ExtensionsVMApplication.Optimizators.IRAsmRules;
 
 public sealed class RemovePushPopPairRule : IPeepholeRule
 {
-    public bool TryOptimize(List<AsmItem> items, int index, PeepholeLog log, out int newIndex)
+    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.RemovePushPop);
+
+    public IReadOnlyLogOptimization GetLogs()
+    {
+        log.Clear();
+        return log;
+    }
+    public void Clear() => log.Clear();
+
+    public bool TryOptimize(List<AsmItem> items, int index, int passCount, out int newIndex)
     {
         newIndex = index;
         if (index + 1 >= items.Count ||
@@ -19,8 +29,8 @@ public sealed class RemovePushPopPairRule : IPeepholeRule
             !IsImmediatelyAfterLabel(items, index) &&
             !IsImmediatelyAfterLabel(items, index + 1))
         {
-            log.AppendLine(items[index + 1]);
-            log.AppendLine(items[index]);
+            log.Append(passCount, items[index + 1]);
+            log.Append(passCount, items[index]);
 
             items.RemoveAt(index + 1);
             items.RemoveAt(index);
