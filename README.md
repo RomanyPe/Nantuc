@@ -1,9 +1,11 @@
-# VMA — Virtual Machine & Emulator Platform
+# Nantuc — Virtual Machine & Emulator Platform
 
-!ВАЖНО! Статус: платформа/тулкит, не фреймворк. API не гарантирует semver.
+> !ВАЖНО! Статус: платформа/тулкит, не фреймворк. API не гарантирует semver.
+
+> Для лучшей читаемости доменный префикс `Nantuc.` убран, но держите в голове что он используется
 
 Платформа для сборки, компиляции и исполнения виртуальных машин с собственным байт-кодом,
-компилятором C-подобного языка (MiniC) и ассемблером (VMA), плюс секторно-адресуемая шина
+компилятором C-подобного языка (MiniC) и ассемблером (NANASM), плюс секторно-адресуемая шина
 портов для IO и меж-устройственного взаимодействия.
 
 Название «Kernel» в проектах `Kernel.*` — историческое. По сути это **общие (публичные)
@@ -12,22 +14,24 @@
 
 ---
 
+
+
 # Слои:
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  Хосты и тесты                                                     │
-│  ConsoleEmulatorForTests, TestVMSpeed                              │
+│  Tests                                                             │
+│  Samples.Minimal, Benchmarks                                       │
 └────────────────────────────────────────────────────────────────────┘
                               │
 ┌────────────────────────────────────────────────────────────────────┐
-│  ExtensionsVMApplication                                           │
+│  VMApplication.Extensions                                          │
 │  Готовые peephole-правила, AST-правила, IO-устройства, host-helpers│
 └────────────────────────────────────────────────────────────────────┘
                               │
 ┌────────────────────────────────────────────────────────────────────┐
 │  VMApplication                                                     │
 │  VMHost, VMHostFactory, VMEmulator, DeviceContext, ProjectBuilder, │
-│  компилятор-фасад, оптимизатор-фасады, IFileService, IOutputView   │
+│  компилятор-фасад, оптимизатор-фасады, IFileService и прочее       │
 └────────────────────────────────────────────────────────────────────┘
                               │
 ┌────────────────────────────────────────────────────────────────────┐
@@ -54,8 +58,8 @@
 # Бытсрый старт
 
 ```csharp
-using VMApplication;
-using VMApplication.Project;
+using Nantuc.VmAplication;
+using Nantuc.VmAplication.Project;
 
 const string source =
 """
@@ -125,7 +129,7 @@ int id = host.Emulator.RegisterDevice(handle: handle, sector: 0);
 
 ## Компилятор
 
-Компилятор встроен в `VMApplication` и вызывается через `host.Project.Compiler`:
+Компилятор встроен в `VmAplication` и вызывается через `host.Project.Compiler`:
 
 ```csharp
 CompilationResult il = host.Project.Compiler.CompileToIL(source, 0, optimize: true, SourceLanguage.C).Build();
@@ -136,23 +140,23 @@ CompilationResult il = host.Project.Compiler.CompileToIL(source, 0, optimize: tr
 
 - MiniC - C-подобный язык (`int`, `char`, `void`, `byte`, `ushort`, `ulong`, `struct`, `if`, `while`, `for`, `return`, `asm`, `extern`
 , указатели, массивы).
-- VMA — ассемблер (`LDI`, `MOV`, `ADD`, `LOAD`, `STORE`, `JMP`, `CALL`, `IN`, `OUT`, `HALT` и т.д.).
+- NANASM — ассемблер (`LDI`, `MOV`, `ADD`, `LOAD`, `STORE`, `JMP`, `CALL`, `IN`, `OUT`, `HALT` и т.д.).
 - **Inline asm** через `asm { ... }`.
 
 ### Важно про оптимизаторы
 
 Оптимизаторы не заложены «**в коробку**». Встроенный компилятор работает без них. Чтобы включить:
 
-- подключите `ExtensionsVMApplication` и вызовите `AddStdRules()` для AST- и peephole-оптимизаторов, либо
+- подключите `VmApplication.Extension` и вызовите `AddStdRules()` для AST- и peephole-оптимизаторов, либо
 напишите свои правила (`IAstOptimizationRule`, `IPeepholeRule`).
 
 ```csharp
-using ExtensionsVMApplication.Optimizators;
+using Nantuc.VmApplication.Extension.Optimizators;
 
-host.Project.Compiler.Optimizator
+host.Project.Optimizator
     .VMAstOptimizer.AddStdRules();
 
-host.Project.Compiler.Optimizator
+host.Project.Optimizator
     .VMPeepholeOptimizer.AddStdRules();
 ```
 
@@ -162,7 +166,7 @@ host.Project.Compiler.Optimizator
 слабое распределение регистров, 
 консервативный inline, 
 ограниченная поддержка указателей и структур. 
-Если критична скорость готового байт-кода — либо пишите критичные участки на VMA напрямую, 
+Если критична скорость готового байт-кода — либо пишите критичные участки на NANASM напрямую, 
 либо используйте `optimize: true` если вы подключили расширения, в ином случае без расширений оптимизаций никаких не будет.
 
 ## IO и шина портов
@@ -176,7 +180,7 @@ host.Project.Compiler.Optimizator
 (C# не даёт множественного наследования).
 
 ```
-using VMApplication.Emulator.Abstraction;
+using Nantuc.VmApplication.Emulator.Abstraction;
 
 public sealed class MyDevice : PortControlBase
 {
@@ -208,7 +212,7 @@ public sealed class MyDevice : PortControlBase
 Он не предназначен для обычного использования. 
 Чтобы воспользоваться им напрямую, нужно явно указать:
 ```
-using Kernel;
+using Nantuc.Kernel;
 ```
 
 ### `Device` — интерпретатор
@@ -257,14 +261,14 @@ Bits 20-31: Reserved/Operand data
 
 Использование `Kernel` напрямую — это небезопасный сценарий. 
 Вы работаете с низкоуровневой памятью, регистрами и портами без страховок, 
-которые даёт `VMApplication`. Для обычных задач используйте `VMApplication` + `ExtensionsVMApplication`.
+которые даёт `VmApplication`. Для обычных задач используйте `VmApplication` + `VmApplication.Extension`.
 
 ---
 
 # Рекомендации
 
 1. Наследуйтесь от `PortControlBase`, а не реализуйте `IPortController` вручную — иначе сами отвечаете за идемпотентность Dispose.
-2. Критичные по скорости участки пишите сразу на VMA или инлайните через `asm { }` — кодогенератор слабоват.
+2. Критичные по скорости участки пишите сразу на NANASM или инлайните через `asm { }` — кодогенератор слабоват.
 3. Размеры портов (`PortSize`, `DevicePortSize`) — только из статических фабрик (`PortSize.KB64`, `DevicePortSize.B16`); `default` невалиден.
 4. Файловый сервис (`IFileService`) и конфиг путей (`IProjectFilesConfig`) — подменяемые; удобно для тестов и `in-memory` сборок (`RamFileService` в комплекте).
 
@@ -272,15 +276,15 @@ Bits 20-31: Reserved/Operand data
 
 | Проект | Назначение |
 |-------------|-------------|
-| `Kernel.Common` | Публичные примитивы: `RegType`, `OpCode`, `OpCodeSize`, `RamSize`, `PortSize`, `DevicePortSize`, `BiosStatus`, `LogLevel`, `InstructionDecoder`, `AlignmentExtensions`.|
-| `Kernel.Contracts` | Публичные контракты: `IPortController`/`IPortUse`, `IPortController`, `IProcessorReader`, `IProcessorFaultPolicy`, `IDeviceLoggerContext`, `INativeReadOnlyBuffer`, `ISimulationResult`, `OptimizationId`, `IReadOnlyLogOptimization`.|
-| `Kernel` | Реализация: `Processor`, `Device`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Emulator`. Небезопасный, прямой доступ. |
-| `Kernel.Diagnostics` | `ErrorCode`, `IErrorMessageProvider`, `DefaultErrorMessageProvider`, `ThrowHelper`, `CodeExpection`. |
-| `Compiller` | Лексер, парсер, AST, кодогенератор, ассемблер/дизассемблер, платформенных оптимизаторов. |
-| `VMApplication` | Фасад: `VMHost`, `VMHostFactory`, `VMEmulator`, `DeviceContext`, `ProjectBuilder`, `VMHostProjectCompiler`, `IFileService`, `IOutputView`, билдеры. |
-| `ExtensionsVMApplication` | Готовые AST- и peephole-правила, `PortControlBase`-совместимые IO-устройства (`QueuedIOStream`, `SynchronousIOStream`), host-helpers (`RunAndKeep`, `RunOnce`, `RunAndCleanup`). |
-| `ConsoleEmulatorForTests` | Консольный пример запуска. |
-| `TestVMSpeed` | Бенчмарк интерпретатора (warmup + прогоны, статистика, дизассемблер). |
+| `Nantuc.Kernel.Common` | Публичные примитивы: `RegType`, `OpCode`, `OpCodeSize`, `RamSize`, `PortSize`, `DevicePortSize`, `BiosStatus`, `LogLevel`, `InstructionDecoder`, `AlignmentExtensions`.|
+| `Nantuc.Kernel.Contracts` | Публичные контракты: `IPortController`/`IPortUse`, `IPortController`, `IProcessorReader`, `IProcessorFaultPolicy`, `IDeviceLoggerContext`, `INativeReadOnlyBuffer`, `ISimulationResult`, `OptimizationId`, `IReadOnlyLogOptimization`.|
+| `Nantuc.Kernel` | Реализация: `Processor`, `Device`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Emulator`. Небезопасный, прямой доступ. |
+| `Nantuc.Kernel.Diagnostics` | `ErrorCode`, `IErrorMessageProvider`, `DefaultErrorMessageProvider`, `ThrowHelper`, `CodeExpection`. |
+| `Nantuc.Compiler` | Лексер, парсер, AST, кодогенератор, ассемблер/дизассемблер, платформенных оптимизаторов. |
+| `Nantuc.VmApplication` | Фасад: `VMHost`, `VMHostFactory`, `VMEmulator`, `DeviceContext`, `ProjectBuilder`, `VMHostProjectCompiler`, `IFileService`, `IOutputView`, билдеры. |
+| `Nantuc.VmApplication.Extension` | Готовые AST- и peephole-правила, `PortControlBase`-совместимые IO-устройства (`QueuedIOStream`, `SynchronousIOStream`), host-helpers (`RunAndKeep`, `RunOnce`, `RunAndCleanup`). |
+| `Nantuc.Samples.Minimal` | Консольный пример запуска. |
+| `Nantuc.Benchmarks` | Бенчмарк интерпретатора (warmup + прогоны, статистика, дизассемблер). |
 
 ---
 ## Расширения (Extensions)
@@ -290,7 +294,7 @@ Bits 20-31: Reserved/Operand data
 Помощники для быстрого запуска:
 
 ```csharp
-using ExtensionsVMApplication.Host;
+using Nantuc.VmApplication.Extension.Host;
 
 // Запуск с сохранением устройства
 var outcome = host.RunAndKeep(
@@ -316,7 +320,7 @@ var outcome2 = host.RunOnce(source, lang, ram, optimize);
 
 ```csharp
 // Замена безопасного доступа к памяти на небезопасный
-host.Project.Compiler.Optimizator.VMPeepholeOptimizer.Add(
+host.Project.Optimizator.VMPeepholeOptimizer.Add(
     new ReplaceSafeMemAccessWithUnsafeRule { SizeRam = RamSize.MB16 }
 );
 ```
@@ -491,7 +495,7 @@ public interface IProcessorFaultPolicy
 - Базовое распределение регистров
 - Консервативный inline
 - Ограниченная поддержка указателей и структур в параметрах функций
-- **Рекомендация:** Критичные по скорости участки пишите на VMA или инлайните через `asm { }`
+- **Рекомендация:** Критичные по скорости участки пишите на NANASM или инлайните через `asm { }`
 
 ### Оптимизаторы
 
@@ -503,16 +507,16 @@ public interface IProcessorFaultPolicy
 
 | Проект | Target |
 |--------|--------|
-| `Kernel.*`, `Compiller` | `net8.0` |
-| `VMApplication` | `net8.0; net10.0` |
-| `ExtensionsVMApplication`, `TestVMSpeed` | `net10.0` |
+| `Nantuc.Kernel.*`, `Nantuc.Compiler` | `net10.0` |
+| `Nantuc.VmApplication` | `net10.0; net10.0` |
+| `Nantuc.VmApplication.Extension`, `Nantuc.Benchmarks` | `net10.0` |
 
 ### Прямое использование Kernel
 
 - Небезопасно
 - Не рекомендуется без веской причины
-- Используйте `VMApplication` + `ExtensionsVMApplication` для обычных задач
-- `VMApplication` покрывает большинство сценариев
+- Используйте `Nantuc.VmApplication` + `Nantuc.VmApplication.Extension` для обычных задач
+- `Nantuc.VmApplication` покрывает большинство сценариев
 
 ### Размеры памяти
 
@@ -524,10 +528,9 @@ public interface IProcessorFaultPolicy
 ## Рекомендации
 
 1. Наследуйтесь от `PortControlBase`, а не реализуйте `IPortController` вручную.
-2. Критичные по скорости участки пишите сразу на VMA или инлайните через `asm { }`.
+2. Критичные по скорости участки пишите сразу на NANASM или инлайните через `asm { }`.
 3. Размеры портов (`PortSize`, `DevicePortSize`) — только из статических фабрик (`PortSize.KB64`, `DevicePortSize.B16`); `default` невалиден.
 4. Файловый сервис (`IFileService`) и конфиг путей (`IProjectFilesConfig`) — подменяемые; удобно для тестов и `in-memory` сборок (`RamFileService` в комплекте).
-5. Логи идут через `VMHostLogger` → `IOutputView`. Для «тихой» работы используйте `NullOutputView.Instance`.
 
 ---
 
@@ -535,9 +538,9 @@ public interface IProcessorFaultPolicy
 
 | Проект | Назначение |
 |--------|------------|
-| `ConsoleEmulatorForTests` | Консольный пример запуска |
-| `TestVMSpeed` | Бенчмарк интерпретатора (12 кейсов: Memory, Math, ALU, Call, PushPop, BitOps, Mul, Branch) |
-| `include/` | Стандартные библиотеки VMA (`sys.vma`, `std.vma`, `math.vma`) |
+| `Nantuc.Samples.Minimal` | Консольный пример запуска |
+| `Nantuc.Benchmarks` | Бенчмарк интерпретатора (12 кейсов: Memory, Math, ALU, Call, PushPop, BitOps, Mul, Branch) |
+| `include/` | Стандартные библиотеки NANASM (`sys.nanasm`, `std.nanasm`, `math.nanasm`) |
 
 ---
 
