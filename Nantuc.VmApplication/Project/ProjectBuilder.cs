@@ -30,7 +30,6 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
             cAsts.Add(ast);
             includes.AddRange(ast.IncludesList);
         }
-
         var combinedAst = new ProgramNode();
         foreach (var ast in cAsts)
         {
@@ -62,6 +61,7 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
             assembler.EmitJump(InstructionEncoder.EncodeJ(OpCode.JMP.ToUint()), "func_main");
         }
 
+        includes = [.. includes.Distinct(StringComparer.OrdinalIgnoreCase)];
         AddInclude(includes, asmParser, assembler);
 
         foreach (var file in files.Where(file => file.Language == SourceLanguage.Asm))
@@ -96,7 +96,6 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
             if (lang == SourceLanguage.None) continue;
 
             string source = fileService.ReadFile(fileName);
-
             files.Add(new SourceFile(fileName, source, lang));
         }
         return files;

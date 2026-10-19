@@ -94,8 +94,6 @@ public class Assembler : AssemblerBase
         return bytes;
     }
 
-    public override bool HasLabel(string name) => _labels.ContainsKey(name);
-
     /// <summary>Записать инструкцию с последующим 64-битным операндом-меткой (адрес будет подставлен при сборке).</summary>
     public override void EmitInstruction64WithLabel(uint instruction, string label)
     {

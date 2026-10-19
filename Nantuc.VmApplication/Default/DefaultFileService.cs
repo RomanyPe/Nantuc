@@ -20,7 +20,7 @@ public sealed class DefaultFileService(string? projectPath = null) : IFileServic
         return File.ReadAllText(fullPath);
     }
 
-    public void SafeFile(string fileName, string content)
+    public void SaveFile(string fileName, string content)
     {
         var fullPath = Path.Combine(_projectPath, fileName);
         File.WriteAllText(fullPath, content);
@@ -31,13 +31,14 @@ public sealed class DefaultFileService(string? projectPath = null) : IFileServic
         return File.Exists(fullPath);
     }
 
+    public string Combine(string path1, string path2) => Path.Combine(path1, path2);
     public string ReadIncludes(string fileName, IProjectFilesConfig pathConfig)
     {
         string projPath = pathConfig.ProjectPath;
         string includePath = pathConfig.IncludePath;
 
-        string fullPath = Path.Combine(projPath, fileName);
-        string fullPathInc = Path.Combine(includePath, fileName);
+        string fullPath = Combine(projPath, fileName);
+        string fullPathInc = Combine(includePath, fileName);
 
         bool projExist = Exist(fullPath);
         bool incExist = Exist(fullPathInc);

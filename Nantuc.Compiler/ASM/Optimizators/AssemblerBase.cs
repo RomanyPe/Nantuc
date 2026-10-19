@@ -10,7 +10,6 @@ public abstract class AssemblerBase(ulong baseAddress)
     public abstract void EmitInstruction64WithLabel(uint instruction, string label);
     public abstract void EmitJump(uint jmpOpcode, string label);
     public abstract void EmitJumpToAbsolute(uint jmpOpcode, ulong absoluteTarget);
-    public abstract bool HasLabel(string name);
     public abstract void MarkLabel(string name);
     public abstract void EmitData(string v, byte[] data);
     

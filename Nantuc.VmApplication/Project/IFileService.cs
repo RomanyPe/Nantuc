@@ -6,5 +6,6 @@ public interface IFileService
     string ReadFile(string fileName);
     bool Exist(string fileName);
     string ReadIncludes(string fileName, IProjectFilesConfig pathConfig);
-    public void SafeFile(string fileName, string content);
+    void SaveFile(string fileName, string content);
+    string Combine(string path1, string path2);
 }

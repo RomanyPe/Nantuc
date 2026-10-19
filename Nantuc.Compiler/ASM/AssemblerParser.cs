@@ -102,8 +102,8 @@ public partial class AssemblerParser
     };
 
     private AssemblerBase _asm = null!;
-    private readonly FrozenDictionary<string, RegType> _regMap = _regMapLex.ToFrozenDictionary();
-    private readonly FrozenDictionary<string, OpCode> _opMap = _opMapLex.ToFrozenDictionary();
+    private static readonly FrozenDictionary<string, RegType> _regMap = _regMapLex.ToFrozenDictionary();
+    private static readonly FrozenDictionary<string, OpCode> _opMap = _opMapLex.ToFrozenDictionary();
 
     public byte[] Assemble(string code, ulong baseAddress = 0)
     {

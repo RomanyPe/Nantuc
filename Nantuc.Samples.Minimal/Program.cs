@@ -7,6 +7,10 @@ using Nantuc.VmApplication.Extensions.Host;
 
 const string source1 =
     """
+    #include "logger.asm"
+    
+    extern void log();
+
     void main(){
         log();
     }
@@ -14,27 +18,31 @@ const string source1 =
 
 const string source2 =
     """
-    void log() {
-        asm {
-            LDI  r1, 0x41;          // r1 = данные ('A')
-            LDI  r2, 0x10;          // r2 = адрес порта Data
-            OUT  r1, r2;            // OUT regSrc=r1, regPort=r2
+    func_log:
+        LDI  r1, 0x41;          // r1 = данные ('A')
+        LDI  r2, 0x10;          // r2 = адрес порта Data
+        OUT  r1, r2;            // OUT regSrc=r1, regPort=r2
 
-            LDI  r1, 1;             // данные для Flush
-            LDI  r2, 0x12;          // адрес порта Flush
-            OUT  r1, r2;
+        LDI  r1, 1;             // данные для Flush
+        LDI  r2, 0x12;          // адрес порта Flush
+        OUT  r1, r2;
 
-            END;
-        }
-    }
+        RET;
     """;
 
 
 using var host = VMHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicy(Console.Out);
 
-host.Project.FileService.SafeFile("main.minic", source1);
-host.Project.FileService.SafeFile("foo.minic", source2);
+var fs = host.Project.FileService;
+var paths = host.Project.Paths;
+
+var s1 = fs.Combine(paths.ProjectPath, "main.c");
+fs.SaveFile(s1, source1);
+
+host.Project.FileService.SaveFile(
+    fs.Combine(paths.IncludePath, "logger.asm"), 
+    source2);
 
 var handle = DeviceSpec.Create(
     ramSize: RamSize.MB128,

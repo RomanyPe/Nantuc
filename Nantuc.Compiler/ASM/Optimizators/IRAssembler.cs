@@ -67,7 +67,6 @@ public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
         MarkLabel(label);
         _items.Add(new AsmData(data));
     }
-    public override bool HasLabel(string name) => _labelNames.Contains(name);
     public List<AsmItem> GetItems() => _items;
     public override byte[] Build()
     {
