@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <TargetFrameworks>net10.0</TargetFrameworks>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<Nullable>enable</Nullable>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nantuc.Compiler\Nantuc.Compiler.csproj" />
+    <ProjectReference Include="..\Nantuc.Kernel.Contracts\Nantuc.Kernel.Contracts.csproj" />
+    <ProjectReference Include="..\Nantuc.Kernel\Nantuc.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>
