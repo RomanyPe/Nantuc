@@ -38,6 +38,10 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
                             _varAccessor.StoreFromRegister(var.Name, RegType.r1);
                         }
                     }
+                    else if (var.ArrayInitializer != null && var.IsArray)
+                    {
+                        GenerateLocalArrayInit(var);
+                    }
                     break;
                 case AssignmentNode assign:
                     GenerateAssignment(assign);
@@ -68,6 +72,39 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
                     break;
             }
         }
+    }
+    private void GenerateLocalArrayInit(VariableNode var)
+    {
+        if (!_funcCtx.VarMap.TryGetValue(var.Name, out var loc) || loc.IsRegister)
+            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_CannotGetRegisterAddress, var.Name);
+
+        OpCodeSize elemSize = loc.TypeSize;
+        int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize);
+        int providedCount = Math.Min(var.ArrayInitializer!.Count, var.ArraySize);
+
+        // 1. Явно заданные значения
+        for (int i = 0; i < providedCount; i++)
+        {
+            _exprGen.GenerateExpression(var.ArrayInitializer[i]);
+            EmitStoreToLocalArrayElement(loc.StackOffset + i * elemBytes, elemSize);
+        }
+
+        // 2. Хвост — нули (C-семантика: int y[10] = {5} ⇒ y[1..9] == 0)
+        if (var.ArraySize > providedCount)
+        {
+            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(RegType.r1.ToUint()), 0);
+            for (int i = providedCount; i < var.ArraySize; i++)
+                EmitStoreToLocalArrayElement(loc.StackOffset + i * elemBytes, elemSize);
+        }
+    }
+
+    private void EmitStoreToLocalArrayElement(int offset, OpCodeSize elemSize)
+    {
+        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)offset);
+        _asm.EmitInstruction(InstructionEncoder.EncodeR(
+            OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
+        _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(
+            RegType.r1.ToUint(), CodeGenUtils.TMP_REG, elemSize.ToUint()));
     }
 
     private void GenerateInlineAsm(InlineAsmNode asm)

@@ -13,10 +13,9 @@ public static class VMHostFactory
         PortSize? portBusSize = null,
         DevicePortSize? portsPerDevice = null)
     {
-        projectConfig ??= IProjectFilesConfig.Default;
         var projectBuilder = new VMHostProjectBuilder()
-            .WithPaths(projectConfig)
-            .WithFileService(fileService ?? new RamFileService(projectConfig));
+            .WithPaths(projectConfig ?? IProjectFilesConfig.Default)
+            .WithFileService(fileService ?? new RamFileService());
         var project = projectBuilder.Build();
 
         var emulatorBuilder = new VMEmulatorBuilder()

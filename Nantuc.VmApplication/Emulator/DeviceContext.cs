@@ -1,7 +1,9 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Nantuc.VmApplication.Project;
-using Nantuc.Kernel.BiosSystem;
+﻿using Nantuc.Kernel.BiosSystem;
+using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Contracts;
+using Nantuc.VmApplication.Project;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace Nantuc.VmApplication.Emulator;
 
@@ -118,7 +120,7 @@ public class DeviceContext
     public byte ReadPort(ulong offset) => _device.ReadPort(offset);
     public void ResetRegisters() => _device.ClearRegisters();
     public void CopyRegisters(Span<ulong> destination) => _device.CopyRegisters(destination);
-    public ulong[] GetRegistersSnapshot() => _device.GetRegistersSnapshot();
+    public SnapshotRegisters GetRegistersSnapshot() => new(_device.GetRegistersSnapshot());
 
     private void ThrowIfRunning(
         string msg = "Cannot launch program while device is running. Call Stop() first.")
@@ -143,4 +145,50 @@ public class DeviceContext
     }
     private void SetNoneMode() => _mode = Mode.None;
 
+}
+
+public readonly struct SnapshotRegisters(ulong[] values) : IEquatable<SnapshotRegisters>
+{
+    private readonly ulong[]? _values = values;
+
+    public ulong this[RegType r]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _values![r.Int()];
+    }
+
+    public ulong Count => (ulong)_values!.Length;
+
+    public IEnumerable<(RegType Type, ulong Value)> Enumerate()
+    {
+        for (int i = 0; i < _values!.Length; i++)
+            yield return ((RegType)i, _values[i]);
+    }
+
+    public bool Equals(SnapshotRegisters other) =>
+        _values.AsSpan().SequenceEqual(other._values);
+
+    public override int GetHashCode() => _values!.GetHashCode();
+
+    public override string ToString() =>
+        string.Join(", ", Enumerate().Select(e => $"{e.Type}={e.Value:X}"));
+
+    
+
+    public static bool operator ==(SnapshotRegisters left, SnapshotRegisters right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(SnapshotRegisters left, SnapshotRegisters right)
+    {
+        return !(left == right);
+    }
+
+#pragma warning disable CS8765 // Допустимость значений NULL для типа параметра не соответствует переопределенному элементу (возможно, из-за атрибутов допустимости значений NULL).
+    public override bool Equals(object obj)
+#pragma warning restore CS8765 // Допустимость значений NULL для типа параметра не соответствует переопределенному элементу (возможно, из-за атрибутов допустимости значений NULL).
+    {
+        return obj is SnapshotRegisters registers && Equals(registers);
+    }
 }

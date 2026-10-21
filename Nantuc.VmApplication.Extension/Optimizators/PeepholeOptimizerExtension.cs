@@ -45,7 +45,6 @@ public static class PeepholeOptimizerExtension
     public static readonly OptimizationId RemovePushPop = Peephole("remove-push-pop");
     public static readonly OptimizationId RemoveSwapMov = Peephole("remove-swap-mov");
     public static readonly OptimizationId ReplaceSafeAccess = Peephole("replace-safe-mem-acces-with-unsafe");
-    public static readonly OptimizationId ConstantFolding7 = Peephole("constant-folding");
 }
 
 

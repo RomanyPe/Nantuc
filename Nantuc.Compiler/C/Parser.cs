@@ -128,31 +128,7 @@ public class Parser(List<Token> tokens)
                 }
                 else
                 {
-
-                    // Обработка массивов и обычных переменных
-                    VariableNode varNode;
-                    if (Current.Value == "[") // массив
-                    {
-                        Expect(TokenType.Punctuation, "[");
-                        if (Current.Type != TokenType.Number)
-                            ThrowHelper.ThrowMiniC(ErrorCode.Parser_ArraySizeNotConstant, name);
-                        int size = int.Parse(Current.Value);
-                        Advance();
-                        Expect(TokenType.Punctuation, "]");
-                        varNode = new VariableNode(type, name)
-                        {
-                            IsArray = true,
-                            ArraySize = size,
-                            IsPointer = isPointer,
-                            PointedType = pointedType
-                        };
-                    }
-                    else
-                    {
-                        varNode = ParseVariable(type, name);
-                        varNode.IsPointer = isPointer;
-                        varNode.PointedType = pointedType;
-                    }
+                    var varNode = ParseVariableOrArray(type, name, isPointer, pointedType);
                     program.GlobalVarNodes.Add(varNode);
                     Expect(TokenType.Punctuation, ";");
                 }
@@ -233,16 +209,6 @@ public class Parser(List<Token> tokens)
         };
         return func;
     }
-    private VariableNode ParseVariable(string type, string name)
-    {
-        ASTNode? initializer = null;
-        if (Current.Value == "=")
-        {
-            Expect(TokenType.Operator, "=");
-            initializer = ParseExpression();
-        }
-        return new VariableNode(type, name, initializer);
-    }
 
     private BlockNode ParseBlock()
     {
@@ -264,30 +230,7 @@ public class Parser(List<Token> tokens)
 
                 string name = Expect(TokenType.Identifier).Value;
 
-                VariableNode varNode;
-                if (Current.Value == "[") // массив
-                {
-                    Expect(TokenType.Punctuation, "[");
-                    // размер – только константа (пока)
-                    if (Current.Type != TokenType.Number)
-                        ThrowHelper.ThrowMiniC(ErrorCode.Parser_ArraySizeNotConstant, name);
-                    int size = int.Parse(Current.Value);
-                    Advance();
-                    Expect(TokenType.Punctuation, "]");
-                    varNode = new VariableNode(type, name)
-                    {
-                        IsArray = true,
-                        ArraySize = size,
-                        IsPointer = isPointer,
-                        PointedType = pointedType
-                    };
-                }
-                else
-                {
-                    varNode = ParseVariable(type, name);
-                    varNode.IsPointer = isPointer;
-                    varNode.PointedType = pointedType;
-                }
+                var varNode = ParseVariableOrArray(type, name, isPointer, pointedType);
                 block.Statements.Add(varNode);
                 Expect(TokenType.Punctuation, ";");
             }
@@ -299,7 +242,75 @@ public class Parser(List<Token> tokens)
         Expect(TokenType.Punctuation, "}");
         return block;
     }
+    private VariableNode ParseVariableOrArray(string type, string name, bool isPointer, string? pointedType)
+    {
+        // --- Массив? ---
+        if (Current.Type == TokenType.Punctuation && Current.Value == "[")
+        {
+            Expect(TokenType.Punctuation, "[");
+            int size = -1;
+            if (Current.Type == TokenType.Number)
+            {
+                size = int.Parse(Current.Value);
+                Advance();
+            }
+            Expect(TokenType.Punctuation, "]");
 
+            var varNode = new VariableNode(type, name)
+            {
+                IsArray = true,
+                ArraySize = size < 0 ? 0 : size,
+                IsPointer = isPointer,
+                PointedType = pointedType
+            };
+
+            // Инициализатор { ... }?
+            if (Current.Type == TokenType.Operator && Current.Value == "=")
+            {
+                Expect(TokenType.Operator, "=");
+                Expect(TokenType.Punctuation, "{");
+
+                var initList = new List<ASTNode>();
+                if (Current.Value != "}")
+                {
+                    while (true)
+                    {
+                        initList.Add(ParseExpression());
+                        if (Current.Value != ",") break;
+                        Expect(TokenType.Punctuation, ",");
+                    }
+                }
+                Expect(TokenType.Punctuation, "}");
+
+                varNode.ArrayInitializer = initList;
+
+                if (size < 0)
+                    varNode.ArraySize = initList.Count;          // int arr[] = {...}
+                else if (initList.Count > size)
+                    ThrowHelper.ThrowMiniC(ErrorCode.Parser_InvalidAssignment, name); // слишком много инициализаторов
+            }
+            else if (size < 0)
+            {
+                // int arr[]; без инициализатора — размер неизвестен
+                ThrowHelper.ThrowMiniC(ErrorCode.Parser_ArraySizeNotConstant, name);
+            }
+
+            return varNode;
+        }
+
+        // --- Скаляр ---
+        ASTNode? initializer = null;
+        if (Current.Type == TokenType.Operator && Current.Value == "=")
+        {
+            Expect(TokenType.Operator, "=");
+            initializer = ParseExpression();
+        }
+        return new VariableNode(type, name, initializer)
+        {
+            IsPointer = isPointer,
+            PointedType = pointedType
+        };
+    }
     private ASTNode ParseBlockType(string text) => text switch
     {
         "if" => ParseIf(),
@@ -351,29 +362,12 @@ public class Parser(List<Token> tokens)
             if (IsTypeSpecifier())
             {
                 string type = ParseType();
-
                 bool isPointer = false;
                 string? pointedType = null;
-                if (Current.Value == "*")
-                {
-                    isPointer = true;
-                    pointedType = type;
-                    Advance();
-                }
+                if (Current.Value == "*") { isPointer = true; pointedType = type; Advance(); }
 
                 string name = Expect(TokenType.Identifier).Value;
-
-                ASTNode? initializer = null;
-                if (Current.Value == "=")
-                {
-                    Expect(TokenType.Operator, "=");
-                    initializer = ParseExpression();
-                }
-                init = new VariableNode(type, name, initializer)
-                {
-                    IsPointer = isPointer,
-                    PointedType = pointedType
-                };
+                init = ParseVariableOrArray(type, name, isPointer, pointedType);
             }
             else
             {

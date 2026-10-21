@@ -64,8 +64,9 @@ public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
     }
     public override void EmitData(string label, byte[] data)
     {
+        _items.Add(new AsmData([], alignment: 8));
         MarkLabel(label);
-        _items.Add(new AsmData(data));
+        _items.Add(new AsmData(data, alignment: 1));
     }
     public List<AsmItem> GetItems() => _items;
     public override byte[] Build()

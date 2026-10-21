@@ -144,10 +144,33 @@ public class ExpressionGenerator(AssemblerBase asm,
                     OpCode.MOV.ToUint(), targetReg.ToUint(), lreg.ToUint()));
             return;
         }
-        // Общий случай: левый операнд в targetReg, правый в r1 (или r2 при конфликте)
+        // Общий случай
         GenerateExpression(binop.Left, targetReg);
         RegType rReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
+        RegType addrReg = RegType.r4;
+
+        int saveOffset = _funcCtx.TotalLocalSize + _funcCtx.ExpressionSaveDepth * 8;
+
+        // Сохраняем левый операнд в save slot [rSP + saveOffset]
+        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(addrReg.ToUint()), (ulong)saveOffset);
+        _asm.EmitInstruction(InstructionEncoder.EncodeR(
+            OpCode.ADD.ToUint(), addrReg.ToUint(), RegType.rSP.ToUint()));
+        _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(
+            targetReg.ToUint(), addrReg.ToUint(), (uint)OpCodeSize.S64));
+
+        _funcCtx.ExpressionSaveDepth++;
+
         GenerateExpression(binop.Right, rReg);
+
+        _funcCtx.ExpressionSaveDepth--;
+
+        // Восстанавливаем левый операнд
+        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(addrReg.ToUint()), (ulong)saveOffset);
+        _asm.EmitInstruction(InstructionEncoder.EncodeR(
+            OpCode.ADD.ToUint(), addrReg.ToUint(), RegType.rSP.ToUint()));
+        _asm.EmitInstruction(InstructionEncoder.EncodeLOAD_IND(
+            targetReg.ToUint(), addrReg.ToUint(), (uint)OpCodeSize.S64));
+
         EmitBinaryOperation(binop.Operator, targetReg, rReg);
     }
     private void GenerateUnaryOp(UnaryOpNode unop, RegType targetReg)
@@ -447,6 +470,12 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         return (layout, field, field.Type);
     }
+    private static bool RightMayClobberR1(ASTNode expr) => expr switch
+    {
+        NumberNode => false,   // LDI target, imm
+        IdentifierNode => false,   // MOV target, src / LOAD target, [label]
+        _ => true,    // ArrayAccess, Call, Member, Deref, AddrOf, Binary, Unary
+    };
 
     public string? ResolveArrayStructType(string arrayName)
     {
@@ -484,7 +513,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             var gInfo = _globalMem.GetInfo(arrayName)!.Value;
             if (gInfo.IsArray)
-                LoadArrayElementFromGlobal(gInfo, indexExpr);
+                LoadArrayElementFromGlobal(gInfo, arrayName, indexExpr);   // ← новый аргумент
             else if (gInfo.IsPointer)
                 LoadPointerElementToR0(arrayName, null, indexExpr);
             else
@@ -511,7 +540,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             var gInfo = _globalMem.GetInfo(arrayName)!.Value;
             if (gInfo.IsArray)
-                StoreArrayElementToGlobal(gInfo, indexExpr);
+                StoreArrayElementToGlobal(gInfo, arrayName, indexExpr);
             else if (gInfo.IsPointer)
                 StorePointerElement(arrayName, null, indexExpr);
             else
@@ -533,15 +562,39 @@ public class ExpressionGenerator(AssemblerBase asm,
         _asm.EmitInstruction(InstructionEncoder.EncodeLOAD_IND(RegType.r1.ToUint(), CodeGenUtils.TMP_REG, typeSize.ToUint()));
     }
 
-    private void LoadArrayElementFromGlobal(GlobalInfo gInfo, ASTNode indexExpr)
+    private void LoadArrayElementFromGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr)
     {
         var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type);
         GenerateExpression(indexExpr);
         if (typeSize != OpCodeSize.S8)
-            CodeGenUtils.EmitMultiplyByConstant(_asm, RegType.r1.ToUint(), CodeGenUtils.GetSizeInBytes(typeSize));
-        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), gInfo.Address);
-        _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.r1.ToUint()));
-        _asm.EmitInstruction(InstructionEncoder.EncodeLOAD_IND(RegType.r1.ToUint(), CodeGenUtils.TMP_REG, typeSize.ToUint()));
+            CodeGenUtils.EmitMultiplyByConstant(_asm, RegType.r1.ToUint(),
+                                                CodeGenUtils.GetSizeInBytes(typeSize));
+
+        // БЫЛО: _asm.EmitInstruction64(EncodeLDI(TMP_REG), gInfo.Address);
+        string label = GlobalMemoryManager.GetLabel(arrayName);
+        _asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), label);
+
+        _asm.EmitInstruction(InstructionEncoder.EncodeR(
+            OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.r1.ToUint()));
+        _asm.EmitInstruction(InstructionEncoder.EncodeLOAD_IND(
+            RegType.r1.ToUint(), CodeGenUtils.TMP_REG, typeSize.ToUint()));
+    }
+
+    private void StoreArrayElementToGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr)
+    {
+        var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type);
+        GenerateExpression(indexExpr);
+        if (typeSize != OpCodeSize.S8)
+            CodeGenUtils.EmitMultiplyByConstant(_asm, RegType.r1.ToUint(),
+                                                CodeGenUtils.GetSizeInBytes(typeSize));
+
+        string label = GlobalMemoryManager.GetLabel(arrayName);
+        _asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), label);
+
+        _asm.EmitInstruction(InstructionEncoder.EncodeR(
+            OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.r1.ToUint()));
+        _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(
+            RegType.r2.ToUint(), CodeGenUtils.TMP_REG, typeSize.ToUint()));
     }
 
     private void LoadPointerElementToR0(string pointerName, VarLocation? loc, ASTNode indexExpr)
@@ -557,8 +610,8 @@ public class ExpressionGenerator(AssemblerBase asm,
         GenerateExpression(indexExpr);   // r0 = индекс
         _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), RegType.r2.ToUint(), RegType.r1.ToUint()));
         // 2. Загружаем адрес указателя → r0
-        _varAccessor.LoadAddressToRegister(pointerName, RegType.r1);   // r0 = адрес
-                                         // 3. Умножаем индекс на размер элемента
+        _varAccessor.LoadToRegister(pointerName, RegType.r1);   // r0 = адрес
+                                                                // 3. Умножаем индекс на размер элемента
         if (pointedSize != OpCodeSize.S8)
             CodeGenUtils.EmitMultiplyByConstant(_asm, RegType.r2.ToUint(), CodeGenUtils.GetSizeInBytes(pointedSize));
         // 4. r0 = адрес + смещение
@@ -575,17 +628,6 @@ public class ExpressionGenerator(AssemblerBase asm,
             CodeGenUtils.EmitMultiplyByConstant(_asm, RegType.r1.ToUint(), CodeGenUtils.GetSizeInBytes(typeSize));
         _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)loc.StackOffset);
         _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
-        _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.r1.ToUint()));
-        _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(RegType.r2.ToUint(), CodeGenUtils.TMP_REG, typeSize.ToUint()));
-    }
-
-    private void StoreArrayElementToGlobal(GlobalInfo gInfo, ASTNode indexExpr)
-    {
-        var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type);
-        GenerateExpression(indexExpr);
-        if (typeSize != OpCodeSize.S8)
-            CodeGenUtils.EmitMultiplyByConstant(_asm, RegType.r1.ToUint(), CodeGenUtils.GetSizeInBytes(typeSize));
-        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), gInfo.Address);
         _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.r1.ToUint()));
         _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(RegType.r2.ToUint(), CodeGenUtils.TMP_REG, typeSize.ToUint()));
     }
@@ -612,7 +654,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         }
 
         // 3. Загружаем адрес указателя → r0
-        _varAccessor.LoadAddressToRegister(pointerName, RegType.r1);   // r0 = адрес
+        _varAccessor.LoadToRegister(pointerName, RegType.r1);
 
         // 4. r0 = адрес + смещение
         _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), RegType.r1.ToUint(), RegType.r3.ToUint()));

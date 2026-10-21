@@ -1,5 +1,6 @@
-﻿using ConsoleEmulatorForTests;
+﻿using Nantuc.Compiler.ASM;
 using Nantuc.Kernel.Common;
+using Nantuc.Samples.Minimal;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Emulator.IO;
@@ -7,29 +8,21 @@ using Nantuc.VmApplication.Extensions.Host;
 
 const string source1 =
     """
-    #include "logger.asm"
-    
-    extern void log();
-
-    void main(){
-        log();
-    }
+    int y[] = { 1, 2, 4, 8, 16 };
+    int main() { return y[0] + (y[1] + (y[2] + (y[3] + y[4]))); }
     """;
 
-const string source2 =
-    """
-    func_log:
-        LDI  r1, 0x41;          // r1 = данные ('A')
-        LDI  r2, 0x10;          // r2 = адрес порта Data
-        OUT  r1, r2;            // OUT regSrc=r1, regPort=r2
+const string ioSource = """
 
-        LDI  r1, 1;             // данные для Flush
-        LDI  r2, 0x12;          // адрес порта Flush
-        OUT  r1, r2;
+    func_In:
+        IN r1, r0;
+        MOV r0, r1;
+        RET;
 
+    func_Out:
+        OUT r0, r1;
         RET;
     """;
-
 
 using var host = VMHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicy(Console.Out);
@@ -37,12 +30,8 @@ var lfPolicy = new LoggingFaultPolicy(Console.Out);
 var fs = host.Project.FileService;
 var paths = host.Project.Paths;
 
-var s1 = fs.Combine(paths.ProjectPath, "main.c");
-fs.SaveFile(s1, source1);
-
-host.Project.FileService.SaveFile(
-    fs.Combine(paths.IncludePath, "logger.asm"), 
-    source2);
+host.Project.SaveFileProject("main.c", source1);
+host.Project.SaveFileInclude("io.asm",  ioSource);
 
 var handle = DeviceSpec.Create(
     ramSize: RamSize.MB128,
@@ -50,7 +39,7 @@ var handle = DeviceSpec.Create(
     name: "ConsoleVM"
 );
 
-var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
+var iostream = new NumericIOStream(Console.Out, PortCharEncoding.Utf8);
 
 int deviceId = host.Emulator.RegisterDevice(handle: handle, sector: 0);
 host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
@@ -69,6 +58,7 @@ if (!resCompile.Success)
         Console.WriteLine(err);
     return;
 }
+Console.WriteLine(Disassembler.Disassemble(resCompile.Program, out _, out _));
 
 if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
 {
@@ -76,3 +66,8 @@ if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, o
     return;
 }
 deviceCtx.Run();
+var regs = deviceCtx.GetRegistersSnapshot();
+Console.WriteLine($"{RegType.r0.RegName()} = {regs[RegType.r0]}");
+Console.WriteLine($"{RegType.r1.RegName()} = {regs[RegType.r1]}");
+Console.WriteLine($"{RegType.r2.RegName()} = {regs[RegType.r2]}");
+Console.WriteLine($"{RegType.r3.RegName()} = {regs[RegType.r3]}");

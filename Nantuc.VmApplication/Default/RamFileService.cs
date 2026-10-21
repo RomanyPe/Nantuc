@@ -1,49 +1,32 @@
 ﻿using Nantuc.VmApplication.Project;
+using System.Linq;
 
 namespace Nantuc.VmApplication.Default;
 
-public class RamFileService(IProjectFilesConfig projectFilesConfig) : IFileService
+public class RamFileService : IFileService
 {
     private readonly Dictionary<string, string> _files = [];
-    private readonly IProjectFilesConfig _projectFilesConfig = projectFilesConfig;
     public string Combine(string path1, string path2) => path1 + "\\" + path2;
 
     public bool Exist(string fileName) => _files.ContainsKey(fileName);
 
-    public IEnumerable<string> GetNameFiles()
+    public IEnumerable<string> GetNameFiles(IProjectFilesConfig path)
     {
-        foreach (var file in _files.Keys)
-        {
-            if (file.StartsWith(_projectFilesConfig.IncludePath)) continue;
-            yield return file;
-        }
+        return _files.Keys.Where(file => !file.StartsWith(path.IncludePath) && IsCorrectly(file, path));
     }
 
+    private static bool IsCorrectly(string file, IProjectFilesConfig filesConfig)
+    {
+        return Ext(file, filesConfig.ExtensionsMiniC) || Ext(file, filesConfig.ExtensionsAsm);
+    }
+    private static bool Ext(string file, IReadOnlyList<string> extensions)
+    {
+        foreach (var ext in extensions)
+        {
+            if (file.EndsWith(ext)) return true;
+        }
+        return false;
+    }
     public string ReadFile(string fileName) => _files[fileName];
     public void SaveFile(string fileName, string content) => _files[fileName] = content;
-    public string ReadIncludes(string fileName, IProjectFilesConfig pathConfig)
-    {
-
-        string fullPath = Combine(pathConfig.ProjectPath, fileName);
-        string fullPathInc = Combine(pathConfig.IncludePath, fileName);
-
-        bool projExist = Exist(fullPath);
-        bool incExist = Exist(fullPathInc);
-
-        if (projExist && incExist)
-            throw new InvalidOperationException($"The file {fileName} exists in both {pathConfig.ProjectPath} and {pathConfig.IncludePath}; please select a specific file.");
-
-
-        if (projExist)
-        {
-            return ReadFile(fullPath);
-        }
-        else if (incExist)
-        {
-            return ReadFile(fullPathInc);
-        }
-
-        throw new FileNotFoundException(
-                $"Included file not found: '{fileName}'. Searched in paths: {pathConfig.ProjectPath}, {pathConfig.IncludePath}");
-    }
 }

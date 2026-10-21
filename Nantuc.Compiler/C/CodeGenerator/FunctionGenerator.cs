@@ -3,6 +3,8 @@ using Nantuc.Compiler.ASM.Optimizators;
 using Nantuc.Compiler.C;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
+using System.Buffers;
+using System.Drawing;
 
 
 namespace Nantuc.Compiler.C.CodeGenerator;
@@ -21,11 +23,6 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
     public void Generate(ProgramNode program)
     {
         _globalMem = new GlobalMemoryManager();
-
-        //foreach (var s in program.Structs)
-        //{
-        //    _structTable[s.Name] = new(s.Name, s.Fields, _structTable);
-        //}
 
         foreach (var global in program.GlobalVarNodes)
         {
@@ -48,7 +45,12 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         foreach (var global in program.GlobalVarNodes)
         {
             int size = GetGlobalDataSize(global, _structTable);
-            byte[] data = new byte[(size + 7) & ~7]; // выравнивание до 8
+             
+            byte[] data = new byte[(size + 7) & ~7];
+
+            if (global.ArrayInitializer != null)
+                FillArrayInitializerData(data, global);
+
             _asm.EmitData(GlobalMemoryManager.GetLabel(global.Name), data);
         }
 
@@ -58,7 +60,6 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
             {
                 var param = func.Parameters[i];
                 string globalName = $"__param_{func.Name}_{param.Name}";
-                // размер всегда 8 (для простоты)
                 byte[] data = new byte[8];
                 _asm.EmitData(GlobalMemoryManager.GetLabel(globalName), data);
             }
@@ -78,6 +79,36 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         return varNode.IsArray ? baseSize * varNode.ArraySize : baseSize;
     }
 
+    private static void FillArrayInitializerData(byte[] data, VariableNode varNode)
+    {
+        OpCodeSize elemSize = CodeGenUtils.GetSizeForType(varNode.Type);
+        int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize);
+        int count = Math.Min(varNode.ArrayInitializer!.Count, varNode.ArraySize);
+
+        for (int i = 0; i < count; i++)
+        {
+            long value = EvaluateConstant(varNode.ArrayInitializer[i]);
+            int offset = i * elemBytes;
+            // little-endian запись
+            for (int b = 0; b < elemBytes; b++)
+                data[offset + b] = (byte)(value >> (b * 8));
+        }
+        // остаток (ArraySize > initializer.Count) и padding — нули (C-семантика)
+    }
+
+    private static long EvaluateConstant(ASTNode node) => node switch
+    {
+        NumberNode num => num.Value,
+        UnaryOpNode { Operator: "-" } u => -EvaluateConstant(u.Operand),
+        UnaryOpNode { Operator: "+" } u => EvaluateConstant(u.Operand),
+        UnaryOpNode { Operator: "~" } u => ~EvaluateConstant(u.Operand),
+        BinaryOpNode bin => ExpressionGenerator.ComputeConstant(
+                                                       EvaluateConstant(bin.Left),
+                                                       EvaluateConstant(bin.Right),
+                                                       bin.Operator),
+        _ => ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported,
+                 $"Non-constant initializer in array: {node.GetType().Name}")
+    };
     private void GenerateGlobalInit(ProgramNode program)
     {
         // Временный контекст для вычисления глобальных инициализаторов
@@ -120,60 +151,19 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         bool isMain = func.Name == "main";
 
         // Пролог
-        if (!isMain)
+        int stackAlloc = funcCtx.TotalLocalSize + funcCtx.SaveAreaSize;
+        if (stackAlloc > 0)
         {
-            foreach (var reg in funcCtx.UsedRegisters.OrderBy(r => (int)r))
-                _asm.EmitInstruction(InstructionEncoder.EncodeU(OpCode.PUSH.ToUint(), (uint)reg));
-
-            // Вместо загрузки из псевдоглобалов:
-            for (int i = 0; i < func.Parameters.Count; i++)
-            {
-                var param = func.Parameters[i];
-                if (i < 4)
-                {
-                    // Параметр пришёл в регистре r0..r3
-                    RegType incomingReg = (RegType)i;
-                    if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc))
-                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
-
-                    if (loc.IsRegister)
-                    {
-                        // Перемещаем в выделенный регистр
-                        if (loc.Register != incomingReg)
-                            _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), loc.Register.ToUint(), incomingReg.ToUint()));
-                    }
-                    else
-                    {
-                        // Сохраняем в стек
-                        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)loc.StackOffset);
-                        _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
-                        _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(incomingReg.ToUint(), CodeGenUtils.TMP_REG, loc.TypeSize.ToUint()));
-                    }
-                }
-                else
-                {
-                    // Для параметров > 4 оставляем старый механизм (псевдоглобалы)
-                    if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc) || !loc.IsRegister)
-                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
-                    string globalName = $"__param_{func.Name}_{param.Name}";
-                    var addr = _globalMem.GetInfo(globalName)!.Value.Address;
-                    OpCodeSize size = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type);
-                    _asm.EmitInstruction64(InstructionEncoder.EncodeLOAD(loc.Register.ToUint(), size.ToUint()), addr);
-                }
-            }
-
-            if (funcCtx.TotalLocalSize > 0)
-            {
-                _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)funcCtx.TotalLocalSize);
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.SUB.ToUint(), (uint)RegType.rSP, CodeGenUtils.TMP_REG));
-            }
+            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)stackAlloc);
+            _asm.EmitInstruction(InstructionEncoder.EncodeR(
+                OpCode.SUB.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
         }
         else
         {
             if (funcCtx.TotalLocalSize > 0)
             {
                 _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)funcCtx.TotalLocalSize);
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.SUB.ToUint(), (uint)RegType.rSP, CodeGenUtils.TMP_REG));
+                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.SUB.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
             }
         }
 
@@ -181,9 +171,11 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         stmtGen.GenerateBlock(func.Body);
 
         // Эпилог
-        if (isMain)
+        if (stackAlloc > 0)
         {
-            _asm.EmitInstruction(InstructionEncoder.EncodeEND());
+            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)stackAlloc);
+            _asm.EmitInstruction(InstructionEncoder.EncodeR(
+                OpCode.ADD.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
         }
         else
         {
@@ -191,7 +183,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
             if (funcCtx.TotalLocalSize > 0)
             {
                 _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)funcCtx.TotalLocalSize);
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), (uint)RegType.rSP, CodeGenUtils.TMP_REG));
+                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
             }
             for (int i = funcCtx.UsedRegisters.Count - 1; i >= 0; i--)
                 _asm.EmitInstruction(InstructionEncoder.EncodeU(OpCode.POP.ToUint(), (uint)funcCtx.UsedRegisters[i]));

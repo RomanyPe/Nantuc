@@ -2,61 +2,27 @@
 
 namespace Nantuc.VmApplication.Default;
 
-public sealed class DefaultFileService(string? projectPath = null) : IFileService
+public sealed class DefaultFileService : IFileService
 {
-
-    private readonly string _projectPath = string.IsNullOrEmpty(projectPath) 
-        ? AppDomain.CurrentDomain.BaseDirectory 
-        : projectPath;
-
-    public IEnumerable<string> GetNameFiles()
+    public IEnumerable<string> GetNameFiles(IProjectFilesConfig pathConfig)
     {
-        return Directory.EnumerateFiles(_projectPath, "*.*", SearchOption.AllDirectories);
-    }
+        var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-    public string ReadFile(string fileName)
-    {
-        var fullPath = Path.Combine(_projectPath, fileName);
-        return File.ReadAllText(fullPath);
-    }
 
-    public void SaveFile(string fileName, string content)
-    {
-        var fullPath = Path.Combine(_projectPath, fileName);
-        File.WriteAllText(fullPath, content);
-    }
-    public bool Exist(string fileName)
-    {
-        var fullPath = Path.Combine(_projectPath, fileName);
-        return File.Exists(fullPath);
-    }
+        AddRange(extensions, pathConfig.ExtensionsMiniC);
+        AddRange(extensions, pathConfig.ExtensionsAsm);
 
+        return Directory.EnumerateFiles(pathConfig.ProjectPath, "*.*", SearchOption.AllDirectories)
+            .Where(f => extensions.Contains(Path.GetExtension(f)));
+    }
+    
+    private static void AddRange(HashSet<string> extensions, IReadOnlyList<string> exts)
+    {
+        foreach (var ext in exts)
+            extensions.Add(ext);
+    }
+    public string ReadFile(string filePath) => File.ReadAllText(filePath);
+    public void SaveFile(string filePath, string content) => File.WriteAllText(filePath, content);
+    public bool Exist(string filePath) => File.Exists(filePath);
     public string Combine(string path1, string path2) => Path.Combine(path1, path2);
-    public string ReadIncludes(string fileName, IProjectFilesConfig pathConfig)
-    {
-        string projPath = pathConfig.ProjectPath;
-        string includePath = pathConfig.IncludePath;
-
-        string fullPath = Combine(projPath, fileName);
-        string fullPathInc = Combine(includePath, fileName);
-
-        bool projExist = Exist(fullPath);
-        bool incExist = Exist(fullPathInc);
-
-        if (projExist && incExist)
-            throw new InvalidOperationException($"The file {fileName} exists in both {projPath} and {includePath}; please select a specific file.");
-
-
-        if (projExist)
-        {
-            return ReadFile(fullPath);
-        }
-        else if (incExist)
-        {
-            return ReadFile(fullPathInc);
-        }
-
-        throw new FileNotFoundException(
-                $"Included file not found: '{fileName}'. Searched in paths: {projPath}, {includePath}");
-    }
 }

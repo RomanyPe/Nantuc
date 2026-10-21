@@ -1,7 +1,7 @@
 ﻿using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Contracts;
 
-namespace ConsoleEmulatorForTests;
+namespace Nantuc.Samples.Minimal;
 
 public class LoggingFaultPolicy(TextWriter output) : IProcessorFaultPolicy
 {

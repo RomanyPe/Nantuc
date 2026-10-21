@@ -84,8 +84,8 @@ internal class Program
     """
         LDI r8, 100;
         LDI r0, 200000;
-        MOV r7, rHP;        // <-- замена ALLOC r7
-        ADD rHP, r0;        // <-- сдвигаем heap pointer за блоком
+        MOV r7, rHP;
+        ADD rHP, r0;
         MOV r1, r7;
         LDI r2, 0;
         LDI r4, 4;

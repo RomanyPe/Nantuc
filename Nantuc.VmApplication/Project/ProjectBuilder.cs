@@ -81,16 +81,44 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
     {
         foreach (string inc in includes)
         {
-            string asmCode = _fileService.ReadIncludes(inc, _path);
+            string asmCode = ReadIncludes(_fileService, inc, _path);
             asmParser.Assemble(asmCode, assembler);
         }
+    }
+
+    public static string ReadIncludes(IFileService service, string fileName, IProjectFilesConfig pathConfig)
+    {
+        string projPath = pathConfig.ProjectPath;
+        string includePath = pathConfig.IncludePath;
+
+        string fullPath = service.Combine(projPath, fileName);
+        string fullPathInc = service.Combine(includePath, fileName);
+
+        bool projExist = service.Exist(fullPath);
+        bool incExist = service.Exist(fullPathInc);
+
+        if (projExist && incExist)
+            throw new InvalidOperationException($"The file {fileName} exists in both {projPath} and {includePath}; please select a specific file.");
+
+
+        if (projExist)
+        {
+            return service.ReadFile(fullPath);
+        }
+        else if (incExist)
+        {
+            return service.ReadFile(fullPathInc);
+        }
+
+        throw new FileNotFoundException(
+                $"Included file not found: '{fileName}'. Searched in paths: {projPath}, {includePath}");
     }
 
     public static IEnumerable<SourceFile> GetSourceFiles(IFileService fileService, IProjectFilesConfig path)
     {
         var files = new List<SourceFile>();
 
-        foreach (string fileName in fileService.GetNameFiles())
+        foreach (string fileName in fileService.GetNameFiles(path))
         {
             SourceLanguage lang = FindLang(path, fileName);
             if (lang == SourceLanguage.None) continue;

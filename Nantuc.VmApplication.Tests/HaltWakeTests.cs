@@ -352,8 +352,8 @@ public class HaltWakeTests
         deviceCtx.EndStepMode();
 
         Assert.True(sawSleeping, "HALT did not set the sleeping flag.");
-        Assert.Equal(0x11UL, regs[(int)RegType.r1]);
-        Assert.Equal(0UL, regs[(int)RegType.r2]);
+        Assert.Equal(0x11UL, regs[RegType.r1]);
+        Assert.Equal(0UL, regs[RegType.r2]);
     }
 
     [Fact]

@@ -43,6 +43,7 @@ public class VariableNode(string type, string name, ASTNode? initializer = null)
     public string Type { get; set; } = type;
     public string Name { get; set; } = name;
     public ASTNode? Initializer { get; set; } = initializer;
+    public List<ASTNode>? ArrayInitializer { get; set; }
     public bool IsPointer { get; set; }
     public string? PointedType { get; set; }
     public bool IsArray { get; set; }
