@@ -222,13 +222,25 @@ public sealed class Processor(MemoryBus ram,
 
     private BiosStatus InstructionJMP_IND(RegType r)
     {
-        _registers[RegType.rIP.Int()] = _registers[r.Int()];
+        var nextIp = _registers[r.Int()];
+        if (nextIp >= _ram.Length) 
+        {
+            _lastFaultData = nextIp;
+            return BiosStatus.SegmentationFault;
+        }
+        _registers[RegType.rIP.Int()] = nextIp;
         return BiosStatus.Success;
     }
 
     private BiosStatus InstructionCALL_IND(RegType r)
     {
-        return InstructionCALL(_registers[r.Int()]);
+        var nextIp = _registers[r.Int()];
+        if (nextIp >= _ram.Length)
+        {
+            _lastFaultData = nextIp;
+            return BiosStatus.SegmentationFault;
+        }
+        return InstructionCALL(nextIp);
     }
 
     private BiosStatus InstructionCMP(RegType r1, RegType r2)

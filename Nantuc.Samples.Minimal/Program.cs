@@ -8,8 +8,32 @@ using Nantuc.VmApplication.Extensions.Host;
 
 const string source1 =
     """
-    int y[] = { 1, 2, 4, 8, 16 };
-    int main() { return y[0] + (y[1] + (y[2] + (y[3] + y[4]))); }
+    #include "io.asm"
+
+    extern void Out(byte value, int port);
+
+    void main(){
+        write('H');
+        write('e');
+        write('l');
+        write('l');
+        write('o');
+        write(' ');
+        write('w');
+        write('o');
+        write('r');
+        write('l');
+        write('d');
+        write('\n');
+        flush();
+    }
+
+    void write(char c){
+        Out(c, 0x10);
+    }
+    void flush(){
+        Out(1, 0x12);
+    }
     """;
 
 const string ioSource = """
@@ -39,14 +63,12 @@ var handle = DeviceSpec.Create(
     name: "ConsoleVM"
 );
 
-var iostream = new NumericIOStream(Console.Out, PortCharEncoding.Utf8);
+var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 
 int deviceId = host.Emulator.RegisterDevice(handle: handle, sector: 0);
 host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
 
 var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
-
-
 
 var resCompile = host.Project.CompileToIL(
     baseAddress: 0,  
@@ -58,16 +80,11 @@ if (!resCompile.Success)
         Console.WriteLine(err);
     return;
 }
-Console.WriteLine(Disassembler.Disassemble(resCompile.Program, out _, out _));
-
+var log = Disassembler.Disassemble(resCompile.Program, out _, out _);
+Console.WriteLine(log);
 if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
 {
     Console.WriteLine(error);
     return;
 }
 deviceCtx.Run();
-var regs = deviceCtx.GetRegistersSnapshot();
-Console.WriteLine($"{RegType.r0.RegName()} = {regs[RegType.r0]}");
-Console.WriteLine($"{RegType.r1.RegName()} = {regs[RegType.r1]}");
-Console.WriteLine($"{RegType.r2.RegName()} = {regs[RegType.r2]}");
-Console.WriteLine($"{RegType.r3.RegName()} = {regs[RegType.r3]}");
