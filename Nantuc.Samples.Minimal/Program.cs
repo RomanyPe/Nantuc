@@ -14,8 +14,7 @@ const string source1 =
     extern void Out(byte value, int port);
 
     void main(){
-        printH();
-        printChar('H');
+        write('H');
         write('e');
         write('l');
         write('l');
@@ -29,14 +28,7 @@ const string source1 =
         write('\n');
         flush();
     }
-    void printH(){
-        Out('H', 0x10);
-        Out(1, 0x12);
-    }
-    void printChar(char c){
-        Out(c, 0x10);
-        Out(1, 0x12);
-    }
+
     void write(char c){
         Out(c, 0x10);
     }
@@ -72,7 +64,7 @@ var handle = DeviceSpec.Create(
     name: "ConsoleVM"
 );
 
-IPortController iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
+var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 
 int deviceId = host.Emulator.RegisterDevice(handle: handle, sector: 0);
 host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
@@ -89,16 +81,10 @@ if (!resCompile.Success)
         Console.WriteLine(err);
     return;
 }
-Console.WriteLine(Disassembler.Disassemble(resCompile.Program, out _, out _));
+
 if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
 {
     Console.WriteLine(error);
     return;
 }
 deviceCtx.Run();
-var regs = deviceCtx.GetRegistersSnapshot();
-for (ulong i  = 0; i < regs.Count; i++)
-{
-    RegType reg = (RegType)i;
-    Console.WriteLine($"{reg.RegName()}: {regs[reg]}");
-}

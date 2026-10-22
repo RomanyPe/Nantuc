@@ -50,7 +50,7 @@ public class TestCompile
         """
         int y[] = { 5, 7 };
         int id(int x) { return x; }
-        int main() { if (y[0] < id(y[1])) return 1; return 0; }
+        int main() { if (y[0] < id(y[1])) {return 1;} return 0; }
         """, 1)]
     [InlineData(
         """

@@ -92,7 +92,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         // 2. Хвост — нули (C-семантика: int y[10] = {5} ⇒ y[1..9] == 0)
         if (var.ArraySize > providedCount)
         {
-            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(RegType.r1.ToUint()), 0);
+            _asm.EmitLdi(RegType.r1, 0);
             for (int i = providedCount; i < var.ArraySize; i++)
                 EmitStoreToLocalArrayElement(loc.StackOffset + i * elemBytes, elemSize);
         }
@@ -100,18 +100,15 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
 
     private void EmitStoreToLocalArrayElement(int offset, OpCodeSize elemSize)
     {
-        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)offset);
-        _asm.EmitInstruction(InstructionEncoder.EncodeR(
-            OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
-        _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(
-            RegType.r1.ToUint(), CodeGenUtils.TMP_REG, elemSize.ToUint()));
+        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)offset);
+        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
+        _asm.EmitStoreInd(RegType.r1, CodeGenUtils.TMP_REG_EN, elemSize);
     }
 
     private void GenerateInlineAsm(InlineAsmNode asm)
     {
-        // Парсим asm-строку и вставляем в текущий Assembler
         var asmParser = new AssemblerParser();
-        asmParser.Assemble(asm.AsmCode, _asm);   // _asm должен быть доступен
+        asmParser.Assemble(asm.AsmCode, _asm);
     }
 
     private void GenerateAssignment(AssignmentNode assign)
@@ -129,10 +126,10 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
             if (assign.LValue is DereferenceNode deref)
             {
                 _exprGen.GenerateExpression(assign.Value);
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), (uint)RegType.r2, (uint)RegType.r1));
+                _asm.EmitMov(RegType.r2, RegType.r1);
                 _exprGen.GenerateExpression(deref.Operand);
                 OpCodeSize size = GetPointedSize(deref.Operand);
-                _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND((uint)RegType.r2, (uint)RegType.r1, (uint)size));
+                _asm.EmitStoreInd(RegType.r2, RegType.r1, size);
                 return;
             }
         }
@@ -142,13 +139,13 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
             // Генерируем значение правой части в r0, затем сохраняем в поле
             _exprGen.GenerateExpression(assign.Value);   // r0 = значение
                                                          // Сохраняем значение во временный регистр r1
-            _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), (uint)RegType.r2, (uint)RegType.r1));
+            _asm.EmitMov(RegType.r2, RegType.r1);
 
             // Вычисляем адрес поля
             _exprGen.GenerateMemberAddress(memberAccess); // нужно написать метод, возвращающий адрес в r0
                                                           // Сохраняем
             OpCodeSize size = GetFieldSize(memberAccess);
-            _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND((uint)RegType.r2, (uint)RegType.r1, size.ToUint()));
+            _asm.EmitStoreInd(RegType.r2, RegType.r1, size);
             return;
         }
 
@@ -172,10 +169,10 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
                 _exprGen.GenerateExpression(binop.Right, tempReg);
                 switch (binop.Operator)
                 {
-                    case "+": _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), xReg.ToUint(), tempReg.ToUint())); break;
-                    case "-": _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.SUB.ToUint(), xReg.ToUint(), tempReg.ToUint())); break;
-                    case "*": _asm.EmitInstruction(InstructionEncoder.EncodeMULT_INT(xReg.ToUint(), tempReg.ToUint())); break;
-                    case "/": _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.DIV.ToUint(), xReg.ToUint(), tempReg.ToUint())); break;
+                    case "+": _asm.EmitAdd(xReg, tempReg); break;
+                    case "-": _asm.EmitSub( xReg, tempReg); break;
+                    case "*": _asm.EmitMultInt(xReg, tempReg); break;
+                    case "/": _asm.EmitDiv(xReg, tempReg); break;
                 }
                 return;
             }
@@ -289,7 +286,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
 
         if (ifNode.ElseBlock != null)
         {
-            _asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JMP.ToUint()), endLabel);
+            _asm.EmitJmp(endLabel);
             _asm.MarkLabel(elseLabel);
             GenerateBlock(ifNode.ElseBlock);
             _asm.MarkLabel(endLabel);
@@ -308,7 +305,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         _asm.MarkLabel(startLabel);
         _exprGen.GenerateCondition(whileNode.Condition, null, endLabel);
         GenerateBlock(whileNode.Body);
-        _asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JMP.ToUint()), startLabel);
+        _asm.EmitJmp(startLabel);
         _asm.MarkLabel(endLabel);
     }
 
@@ -338,7 +335,6 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
                 _exprGen.GenerateExpression(forNode.Init);
             }
         }
-
         string startLabel = _getLabel();
         string endLabel = _getLabel();
 
@@ -353,7 +349,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
             else
                 _exprGen.GenerateExpression(forNode.Increment);
         }
-        _asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JMP.ToUint()), startLabel);
+        _asm.EmitJmp(startLabel);
         _asm.MarkLabel(endLabel);
     }
 
@@ -362,8 +358,8 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         if (ret.Value != null)
             _exprGen.GenerateExpression(ret.Value);
         if (_funcCtx.FunctionName == "main")
-            _asm.EmitInstruction(InstructionEncoder.EncodeEND());
+            _asm.EmitEnd();
         else
-            _asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JMP.ToUint()), _funcCtx.EpilogueLabel);
+            _asm.EmitJmp(_funcCtx.EpilogueLabel);
     }
 }

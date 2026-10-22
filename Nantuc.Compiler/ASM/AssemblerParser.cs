@@ -3,6 +3,7 @@ using System.Collections.Frozen;
 using System.Text.RegularExpressions;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
+using Nantuc.Compiler.C.CodeGenerator;
 
 namespace Nantuc.Compiler.ASM;
 
@@ -193,11 +194,11 @@ public partial class AssemblerParser
         switch (baseMnemonic)
         {
             // Без операндов
-            case "NOP": _asm.EmitInstruction(InstructionEncoder.EncodeNOP()); break;
-            case "END": _asm.EmitInstruction(InstructionEncoder.EncodeEND()); break;
-            case "RET": _asm.EmitInstruction(InstructionEncoder.EncodeRET()); break;
-            case "HALT": _asm.EmitInstruction(InstructionEncoder.EncodeHALT()); break;
-            case "WAKE": _asm.EmitInstruction(InstructionEncoder.EncodeWAKE()); break;
+            case "NOP": _asm.EmitNop(); break;
+            case "END": _asm.EmitEnd(); break;
+            case "RET": _asm.EmitRet(); break;
+            case "HALT": _asm.EmitHalt(); break;
+            case "WAKE": _asm.EmitWake(); break;
 
             // Формат R (два регистра)
             case "MOV":
@@ -282,16 +283,11 @@ public partial class AssemblerParser
         if (tokens.Length < 2)
             ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         string target = tokens[1];
-        uint jmpOpcode = InstructionEncoder.EncodeJ(opCode.ToUint());
+
         if (IsNumber(target))
-        {
-            ulong absTarget = ParseNumber(target);
-            _asm.EmitJumpToAbsolute(jmpOpcode, absTarget);
-        }
+            _asm.EmitInstJAbsolute(opCode, ParseNumber(target));
         else
-        {
-            _asm.EmitJump(jmpOpcode, target);
-        }
+            _asm.EmitInstJ(opCode, target);
     }
 
     private void FormateLOAD_IND__STORE_IND(string[] tokens, OpCodeSize size, string baseMnemonic, OpCode opCode)
@@ -300,7 +296,7 @@ public partial class AssemblerParser
             ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rInd1 = ParseReg(tokens[1]);
         RegType rInd2 = ParseReg(tokens[2]);
-        _asm.EmitInstruction(InstructionEncoder.Encode(opCode.ToUint(), (uint)rInd1, (uint)rInd2, size.ToUint()));
+        _asm.EmitInst(opCode, rInd1, rInd2, size);
     }
 
     private void FormatLOAD__STORE(string[] tokens, OpCodeSize size, string baseMnemonic, bool isLoad)
@@ -311,11 +307,8 @@ public partial class AssemblerParser
         RegType rMem = ParseReg(tokens[1]);
         ulong addr = ParseNumber(tokens[2]);
 
-        uint encoded = isLoad
-            ? InstructionEncoder.EncodeLOAD(rMem.ToUint(), size.ToUint())
-            : InstructionEncoder.EncodeSTORE(rMem.ToUint(), size.ToUint());
-
-        _asm.EmitInstruction64(encoded, addr);
+        if (isLoad) _asm.EmitLoad(rMem, size, addr);
+        else _asm.EmitStore(rMem, size, addr);
     }
 
     private void FormatLDI(string[] tokens, string baseMnemonic)
@@ -327,12 +320,11 @@ public partial class AssemblerParser
         if (IsNumber(operand))
         {
             ulong value = ParseNumber(operand);
-            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI((uint)rLdi), value);
+            _asm.EmitLdi(rLdi, value);
         }
         else
         {
-            uint encodedldi = InstructionEncoder.EncodeLDI((uint)rLdi);
-            _asm.EmitInstruction64WithLabel(encodedldi, operand);
+            _asm.EmitLdi(rLdi, operand);
         }
     }
 
@@ -341,7 +333,7 @@ public partial class AssemblerParser
         if (tokens.Length < 2)
             ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rU = ParseReg(tokens[1]);
-        _asm.EmitInstruction(InstructionEncoder.EncodeU(opCode.ToUint(), (uint)rU));
+        _asm.EmitInstU(opCode, rU);
     }
 
     private void FormatR(string[] tokens, string baseMnemonic, OpCode opCode)
@@ -350,7 +342,7 @@ public partial class AssemblerParser
             ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType r1 = ParseReg(tokens[1]);
         RegType r2 = ParseReg(tokens[2]);
-        _asm.EmitInstruction(InstructionEncoder.EncodeR(opCode.ToUint(), (uint)r1, (uint)r2));
+        _asm.EmitInstR(opCode, r1, r2);
     }
 
     private RegType ParseReg(string s)

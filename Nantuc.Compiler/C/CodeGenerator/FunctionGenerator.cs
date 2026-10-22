@@ -1,10 +1,6 @@
-﻿using Nantuc.Compiler.ASM;
-using Nantuc.Compiler.ASM.Optimizators;
-using Nantuc.Compiler.C;
+﻿using Nantuc.Compiler.ASM.Optimizators;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
-using System.Buffers;
-using System.Drawing;
 
 
 namespace Nantuc.Compiler.C.CodeGenerator;
@@ -93,7 +89,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
             for (int b = 0; b < elemBytes; b++)
                 data[offset + b] = (byte)(value >> (b * 8));
         }
-        // остаток (ArraySize > initializer.Count) и padding — нули (C-семантика)
+
     }
 
     private static long EvaluateConstant(ASTNode node) => node switch
@@ -127,7 +123,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                 exprGen.GenerateExpression(global.Initializer);
                 OpCodeSize opSize = global.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(global.Type);
                 string label = GlobalMemoryManager.GetLabel(global.Name);
-                _asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeSTORE(RegType.r1.ToUint(), opSize.ToUint()), label);
+                _asm.EmitStore(RegType.r1, opSize, label);
             }
         }
     }
@@ -154,14 +150,13 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         if (!isMain)
         {
             foreach (var reg in funcCtx.UsedRegisters.OrderBy(r => (int)r))
-                _asm.EmitInstruction(InstructionEncoder.EncodeU(OpCode.PUSH.ToUint(), reg.ToUint()));
+                _asm.EmitPush(reg);
         }
         // Пролог
         if (stackAlloc > 0)
         {
-            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)stackAlloc);
-            _asm.EmitInstruction(InstructionEncoder.EncodeR(
-                OpCode.SUB.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
+            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)stackAlloc);
+            _asm.EmitSub(RegType.rSP, CodeGenUtils.TMP_REG_EN);
         }
 
         if (!isMain) 
@@ -177,14 +172,13 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                     if (loc.IsRegister)
                     {
                         if (loc.Register != incomingReg)
-                            _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), 
-                                loc.Register.ToUint(), incomingReg.ToUint()));
+                            _asm.EmitMov(loc.Register, incomingReg);
                     }
                     else
                     {
-                        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)loc.StackOffset);
-                        _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
-                        _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(incomingReg.ToUint(), CodeGenUtils.TMP_REG, loc.TypeSize.ToUint()));
+                        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
+                        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
+                        _asm.EmitStoreInd(incomingReg, CodeGenUtils.TMP_REG_EN, loc.TypeSize);
                     }
                 }
                 else
@@ -194,7 +188,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                     string globalName = $"__param_{func.Name}_{param.Name}";
                     string label = GlobalMemoryManager.GetLabel(globalName);
                     OpCodeSize size = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type);
-                    _asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeLOAD(loc.Register.ToUint(), size.ToUint()), label);
+                    _asm.EmitLoad(loc.Register, size, label);
                 }
             }        
         }
@@ -202,20 +196,19 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         // Эпилог
         if (isMain)
         {
-            _asm.EmitInstruction(InstructionEncoder.EncodeEND());
+            _asm.EmitEnd();
         }
         else
         {
             _asm.MarkLabel(funcCtx.EpilogueLabel);
             if (stackAlloc > 0)
             {
-                _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)stackAlloc);
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(
-                    OpCode.ADD.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
+                _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)stackAlloc);
+                _asm.EmitAdd(RegType.rSP, CodeGenUtils.TMP_REG_EN);
             }
             for (int i = funcCtx.UsedRegisters.Count - 1; i >= 0; i--)
-                _asm.EmitInstruction(InstructionEncoder.EncodeU(OpCode.POP.ToUint(), (uint)funcCtx.UsedRegisters[i]));
-            _asm.EmitInstruction(InstructionEncoder.EncodeRET());
+                _asm.EmitPop(funcCtx.UsedRegisters[i]);
+            _asm.EmitRet();
         }
         
     }

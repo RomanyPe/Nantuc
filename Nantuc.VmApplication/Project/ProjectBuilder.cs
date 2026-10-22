@@ -58,7 +58,7 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
 
         if (combinedAst.FunctionNodes.Any(f => f.Name == "main"))
         {
-            assembler.EmitJump(InstructionEncoder.EncodeJ(OpCode.JMP.ToUint()), "func_main");
+            assembler.EmitJmp("func_main");
         }
 
         includes = [.. includes.Distinct(StringComparer.OrdinalIgnoreCase)];
@@ -72,7 +72,7 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
         var funcGen = new FunctionGenerator(assembler, structLayouts);
         funcGen.Generate(combinedAst);
 
-        assembler.EmitInstruction(InstructionEncoder.EncodeEND());
+        assembler.EmitEnd();
 
         return resLog;
     }

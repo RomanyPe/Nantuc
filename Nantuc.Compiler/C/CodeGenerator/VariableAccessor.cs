@@ -17,15 +17,15 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         if (TryGetRegister(varName, out var locReg))
         {
             if (locReg != targetReg)
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), targetReg.ToUint(), locReg.ToUint()));
+                _asm.EmitMov(targetReg, locReg);
             return;
         }
 
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
         {
-            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)loc.StackOffset);
-            _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
-            _asm.EmitInstruction(InstructionEncoder.EncodeLOAD_IND(targetReg.ToUint(), CodeGenUtils.TMP_REG, loc.TypeSize.ToUint()));
+            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
+            _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
+            _asm.EmitLoadInd(targetReg, CodeGenUtils.TMP_REG_EN, loc.TypeSize);
             return;
         }
 
@@ -34,7 +34,7 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             var gInfo = _globalMem.GetInfo(varName)!.Value;
             var size = CodeGenUtils.GetSizeForType(gInfo.Type);
             string label = GlobalMemoryManager.GetLabel(varName);
-            _asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeLOAD(targetReg.ToUint(), size.ToUint()), label);
+            _asm.EmitLoad(targetReg, size, label);
             return;
         }
 
@@ -46,15 +46,15 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         if (TryGetRegister(varName, out var locReg))
         {
             if (locReg != sourceReg)
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), locReg.ToUint(), sourceReg.ToUint()));
+                _asm.EmitMov(locReg, sourceReg);
             return;
         }
 
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
         {
-            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)loc.StackOffset);
-            _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
-            _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(sourceReg.ToUint(), CodeGenUtils.TMP_REG, loc.TypeSize.ToUint()));
+            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
+            _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
+            _asm.EmitStoreInd(sourceReg, CodeGenUtils.TMP_REG_EN, loc.TypeSize);
             return;
         }
 
@@ -63,7 +63,7 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             var gInfo = _globalMem.GetInfo(varName)!.Value;
             var size = CodeGenUtils.GetSizeForType(gInfo.Type);
             string label = GlobalMemoryManager.GetLabel(varName);
-            _asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeSTORE(sourceReg.ToUint(), size.ToUint()), label);
+            _asm.EmitStore(sourceReg, size, label);
             return;
         }
 
@@ -76,17 +76,17 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         {
             if (loc.IsRegister)
                 ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
-            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)loc.StackOffset);
-            _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
-            if (CodeGenUtils.TMP_REG != targetReg.ToUint())
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), targetReg.ToUint(), CodeGenUtils.TMP_REG));
+            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
+            _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
+            if (CodeGenUtils.TMP_REG_EN != targetReg)
+                _asm.EmitMov(targetReg, CodeGenUtils.TMP_REG_EN);
             return;
         }
 
         if (_globalMem.Contains(varName))
         {
             string label = GlobalMemoryManager.GetLabel(varName);
-            _asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeLDI(targetReg.ToUint()), label);
+            _asm.EmitLdi(targetReg, label);
             return;
         }
 
