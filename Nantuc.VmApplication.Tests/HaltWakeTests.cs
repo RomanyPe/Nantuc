@@ -291,7 +291,7 @@ public class HaltWakeTests
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
 
-        deviceCtx.SetStepMode(startAddress: 0);
+        deviceCtx.RunStepMode(startAddress: 0);
 
         bool sawSleeping = false;
         // Хватит 4 шагов: LDI, HALT, и пары «пустых» (early-return) шагов.
@@ -337,7 +337,7 @@ public class HaltWakeTests
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
 
-        deviceCtx.SetStepMode(startAddress: 0);
+        deviceCtx.RunStepMode(startAddress: 0);
 
         bool sawSleeping = false;
         for (int i = 0; i < 20 && !sawSleeping; i++)
@@ -380,7 +380,7 @@ public class HaltWakeTests
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
 
-        deviceCtx.SetStepMode(startAddress: 0);
+        deviceCtx.RunStepMode(startAddress: 0);
 
         // Шаг 1: LDI — процессор жив и не спит.
         deviceCtx.SingleStep(reader =>

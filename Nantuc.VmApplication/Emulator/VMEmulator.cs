@@ -31,7 +31,7 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
     
     public int RegisterDevice(DeviceSpec handle, uint sector)
     {
-        var device = _emulator.CreateDevice(handle.RamSize, handle.DeviceCtx, handle.ProcessorFaultPolicy);
+        var device = _emulator.CreateDevice(handle.RamSize, handle.ProcessorFaultPolicy);
         return RegisterDevice(device, handle.Name, sector);
     }
 
@@ -40,17 +40,15 @@ public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
     public void Dispose() => _emulator.Dispose();
 }
 
-public readonly record struct DeviceSpec(RamSize RamSize, IDeviceLoggerContext DeviceCtx, string? Name, IProcessorFaultPolicy ProcessorFaultPolicy)
+public readonly record struct DeviceSpec(RamSize RamSize, string? Name, IProcessorFaultPolicy ProcessorFaultPolicy)
 {
     public static DeviceSpec Create(RamSize? ramSize = null,
                                       string? name = null,
-                                      IDeviceLoggerContext? deviceCtx = null,
                                       IProcessorFaultPolicy? processorFaultPolicy = null)
     {
         ramSize ??= RamSize.MB1;
-        deviceCtx ??= IDeviceLoggerContext.NullContext;
         processorFaultPolicy ??= IProcessorFaultPolicy.Default;
-        return new(ramSize.Value, deviceCtx, name, processorFaultPolicy);
+        return new(ramSize.Value, name, processorFaultPolicy);
 
     }
 }

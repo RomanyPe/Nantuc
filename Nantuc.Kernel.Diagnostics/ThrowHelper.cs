@@ -19,7 +19,7 @@ public static class ThrowHelper
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    public static T ThrowMiniC<T>(ErrorCode code, params object[] args)
+    public static T ThrowMiniC<T>(ErrorCode code, params ReadOnlySpan<object> args)
     {
         var message = ErrorMessageProvider.GetMessage(code, args);
         throw new CodeExpection(code, message);

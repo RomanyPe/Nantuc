@@ -179,7 +179,7 @@ host.Project.Optimizator
 - Реализуйте `IPortController` напрямую только если обязаны наследоваться от другого класса
 (C# не даёт множественного наследования).
 
-```
+```csharp
 using Nantuc.VmApplication.Emulator.Abstraction;
 
 public sealed class MyDevice : PortControlBase
@@ -477,14 +477,68 @@ public interface IProcessorFaultPolicy
 #### INativeReadOnlyBuffer
 
 Фасад для чтения нативной памяти ВМ.
-
+```csharp
+public interface INativeReadOnlyBuffer
+{
+    nuint Length { get; }
+    byte this[nuint index] { get; }
+}
+```
 #### ISimulationResult
 
-Результат симуляции.
+Результат симуляции по времени.
+```csharp
+public interface ISimulationResult
+{
+    TimeSpan Elapsed { get; }
+    long Steps { get; }
+}
+```
+
+#### IProcessorReader
+```csharp
+public interface IProcessorReader
+{
+    bool IsRunning { get; }
+    bool IsSleeping { get; }
+    ulong GetRegister(RegType regType);
+}
+```
+Текущее состояние регистров на итерацию
 
 #### OptimizationId
 
 Идентификатор правила оптимизации.
+
+### API DeviceContext
+
+Класс `DeviceContext` который возвращает `host.Emulator.GetDeviceContext(deviceId)` нужен для управления потоком симуляции 1 
+устройства закрепленным по его id.
+
+Методы:
+
+- Общие:
+    - `LoadProgram(byte[] program, ulong loadAddress)` - запускает цикл загрузки программы в ОЗУ устройства, медленная так как на каждой итерации проверяет корректность загруженных данных, при ошибки кидает исключение
+    - `TryFastLoadProgram(ReadOnlySpan<byte> program, ulong loadAddress, out string? error)` - загружает программу быстрее но если данные будут повреждены информации об этом не будет, вместо исключения возвращает false
+    - `ResetMemoryRam()` - очищает ОЗУ
+    - `ReadPort(ulong offset)` - читает данные из IO буфера устройства, можно читать во время работу устройства
+    - `CopyRegisters(Span<ulong> destination)` - копирует в `Span<ulong> destination` регистры процессора, можно читать во время устройства
+    - `GetRegistersSnapshot()` - возвращает структуру снапшот которая содержит `ulong[]`, индексатор `ulong this[RegType reg]` принимает перечисление RegType
+    - Свойства:
+        - `IsRunning` - текущее состояние устройства - запущено / не запущено
+        - `StepCount` - количество шагов устросйтва на данный момент
+        - `MaxRamSize` - размер озу
+        - `NativeReadOnlyBuffer` - возвращает интерфейс 
+- Loop режим:
+    - `Stop()` - останавливает цикл симуляции для устройства запущенный через `Run()`, потокобезопасен
+    - `Run(LaunchOptions? opt)` - запускает устройство, принимает `LaunchOptions`
+    - `DebugRun(LaunchOptionsDebug? opt)` -  запускает устрйоство в режиме отладки, медленнее, но больше информации, принимает `LaunchOptionsDebug`
+- Step режим:
+    - `RunStepMode(ulong startAddress, Action? onLaunch)` - переводит устройство в режим Step, отключает Loop
+    - `SingleStep(Action<IProcessorReader>? onStep)` -  делает 1 шаг симуляции
+    - `MultiStep(int count, Action<IProcessorReader>? onStep)` - делает `count` шагов симуляции
+    - `EndStepMode()` - останавливает и переводит устройство из Step в не выбранный режим
+
 
 ---
 
@@ -493,7 +547,6 @@ public interface IProcessorFaultPolicy
 ### Кодогенератор MiniC
 
 - Базовое распределение регистров
-- Консервативный inline
 - Ограниченная поддержка указателей и структур в параметрах функций
 - **Рекомендация:** Критичные по скорости участки пишите на NANASM или инлайните через `asm { }`
 

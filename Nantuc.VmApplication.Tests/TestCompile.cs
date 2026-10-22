@@ -58,6 +58,16 @@ public class TestCompile
         int i[] = { 3, 1, 0 };
         int main() { y[i[0]] = 99; return y[3]; }   // 99
         """, 99)]
+    [InlineData(
+        """
+        int main(){
+            return foo(42);
+        }
+
+        int foo(int c){
+            return c;
+        }
+        """, 42)]
     public void RunCompile(string program, ulong res)
     {
         using var host = VMHostFactory.CreateDefault();

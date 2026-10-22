@@ -1,3 +1,0 @@
-func_get_hundred:
-	LDI r0, 100
-	RET

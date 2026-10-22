@@ -34,10 +34,9 @@ public class Emulator : IDisposable
 
     public Device CreateDevice(
         RamSize size,
-        IDeviceLoggerContext ctx,
         IProcessorFaultPolicy processorFaultPolicy)
     {
-        return new Device(_portBus, size, ctx, processorFaultPolicy);
+        return new Device(_portBus, size, processorFaultPolicy);
     }
 
 

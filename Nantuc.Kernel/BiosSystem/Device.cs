@@ -16,7 +16,6 @@ public sealed class Device : IPortController
         public long Steps => steps;
     }
 
-    private readonly IDeviceLoggerContext _deviceCtx;
     private readonly byte[] _ioMemory;
     private readonly ManualResetEventSlim _wakeSignal = new(false);
     private readonly MemoryBus _ram;
@@ -25,21 +24,19 @@ public sealed class Device : IPortController
     private readonly IProcessorFaultPolicy _processorFaultPolicy;
     private long stepCounter = 0;
     private int _disposed;
-    public Action<IDeviceLoggerContext>? ActionOnWake { get; set; } = null;
 
     public INativeReadOnlyBuffer NativeReadOnlyBuffer => _ram.NativeReadOnlyBuffer;
     public bool IsRunning => _processor.IsRunning;
     public ulong MaxRamSize => _ram.Length;
     public long StepCount => stepCounter;
 
-    public Device(PortBus portBus, RamSize size, IDeviceLoggerContext deviceCtx, IProcessorFaultPolicy processorFaultPolicy)
+    public Device(PortBus portBus, RamSize size, IProcessorFaultPolicy processorFaultPolicy)
     {
         _processorFaultPolicy = processorFaultPolicy;
         _portBus = portBus;
         _ram = new MemoryBus(size);
         _processor = new Processor(_ram, _portBus, _processorFaultPolicy);
         _ioMemory = new byte[_portBus.PortsOnDevice];
-        _deviceCtx = deviceCtx;
     }
 
     public void CopyRegisters(Span<ulong> destination)
@@ -83,11 +80,11 @@ public sealed class Device : IPortController
 
     public void Run(ulong? start,
                     bool snowTimer,
-                    Action<IDeviceLoggerContext>? onLaunch,
-                    Action<IDeviceLoggerContext, ISimulationResult?>? onEnd)
+                    Action? onLaunch,
+                    Action<ISimulationResult?>? onEnd)
     {
 
-        onLaunch?.Invoke(_deviceCtx);
+        onLaunch?.Invoke();
 
         ulong startIndex = start ?? _ram.Length;
         stepCounter = 0;
@@ -105,33 +102,33 @@ public sealed class Device : IPortController
             timeSpan = new(sw.Elapsed, stepCounter);
         }
 
-        onEnd?.Invoke(_deviceCtx, timeSpan);
+        onEnd?.Invoke( timeSpan);
     }
 
     public void DebugRun(ulong start,
                         long stepLimit,
                         int delay,
-                        Action<IDeviceLoggerContext>? onLaunch,
+                        Action? onLaunch,
                         Action<IProcessorReader>? onStep,
-                        Action<IDeviceLoggerContext>? onEnd)
+                        Action? onEnd)
     {
         bool useSleepMode = delay != 0;
 
-        onLaunch?.Invoke(_deviceCtx);
+        onLaunch?.Invoke();
         stepCounter = 0;
 
         _processor.LaunchProgramm(start);
         RunSimulationLoopDebug(delay, useSleepMode, stepLimit, onStep);
 
-        onEnd?.Invoke(_deviceCtx);
+        onEnd?.Invoke();
 
     }
 
 
     public void BreakPointerLaunchDevice(ulong? start, 
-                            Action<IDeviceLoggerContext>? titleAct)
+                            Action? titleAct)
     {
-        titleAct?.Invoke(_deviceCtx);
+        titleAct?.Invoke();
         stepCounter = 0;
         ulong startIndex = start ?? _ram.Length;
 
@@ -214,7 +211,6 @@ public sealed class Device : IPortController
     public void WakeProcessor()
     {
         _processor.EnqueueExternalCommand((uint)OpCode.WAKE);
-        ActionOnWake?.Invoke(_deviceCtx);
         _wakeSignal.Set();
     }
 

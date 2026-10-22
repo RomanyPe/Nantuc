@@ -23,7 +23,7 @@ public class DeviceContext
 
     public bool IsRunning => _device.IsRunning;
     public long StepCount => _device.StepCount;
-    public ulong MaxRamSize => _device.MaxRamSize;
+    public ulong RamSize => _device.MaxRamSize;
     public INativeReadOnlyBuffer NativeReadOnlyBuffer => _device.NativeReadOnlyBuffer;
 
     public void Stop()
@@ -83,8 +83,8 @@ public class DeviceContext
     }
 
 
-    public void SetStepMode(ulong startAddress = ProjectBuilder.BaseAddressProgram,
-        Action<IDeviceLoggerContext>? onLaunch = null)
+    public void RunStepMode(ulong startAddress = ProjectBuilder.BaseAddressProgram,
+        Action? onLaunch = null)
     {
         ThrowIfRunning();
         ThrowByMode(Mode.Step);
@@ -118,7 +118,7 @@ public class DeviceContext
     }
 
     public byte ReadPort(ulong offset) => _device.ReadPort(offset);
-    public void ResetRegisters() => _device.ClearRegisters();
+
     public void CopyRegisters(Span<ulong> destination) => _device.CopyRegisters(destination);
     public SnapshotRegisters GetRegistersSnapshot() => new(_device.GetRegistersSnapshot());
 

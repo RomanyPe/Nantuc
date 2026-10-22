@@ -120,7 +120,7 @@ public class VMHostTests
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
 
-        deviceCtx.SetStepMode(startAddress: 0);
+        deviceCtx.RunStepMode(startAddress: 0);
         Assert.True(deviceCtx.IsRunning);
 
         deviceCtx.SingleStep();
@@ -174,7 +174,7 @@ public class VMHostTests
         Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
 
         bool ended = false;
-        var options = new LaunchOptions(StartAddress: 0, OnEnd: (ctx, res) => ended = true);
+        var options = new LaunchOptions(StartAddress: 0, OnEnd: (res) => ended = true);
         deviceCtx.Run(options);
         Assert.True(ended);
     }

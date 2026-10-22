@@ -77,7 +77,7 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase)
         List<double> log, List<double> logTime, List<long> logSteps, DeviceContext? launchMode)
     {
         var opt = new LaunchOptions(ShowTimer: true,
-            OnEnd: (ctx, res) => Metric(res!, logTime, log, logSteps));
+            OnEnd: (res) => Metric(res!, logTime, log, logSteps));
         launchMode?.Run(opt);
     }
 }

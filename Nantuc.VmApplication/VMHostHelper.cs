@@ -14,22 +14,6 @@ public static class VMHostHelper
         var text = Disassembler.Disassemble(prog, out int lenght, out int size, baseAddress);
         return new(text, lenght, size);
     }
-
-    private class DeviceLoggerSingleObj : IDeviceLoggerContext
-    {
-        public void Log(string message, LogLevel level = LogLevel.Log)
-        {
-            var originalColor = Console.ForegroundColor;
-            Console.ForegroundColor = level switch
-            {
-                LogLevel.Warning => ConsoleColor.Yellow,
-                LogLevel.Error => ConsoleColor.Red,
-                _ => originalColor
-            };
-            Console.WriteLine(message);
-            Console.ForegroundColor = originalColor;
-        }
-}
     
 public static DisassemblyResult Disassemble(
     ReadOnlySpan<byte> program,

@@ -85,3 +85,41 @@ public static class CodeGenUtils
         };
     }
 }
+public static class AsmExtensions
+{
+    extension(AssemblerBase asm)
+    {
+        // Формат R (два регистра)
+        public void Mov(RegType dst, RegType src)
+            => asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), dst.ToUint(), src.ToUint()));
+
+        public void Add(RegType dst, RegType src)
+            => asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), dst.ToUint(), src.ToUint()));
+
+        public void Sub(RegType dst, RegType src)
+            => asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.SUB.ToUint(), dst.ToUint(), src.ToUint()));
+
+        public void Cmp(RegType dst, RegType src)
+            => asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.CMP.ToUint(), dst.ToUint(), src.ToUint()));
+
+        // Формат U (один регистр)
+        public void Push(RegType reg)
+            => asm.EmitInstruction(InstructionEncoder.EncodeU(OpCode.PUSH.ToUint(), reg.ToUint()));
+
+        public void Pop(RegType reg)
+            => asm.EmitInstruction(InstructionEncoder.EncodeU(OpCode.POP.ToUint(), reg.ToUint()));
+
+        // Специальные форматы
+        public void Ldi(RegType dst, ulong value)
+            => asm.EmitInstruction64(InstructionEncoder.EncodeLDI(dst.ToUint()), value);
+
+        public void LoadInd(RegType dst, RegType addr, OpCodeSize size)
+            => asm.EmitInstruction(InstructionEncoder.EncodeLOAD_IND(dst.ToUint(), addr.ToUint(), size.ToUint()));
+
+        public void StoreInd(RegType src, RegType addr, OpCodeSize size)
+            => asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(src.ToUint(), addr.ToUint(), size.ToUint()));
+
+        public void Jmp(string label)
+            => asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JMP.ToUint()), label);
+    }
+}

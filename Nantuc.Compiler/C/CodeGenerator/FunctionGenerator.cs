@@ -149,46 +149,75 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         var stmtGen = new StatementGenerator(_asm, exprGen, funcCtx, getLabel, _globalMem, _structTable, varAccessor);
 
         bool isMain = func.Name == "main";
-
-        // Пролог
         int stackAlloc = funcCtx.TotalLocalSize + funcCtx.SaveAreaSize;
+
+        if (!isMain)
+        {
+            foreach (var reg in funcCtx.UsedRegisters.OrderBy(r => (int)r))
+                _asm.EmitInstruction(InstructionEncoder.EncodeU(OpCode.PUSH.ToUint(), reg.ToUint()));
+        }
+        // Пролог
         if (stackAlloc > 0)
         {
             _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)stackAlloc);
             _asm.EmitInstruction(InstructionEncoder.EncodeR(
                 OpCode.SUB.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
         }
-        else
+
+        if (!isMain) 
         {
-            if (funcCtx.TotalLocalSize > 0)
+            for (int i = 0; i < func.Parameters.Count; i++)
             {
-                _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)funcCtx.TotalLocalSize);
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.SUB.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
-            }
+                var param = func.Parameters[i];
+                if (i < 4)
+                {
+                    RegType incomingReg = (RegType)i;
+                    if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc))
+                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+                    if (loc.IsRegister)
+                    {
+                        if (loc.Register != incomingReg)
+                            _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOV.ToUint(), 
+                                loc.Register.ToUint(), incomingReg.ToUint()));
+                    }
+                    else
+                    {
+                        _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)loc.StackOffset);
+                        _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), CodeGenUtils.TMP_REG, RegType.rSP.ToUint()));
+                        _asm.EmitInstruction(InstructionEncoder.EncodeSTORE_IND(incomingReg.ToUint(), CodeGenUtils.TMP_REG, loc.TypeSize.ToUint()));
+                    }
+                }
+                else
+                {
+                    if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc) || !loc.IsRegister)
+                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+                    string globalName = $"__param_{func.Name}_{param.Name}";
+                    string label = GlobalMemoryManager.GetLabel(globalName);
+                    OpCodeSize size = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type);
+                    _asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeLOAD(loc.Register.ToUint(), size.ToUint()), label);
+                }
+            }        
         }
-
-        // Тело
         stmtGen.GenerateBlock(func.Body);
-
         // Эпилог
-        if (stackAlloc > 0)
+        if (isMain)
         {
-            _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)stackAlloc);
-            _asm.EmitInstruction(InstructionEncoder.EncodeR(
-                OpCode.ADD.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
+            _asm.EmitInstruction(InstructionEncoder.EncodeEND());
         }
         else
         {
             _asm.MarkLabel(funcCtx.EpilogueLabel);
-            if (funcCtx.TotalLocalSize > 0)
+            if (stackAlloc > 0)
             {
-                _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)funcCtx.TotalLocalSize);
-                _asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.ADD.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
+                _asm.EmitInstruction64(InstructionEncoder.EncodeLDI(CodeGenUtils.TMP_REG), (ulong)stackAlloc);
+                _asm.EmitInstruction(InstructionEncoder.EncodeR(
+                    OpCode.ADD.ToUint(), RegType.rSP.ToUint(), CodeGenUtils.TMP_REG));
             }
             for (int i = funcCtx.UsedRegisters.Count - 1; i >= 0; i--)
                 _asm.EmitInstruction(InstructionEncoder.EncodeU(OpCode.POP.ToUint(), (uint)funcCtx.UsedRegisters[i]));
             _asm.EmitInstruction(InstructionEncoder.EncodeRET());
         }
+        
     }
 
     private static void CollectLocalVars(BlockNode block, Dictionary<string, VariableNode> map)
