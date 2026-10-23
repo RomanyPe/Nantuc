@@ -3,8 +3,8 @@ using Nantuc.Compiler.ASM.Optimizators;
 using Nantuc.Compiler.C;
 using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizators;
-using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Contracts;
+using Nantuc.Kernel.Diagnostics;
 
 namespace Nantuc.VmApplication.Project;
 
@@ -18,18 +18,19 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
     internal IEnumerable<IReadOnlyLogOptimization> Build(IEnumerable<SourceFile> files, bool optimize, AssemblerBase assembler, AstOptimizer astOptimizer)
     {
         var asmParser = new AssemblerParser();
-
         var cAsts = new List<ProgramNode>();
-        var includes = new List<string>();
+        var asmIncludes = new List<string>();
+
+        var processedIncludes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var file in files.Where(file => file.Language == SourceLanguage.C))
         {
-            var lexer = new Lexer(file.Content);
-            var tokens = lexer.Tokenize();
-            var parser = new Parser(tokens);
-            var ast = parser.Parse();
+            var ast = ParseCFile(file.Content);
             cAsts.Add(ast);
-            includes.AddRange(ast.IncludesList);
+
+            ResolveIncludesRecursive(ast.IncludesList, processedIncludes, cAsts, asmIncludes);
         }
+
         var combinedAst = new ProgramNode();
         foreach (var ast in cAsts)
         {
@@ -38,16 +39,11 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
             combinedAst.StructNodes.AddRange(ast.StructNodes);
         }
 
-        IEnumerable<IReadOnlyLogOptimization> resLog = 
-            optimize ? astOptimizer.Optimize(combinedAst) 
+        IEnumerable<IReadOnlyLogOptimization> resLog = optimize
+            ? astOptimizer.Optimize(combinedAst)
             : [];
 
-
-        var allStructDecls = new List<StructDeclNode>();
-        foreach (var ast in cAsts)
-            allStructDecls.AddRange(ast.StructNodes);
-
-        var structLayouts = StructLayout.Resolve(allStructDecls);
+        var structLayouts = StructLayout.Resolve(combinedAst.StructNodes);
 
         var mainFunc = combinedAst.FunctionNodes.FirstOrDefault(f => f.Name == "main");
         if (mainFunc != null)
@@ -61,10 +57,13 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
             assembler.EmitJmp("func_main");
         }
 
-        includes = [.. includes.Distinct(StringComparer.OrdinalIgnoreCase)];
-        AddInclude(includes, asmParser, assembler);
+        foreach (string inc in asmIncludes.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            string asmCode = ReadInclude(_fileService, inc, _path);
+            asmParser.Assemble(asmCode, assembler);
+        }
 
-        foreach (var file in files.Where(file => file.Language == SourceLanguage.Asm))
+        foreach (SourceFile file in files.Where(file => file.Language == SourceLanguage.Asm))
         {
             asmParser.Assemble(file.Content, assembler);
         }
@@ -77,16 +76,42 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
         return resLog;
     }
 
-    private void AddInclude(IEnumerable<string> includes, AssemblerParser asmParser, AssemblerBase assembler)
+    private void ResolveIncludesRecursive(IEnumerable<string> includes, HashSet<string> processed, List<ProgramNode> cAsts, List<string> asmIncludes)
     {
-        foreach (string inc in includes)
+        foreach (var inc in includes)
         {
-            string asmCode = ReadIncludes(_fileService, inc, _path);
-            asmParser.Assemble(asmCode, assembler);
+            if (!processed.Add(inc)) continue; // Уже обработали
+
+            string code = ReadInclude(_fileService, inc, _path);
+            SourceLanguage lang = FindLang(_path, inc);
+
+            switch (lang)
+            {
+                case SourceLanguage.C:
+                    var ast = ParseCFile(code);
+                    cAsts.Add(ast);
+                    ResolveIncludesRecursive(ast.IncludesList, processed, cAsts, asmIncludes);
+                    break;
+                    
+                case SourceLanguage.Asm: 
+                    asmIncludes.Add(inc); 
+                    break;
+
+                case SourceLanguage.None:
+                default:
+                    ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"extension for include \"{inc}\""); 
+                    break;
+            }
         }
     }
 
-    public static string ReadIncludes(IFileService service, string fileName, IProjectFilesConfig pathConfig)
+    private static ProgramNode ParseCFile(string content)
+    {
+        var tokens = new Lexer(content).Tokenize();
+        return new Parser(tokens).Parse();
+    }
+
+    public static string ReadInclude(IFileService service, string fileName, IProjectFilesConfig pathConfig)
     {
         string projPath = pathConfig.ProjectPath;
         string includePath = pathConfig.IncludePath;
@@ -110,8 +135,7 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
             return service.ReadFile(fullPathInc);
         }
 
-        throw new FileNotFoundException(
-                $"Included file not found: '{fileName}'. Searched in paths: {projPath}, {includePath}");
+        throw new FileNotFoundException($"Included file not found: '{fileName}'. Searched in paths: {projPath}, {includePath}");
     }
 
     public static IEnumerable<SourceFile> GetSourceFiles(IFileService fileService, IProjectFilesConfig path)

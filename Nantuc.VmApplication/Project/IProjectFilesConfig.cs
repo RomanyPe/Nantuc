@@ -2,6 +2,7 @@
 
 public interface IProjectFilesConfig
 {
+    string BaseDirectory { get; }
     string ProjectPath { get; }
     string IncludePath { get; }
     IReadOnlyList<string> ExtensionsAsm { get; }
@@ -11,7 +12,8 @@ public interface IProjectFilesConfig
 
     private sealed class DefaultProjectFilesConfig : IProjectFilesConfig
     {
-        public string ProjectPath { get; } = AppContext.BaseDirectory;
+        public string BaseDirectory { get; } = AppContext.BaseDirectory;
+        public string ProjectPath { get; } = Path.Combine(AppContext.BaseDirectory, "project");
         public string IncludePath { get; } = Path.Combine(AppContext.BaseDirectory, "include");
         public IReadOnlyList<string> ExtensionsAsm { get; } = Array.AsReadOnly([".asm", ".nanasm"]);
         public IReadOnlyList<string> ExtensionsMiniC { get; } = Array.AsReadOnly([".c", ".minic"]);

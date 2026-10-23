@@ -1,4 +1,5 @@
 ﻿using Nantuc.Kernel.Diagnostics;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace Nantuc.Compiler.C;
@@ -268,27 +269,44 @@ public class Parser(List<Token> tokens)
             if (Current.Type == TokenType.Operator && Current.Value == "=")
             {
                 Expect(TokenType.Operator, "=");
+                if (type == "char" && Current.Type == TokenType.String)
+                {
+                    var initList = ParseStringToNodes(Current.Value);
+                    Advance();
+                    varNode.ArrayInitializer = initList;
+                    if (size < 0)
+                    {
+                        varNode.ArraySize = initList.Count;
+                    }
+                    else if (initList.Count > size)
+                    {
+                        ThrowHelper.ThrowMiniC(ErrorCode.Parser_InvalidAssignment, name);
+                    }
+                    return varNode;
+                }
                 Expect(TokenType.Punctuation, "{");
 
-                var initList = new List<ASTNode>();
+                List<ASTNode> list = [];
                 if (Current.Value != "}")
                 {
                     while (true)
                     {
-                        initList.Add(ParseExpression());
+                        list.Add(ParseExpression());
                         if (Current.Value != ",") break;
                         Expect(TokenType.Punctuation, ",");
                     }
                 }
                 Expect(TokenType.Punctuation, "}");
 
-                varNode.ArrayInitializer = initList;
+                varNode.ArrayInitializer = list;
 
                 if (size < 0)
-                    varNode.ArraySize = initList.Count;          // int arr[] = {...}
-                else if (initList.Count > size)
+                    varNode.ArraySize = list.Count;          // int arr[] = {...}
+                else if (list.Count > size)
                     ThrowHelper.ThrowMiniC(ErrorCode.Parser_InvalidAssignment, name); // слишком много инициализаторов
+                
             }
+
             else if (size < 0)
             {
                 // int arr[]; без инициализатора — размер неизвестен
@@ -311,6 +329,7 @@ public class Parser(List<Token> tokens)
             PointedType = pointedType
         };
     }
+
     private ASTNode ParseBlockType(string text) => text switch
     {
         "if" => ParseIf(),
@@ -321,6 +340,49 @@ public class Parser(List<Token> tokens)
         _ => ParseStatement(),
     };
 
+    private static List<ASTNode> ParseStringToNodes(string raw)
+    {
+        string inner = raw[1..^1];
+        var nodes = new List<ASTNode>(inner.Length + 1);
+
+        for (int i = 0; i < inner.Length; i++)
+        {
+            char c = inner[i];
+            if (c != '\\')
+            {
+                nodes.Add(new NumberNode(c));
+                continue;
+            }
+
+            i++;
+            if (i >= inner.Length)
+                ThrowHelper.ThrowMiniC(ErrorCode.Parser_InvalidCharLiteral, raw);
+
+            char esc = inner[i];
+            switch (esc) 
+            {
+                case 'n': nodes.Add(new NumberNode('\n')); break;
+                case 't': nodes.Add(new NumberNode('\t')); break;
+                case 'r': nodes.Add(new NumberNode('\r')); break;
+                case '0': nodes.Add(new NumberNode('\0')); break;
+                case '\\': nodes.Add(new NumberNode('\\')); break;
+                case '\'': nodes.Add(new NumberNode('\'')); break;
+                case '"': nodes.Add(new NumberNode('"')); break;
+                case 'x':
+                    if (i + 2 >= inner.Length)
+                        ThrowHelper.ThrowMiniC(ErrorCode.Parser_InvalidCharLiteral, raw);
+                    nodes.Add(new NumberNode(Convert.ToInt64(inner.Substring(i + 1, 2), 16)));
+                    i += 2;
+                    break;
+                default:
+                    ThrowHelper.ThrowMiniC(ErrorCode.Parser_InvalidCharLiteral, raw);
+                    break;
+
+            }
+        }
+        nodes.Add(new NumberNode('\0'));
+        return nodes;
+    }
 
     private IfNode ParseIf()
     {
