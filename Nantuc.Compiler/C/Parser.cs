@@ -19,25 +19,33 @@ public class Parser(List<Token> tokens)
         {
             if (Current.Type == TokenType.Keyword && Current.Value == "struct")
             {
-                Advance();
-                string name = Expect(TokenType.Identifier).Value;
-                _structNames.Add(name);
+                bool isDecl = _position + 2 < _tokens.Count
+                              && _tokens[_position + 2].Type == TokenType.Punctuation
+                              && _tokens[_position + 2].Value == "{";
 
-                Expect(TokenType.Punctuation, "{");
-                var fields = new List<(string, string)>();
-                while (Current.Value != "}")
+                if (isDecl)
                 {
-                    string ftype = ParseType();
-                    string fname = Expect(TokenType.Identifier).Value;
-                    fields.Add((ftype, fname));
-                    Expect(TokenType.Punctuation, ";");
+                    Advance();                                         // struct
+                    string name = Expect(TokenType.Identifier).Value;  // Point
+                    _structNames.Add(name);
+
+                    Expect(TokenType.Punctuation, "{");
+                    var fields = new List<(string, string)>();
+                    while (Current.Value != "}")
+                    {
+                        string ftype = ParseType();
+                        string fname = Expect(TokenType.Identifier).Value;
+                        fields.Add((ftype, fname));
+                        Expect(TokenType.Punctuation, ";");
+                    }
+                    Expect(TokenType.Punctuation, "}");
+                    if (Current.Type == TokenType.Punctuation && Current.Value == ";")
+                        Advance();
+                    program.StructNodes.Add(new StructDeclNode(name, fields));
+                    continue;
                 }
-                Expect(TokenType.Punctuation, "}");
-                if (Current.Type == TokenType.Punctuation && Current.Value == ";")
-                    Advance();
-                program.StructNodes.Add(new StructDeclNode(name, fields));
-                continue;
             }
+
             if (Current.Type == TokenType.Operator && Current.Value == "#")
             {
                 Expect(TokenType.Operator, "#");
@@ -129,8 +137,8 @@ public class Parser(List<Token> tokens)
                 }
                 else
                 {
-                    var varNode = ParseVariableOrArray(type, name, isPointer, pointedType);
-                    program.GlobalVarNodes.Add(varNode);
+                    var varNodes = ParseDeclarators(type, name, isPointer, pointedType);
+                    program.GlobalVarNodes.AddRange(varNodes);
                     Expect(TokenType.Punctuation, ";");
                 }
             }
@@ -230,9 +238,8 @@ public class Parser(List<Token> tokens)
                 }
 
                 string name = Expect(TokenType.Identifier).Value;
-
-                var varNode = ParseVariableOrArray(type, name, isPointer, pointedType);
-                block.Statements.Add(varNode);
+                var varNodes = ParseDeclarators(type, name, isPointer, pointedType);
+                block.Statements.AddRange(varNodes);
                 Expect(TokenType.Punctuation, ";");
             }
             else
@@ -243,7 +250,23 @@ public class Parser(List<Token> tokens)
         Expect(TokenType.Punctuation, "}");
         return block;
     }
-    private VariableNode ParseVariableOrArray(string type, string name, bool isPointer, string? pointedType)
+
+
+    private ASTNode ParseExpression() => ParseComma();
+
+    private ASTNode ParseComma()
+    {
+        ASTNode left = ParseAssignment();
+        while (Current.Type == TokenType.Punctuation && Current.Value == ",")
+        {
+            Advance();
+            ASTNode right = ParseAssignment();
+            left = new BinaryOpNode(",", left, right);
+        }
+        return left;
+    }
+
+    private VariableNode ParseVariableTail(string type, string name, bool isPointer, string? pointedType)
     {
         // --- Массив? ---
         if (Current.Type == TokenType.Punctuation && Current.Value == "[")
@@ -291,7 +314,7 @@ public class Parser(List<Token> tokens)
                 {
                     while (true)
                     {
-                        list.Add(ParseExpression());
+                        list.Add(ParseAssignment());             // было ParseExpression()
                         if (Current.Value != ",") break;
                         Expect(TokenType.Punctuation, ",");
                     }
@@ -321,7 +344,7 @@ public class Parser(List<Token> tokens)
         if (Current.Type == TokenType.Operator && Current.Value == "=")
         {
             Expect(TokenType.Operator, "=");
-            initializer = ParseExpression();
+            initializer = ParseAssignment();
         }
         return new VariableNode(type, name, initializer)
         {
@@ -384,35 +407,47 @@ public class Parser(List<Token> tokens)
         return nodes;
     }
 
+    private BlockNode ParseBody()
+    {
+        if (Current.Value == "{")
+        {
+            Expect(TokenType.Punctuation, "{");
+            return ParseBlock();       // ParseBlock ожидает "{" уже съеденным
+        }
+
+        // Однострочное тело: if/while/for/return/asm/expression statement
+        var block = new BlockNode();
+        block.Statements.Add(ParseBlockType(Current.Value));
+        return block;
+    }
+
     private IfNode ParseIf()
     {
         Expect(TokenType.Keyword, "if");
         Expect(TokenType.Punctuation, "(");
         ASTNode condition = ParseExpression();
         Expect(TokenType.Punctuation, ")");
-        Expect(TokenType.Punctuation, "{");
-        var thenBlock = ParseBlock();
+
+        var thenBlock = ParseBody();          // ← было: Expect "{" + ParseBlock()
+
         BlockNode? elseBlock = null;
         if (Current.Value == "else")
         {
             Expect(TokenType.Keyword, "else");
-            Expect(TokenType.Punctuation, "{");
-            elseBlock = ParseBlock();
+            elseBlock = ParseBody();          // ← было: Expect "{" + ParseBlock()
         }
         return new IfNode(condition, thenBlock, elseBlock);
     }
-
     private WhileNode ParseWhile()
     {
         Expect(TokenType.Keyword, "while");
         Expect(TokenType.Punctuation, "(");
         ASTNode condition = ParseExpression();
         Expect(TokenType.Punctuation, ")");
-        Expect(TokenType.Punctuation, "{");
-        var body = ParseBlock();
+
+        var body = ParseBody();               // ← было: Expect "{" + ParseBlock()
         return new WhileNode(condition, body);
     }
-
     private ForNode ParseFor()
     {
         Expect(TokenType.Keyword, "for");
@@ -424,15 +459,23 @@ public class Parser(List<Token> tokens)
             if (IsTypeSpecifier())
             {
                 string type = ParseType();
-                bool isPointer = false;
-                string? pointedType = null;
+                bool isPointer = false; string? pointedType = null;
                 if (Current.Value == "*") { isPointer = true; pointedType = type; Advance(); }
 
                 string name = Expect(TokenType.Identifier).Value;
-                init = ParseVariableOrArray(type, name, isPointer, pointedType);
+                var varNodes = ParseDeclarators(type, name, isPointer, pointedType);
+
+                if (varNodes.Count == 1)
+                    init = varNodes[0];
+                else
+                {
+                    var initBlock = new BlockNode();
+                    initBlock.Statements.AddRange(varNodes);
+                    init = initBlock;
+                }
             }
             else
-            {
+            { 
                 init = ParseExpression();
             }
         }
@@ -448,9 +491,30 @@ public class Parser(List<Token> tokens)
             increment = ParseExpression();
         Expect(TokenType.Punctuation, ")");
 
-        Expect(TokenType.Punctuation, "{");
-        var body = ParseBlock();
+        var body = ParseBody();               // ← было: Expect "{" + ParseBlock()
         return new ForNode(init, condition, increment, body);
+    }
+
+    private List<VariableNode> ParseDeclarators(string type, string firstName,
+                                            bool firstIsPointer, string? firstPointedType)
+    {
+        var result = new List<VariableNode> { ParseVariableTail(type, firstName, firstIsPointer, firstPointedType) };
+
+        while (Current.Type == TokenType.Punctuation && Current.Value == ",")
+        {
+            Advance();  // ","
+            bool isPtr = false;
+            string? pointed = null;
+            if (Current.Type == TokenType.Operator && Current.Value == "*")
+            {
+                isPtr = true;
+                pointed = type;   // указатель на этот же тип
+                Advance();
+            }
+            string name = Expect(TokenType.Identifier).Value;
+            result.Add(ParseVariableTail(type, name, isPtr, pointed));
+        }
+        return result;
     }
 
     private InlineAsmNode ParseInlineAsm()
@@ -505,8 +569,6 @@ public class Parser(List<Token> tokens)
         Expect(TokenType.Punctuation, ";");
         return expr;
     }
-
-    private ASTNode ParseExpression() => ParseAssignment();
 
     private ASTNode ParseAssignment()
     {
@@ -709,7 +771,7 @@ public class Parser(List<Token> tokens)
                 {
                     while (true)
                     {
-                        call.Arguments.Add(ParseExpression());
+                        call.Arguments.Add(ParseAssignment());
                         if (Current.Value != ",") break;
                         Expect(TokenType.Punctuation, ",");
                     }

@@ -125,7 +125,7 @@ public class FunctionContext
 
         ctx.VarMap = varMap;
         ctx.TotalLocalSize = stackOffset;   // теперь только для стековых переменных
-        ctx.SaveAreaSize = ComputeMaxBinaryDepth(func.Body) * 8;
+        ctx.SaveAreaSize = (ComputeMaxBinaryDepth(func.Body) + 1) * 8;
         ctx.UsedRegisters = [.. varMap.Values.Where(v => v.IsRegister).Select(v => v.Register)];
         return ctx;
     }
@@ -134,36 +134,64 @@ public class FunctionContext
         if (node is null) return 0;
         return node switch
         {
+            // Binary: left сохранён в save-slot, пока генерируется right → +1
             BinaryOpNode b => 1 + Math.Max(
                                   ComputeMaxBinaryDepth(b.Left),
                                   ComputeMaxBinaryDepth(b.Right)),
+
             UnaryOpNode u => ComputeMaxBinaryDepth(u.Operand),
-            AssignmentNode a => Math.Max(
-                                       ComputeMaxBinaryDepth(a.Value),
-                                       a.IndexExpr != null ? ComputeMaxBinaryDepth(a.IndexExpr) : 0),
-            FunctionCallNode fc => fc.Arguments.Count > 0
-                                       ? fc.Arguments.Max(ComputeMaxBinaryDepth)
-                                       : 0,
+
+            // Assignment:
+            // - arr[i] = value: value в r1, save, затем index → +1
+            // - *ptr = value / obj.field = value: value в r1, save, затем адрес → +1
+            AssignmentNode a => a.IndexExpr != null
+                ? Math.Max(ComputeMaxBinaryDepth(a.Value),
+                           1 + ComputeMaxBinaryDepth(a.IndexExpr))
+                : ComputeMaxBinaryDepth(a.Value)
+                  + ((a.LValue is MemberAccessNode or DereferenceNode) ? 1 : 0),
+
+            // Function call: N аргументов = N слотов одновременно
+            FunctionCallNode fc => Math.Min(fc.Arguments.Count, 4)
+                                   + (fc.Arguments.Count > 0
+                                          ? fc.Arguments.Max(ComputeMaxBinaryDepth)
+                                          : 0),
+
+            // If: left условия сохраняется на время генерации right → +1
+            IfNode i => Math.Max(
+                1 + ComputeMaxBinaryDepth(i.Condition),
+                Math.Max(ComputeMaxBinaryDepth(i.ThenBlock),
+                         i.ElseBlock != null ? ComputeMaxBinaryDepth(i.ElseBlock) : 0)),
+
+            // While: то же для условия
+            WhileNode w => Math.Max(
+                1 + ComputeMaxBinaryDepth(w.Condition),
+                ComputeMaxBinaryDepth(w.Body)),
+
+            // For: condition под +1
+            ForNode f => Math.Max(
+                ComputeMaxBinaryDepth(f.Init),
+                Math.Max(
+                    1 + ComputeMaxBinaryDepth(f.Condition),
+                    Math.Max(ComputeMaxBinaryDepth(f.Increment),
+                             ComputeMaxBinaryDepth(f.Body)))),
+
+            ReturnNode r => ComputeMaxBinaryDepth(r.Value),
+
+            VariableNode v => Math.Max(
+                ComputeMaxBinaryDepth(v.Initializer),
+                v.ArrayInitializer != null
+                    ? v.ArrayInitializer.Max(ComputeMaxBinaryDepth)
+                    : 0),
+
             ArrayAccessNode aa => ComputeMaxBinaryDepth(aa.Index),
             MemberAccessNode ma => ComputeMaxBinaryDepth(ma.Object),
             DereferenceNode d => ComputeMaxBinaryDepth(d.Operand),
             AddressOfNode ao => ComputeMaxBinaryDepth(ao.Operand),
-            IfNode i => Math.Max(ComputeMaxBinaryDepth(i.Condition),
-                                         Math.Max(ComputeMaxBinaryDepth(i.ThenBlock),
-                                                  i.ElseBlock != null ? ComputeMaxBinaryDepth(i.ElseBlock) : 0)),
-            WhileNode w => Math.Max(ComputeMaxBinaryDepth(w.Condition),
-                                            ComputeMaxBinaryDepth(w.Body)),
-            ForNode f => Math.Max(ComputeMaxBinaryDepth(f.Init),
-                                         Math.Max(ComputeMaxBinaryDepth(f.Condition),
-                                         Math.Max(ComputeMaxBinaryDepth(f.Increment),
-                                                  ComputeMaxBinaryDepth(f.Body)))),
-            ReturnNode r => ComputeMaxBinaryDepth(r.Value),
-            VariableNode v => Math.Max(ComputeMaxBinaryDepth(v.Initializer),
-                                            v.ArrayInitializer != null
-                                                ? v.ArrayInitializer.Max(ComputeMaxBinaryDepth) : 0),
+
             BlockNode blk => blk.Statements.Count > 0
-                                       ? blk.Statements.Max(ComputeMaxBinaryDepth)
-                                       : 0,
+                                ? blk.Statements.Max(ComputeMaxBinaryDepth)
+                                : 0,
+
             _ => 0,
         };
     }

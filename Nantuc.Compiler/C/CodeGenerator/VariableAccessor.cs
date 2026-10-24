@@ -25,9 +25,9 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
 
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
         {
-            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
-            _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-            _asm.EmitLoadInd(targetReg, CodeGenUtils.TMP_REG_EN, loc.TypeSize);
+            _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
+            _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+            _asm.EmitLoadInd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, loc.TypeSize);
             return;
         }
 
@@ -54,9 +54,9 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
 
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
         {
-            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
-            _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-            _asm.EmitStoreInd(sourceReg, CodeGenUtils.TMP_REG_EN, loc.TypeSize);
+            _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
+            _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+            _asm.EmitStoreInd(sourceReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, loc.TypeSize);
             return;
         }
 
@@ -78,10 +78,10 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         {
             if (loc.IsRegister)
                 ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
-            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
-            _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-            if (CodeGenUtils.TMP_REG_EN != targetReg)
-                _asm.EmitMov(targetReg, CodeGenUtils.TMP_REG_EN);
+            _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
+            _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+            if (CodeGenUtils.ADDR_SCRATCH_REG_EN != targetReg)
+                _asm.EmitMov(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
             return;
         }
 

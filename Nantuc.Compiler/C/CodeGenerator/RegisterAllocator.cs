@@ -15,6 +15,7 @@ public static class RegisterAllocator
     private static readonly HashSet<RegType> ReservedRegs =
     [
         RegType.r0, RegType.r1, RegType.r2, RegType.r3, RegType.r4,
+        RegType.r27,
         RegType.rFL, RegType.rSP, RegType.rHP, RegType.rIP,
     ];
 

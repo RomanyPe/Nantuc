@@ -13,8 +13,12 @@ namespace Nantuc.Compiler.C.CodeGenerator;
 
 public static class CodeGenUtils
 {
-    public const uint TMP_REG = (uint)RegType.r3;
-    public const RegType TMP_REG_EN = RegType.r3;
+    public const uint ADDR_SCRATCH_REG = (uint)RegType.r27;
+    public const RegType ADDR_SCRATCH_REG_EN = RegType.r27;
+
+    // Обратная совместимость (переименуйте использования постепенно):
+    public const uint TMP_REG = ADDR_SCRATCH_REG;
+    public const RegType TMP_REG_EN = ADDR_SCRATCH_REG_EN;
 
     public static OpCodeSize GetSizeForType(string? type) => type switch
     {

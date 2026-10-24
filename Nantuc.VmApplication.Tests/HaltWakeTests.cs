@@ -71,8 +71,8 @@ public class HaltWakeTests
                 {
                     sawSleeping = true;
                     wasRunningAtHalt = reader.IsRunning;
-                    r1AtHalt = reader.GetRegister(RegType.r1);
-                    r2AtHalt = reader.GetRegister(RegType.r2);
+                    r1AtHalt = reader.GetRegister(RegType.r0);
+                    r2AtHalt = reader.GetRegister(RegType.r1);
                     sleepDetected.TrySetResult();
                 }
             });
@@ -129,8 +129,8 @@ public class HaltWakeTests
         deviceCtx.EndStepMode();
 
         Assert.True(sawSleeping, "HALT did not set the sleeping flag.");
-        Assert.Equal(0x11UL, regs[RegType.r1]);
-        Assert.Equal(0UL, regs[RegType.r2]);
+        Assert.Equal(0x11UL, regs[RegType.r0]);
+        Assert.Equal(0UL, regs[RegType.r1]);
     }
 
     // ------------------------------------------------------------------

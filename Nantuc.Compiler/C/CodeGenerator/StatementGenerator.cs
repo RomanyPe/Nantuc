@@ -37,7 +37,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
                         else
                         {
                             _exprGen.GenerateExpression(var.Initializer);
-                            _varAccessor.StoreFromRegister(var.Name, RegType.r1);
+                            _varAccessor.StoreFromRegister(var.Name, RegType.r0);
                         }
                     }
                     else if (var.ArrayInitializer != null && var.IsArray)
@@ -94,7 +94,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         // 2. Хвост — нули (C-семантика: int y[10] = {5} ⇒ y[1..9] == 0)
         if (var.ArraySize > providedCount)
         {
-            _asm.EmitLdi(RegType.r1, 0);
+            _asm.EmitLdi(RegType.r0, 0);
             for (int i = providedCount; i < var.ArraySize; i++)
                 EmitStoreToLocalArrayElement(loc.StackOffset + i * elemBytes, elemSize);
         }
@@ -102,9 +102,9 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
 
     private void EmitStoreToLocalArrayElement(int offset, OpCodeSize elemSize)
     {
-        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)offset);
-        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-        _asm.EmitStoreInd(RegType.r1, CodeGenUtils.TMP_REG_EN, elemSize);
+        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)offset);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+        _asm.EmitStoreInd(RegType.r0, CodeGenUtils.ADDR_SCRATCH_REG_EN, elemSize);
     }
 
     private void GenerateInlineAsm(InlineAsmNode asm)
@@ -115,43 +115,43 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
 
     private void GenerateAssignment(AssignmentNode assign)
     {
-        // Присваивание элементу массива
+        // 1) arr[i] = value
         if (assign.IndexExpr != null)
         {
-            _exprGen.GenerateExpression(assign.Value);
-            _exprGen.StoreR0ToArrayElement(assign.Name, assign.IndexExpr);
+            _exprGen.GenerateExpression(assign.Value);       // value → r1
+            _exprGen.StoreR0ToArrayElement(assign.Name, assign.IndexExpr);  // внутри save
             return;
         }
 
-        if (assign.LValue != null)
+        // 2) *ptr = value
+        if (assign.LValue is DereferenceNode deref)
         {
-            if (assign.LValue is DereferenceNode deref)
-            {
-                _exprGen.GenerateExpression(assign.Value);
-                _asm.EmitMov(RegType.r2, RegType.r1);
-                _exprGen.GenerateExpression(deref.Operand);
-                OpCodeSize size = GetPointedSize(deref.Operand);
-                _asm.EmitStoreInd(RegType.r2, RegType.r1, size);
-                return;
-            }
+            _exprGen.GenerateExpression(assign.Value);       // value → r1
+            int slot = _exprGen.SaveRegToStack(RegType.r0);
+
+            _exprGen.GenerateExpression(deref.Operand, RegType.r0);   // ptr → r1
+            OpCodeSize size = GetPointedSize(deref.Operand);
+
+            _exprGen.RestoreRegFromStack(slot, RegType.r1);           // value → r2
+            _asm.EmitStoreInd(RegType.r1, RegType.r0, size);
+            return;
         }
 
+        // 3) obj.field = value (включая a[i].field = value, p->field = value)
         if (assign.LValue is MemberAccessNode memberAccess)
         {
-            // Генерируем значение правой части в r0, затем сохраняем в поле
-            _exprGen.GenerateExpression(assign.Value);   // r0 = значение
-                                                         // Сохраняем значение во временный регистр r1
-            _asm.EmitMov(RegType.r2, RegType.r1);
+            _exprGen.GenerateExpression(assign.Value);       // value → r1
+            int slot = _exprGen.SaveRegToStack(RegType.r0);
 
-            // Вычисляем адрес поля
-            _exprGen.GenerateMemberAddress(memberAccess); // нужно написать метод, возвращающий адрес в r0
-                                                          // Сохраняем
+            _exprGen.GenerateMemberAddress(memberAccess, RegType.r0);  // &field → r1
             OpCodeSize size = GetFieldSize(memberAccess);
-            _asm.EmitStoreInd(RegType.r2, RegType.r1, size);
+
+            _exprGen.RestoreRegFromStack(slot, RegType.r1);            // value → r2
+            _asm.EmitStoreInd(RegType.r1, RegType.r0, size);
             return;
         }
 
-        // Оптимизация: x = число или x = y, когда x в регистре
+        // 4) x = <простое значение>  — оптимизация без save
         if (assign.IndexExpr == null && assign.LValue == null &&
             _funcCtx.VarMap.TryGetValue(assign.Name, out var regLoc) && regLoc.IsRegister &&
             (assign.Value is NumberNode || assign.Value is IdentifierNode))
@@ -160,34 +160,33 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
             return;
         }
 
+        // 5) x = x op expr  — оптимизация без save
         if (_funcCtx.VarMap.TryGetValue(assign.Name, out var loc) && loc.IsRegister)
         {
             if (assign.Value is BinaryOpNode binop && binop.Left is IdentifierNode id && id.Name == assign.Name
                 && (binop.Operator == "+" || binop.Operator == "-" || binop.Operator == "*" || binop.Operator == "/"))
             {
-                // x = x op expr
                 RegType xReg = loc.Register;
-                RegType tempReg = (xReg != RegType.r1) ? RegType.r1 : RegType.r2;
+                RegType tempReg = (xReg != RegType.r0) ? RegType.r0 : RegType.r1;
                 _exprGen.GenerateExpression(binop.Right, tempReg);
                 switch (binop.Operator)
                 {
                     case "+": _asm.EmitAdd(xReg, tempReg); break;
-                    case "-": _asm.EmitSub( xReg, tempReg); break;
+                    case "-": _asm.EmitSub(xReg, tempReg); break;
                     case "*": _asm.EmitMultInt(xReg, tempReg); break;
                     case "/": _asm.EmitDiv(xReg, tempReg); break;
                 }
                 return;
             }
 
-            // Простое присваивание: генерируем значение прямо в регистр переменной
             _exprGen.GenerateExpression(assign.Value, loc.Register);
             return;
         }
 
+        // 6) Общий случай: x (в стеке/глобале) = value
         _exprGen.GenerateExpression(assign.Value);
-        _varAccessor.StoreFromRegister(assign.Name, RegType.r1);
+        _varAccessor.StoreFromRegister(assign.Name, RegType.r0);
     }
-
 
     private OpCodeSize GetFieldSize(MemberAccessNode node)
     {
@@ -311,32 +310,34 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         _asm.MarkLabel(endLabel);
     }
 
+    private void GenerateSingleInit(ASTNode init)
+    {
+        if (init is VariableNode varInit)
+        {
+            if (varInit.Initializer != null)
+            {
+                if (_funcCtx.VarMap.TryGetValue(varInit.Name, out var varLoc) && varLoc.IsRegister)
+                    _exprGen.GenerateExpression(varInit.Initializer, varLoc.Register);
+                else
+                {
+                    _exprGen.GenerateExpression(varInit.Initializer);
+                    _varAccessor.StoreFromRegister(varInit.Name, RegType.r0);
+                }
+            }
+        }
+        else if (init is AssignmentNode assignInit)
+            GenerateAssignment(assignInit);
+        else if (init is BlockNode block)
+            foreach (var stmt in block.Statements) GenerateSingleInit(stmt);
+        else
+            _exprGen.GenerateExpression(init);
+    }
+
     private void GenerateFor(ForNode forNode)
     {
         if (forNode.Init != null)
-        {
-            if (forNode.Init is VariableNode varInit)
-            {
-                if (varInit.Initializer != null)
-                {
-                    if (_funcCtx.VarMap.TryGetValue(varInit.Name, out var varLoc) && varLoc.IsRegister)
-                        _exprGen.GenerateExpression(varInit.Initializer, varLoc.Register);
-                    else
-                    {
-                        _exprGen.GenerateExpression(varInit.Initializer);
-                        _varAccessor.StoreFromRegister(varInit.Name, RegType.r1);
-                    }
-                }
-            }
-            else if (forNode.Init is AssignmentNode assignInit)
-            {
-                GenerateAssignment(assignInit);
-            }
-            else
-            {
-                _exprGen.GenerateExpression(forNode.Init);
-            }
-        }
+            GenerateSingleInit(forNode.Init);
+
         string startLabel = _getLabel();
         string endLabel = _getLabel();
 

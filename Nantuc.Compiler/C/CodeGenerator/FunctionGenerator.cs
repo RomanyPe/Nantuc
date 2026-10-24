@@ -133,7 +133,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                 exprGen.GenerateExpression(global.Initializer);
                 OpCodeSize opSize = global.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(global.Type);
                 string label = GlobalMemoryManager.GetLabel(global.Name);
-                _asm.EmitStore(RegType.r1, opSize, label);
+                _asm.EmitStore(RegType.r0, opSize, label);
             }
         }
     }
@@ -165,8 +165,8 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         // Пролог
         if (stackAlloc > 0)
         {
-            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)stackAlloc);
-            _asm.EmitSub(RegType.rSP, CodeGenUtils.TMP_REG_EN);
+            _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)stackAlloc);
+            _asm.EmitSub(RegType.rSP, CodeGenUtils.ADDR_SCRATCH_REG_EN);
         }
 
         if (!isMain) 
@@ -186,9 +186,9 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                     }
                     else
                     {
-                        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
-                        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-                        _asm.EmitStoreInd(incomingReg, CodeGenUtils.TMP_REG_EN, loc.TypeSize);
+                        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
+                        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+                        _asm.EmitStoreInd(incomingReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, loc.TypeSize);
                     }
                 }
                 else
@@ -213,8 +213,8 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
             _asm.MarkLabel(funcCtx.EpilogueLabel);
             if (stackAlloc > 0)
             {
-                _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)stackAlloc);
-                _asm.EmitAdd(RegType.rSP, CodeGenUtils.TMP_REG_EN);
+                _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)stackAlloc);
+                _asm.EmitAdd(RegType.rSP, CodeGenUtils.ADDR_SCRATCH_REG_EN);
             }
             for (int i = funcCtx.UsedRegisters.Count - 1; i >= 0; i--)
                 _asm.EmitPop(funcCtx.UsedRegisters[i]);
@@ -244,6 +244,9 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                     {
                         if (fr.Init is VariableNode forVar)
                             map[forVar.Name] = forVar;
+                        else if (fr.Init is BlockNode initBlock)
+                            foreach (var s in initBlock.Statements)
+                                if (s is VariableNode v) map[v.Name] = v;
                         CollectLocalVars(fr.Body, map);
                         break;
                     }

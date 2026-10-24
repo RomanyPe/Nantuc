@@ -29,32 +29,36 @@ public class ExpressionGenerator(AssemblerBase asm,
         switch (expr)
         {
             case NumberNode num:
-                _asm.EmitLdi(RegType.r1, (ulong)num.Value);
-                break;
-            case IdentifierNode id:
-                _varAccessor.LoadToRegister(id.Name, RegType.r1);
-                break;
-            case BinaryOpNode binop:
-                GenerateBinaryOp(binop, RegType.r1);
+                _asm.EmitLdi(RegType.r0, (ulong)num.Value);
                 break;
             case UnaryOpNode unop:
-                GenerateUnaryOp(unop);
+                GenerateUnaryOp(unop, RegType.r0);   // было GenerateUnaryOp(unop)
+                break;
+            case IdentifierNode id:
+                if (IsArrayIdentifier(id.Name))
+                    _varAccessor.LoadAddressToRegister(id.Name, RegType.r0);
+                else
+                    _varAccessor.LoadToRegister(id.Name, RegType.r0);
+                break;
+            case BinaryOpNode binop:
+                GenerateBinaryOp(binop, RegType.r0);
                 break;
             case FunctionCallNode call:
                 GenerateFunctionCall(call);
                 break;
             case ArrayAccessNode arrAcc:
-                LoadArrayElementToR0(arrAcc.ArrayName, arrAcc.Index);
+                LoadArrayElementToR0(arrAcc.ArrayName, arrAcc.Index, RegType.r0);
                 break;
             case AddressOfNode addrOf:
-                GenerateAddressOf(addrOf);
-                break;
-            case DereferenceNode deref:
-                GenerateDereference(deref);
+                GenerateAddressOf(addrOf, RegType.r0);
                 break;
             case MemberAccessNode member:
-                GenerateMemberAccess(member);
+                GenerateMemberAccess(member, RegType.r0);
                 break;
+            case DereferenceNode deref:
+                GenerateDereference(deref, RegType.r0);
+                break;
+
             default:
                 ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"Unsupported expression: {expr.GetType()}");
                 break;
@@ -63,7 +67,7 @@ public class ExpressionGenerator(AssemblerBase asm,
 
     public void GenerateExpression(ASTNode expr, RegType targetReg)
     {
-        if (targetReg == RegType.r1)
+        if (targetReg == RegType.r0)
         {
             GenerateExpression(expr); // обычный путь
             return;
@@ -76,7 +80,10 @@ public class ExpressionGenerator(AssemblerBase asm,
                 _asm.EmitLdi(targetReg, (ulong)num.Value);
                 break;
             case IdentifierNode id:
-                _varAccessor.LoadToRegister(id.Name, targetReg);
+                if (IsArrayIdentifier(id.Name))
+                    _varAccessor.LoadAddressToRegister(id.Name, targetReg);
+                else
+                    _varAccessor.LoadToRegister(id.Name, targetReg);
                 break;
             case BinaryOpNode binop:
                 GenerateBinaryOp(binop, targetReg);
@@ -84,22 +91,91 @@ public class ExpressionGenerator(AssemblerBase asm,
             case UnaryOpNode unop:
                 GenerateUnaryOp(unop, targetReg);
                 break;
+            case DereferenceNode deref:
+                GenerateDereference(deref, targetReg);
+                break;
+            case AddressOfNode addrOf:
+                GenerateAddressOf(addrOf, targetReg);
+                break;
+            case ArrayAccessNode arrAcc:
+                LoadArrayElementToR0(arrAcc.ArrayName, arrAcc.Index, targetReg);
+                break;
+            case MemberAccessNode member:
+                GenerateMemberAccess(member, targetReg);
+                break;
             default:
                 GenerateExpression(expr);
-                if (targetReg != RegType.r1)
-                    _asm.EmitMov(targetReg, RegType.r1);
+                if (targetReg != RegType.r0)
+                    _asm.EmitMov(targetReg, RegType.r0);
                 break;
         }
     }
 
+    private bool IsArrayIdentifier(string name)
+    {
+        if (_funcCtx.VarMap.TryGetValue(name, out var loc))
+            return loc.IsArray;
+        if (_globalMem.Contains(name))
+            return _globalMem.GetInfo(name)!.Value.IsArray;
+        return false;
+    }
+
+    internal int SaveRegToStack(RegType reg)
+    {
+        int slot = _funcCtx.TotalLocalSize + _funcCtx.ExpressionSaveDepth * 8;
+        _funcCtx.ExpressionSaveDepth++;
+
+        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)slot);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+        _asm.EmitStoreInd(reg, CodeGenUtils.ADDR_SCRATCH_REG_EN, OpCodeSize.S64);
+        return slot;
+    }
+
+    internal void RestoreRegFromStack(int slot, RegType reg)
+    {
+        _funcCtx.ExpressionSaveDepth--;
+
+        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)slot);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+        _asm.EmitLoadInd(reg, CodeGenUtils.ADDR_SCRATCH_REG_EN, OpCodeSize.S64);
+    }
+
+    internal void ReleaseSaveSlot() => _funcCtx.ExpressionSaveDepth--;
+
     private void GenerateBinaryOp(BinaryOpNode binop, RegType targetReg)
     {
+        if (CodeGenUtils.IsComparisonOperator(binop.Operator))
+        {
+            // Вычисляем left и right с сохранением, Cmp, затем превращаем в 1/0
+            GenerateExpression(binop.Left, RegType.r0);
+            int slot = SaveRegToStack(RegType.r0);
+            GenerateExpression(binop.Right, RegType.r0);
+            RestoreRegFromStack(slot, RegType.r1);   // left в r1
+            _asm.EmitCmp(RegType.r1, RegType.r0);    // flags = left - right
+
+            string trueLabel = _getLabel();
+            string endLabel = _getLabel();
+
+            _asm.EmitLdi(targetReg, 0);              // результат = 0 по умолчанию
+            GenerateComparisonJump(binop.Operator, trueLabel, endLabel);
+            // Если false — прыжок на endLabel уже сделан, targetReg == 0
+            _asm.MarkLabel(trueLabel);
+            _asm.EmitLdi(targetReg, 1);
+            _asm.MarkLabel(endLabel);
+            return;
+        }
+        if (binop.Operator == ",")
+        {
+            GenerateExpression(binop.Left);
+            GenerateExpression(binop.Right, targetReg);
+            return;
+        }
         // обработка логических &&, || без изменений
         if (binop.Operator == "&&" || binop.Operator == "||")
         {
             GenerateLogicalAndOr(binop); // результат всегда в r0
-            if (targetReg != RegType.r1)
-                _asm.EmitMov(targetReg, RegType.r1);
+            if (targetReg != RegType.r0)
+                _asm.EmitMov(targetReg, RegType.r0);
             return;
         }
 
@@ -115,7 +191,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (binop.Left is IdentifierNode leftId && _varAccessor.TryGetRegister(leftId.Name, out var leftReg) && leftReg == targetReg)
         {
             // генерируем правый операнд во временный регистр (например, r1, если targetReg != r1, иначе r2)
-            RegType tempReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
+            RegType tempReg = (targetReg != RegType.r1) ? RegType.r1 : RegType.r2;
             GenerateExpression(binop.Right, tempReg);
             EmitBinaryOperation(binop.Operator, targetReg, tempReg);
             return;
@@ -125,7 +201,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (binop.Right is IdentifierNode rightId && _varAccessor.TryGetRegister(rightId.Name, out var rightReg) && rightReg == targetReg
             && (binop.Operator == "+" || binop.Operator == "*")) // только коммутативные
         {
-            RegType tempReg = (targetReg != RegType.r1) ? RegType.r1 : RegType.r2;
+            RegType tempReg = (targetReg != RegType.r0) ? RegType.r0 : RegType.r1;
             GenerateExpression(binop.Left, tempReg);
             EmitBinaryOperation(binop.Operator, targetReg, tempReg);
             return;
@@ -133,8 +209,8 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         // Общий случай
         GenerateExpression(binop.Left, targetReg);
-        RegType rReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
-        RegType addrReg = RegType.r4;
+        RegType rReg = (targetReg != RegType.r1) ? RegType.r1 : RegType.r2;
+        RegType addrReg = RegType.r3;
 
         int saveOffset = _funcCtx.TotalLocalSize + _funcCtx.ExpressionSaveDepth * 8;
 
@@ -169,7 +245,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             case "!":
                 {
                     GenerateExpression(unop.Operand, targetReg);           // targetReg = operand
-                    RegType scratch = targetReg == RegType.r2 ? RegType.r3 : RegType.r2;
+                    RegType scratch = targetReg == RegType.r1 ? RegType.r2 : RegType.r1;
                     _asm.EmitLdi(scratch, 0);
                     _asm.EmitCmp(targetReg, scratch);   // flags = targetReg - 0
 
@@ -192,18 +268,18 @@ public class ExpressionGenerator(AssemblerBase asm,
                 return;
         }
     }
-    public void GenerateMemberAddress(MemberAccessNode node)
+    public void GenerateMemberAddress(MemberAccessNode node, RegType targetReg)
     {
         string? structType = null;
         switch (node.Object)
         {
             case IdentifierNode identifer:
-                _varAccessor.LoadAddressToRegister(identifer.Name, RegType.r1);
+                _varAccessor.LoadAddressToRegister(identifer.Name, targetReg);
                 return;
             case MemberAccessNode node1:
                 {
-                    // Рекурсивно вычисляем адрес вложенного объекта (результат в r0)
-                    GenerateMemberAddress(node1);
+                    // Рекурсивно вычисляем адрес вложенного объекта (результат в targetReg)
+                    GenerateMemberAddress(node1, targetReg);
 
                     // Получаем ТИП поля node1, чтобы понять, в какой структуре искать текущее поле
                     var (_, _, innerFieldType) = ResolveMemberAccessType(node1);
@@ -216,8 +292,8 @@ public class ExpressionGenerator(AssemblerBase asm,
 
                     if (currentField.Offset > 0)
                     {
-                        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)currentField.Offset);
-                        _asm.EmitAdd(RegType.r1, CodeGenUtils.TMP_REG_EN);
+                        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)currentField.Offset);
+                        _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
                     }
                     return;
                 }
@@ -227,27 +303,26 @@ public class ExpressionGenerator(AssemblerBase asm,
                 return;
             case ArrayAccessNode arrAcc:
                 {
-                    // arr[i].field — адрес поля
                     string? arrStructType = ResolveArrayStructType(arrAcc.ArrayName);
                     var layoutstr = _structTable[arrStructType!];
                     var fieldstr = layoutstr.GetField(node.FieldName)
-                                    ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
+                                   ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
 
-                    // Вычисляем адрес элемента arr[i]
-                    GenerateExpression(arrAcc.Index);
-                    _asm.EmitMov(RegType.r3, RegType.r1);
-                    _varAccessor.LoadToRegister(arrAcc.ArrayName, RegType.r1);
+                    GenerateExpression(arrAcc.Index, targetReg);   // index → targetReg
+                    _asm.EmitMov(RegType.r3, targetReg);           // save index в r4
+
+                    _varAccessor.LoadAddressToRegister(arrAcc.ArrayName, targetReg);  // base → targetReg
+
                     int elemSize = layoutstr.Size;
                     if (elemSize > 1)
                         _asm.EmitMultiplyByConstant(RegType.r3, elemSize);
-                    _asm.EmitAdd(RegType.r1, RegType.r3);
-                    // r0 = адрес arr[i]
 
-                    // Прибавляем смещение поля
+                    _asm.EmitAdd(targetReg, RegType.r3);           // base + offset
+
                     if (fieldstr.Offset > 0)
                     {
-                        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)fieldstr.Offset);
-                        _asm.EmitAdd(RegType.r1, CodeGenUtils.TMP_REG_EN);
+                        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)fieldstr.Offset);
+                        _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
                     }
                     return;
                 }
@@ -265,23 +340,23 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         if (node.IsArrow)
         {
-            GenerateExpression(node.Object);  // r0 = ptr
+            GenerateExpression(node.Object, targetReg);  // r0 = ptr
         }
         else
         {
             if (node.Object is IdentifierNode identifer)
-                _varAccessor.LoadToRegister(identifer.Name, RegType.r1);
+                _varAccessor.LoadToRegister(identifer.Name, targetReg);
             else ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_InvalidDotAccess, "Dot address only for simple variables");
         }
         if (field.Offset > 0)
         {
-            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)field.Offset);
-            _asm.EmitAdd(RegType.r1, CodeGenUtils.TMP_REG_EN);
+            _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)field.Offset);
+            _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
         }
     }
 
 
-    private void GenerateMemberAccess(MemberAccessNode node)
+    private void GenerateMemberAccess(MemberAccessNode node, RegType targetReg)
     {
         // 1. Определить StructLayout
         // Нужно узнать тип объекта. Он может быть переменной (IdentifierNode) или другим выражением.
@@ -316,11 +391,11 @@ public class ExpressionGenerator(AssemblerBase asm,
             case MemberAccessNode:
                 {
                     // Рекурсивно вычисляем адрес вложенного объекта (без загрузки значения) в r0
-                    GenerateMemberAddress(node); // этот метод вычислит адрес поля
-                                                 // Теперь r0 содержит адрес поля, загружаем значение
+                    GenerateMemberAddress(node, targetReg); // этот метод вычислит адрес поля
+                                                            // Теперь r0 содержит адрес поля, загружаем значение
                     var (_, fieldMem, _) = ResolveMemberAccessType(node);
                     OpCodeSize fieldSizeMem = CodeGenUtils.GetSizeForType(fieldMem.Type);
-                    _asm.EmitLoadInd(RegType.r1, RegType.r1, fieldSizeMem);
+                    _asm.EmitLoadInd(targetReg, targetReg, fieldSizeMem);
                     return;
                 }
 
@@ -334,26 +409,35 @@ public class ExpressionGenerator(AssemblerBase asm,
                     var fieldstr = layoutstr.GetField(node.FieldName)
                                 ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
 
-                    GenerateExpression(arrAcc.Index);
-                    _asm.EmitMov(RegType.r3, RegType.r1);
-                    _varAccessor.LoadToRegister(arrAcc.ArrayName, RegType.r1);
+                    // 1) index → targetReg
+                    GenerateExpression(arrAcc.Index, targetReg);
+
+                    // 2) save index в r4 (r4 не используется как targetReg, безопасен)
+                    _asm.EmitMov(RegType.r3, targetReg);
+
+                    // 3) base address → targetReg (НЕ LoadToRegister!)
+                    _varAccessor.LoadAddressToRegister(arrAcc.ArrayName, targetReg);
+
+                    // 4) index * elemSize (в r4)
                     int elemSize = layoutstr.Size;
                     if (elemSize > 1)
                         _asm.EmitMultiplyByConstant(RegType.r3, elemSize);
-                    _asm.EmitAdd(RegType.r1, RegType.r3);
 
+                    // 5) targetReg = base + offset
+                    _asm.EmitAdd(targetReg, RegType.r3);
+
+                    // 6) + field offset
                     if (fieldstr.Offset > 0)
                     {
-                        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)fieldstr.Offset);
-                        _asm.EmitAdd(RegType.r1, CodeGenUtils.TMP_REG_EN);
+                        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)fieldstr.Offset);
+                        _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
                     }
 
-                    // Загружаем значение поля
+                    // 7) value → targetReg
                     OpCodeSize fieldSizestr = CodeGenUtils.GetSizeForType(fieldstr.Type);
-                    _asm.EmitLoadInd(RegType.r1, RegType.r1, fieldSizestr);
+                    _asm.EmitLoadInd(targetReg, targetReg, fieldSizestr);
                     return;
                 }
-
             default:
                 ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Unsupported object for member access");
                 break;
@@ -367,13 +451,13 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         if (node.IsArrow)
         {
-            GenerateExpression(node.Object);
+            GenerateExpression(node.Object, targetReg);
         }
         else
         {
             if (node.Object is IdentifierNode identifer)
             {
-                _varAccessor.LoadAddressToRegister(identifer.Name, RegType.r1);
+                _varAccessor.LoadAddressToRegister(identifer.Name, targetReg);
             }
             else
             {
@@ -383,13 +467,13 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         if (field.Offset > 0)
         {
-            _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)field.Offset);
-            _asm.EmitAdd(RegType.r1, CodeGenUtils.TMP_REG_EN);
+            _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)field.Offset);
+            _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
         }
 
         // 4. Загрузить значение поля
         OpCodeSize fieldSize = CodeGenUtils.GetSizeForType(field.Type);
-        _asm.EmitLoadInd(RegType.r1, RegType.r1, fieldSize);
+        _asm.EmitLoadInd(targetReg, targetReg, fieldSize);
     }
 
     /// <summary>
@@ -473,14 +557,14 @@ public class ExpressionGenerator(AssemblerBase asm,
         return null;
     }
 
-    public void LoadArrayElementToR0(string arrayName, ASTNode indexExpr)
+    public void LoadArrayElementToR0(string arrayName, ASTNode indexExpr, RegType targetReg)
     {
         if (_funcCtx.VarMap.TryGetValue(arrayName, out var loc))
         {
             if (loc.IsArray)
-                LoadArrayElementFromLocal(loc, indexExpr);
+                LoadArrayElementFromLocal(loc, indexExpr, targetReg);
             else if (loc.IsPointer)
-                LoadPointerElementToR0(arrayName, loc, indexExpr);
+                LoadPointerElementToR0(arrayName, loc, indexExpr, targetReg);
             else
                 ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
@@ -488,9 +572,9 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             var gInfo = _globalMem.GetInfo(arrayName)!.Value;
             if (gInfo.IsArray)
-                LoadArrayElementFromGlobal(gInfo, arrayName, indexExpr);   // ← новый аргумент
+                LoadArrayElementFromGlobal(gInfo, arrayName, indexExpr, targetReg);
             else if (gInfo.IsPointer)
-                LoadPointerElementToR0(arrayName, null, indexExpr);
+                LoadPointerElementToR0(arrayName, null, indexExpr, targetReg);
             else
                 ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
@@ -500,14 +584,15 @@ public class ExpressionGenerator(AssemblerBase asm,
 
     public void StoreR0ToArrayElement(string arrayName, ASTNode indexExpr)
     {
-        _asm.EmitMov(RegType.r2, RegType.r1);
+        // value уже в r1
+        int slot = SaveRegToStack(RegType.r0);
 
         if (_funcCtx.VarMap.TryGetValue(arrayName, out var loc))
         {
             if (loc.IsArray)
-                StoreArrayElementToLocal(loc, indexExpr);
+                StoreArrayElementToLocal(loc, indexExpr, slot);
             else if (loc.IsPointer)
-                StorePointerElement(arrayName, loc, indexExpr);
+                StorePointerElement(arrayName, loc, indexExpr, slot);
             else
                 ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
@@ -515,58 +600,62 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             var gInfo = _globalMem.GetInfo(arrayName)!.Value;
             if (gInfo.IsArray)
-                StoreArrayElementToGlobal(gInfo, arrayName, indexExpr);
+                StoreArrayElementToGlobal(gInfo, arrayName, indexExpr, slot);
             else if (gInfo.IsPointer)
-                StorePointerElement(arrayName, null, indexExpr);
+                StorePointerElement(arrayName, null, indexExpr, slot);
             else
                 ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else
             ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, arrayName);
-    }
 
-    private void LoadArrayElementFromLocal(VarLocation loc, ASTNode indexExpr)
+        ReleaseSaveSlot();
+    }
+    private void LoadArrayElementFromLocal(VarLocation loc, ASTNode indexExpr, RegType targetReg)
     {
         var typeSize = loc.TypeSize;
-        GenerateExpression(indexExpr);
+        GenerateExpression(indexExpr, targetReg);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r1, CodeGenUtils.GetSizeInBytes(typeSize));
+            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize));
         _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
         _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.r1);
-        _asm.EmitLoadInd(RegType.r1, CodeGenUtils.TMP_REG_EN, typeSize);
+        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, targetReg);
+        _asm.EmitLoadInd(targetReg, CodeGenUtils.TMP_REG_EN, typeSize);
     }
-
-    private void LoadArrayElementFromGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr)
+    private void LoadArrayElementFromGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, RegType targetReg)
     {
         var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type);
-        GenerateExpression(indexExpr);
+        GenerateExpression(indexExpr, targetReg);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r1, CodeGenUtils.GetSizeInBytes(typeSize));
+            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize));
 
         // БЫЛО: _asm.EmitInstruction64(EncodeLDI(TMP_REG), gInfo.Address);
         string label = GlobalMemoryManager.GetLabel(arrayName);
-        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, label);
+        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, label);
 
-        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.r1);
-        _asm.EmitLoadInd(RegType.r1, CodeGenUtils.TMP_REG_EN, typeSize);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, targetReg);
+        _asm.EmitLoadInd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, typeSize);
     }
 
-    private void StoreArrayElementToGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr)
+    private void StoreArrayElementToGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, int slot)
     {
         var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type);
-        GenerateExpression(indexExpr);
+
+        GenerateExpression(indexExpr, RegType.r0);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r1, CodeGenUtils.GetSizeInBytes(typeSize));
+            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize));
 
         string label = GlobalMemoryManager.GetLabel(arrayName);
-        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, label);
+        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, label);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.r0);
 
-        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.r1);
-        _asm.EmitStoreInd(RegType.r2, CodeGenUtils.TMP_REG_EN, typeSize);
+        _asm.EmitLdi(RegType.r3, (ulong)slot);
+        _asm.EmitAdd(RegType.r3, RegType.rSP);
+        _asm.EmitLoadInd(RegType.r1, RegType.r3, OpCodeSize.S64);
+
+        _asm.EmitStoreInd(RegType.r1, CodeGenUtils.ADDR_SCRATCH_REG_EN, typeSize);
     }
-
-    private void LoadPointerElementToR0(string pointerName, VarLocation? loc, ASTNode indexExpr)
+    private void LoadPointerElementToR0(string pointerName, VarLocation? loc, ASTNode indexExpr, RegType targetReg)
     {
         // Получаем размер pointed типа
         OpCodeSize pointedSize;
@@ -576,32 +665,36 @@ public class ExpressionGenerator(AssemblerBase asm,
             pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!);
         else pointedSize = CodeGenUtils.GetSizeForType("expection type");
         // 1. Вычисляем индекс → r1
-        GenerateExpression(indexExpr);   // r0 = индекс
-        _asm.EmitMov(RegType.r2, RegType.r1);
-        // 2. Загружаем адрес указателя → r0
-        _varAccessor.LoadToRegister(pointerName, RegType.r1);   // r0 = адрес
-                                                                // 3. Умножаем индекс на размер элемента
+        GenerateExpression(indexExpr, RegType.r2);           // index → r3 (scratch)
+        _varAccessor.LoadToRegister(pointerName, targetReg); // r1 = pointer value (использует TMP_REG=r27)
         if (pointedSize != OpCodeSize.S8)
             _asm.EmitMultiplyByConstant(RegType.r2, CodeGenUtils.GetSizeInBytes(pointedSize));
-        // 4. r0 = адрес + смещение
-        _asm.EmitAdd(RegType.r1, RegType.r2);
-        // 5. Загружаем значение
-        _asm.EmitLoadInd(RegType.r1, RegType.r1, pointedSize);
+        _asm.EmitAdd(targetReg, RegType.r2);                 // r1 = pointer + offset
+        _asm.EmitLoadInd(targetReg, targetReg, pointedSize); // result → targetReg
     }
 
-    private void StoreArrayElementToLocal(VarLocation loc, ASTNode indexExpr)
+    private void StoreArrayElementToLocal(VarLocation loc, ASTNode indexExpr, int slot)
     {
         var typeSize = loc.TypeSize;
-        GenerateExpression(indexExpr);
-        if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r1, CodeGenUtils.GetSizeInBytes(typeSize));
-        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
-        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.r1);
-        _asm.EmitStoreInd(RegType.r2, CodeGenUtils.TMP_REG_EN, typeSize);
-    }
 
-    private void StorePointerElement(string pointerName, VarLocation? loc, ASTNode indexExpr)
+        // 1) index → r1, масштаб, + базовый адрес → r27
+        GenerateExpression(indexExpr, RegType.r0);
+        if (typeSize != OpCodeSize.S8)
+            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize));
+        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.r0);
+        // ADDR_SCRATCH_REG_EN = &arr[index]
+
+        // 2) value из save-слота → r2
+        _asm.EmitLdi(RegType.r3, (ulong)slot);
+        _asm.EmitAdd(RegType.r3, RegType.rSP);
+        _asm.EmitLoadInd(RegType.r1, RegType.r3, OpCodeSize.S64);
+
+        // 3) STORE
+        _asm.EmitStoreInd(RegType.r1, CodeGenUtils.ADDR_SCRATCH_REG_EN, typeSize);
+    }
+    private void StorePointerElement(string pointerName, VarLocation? loc, ASTNode indexExpr, int slot)
     {
         OpCodeSize pointedSize;
         if (loc != null)
@@ -611,27 +704,27 @@ public class ExpressionGenerator(AssemblerBase asm,
         else
             pointedSize = CodeGenUtils.GetSizeForType("expection type");
 
-        // 1. Вычисляем индекс → r2
-        GenerateExpression(indexExpr);
-        _asm.EmitMov(RegType.r3, RegType.r1);
+        // 1) index → r3
+        GenerateExpression(indexExpr, RegType.r2);
 
-        // 2. Умножаем индекс на размер элемента (в r2)
+        // 2) pointer value → r1
+        _varAccessor.LoadToRegister(pointerName, RegType.r0);   // r1 = *pointer
+
+        // 3) scale
         if (pointedSize != OpCodeSize.S8)
-        {
-            int elemSize = CodeGenUtils.GetSizeInBytes(pointedSize);
-            _asm.EmitMultiplyByConstant( RegType.r3, elemSize);
-        }
+            _asm.EmitMultiplyByConstant(RegType.r2, CodeGenUtils.GetSizeInBytes(pointedSize));
 
-        // 3. Загружаем адрес указателя → r0
-        _varAccessor.LoadToRegister(pointerName, RegType.r1);
+        // 4) r1 = pointer + offset
+        _asm.EmitAdd(RegType.r0, RegType.r2);
 
-        // 4. r0 = адрес + смещение
-        _asm.EmitAdd(RegType.r1, RegType.r3);
+        // 5) value из save-слота → r2
+        _asm.EmitLdi(RegType.r3, (ulong)slot);
+        _asm.EmitAdd(RegType.r3, RegType.rSP);
+        _asm.EmitLoadInd(RegType.r1, RegType.r3, OpCodeSize.S64);
 
-        // 5. Сохраняем значение из r1 (которое пришло из StoreR0ToArrayElement)
-        _asm.EmitStoreInd(RegType.r2, RegType.r1, pointedSize);
+        // 6) STORE
+        _asm.EmitStoreInd(RegType.r1, RegType.r0, pointedSize);
     }
-
     public void GenerateCondition(ASTNode condition, string? trueLabel, string? falseLabel)
     {
         if (condition is BinaryOpNode logical && (logical.Operator == "&&" || logical.Operator == "||"))
@@ -651,19 +744,19 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         if (condition is BinaryOpNode binop && CodeGenUtils.IsComparisonOperator(binop.Operator))
         {
-            GenerateExpression(binop.Left);                                     // r0 = left
-            _asm.EmitMov(RegType.r2, RegType.r1);            // r1 = left
-            GenerateExpression(binop.Right);                                    // r0 = right
-                                                                                // Только CMP обновляет флаги!
-            _asm.EmitCmp(RegType.r2, RegType.r1);            // flags = r1 - r0
+            GenerateExpression(binop.Left, RegType.r0);
+            int slot = SaveRegToStack(RegType.r0);
+            GenerateExpression(binop.Right, RegType.r0);
+            RestoreRegFromStack(slot, RegType.r1);
+            _asm.EmitCmp(RegType.r1, RegType.r0);
             GenerateComparisonJump(binop.Operator, trueLabel, falseLabel);
         }
         else
         {
             GenerateExpression(condition);                                      // r0 = значение
                                                                                 // Сравнение с нулём: CMP r0, 0 (через r1 как scratch)
-            _asm.EmitLdi(RegType.r2, 0);
-            _asm.EmitCmp(RegType.r1, RegType.r2);
+            _asm.EmitLdi(RegType.r1, 0);
+            _asm.EmitCmp(RegType.r0, RegType.r1);
 
             if (trueLabel != null && falseLabel != null)
             {
@@ -728,49 +821,28 @@ public class ExpressionGenerator(AssemblerBase asm,
         string falseLabel = _getLabel();
 
         GenerateExpression(binop.Left);
-        _asm.EmitCmp(RegType.r1, RegType.r2);
-        if (binop.Operator == "&&")
-        {
-            _asm.EmitJz(falseLabel);
-        }
-        else
-        {
-            _asm.EmitJnz(trueLabel);
-        }
+        _asm.EmitInstR(OpCode.TEST, RegType.r0, RegType.r0);   // flags = r0 & r0
+        if (binop.Operator == "&&") _asm.EmitJz(falseLabel);
+        else _asm.EmitJnz(trueLabel);
 
         GenerateExpression(binop.Right);
-        _asm.EmitCmp(RegType.r1, RegType.r2);
+        _asm.EmitInstR(OpCode.TEST, RegType.r0, RegType.r0);
+        if (binop.Operator == "&&") _asm.EmitJz(falseLabel);
+        else _asm.EmitJnz(trueLabel);
 
-        if (binop.Operator == "&&")
-        {
-            _asm.EmitJz(falseLabel);
-        }
-        else
-        {
-            _asm.EmitJnz(trueLabel);
-        }
-
-        if (binop.Operator == "&&")
-        {
-            _asm.EmitLdi(RegType.r1, 1);
-        }
-        else
-        {
-            _asm.EmitLdi(RegType.r1, 0);
-        }
-
+        // ни одна ветка не сработала — результат "истина" для &&, "ложь" для ||
+        _asm.EmitLdi(RegType.r0, binop.Operator == "&&" ? 1UL : 0UL);
         _asm.EmitJmp(endLabel);
 
         _asm.MarkLabel(trueLabel);
-        _asm.EmitLdi(RegType.r1, 1);
+        _asm.EmitLdi(RegType.r0, 1);
         _asm.EmitJmp(endLabel);
 
         _asm.MarkLabel(falseLabel);
-        _asm.EmitLdi(RegType.r1, 0);
+        _asm.EmitLdi(RegType.r0, 0);
 
         _asm.MarkLabel(endLabel);
     }
-
     private void EmitBinaryOperation(string op, RegType dest, RegType src)
     {
         switch (op)
@@ -810,73 +882,73 @@ public class ExpressionGenerator(AssemblerBase asm,
 
     public void GenerateComparison(string op)
     {
-        _asm.EmitSub(RegType.r2, RegType.r1);
-        _asm.EmitMov(RegType.r1, RegType.r2);
-        _asm.EmitCmp(RegType.r2, RegType.r1);
+        _asm.EmitSub(RegType.r1, RegType.r0);
+        _asm.EmitMov(RegType.r0, RegType.r1);
+        _asm.EmitCmp(RegType.r1, RegType.r0);
         string trueLabel = _getLabel();
         string endLabel = _getLabel();
-        _asm.EmitLdi(RegType.r1, 0);
+        _asm.EmitLdi(RegType.r0, 0);
 
         switch (op)
         {
             case "<":
-                _asm.EmitMov(RegType.r2, RegType.rFL);
-                _asm.EmitLdi(RegType.r3, 2);
-                _asm.EmitAnd(RegType.r2, RegType.r3);
+                _asm.EmitMov(RegType.r1, RegType.rFL);
+                _asm.EmitLdi(RegType.r2, 2);
+                _asm.EmitAnd(RegType.r1, RegType.r2);
                 _asm.EmitJnz(trueLabel);
                 _asm.EmitJmp(endLabel);
                 _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r1, 1);
+                _asm.EmitLdi(RegType.r0, 1);
                 _asm.MarkLabel(endLabel);
                 break;
             case ">":
-                _asm.EmitMov(RegType.r2, RegType.rFL);
-                _asm.EmitLdi(RegType.r3, 3);
-                _asm.EmitAnd(RegType.r2, RegType.r3);
+                _asm.EmitMov(RegType.r1, RegType.rFL);
+                _asm.EmitLdi(RegType.r2, 3);
+                _asm.EmitAnd(RegType.r1, RegType.r2);
                 _asm.EmitJz(trueLabel);
                 _asm.EmitJmp(endLabel);
                 _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r1, 1);
+                _asm.EmitLdi(RegType.r0, 1);
                 _asm.MarkLabel(endLabel);
                 break;
             case "<=":
-                _asm.EmitMov(RegType.r2, RegType.rFL);
-                _asm.EmitLdi(RegType.r3, 3);
-                _asm.EmitAnd(RegType.r2, RegType.r3);
+                _asm.EmitMov(RegType.r1, RegType.rFL);
+                _asm.EmitLdi(RegType.r2, 3);
+                _asm.EmitAnd(RegType.r1, RegType.r2);
                 _asm.EmitJnz(trueLabel);
                 _asm.EmitJmp(endLabel);
                 _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r1, 1);
+                _asm.EmitLdi(RegType.r0, 1);
                 _asm.MarkLabel(endLabel);
                 break;
             case ">=":
-                _asm.EmitMov(RegType.r2, RegType.rFL);
-                _asm.EmitLdi(RegType.r3, 2);
-                _asm.EmitAnd(RegType.r2, RegType.r3);
+                _asm.EmitMov(RegType.r1, RegType.rFL);
+                _asm.EmitLdi(RegType.r2, 2);
+                _asm.EmitAnd(RegType.r1, RegType.r2);
                 _asm.EmitJz(trueLabel);
                 _asm.EmitJmp(endLabel);
                 _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r1, 1);
+                _asm.EmitLdi(RegType.r0, 1);
                 _asm.MarkLabel(endLabel);
                 break;
             case "==":
-                _asm.EmitMov(RegType.r2, RegType.rFL);
-                _asm.EmitLdi(RegType.r3, 1);
-                _asm.EmitAnd(RegType.r2, RegType.r3);
+                _asm.EmitMov(RegType.r1, RegType.rFL);
+                _asm.EmitLdi(RegType.r2, 1);
+                _asm.EmitAnd(RegType.r1, RegType.r2);
                 _asm.EmitJnz(trueLabel);
                 _asm.EmitJmp(endLabel);
                 _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r1, 1);
+                _asm.EmitLdi(RegType.r0, 1);
                 _asm.MarkLabel(endLabel);
                 break;
             case "!=":
-                _asm.EmitMov(RegType.r2, RegType.rFL);
-                _asm.EmitLdi(RegType.r3, 1);
-                _asm.EmitAnd(RegType.r2, RegType.r3);
+                _asm.EmitMov(RegType.r1, RegType.rFL);
+                _asm.EmitLdi(RegType.r2, 1);
+                _asm.EmitAnd(RegType.r1, RegType.r2);
                 _asm.EmitJz(trueLabel);
                 _asm.EmitJmp(endLabel);
                 _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r1, 1);
+                _asm.EmitLdi(RegType.r0, 1);
                 _asm.MarkLabel(endLabel);
                 break;
             default:
@@ -885,39 +957,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         }
     }
 
-    private void GenerateUnaryOp(UnaryOpNode unop)
-    {
-        switch (unop.Operator)
-        {
-            case "-":
-                GenerateExpression(unop.Operand);
-                _asm.EmitNot(RegType.r1);
-                _asm.EmitInc(RegType.r1);
-                break;
-            case "!":
-                GenerateExpression(unop.Operand);
-                string trueLabel = _getLabel();
-                string endLabel = _getLabel();
-                _asm.EmitLdi(RegType.r1, 1);
-                _asm.EmitCmp(RegType.r1, RegType.r2);
-                _asm.EmitJnz(trueLabel);
-                _asm.EmitLdi(RegType.r1, 0);
-                _asm.EmitJmp(endLabel);
-                _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r1, 1);
-                _asm.MarkLabel(endLabel);
-                break;
-            case "~":
-                GenerateExpression(unop.Operand);
-                _asm.EmitNot(RegType.r1);
-                break;
-            default:
-                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"Unsupported unary operator: {unop.Operator}");
-                return;
-        }
-    }
-
-    private void GenerateAddressOf(AddressOfNode addrOf)
+    private void GenerateAddressOf(AddressOfNode addrOf, RegType targetReg)
     {
         if (addrOf.Operand is IdentifierNode id)
         {
@@ -926,14 +966,14 @@ public class ExpressionGenerator(AssemblerBase asm,
             {
                 if (loc.IsRegister)
                     ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
-                _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
-                _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-                _asm.EmitMov(RegType.r1, CodeGenUtils.TMP_REG_EN);
+                _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
+                _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+                _asm.EmitMov(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
             }
             else if (_globalMem.Contains(varName))
             {
                 string label = GlobalMemoryManager.GetLabel(varName);
-                _asm.EmitLdi(RegType.r1, label);
+                _asm.EmitLdi(targetReg, label);
             }
             else
                 ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, varName);
@@ -942,11 +982,11 @@ public class ExpressionGenerator(AssemblerBase asm,
             ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Address-of only supports simple variables currently");
     }
 
-    private void GenerateDereference(DereferenceNode deref)
+    private void GenerateDereference(DereferenceNode deref, RegType targetReg)
     {
         GenerateExpression(deref.Operand);
         OpCodeSize size = GetPointedSize(deref.Operand);
-        _asm.EmitLoadInd(RegType.r1, RegType.r1, size);
+        _asm.EmitLoadInd(targetReg, targetReg, size);
     }
 
     private OpCodeSize GetPointedSize(ASTNode expr)
@@ -970,34 +1010,37 @@ public class ExpressionGenerator(AssemblerBase asm,
     {
         if (!_functionTable.TryGetValue(call.Name, out var targetFunc))
             ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownFunction, call.Name);
-
         if (call.Arguments.Count != targetFunc.Parameters.Count)
             ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
 
-        // Передаём первые 4 аргумента через регистры r0-r3
+        // 1) args 4+ → pseudo-globals (r0..r3 пусты, можно свободно)
+        for (int i = 4; i < call.Arguments.Count; i++)
+        {
+            GenerateExpression(call.Arguments[i]);         // → r0
+            var param = targetFunc.Parameters[i];
+            string globalName = $"__param_{targetFunc.Name}_{param.Name}";
+            OpCodeSize opSize = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type);
+            string label = GlobalMemoryManager.GetLabel(globalName);
+            _asm.EmitStore(RegType.r0, opSize, label);
+        }
+
+        // 2) args 0..3 — генерируем, сохраняем offset
         int regCount = Math.Min(call.Arguments.Count, 4);
+        var slots = new int[regCount];
+
         for (int i = 0; i < regCount; i++)
         {
             var param = targetFunc.Parameters[i];
             if (_structTable.ContainsKey(param.Type))
                 ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Struct parameters via registers not yet supported");
-            // Генерируем выражение в нужный регистр
-            GenerateExpression(call.Arguments[i], (RegType)i); // RegType.r0 + i
+            GenerateExpression(call.Arguments[i], (RegType)i);
+            slots[i] = SaveRegToStack((RegType)i);   // ← сохраняем возвращаемый offset
         }
 
-        // Если параметров больше 4 – временно используем псевдоглобалы
-        for (int i = 4; i < call.Arguments.Count; i++)
-        {
-            GenerateExpression(call.Arguments[i]);
-            var param = targetFunc.Parameters[i];
-            string globalName = $"__param_{targetFunc.Name}_{param.Name}";
-            if (!_globalMem.Contains(globalName))
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, globalName);
-
-            OpCodeSize opSize = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type);
-            string label = GlobalMemoryManager.GetLabel(globalName);
-            _asm.EmitStore(RegType.r1, opSize, label);
-        }
+        // 3) восстанавливаем по сохранённым offset'ам
+        for (int i = 0; i < regCount; i++)
+            RestoreRegFromStack(slots[i], (RegType)i);
 
         _asm.EmitCall($"func_{call.Name}");
-    }}
+    }
+}
