@@ -64,6 +64,7 @@ public static class InstructionDecoder
 
     extension(RegType reg)
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Int() => (int)reg;
     }
 }

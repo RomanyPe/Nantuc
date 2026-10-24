@@ -6,9 +6,9 @@ using Nantuc.VmApplication.Project;
 
 namespace Nantuc.Benchmarks;
 
-public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase)
+public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
 {
-    private readonly VMHost _host = host;
+    private readonly VmHost _host = host;
     private readonly int _deviceId = deviceId;
     private readonly BenchCase _case = benchCase;
     private readonly List<double> _mipsLogs = [];
@@ -34,13 +34,13 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase)
         ? 0
         : _stepsLogs.Select(s => (double)s).ToList().ComputeVariance();
 
-    public byte[]? Program { get; private set; }
+    public CompilationResult? Program { get; private set; }
 
     public bool TryPrepare()
     {
         IsPrepared = false;
 
-        var res = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.Asm).Build();
+        CompilationResult res = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.Asm).Build();
         if (!res.Success)
         {
             Console.WriteLine(res.Errors);
@@ -48,7 +48,7 @@ public class BenchRunner(VMHost host, int deviceId, BenchCase benchCase)
             return false;
         }
         var ctx = _host.Emulator.GetDeviceContext(_deviceId)!;
-        Program = res.Program;
+        Program = res;
 
         if (!ctx.TryFastLoadProgram(res.Program, 0, out string? errorMath))
         {

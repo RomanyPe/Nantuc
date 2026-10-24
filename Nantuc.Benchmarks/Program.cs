@@ -1,6 +1,7 @@
 ﻿using Nantuc.Kernel.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
+using Nantuc.VmApplication.Extensions.Disassembler;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -278,14 +279,14 @@ internal class Program
     """;
 
 
-    private static readonly int _runs = 3;
-    private static readonly int _runsWarmup = 1;
+    private static readonly int _runs = 20;
+    private static readonly int _runsWarmup = 5;
 
     private static void Main()
     {
         BenchmarkOptimizer.OptimizeCurrentProcess();
 
-        using var host = VMHostFactory.CreateDefault();
+        using var host = VmHostFactory.CreateDefault();
 
         DeviceSpec deviceHandle = DeviceSpec.Create(ramSize: RamSize.MB64, name: "ConsoleVM");
         int deviceId = host.Emulator.RegisterDevice(
@@ -395,7 +396,7 @@ internal class Program
             sb.AppendLine();
 
             sb.AppendLine("  Disassembly:");
-            sb.AppendLine(VMHostHelper.DisassemblCode(runner.Program!).TextAsm);
+            sb.AppendLine(runner.Program!.Value.DisassembleToString());
             sb.AppendLine();
         }
 

@@ -5,24 +5,24 @@ using Nantuc.VmApplication.Project;
 
 namespace Nantuc.VmApplication;
 
-public static class VMHostFactory
+public static class VmHostFactory
 {
-    public static VMHost CreateDefault(
+    public static VmHost CreateDefault(
         IProjectFilesConfig? projectConfig = null,
         IFileService? fileService = null,
         PortSize? portBusSize = null,
         DevicePortSize? portsPerDevice = null)
     {
-        var projectBuilder = new VMHostProjectBuilder()
+        var projectBuilder = new VmHostProjectBuilder()
             .WithPaths(projectConfig ?? IProjectFilesConfig.Default)
             .WithFileService(fileService ?? new RamFileService());
         var project = projectBuilder.Build();
 
-        var emulatorBuilder = new VMEmulatorBuilder()
+        var emulatorBuilder = new VmEmulatorBuilder()
             .WithPortBusSize(portBusSize ?? PortSize.KB64)
             .WithPortsPerDevice(portsPerDevice ?? DevicePortSize.B16);
         var emulator = emulatorBuilder.Build();
 
-        return new VMHost(project, emulator);
+        return new VmHost(project, emulator);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Nantuc.Compiler.ASM;
-using Nantuc.Compiler.ASM.Optimizators;
+using Nantuc.Compiler.ASM.Base;
+using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Compiler.C;
 using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizators;
@@ -8,14 +9,11 @@ using Nantuc.Kernel.Diagnostics;
 
 namespace Nantuc.VmApplication.Project;
 
-public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
+public static class ProjectBuilder
 {
     public const int BaseAddressProgram = 0x00;
 
-    private readonly IFileService _fileService = fileService;
-    private readonly IProjectFilesConfig _path = path;
-
-    internal IEnumerable<IReadOnlyLogOptimization> Build(IEnumerable<SourceFile> files, bool optimize, AssemblerBase assembler, AstOptimizer astOptimizer)
+    internal static IEnumerable<IReadOnlyLogOptimization> Build(IFileService fileService, IProjectFilesConfig paths, IEnumerable<SourceFile> files, bool optimize, AssemblerBase assembler, AstOptimizer astOptimizer)
     {
         var asmParser = new AssemblerParser();
         var cAsts = new List<ProgramNode>();
@@ -28,7 +26,7 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
             var ast = ParseCFile(file.Content);
             cAsts.Add(ast);
 
-            ResolveIncludesRecursive(ast.IncludesList, processedIncludes, cAsts, asmIncludes);
+            ResolveIncludesRecursive(ast.IncludesList, processedIncludes, cAsts, asmIncludes, fileService, paths);
         }
 
         var combinedAst = new ProgramNode();
@@ -54,12 +52,12 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
 
         if (combinedAst.FunctionNodes.Any(f => f.Name == "main"))
         {
-            assembler.EmitJmp("func_main");
+            assembler.EmitJmp("__global_init");
         }
 
         foreach (string inc in asmIncludes.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            string asmCode = ReadInclude(_fileService, inc, _path);
+            string asmCode = ReadInclude(fileService, inc, paths);
             asmParser.Assemble(asmCode, assembler);
         }
 
@@ -76,21 +74,21 @@ public class ProjectBuilder(IFileService fileService, IProjectFilesConfig path)
         return resLog;
     }
 
-    private void ResolveIncludesRecursive(IEnumerable<string> includes, HashSet<string> processed, List<ProgramNode> cAsts, List<string> asmIncludes)
+    private static void ResolveIncludesRecursive(IEnumerable<string> includes, HashSet<string> processed, List<ProgramNode> cAsts, List<string> asmIncludes, IFileService fileService, IProjectFilesConfig paths)
     {
         foreach (var inc in includes)
         {
             if (!processed.Add(inc)) continue; // Уже обработали
 
-            string code = ReadInclude(_fileService, inc, _path);
-            SourceLanguage lang = FindLang(_path, inc);
+            string code = ReadInclude(fileService, inc, paths);
+            SourceLanguage lang = FindLang(paths, inc);
 
             switch (lang)
             {
                 case SourceLanguage.C:
                     var ast = ParseCFile(code);
                     cAsts.Add(ast);
-                    ResolveIncludesRecursive(ast.IncludesList, processed, cAsts, asmIncludes);
+                    ResolveIncludesRecursive(ast.IncludesList, processed, cAsts, asmIncludes, fileService, paths);
                     break;
                     
                 case SourceLanguage.Asm: 

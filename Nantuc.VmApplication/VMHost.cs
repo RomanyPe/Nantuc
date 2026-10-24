@@ -3,7 +3,7 @@ using Nantuc.VmApplication.Project;
 
 namespace Nantuc.VmApplication;
 
-public sealed record VMHost(VMHostProject Project, VMEmulator Emulator) : IDisposable
+public sealed record VmHost(VmHostProject Project, VmEmulator Emulator) : IDisposable
 {
     public void Dispose() => Emulator.Dispose();
 }

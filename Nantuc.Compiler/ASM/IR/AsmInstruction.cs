@@ -1,6 +1,6 @@
 ﻿using Nantuc.Kernel.Common;
 
-namespace Nantuc.Compiler.ASM.Optimizators;
+namespace Nantuc.Compiler.ASM.IR;
 
 public abstract class AsmItem;
 public sealed class AsmLabel(string name) : AsmItem

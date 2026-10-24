@@ -120,7 +120,13 @@ public class DeviceContext
     public byte ReadPort(ulong offset) => _device.ReadPort(offset);
 
     public void CopyRegisters(Span<ulong> destination) => _device.CopyRegisters(destination);
-    public SnapshotRegisters GetRegistersSnapshot() => new(_device.GetRegistersSnapshot());
+
+    public SnapshotRegisters GetRegistersSnapshot()
+    {
+        Span<ulong> destination = stackalloc ulong[32];
+        _device.CopyRegisters(destination);
+        return new(destination);
+    }
 
     private void ThrowIfRunning(
         string msg = "Cannot launch program while device is running. Call Stop() first.")
@@ -147,9 +153,25 @@ public class DeviceContext
 
 }
 
-public readonly struct SnapshotRegisters(ulong[] values) : IEquatable<SnapshotRegisters>
+public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
 {
-    private readonly ulong[]? _values = values;
+    [InlineArray(32)]
+    private struct RegisterArray { public ulong _v0; }
+
+    private readonly RegisterArray _values;
+    public SnapshotRegisters(Span<ulong> values)
+    {
+        _values = new();
+        for (int i = 0; i < values.Length; i++)
+            _values[i] = values[i];
+    }
+
+    public ulong[] AsArray()
+    {
+        var arr = new ulong[32];
+        for (int i = 0; i < 32; i++) arr[i] = _values[i];
+        return arr;
+    }
 
     public ulong this[RegType r]
     {
@@ -157,16 +179,23 @@ public readonly struct SnapshotRegisters(ulong[] values) : IEquatable<SnapshotRe
         get => _values![r.Int()];
     }
 
-    public ulong Count => (ulong)_values!.Length;
+    public static ulong Count => 32;
 
     public IEnumerable<(RegType Type, ulong Value)> Enumerate()
     {
-        for (int i = 0; i < _values!.Length; i++)
+        for (int i = 0; i < 32; i++)
             yield return ((RegType)i, _values[i]);
     }
 
-    public bool Equals(SnapshotRegisters other) =>
-        _values.AsSpan().SequenceEqual(other._values);
+    public bool Equals(SnapshotRegisters other)
+    {
+        for(RegType i = 0; i < RegType.rIP + 1; i++)
+        {
+            if (this[i] != other[i])
+                return false;
+        }
+        return true;
+    }
 
     public override int GetHashCode() => _values!.GetHashCode();
 

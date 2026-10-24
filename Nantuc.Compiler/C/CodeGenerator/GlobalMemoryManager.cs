@@ -1,6 +1,4 @@
-﻿using Nantuc.Compiler.C;
-
-namespace Nantuc.Compiler.C.CodeGenerator;
+﻿namespace Nantuc.Compiler.C.CodeGenerator;
 
 // ============================================================
 // GlobalMemoryManager – управление глобальной памятью

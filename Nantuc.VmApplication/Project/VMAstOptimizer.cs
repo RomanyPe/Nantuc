@@ -3,11 +3,11 @@ using Nantuc.Kernel.Contracts;
 
 namespace Nantuc.VmApplication.Project;
 
-public sealed class VMAstOptimizer
+public sealed class VmAstOptimizer
 {
     private readonly AstOptimizer _opt;
 
-    internal VMAstOptimizer(AstOptimizer astOptimizer)
+    internal VmAstOptimizer(AstOptimizer astOptimizer)
     {
         _opt = astOptimizer;
     }

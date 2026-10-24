@@ -4,7 +4,7 @@ namespace Nantuc.VmApplication.Extensions.Host;
 
 public static class ProjectExtension
 {
-    extension(VMHostProject proj)
+    extension(VmHostProject proj)
     {
         public CompilationToILResult CompileToIL(ulong baseAddress, bool optimize)
         {

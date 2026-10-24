@@ -1,8 +1,8 @@
 ﻿using Nantuc.Kernel.Common;
 using Nantuc.Samples.Minimal;
 using Nantuc.VmApplication;
-using Nantuc.VmApplication.Default;
 using Nantuc.VmApplication.Emulator;
+using Nantuc.VmApplication.Extensions.Disassembler;
 using Nantuc.VmApplication.Extensions.Emulator.IO;
 using Nantuc.VmApplication.Extensions.Host;
 
@@ -10,8 +10,9 @@ const string source1 =
     """
     #include "print.minic"
 
+    char str[] = "Hello world";
+
     void main(){
-        char str[] = "Hello world";
         print(&str);
     }
     
@@ -35,6 +36,9 @@ const string printSource =
 
     extern void Out(byte value, int port);
 
+    int portWrite = 0x10;
+    int portFlush = 0x12;
+
     void print(char* str){
         int i = 0;
 
@@ -44,15 +48,17 @@ const string printSource =
         }
         flush();
     }
-    void write(char c){
-        Out(c, 0x10);
+
+    void write(byte c){
+        Out(c, portWrite);
     }
+
     void flush(){
-        Out(1, 0x12);
+        Out(1, portFlush);
     }
     """;
 
-using var host = VMHostFactory.CreateDefault();
+using var host = VmHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicy(Console.Out);
 
 host.Project.SaveFileProject("main.minic", source1);
@@ -82,6 +88,7 @@ if (!resCompile.Success)
         Console.WriteLine(err);
     return;
 }
+Console.WriteLine(resCompile.DisassembleToString());
 
 if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
 {
@@ -89,3 +96,4 @@ if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, o
     return;
 }
 deviceCtx.Run();
+var regs = deviceCtx.GetRegistersSnapshot();

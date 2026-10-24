@@ -1,25 +1,25 @@
 ﻿namespace Nantuc.VmApplication.Project;
 
-public class VMHostProjectBuilder
+public class VmHostProjectBuilder
 {
     private IProjectFilesConfig? _projectPaths;
     private IFileService? _fileService;
 
-    public VMHostProjectBuilder WithPaths(IProjectFilesConfig paths)
+    public VmHostProjectBuilder WithPaths(IProjectFilesConfig paths)
     {
         _projectPaths = paths;
         return this;
     }
-    public VMHostProjectBuilder WithFileService(IFileService proj)
+    public VmHostProjectBuilder WithFileService(IFileService proj)
     {
         _fileService = proj;
         return this;
     }
 
-    public VMHostProject Build()
+    public VmHostProject Build()
     {
         return _projectPaths == null || _fileService == null
             ? throw new InvalidOperationException("ProjectPaths, Projectservice, Logger обязательны")
-            : new VMHostProject(_projectPaths, _fileService);
+            : new VmHostProject(_projectPaths, _fileService);
     }
 }

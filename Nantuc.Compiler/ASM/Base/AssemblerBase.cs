@@ -1,9 +1,13 @@
-﻿namespace Nantuc.Compiler.ASM.Optimizators;
+﻿namespace Nantuc.Compiler.ASM.Base;
 
 public abstract class AssemblerBase(ulong baseAddress)
 {
     protected readonly ulong _baseAddress = baseAddress;
     public ulong BaseAddress => _baseAddress;
+    public int CodeSectionSize { get; protected set; } = -1;
+    public int DataSectionStart { get; protected set; } = -1;
+    public int DataSectionSize { get; protected set; } = -1;
+
     public abstract byte[] Build();
     public abstract void EmitInstruction(uint instruction);
     public abstract void EmitInstruction64(uint instruction, ulong data);

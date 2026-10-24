@@ -2,25 +2,25 @@
 
 namespace Nantuc.VmApplication.Emulator;
 
-public class VMEmulatorBuilder
+public class VmEmulatorBuilder
 {
     private PortSize _portBusSize = PortSize.KB64;
     private DevicePortSize _portsPerDevice = DevicePortSize.B16;
 
-    public VMEmulatorBuilder WithPortBusSize(PortSize ports)
+    public VmEmulatorBuilder WithPortBusSize(PortSize ports)
     {
         _portBusSize = ports;
         return this;
     }
 
-    public VMEmulatorBuilder WithPortsPerDevice(DevicePortSize portsOnDev)
+    public VmEmulatorBuilder WithPortsPerDevice(DevicePortSize portsOnDev)
     {
         _portsPerDevice = portsOnDev;
         return this;
     }
 
-    public VMEmulator Build()
+    public VmEmulator Build()
     {
-        return new VMEmulator(new(_portBusSize, _portsPerDevice));
+        return new VmEmulator(new(_portBusSize, _portsPerDevice));
     }
 }

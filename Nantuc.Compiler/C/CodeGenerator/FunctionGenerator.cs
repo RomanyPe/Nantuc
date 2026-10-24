@@ -1,4 +1,7 @@
-﻿using Nantuc.Compiler.ASM.Optimizators;
+﻿using Nantuc.Compiler.ASM;
+using Nantuc.Compiler.ASM.Base;
+using Nantuc.Compiler.ASM.IR;
+using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
 
@@ -30,7 +33,14 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         foreach (var func in program.FunctionNodes)
             _functionTable[func.Name] = func;
 
+        _asm.MarkLabel("__global_init");
+
         GenerateGlobalInit(program);
+
+        if (program.FunctionNodes.Any(f => f.Name == "main"))
+        {
+            _asm.EmitJmp("func_main");
+        }
 
         foreach (var func in program.FunctionNodes)
         {

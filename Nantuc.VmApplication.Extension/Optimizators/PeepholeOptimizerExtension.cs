@@ -1,19 +1,20 @@
 ﻿using Nantuc.Compiler.ASM;
-using Nantuc.Compiler.ASM.Optimizators;
+using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.C.Optimizators;
 using Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 using Nantuc.VmApplication.Project;
 using System.Text;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Contracts;
+using Nantuc.Compiler.ASM.Utils;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators;
 
 public static class PeepholeOptimizerExtension
 {
-    extension(VMPeepholeOptimizer peephole)
+    extension(VmPeepholeOptimizer peephole)
     {
-        public VMPeepholeOptimizer AddStdRules()
+        public VmPeepholeOptimizer AddStdRules()
         {
             peephole.Add(new RemoveNoopMovRule());
             peephole.Add(new RemovePushPopPairRule());

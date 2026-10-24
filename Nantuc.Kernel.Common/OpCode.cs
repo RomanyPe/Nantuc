@@ -59,5 +59,6 @@ public enum OpCode : byte
     LOAD_IND_UNSAFE,
     CMP,
     TEST,
+    SHL,
 }
 

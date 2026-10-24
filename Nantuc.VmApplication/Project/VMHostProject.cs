@@ -1,46 +1,22 @@
 ﻿using Nantuc.Compiler.ASM;
-using Nantuc.Compiler.ASM.Optimizators;
+using Nantuc.Compiler.ASM.Base;
+using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.C;
 using System.Text.RegularExpressions;
 
 namespace Nantuc.VmApplication.Project;
 
-public readonly record struct CompilationToILResult(IReadOnlyList<string>? Errors, OptimizationResultLog? OptimizationResultLog)
-{
-    internal readonly IRAssembler? Assembler;
-    internal CompilationToILResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors = null) : this(errors, optimizationResultLog)
-    {
-        Assembler = assembler;
-    }
-
-    public CompilationResult Build()
-    {
-        try
-        {
-            var asm = Assembler;
-            return asm != null
-                ? new CompilationResult(asm.Build(), asm.BaseAddress, null, OptimizationResultLog)
-                : new CompilationResult(null, 0, Errors, null);
-        }
-        catch (Exception ex)
-        {
-            return new CompilationResult(null, 0, [ex.Message], null);
-        }
-    }
-}
-
-public sealed class VMHostProject(IProjectFilesConfig paths, IFileService fileService)
+public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileService)
 {
     private readonly IProjectFilesConfig _projectPaths = paths;
     private readonly IFileService _fileService = fileService;
-    private readonly VMCompilerOptimizator _optimizator = new();
-    private readonly ProjectBuilder _projectBuilder = new(fileService, paths);
+    private readonly VmCompilerOptimizator _optimizator = new();
 
     public static Regex AsmMnemonics => AsmLanguageDefinition.GetMnemonicRegex();
     public static Regex AsmRegisters => AsmLanguageDefinition.GetRegisterRegex();
     public static Regex MiniCMnemonics => MiniCLanguageDefinition.GetKeywordRegex();
 
-    public VMCompilerOptimizator Optimizator => _optimizator;
+    public VmCompilerOptimizator Optimizator => _optimizator;
     public IProjectFilesConfig Paths => _projectPaths;
     public IFileService FileService => _fileService;
 
@@ -57,7 +33,7 @@ public sealed class VMHostProject(IProjectFilesConfig paths, IFileService fileSe
         try
         {
             TAssembler assembler = createAssembler(baseAddress);
-            var resLog = _projectBuilder.Build(files, optimize, assembler, _optimizator.AstOptimizer);
+            var resLog = ProjectBuilder.Build(_fileService, _projectPaths,  files, optimize, assembler, _optimizator.AstOptimizer);
 
             OptimizationResultLog? res = null;
             if (optimize)
@@ -117,7 +93,9 @@ public sealed class VMHostProject(IProjectFilesConfig paths, IFileService fileSe
             optimize,
             files,
             baseAddr => new Assembler(baseAddr),
-            (assembler, log, errors) => new CompilationResult(errors == null ? assembler.Build() : null, baseAddress, errors, log)
-        );
+            static (assembler, log, errors) => 
+            errors == null 
+                ? new CompilationResult(assembler, log) 
+                : new CompilationResult(errors));
     }
 }

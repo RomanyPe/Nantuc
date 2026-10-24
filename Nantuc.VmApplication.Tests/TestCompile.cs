@@ -70,7 +70,7 @@ public class TestCompile
         """, 42)]
     public void RunCompile(string program, ulong res)
     {
-        using var host = VMHostFactory.CreateDefault();
+        using var host = VmHostFactory.CreateDefault();
         var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;

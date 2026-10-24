@@ -6,9 +6,9 @@ namespace Nantuc.VmApplication.Extensions.Optimizators;
 
 public static class AstOptimizerExtension
 {
-    extension(VMAstOptimizer optimizer)
+    extension(VmAstOptimizer optimizer)
     {
-        public VMAstOptimizer AddStdRules()
+        public VmAstOptimizer AddStdRules()
         {
             optimizer.Add(new PropagateConstantsRule());
             optimizer.Add(new FoldConstantsRule());

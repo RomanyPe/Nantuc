@@ -1,9 +1,9 @@
-﻿using Nantuc.Compiler.ASM.Optimizators;
-using System.Collections.Frozen;
-using System.Text.RegularExpressions;
+﻿using Nantuc.Compiler.ASM.Base;
+using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
-using Nantuc.Compiler.C.CodeGenerator;
+using System.Collections.Frozen;
+using System.Text.RegularExpressions;
 
 namespace Nantuc.Compiler.ASM;
 
@@ -89,6 +89,7 @@ public partial class AssemblerParser
         { "CALL_IND", OpCode.CALL_IND },
         { "JMP_IND", OpCode.JMP_IND },
         { "SHR", OpCode.SHR },
+        { "SHL", OpCode.SHL },
         { "MULT_INT", OpCode.MULT_INT },
         { "DIV", OpCode.DIV },
         { "HALT", OpCode.HALT },
@@ -210,6 +211,7 @@ public partial class AssemblerParser
             case "IN":
             case "OUT":
             case "SHR":
+            case "SHL":
             case "DIV":
             case "MULT_INT":
             case "CMP":

@@ -17,7 +17,7 @@ public sealed record RunOutcome(
 public static class VMHostRunExtensions
 {
 
-    extension(VMHost host)
+    extension(VmHost host)
     {
         /// Запускает и оставляет device живым — можно читать память, регистры, порты.
         public RunOutcome RunAndKeep(

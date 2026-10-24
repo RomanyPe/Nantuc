@@ -14,7 +14,7 @@ public class VMHostTests
     // Вспомогательный метод для запуска программы с IO-устройством
     private static void RunProgramWithIO(string program, PortCharEncoding encoding, bool useQueued, string expected)
     {
-        using var host = VMHostFactory.CreateDefault();
+        using var host = VmHostFactory.CreateDefault();
         var writer = new StringWriter();
         PortControlBase ioDevice = useQueued
             ? new QueuedIOStream(writer, encoding)
@@ -104,7 +104,7 @@ public class VMHostTests
     [Fact]
     public void StepMode_ShouldExecuteInstructionsOneByOne()
     {
-        using var host = VMHostFactory.CreateDefault();
+        using var host = VmHostFactory.CreateDefault();
         var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
@@ -139,7 +139,7 @@ public class VMHostTests
     [Fact]
     public void DebugRun_ShouldStopAfterStepLimit()
     {
-        using var host = VMHostFactory.CreateDefault();
+        using var host = VmHostFactory.CreateDefault();
         var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
@@ -163,7 +163,7 @@ public class VMHostTests
     [Fact]
     public void Run_ShouldInvokeOnEnd()
     {
-        using var host = VMHostFactory.CreateDefault();
+        using var host = VmHostFactory.CreateDefault();
         var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
@@ -182,7 +182,7 @@ public class VMHostTests
     [Fact]
     public async Task QueuedIOStream_FlushShouldWaitForPendingData()
     {
-        using var host = VMHostFactory.CreateDefault();
+        using var host = VmHostFactory.CreateDefault();
         var writer = new BlockingTextWriter();
         var ioDevice = new QueuedIOStream(writer, PortCharEncoding.BytePerChar);
         host.Emulator.RegisterDevice(ioDevice, "console", sector: 1);
@@ -222,7 +222,7 @@ public class VMHostTests
     [Fact]
     public void RunAndKeep_ShouldKeepDeviceAlive()
     {
-        using var host = VMHostFactory.CreateDefault();
+        using var host = VmHostFactory.CreateDefault();
         var writer = new StringWriter();
         var ioDevice = new SynchronousIOStream(writer, PortCharEncoding.BytePerChar);
         host.Emulator.RegisterDevice(ioDevice, "console", sector: 1);

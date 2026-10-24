@@ -136,11 +136,9 @@ public sealed class Processor(MemoryBus ram,
                 ProcessSimulationStatusSlow();
 
             _hasCommand = false;
-
         }
 
         if (!_isRunning | _isSleeping) return;
-
 
         ulong ip = _registers[RegType.rIP.Int()];        
 
@@ -178,6 +176,7 @@ public sealed class Processor(MemoryBus ram,
             OpCode.DEC => InstructionDEC(GetReg1(rawInst)),
             OpCode.MULT_INT => InstructionMULT_INT(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.SHR => InstructionSHR(GetReg1(rawInst), GetReg2(rawInst)),
+            OpCode.SHL => InstructionSHL(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.DIV => InstructionDIV(GetReg1(rawInst), GetReg2(rawInst)),
 
             // === 4. Логика ===
@@ -320,6 +319,15 @@ public sealed class Processor(MemoryBus ram,
         ulong regv1 = _registers[reg1.Int()];
         byte regv2 = (byte)_registers[reg2.Int()];
         ulong res = regv1 >> regv2;
+        _registers[reg1.Int()] = res;
+        return BiosStatus.Success;
+    }
+
+    private BiosStatus InstructionSHL(RegType reg1, RegType reg2)
+    {
+        ulong regv1 = _registers[reg1.Int()];
+        byte regv2 = (byte)_registers[reg2.Int()];
+        ulong res = regv1 << regv2;
         _registers[reg1.Int()] = res;
         return BiosStatus.Success;
     }

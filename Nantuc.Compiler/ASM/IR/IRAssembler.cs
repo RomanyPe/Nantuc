@@ -1,7 +1,9 @@
-﻿using Nantuc.Kernel.Common;
+﻿using Nantuc.Compiler.ASM.Base;
+using Nantuc.Compiler.ASM.Utils;
+using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
 
-namespace Nantuc.Compiler.ASM.Optimizators;
+namespace Nantuc.Compiler.ASM.IR;
 
 public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
 {
@@ -65,7 +67,8 @@ public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
     public override void EmitData(string label, byte[] data)
     {
         _items.Add(new AsmData([], alignment: 8));
-        MarkLabel(label);
+        if (!string.IsNullOrEmpty(label))
+            MarkLabel(label);
         _items.Add(new AsmData(data, alignment: 1));
     }
     public List<AsmItem> GetItems() => _items;
@@ -74,6 +77,7 @@ public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
         // Первый проход: вычисляем адреса меток в байтовом потоке
         var labelAddresses = new Dictionary<string, ulong>();
         ulong currentOffset = 0;
+        int dataStart = -1;
         foreach (var item in _items)
         {
             switch (item)
@@ -92,10 +96,17 @@ public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
                 case AsmData data:
                     // выравнивание
                     currentOffset = (currentOffset + (ulong)data.Alignment - 1) & ~((ulong)data.Alignment - 1);
+                    if (dataStart < 0 && data.Data.Length > 0)
+                        dataStart = (int)currentOffset;
                     currentOffset += (ulong)data.Data.Length;
                     break;
             }
         }
+
+        int totalSize = (int)currentOffset;
+        DataSectionStart = dataStart >= 0 ? dataStart : totalSize;  // нет data → пустая секция в конце
+        DataSectionSize = totalSize - DataSectionStart;
+        CodeSectionSize = DataSectionStart;
 
         // Второй проход: пишем байты
         using var ms = new MemoryStream();

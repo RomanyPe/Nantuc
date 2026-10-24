@@ -1,12 +1,12 @@
-﻿using Nantuc.Compiler.ASM.Optimizators;
+﻿using Nantuc.Compiler.ASM.IR;
 
 namespace Nantuc.VmApplication.Project;
 
-public sealed class VMPeepholeOptimizer
+public sealed class VmPeepholeOptimizer
 {
     private readonly PeepholeOptimizer _opt;
 
-    internal VMPeepholeOptimizer(PeepholeOptimizer astOptimizer)
+    internal VmPeepholeOptimizer(PeepholeOptimizer astOptimizer)
     {
         _opt = astOptimizer;
     }

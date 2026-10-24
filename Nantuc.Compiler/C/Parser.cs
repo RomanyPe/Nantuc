@@ -539,12 +539,51 @@ public class Parser(List<Token> tokens)
         }
         return left;
     }
-
-
     private ASTNode ParseLogicalAnd()
     {
-        ASTNode left = ParseEquality();
+        // БЫЛО: ASTNode left = ParseEquality();
+        ASTNode left = ParseBitwiseOr();
         while (Current.Type == TokenType.Operator && Current.Value == "&&")
+        {
+            string op = Current.Value;
+            Advance();
+            ASTNode right = ParseBitwiseOr(); // БЫЛО: ParseEquality()
+            left = new BinaryOpNode(op, left, right);
+        }
+        return left;
+    }
+
+    // НОВЫЕ МЕТОДЫ (вставьте перед ParseEquality)
+    private ASTNode ParseBitwiseOr()
+    {
+        ASTNode left = ParseBitwiseXor();
+        while (Current.Type == TokenType.Operator && Current.Value == "|")
+        {
+            string op = Current.Value;
+            Advance();
+            ASTNode right = ParseBitwiseXor();
+            left = new BinaryOpNode(op, left, right);
+        }
+        return left;
+    }
+
+    private ASTNode ParseBitwiseXor()
+    {
+        ASTNode left = ParseBitwiseAnd();
+        while (Current.Type == TokenType.Operator && Current.Value == "^")
+        {
+            string op = Current.Value;
+            Advance();
+            ASTNode right = ParseBitwiseAnd();
+            left = new BinaryOpNode(op, left, right);
+        }
+        return left;
+    }
+
+    private ASTNode ParseBitwiseAnd()
+    {
+        ASTNode left = ParseEquality();
+        while (Current.Type == TokenType.Operator && Current.Value == "&")
         {
             string op = Current.Value;
             Advance();
@@ -566,10 +605,21 @@ public class Parser(List<Token> tokens)
         }
         return left;
     }
-
-    private ASTNode ParseRelational()
+    private ASTNode ParseShift()
     {
         ASTNode left = ParseAdditive();
+        while (Current.Type == TokenType.Operator && (Current.Value == "<<" || Current.Value == ">>"))
+        {
+            string op = Current.Value;
+            Advance();
+            ASTNode right = ParseAdditive();
+            left = new BinaryOpNode(op, left, right);
+        }
+        return left;
+    }
+    private ASTNode ParseRelational()
+    {
+        ASTNode left = ParseShift();
         while (Current.Type == TokenType.Operator && (Current.Value == "<" || Current.Value == ">" ||
                                                      Current.Value == "<=" || Current.Value == ">="))
         {

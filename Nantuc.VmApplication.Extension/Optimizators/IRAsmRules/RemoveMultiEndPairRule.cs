@@ -1,4 +1,4 @@
-﻿using Nantuc.Compiler.ASM.Optimizators;
+﻿using Nantuc.Compiler.ASM.IR;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Contracts;
 

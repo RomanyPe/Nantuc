@@ -4,7 +4,7 @@ using Nantuc.Kernel.Contracts;
 
 namespace Nantuc.VmApplication.Emulator;
 
-public sealed class VMEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
+public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
 {
     private readonly Kernel.Utilites.Emulator _emulator = emulator;
 

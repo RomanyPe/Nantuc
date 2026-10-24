@@ -1,4 +1,5 @@
-﻿using Nantuc.Compiler.ASM.Optimizators;
+﻿using Nantuc.Compiler.ASM.Base;
+using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
 
@@ -130,17 +131,6 @@ public class ExpressionGenerator(AssemblerBase asm,
             return;
         }
 
-        if (binop.Left is IdentifierNode lid
-            && _varAccessor.TryGetRegister(lid.Name, out var lreg)
-            && lreg != RegType.r0 && lreg != RegType.r1)
-        {
-            RegType tmp = (lreg != RegType.r2) ? RegType.r2 : RegType.r3;
-            GenerateExpression(binop.Right, tmp);
-            EmitBinaryOperation(binop.Operator, lreg, tmp);
-            if (lreg != targetReg)
-                _asm.EmitMov(targetReg, lreg);
-            return;
-        }
         // Общий случай
         GenerateExpression(binop.Left, targetReg);
         RegType rReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
@@ -789,6 +779,11 @@ public class ExpressionGenerator(AssemblerBase asm,
             case "-": _asm.EmitSub(dest, src); break;
             case "*": _asm.EmitMultInt(dest, src); break;
             case "/": _asm.EmitDiv(dest, src); break;
+            case "&": _asm.EmitAnd(dest, src); break;
+            case "|": _asm.EmitOr(dest, src); break;
+            case "^": _asm.EmitXOr(dest, src); break;
+            case "<<": _asm.EmitShl(dest, src); break;
+            case ">>": _asm.EmitShr(dest, src); break;
             default: ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"Unsupported operator in EmitBinaryOperation: {op}"); break;
         }
     }
@@ -800,6 +795,11 @@ public class ExpressionGenerator(AssemblerBase asm,
             "-" => value1 - value2,
             "*" => value1 * value2,
             "/" => ComputeDiv(value1, value2),
+            "&" => value1 & value2,
+            "|" => value1 | value2,
+            "^" => value1 ^ value2,
+            "<<" => value1 << (int)value2,
+            ">>" => value1 >> (int)value2,
             _ => ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported, $"Unsupported operator: {op}"),
         };
         return result;

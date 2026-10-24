@@ -1,6 +1,6 @@
 ﻿using Nantuc.Kernel.Common;
 
-namespace Nantuc.VmApplication.Project.Disassembler;
+namespace Nantuc.VmApplication.Extensions.Disassembler;
 
 public readonly record struct DecodedInstruction(
     ulong Address,           // IP инструкции

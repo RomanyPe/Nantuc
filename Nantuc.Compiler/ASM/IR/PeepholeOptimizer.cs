@@ -1,6 +1,6 @@
 ﻿using Nantuc.Kernel.Contracts;
 
-namespace Nantuc.Compiler.ASM.Optimizators;
+namespace Nantuc.Compiler.ASM.IR;
 
 
 public class PeepholeOptimizer

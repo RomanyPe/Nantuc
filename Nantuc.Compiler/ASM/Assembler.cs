@@ -1,4 +1,4 @@
-﻿using Nantuc.Compiler.ASM.Optimizators;
+﻿using Nantuc.Compiler.ASM.Base;
 using Nantuc.Kernel.Diagnostics;
 
 namespace Nantuc.Compiler.ASM;
@@ -12,6 +12,8 @@ public class Assembler : AssemblerBase
     private readonly BinaryWriter _writer;
     private readonly Dictionary<string, long> _labels = [];
     private readonly List<(long pos, string label)> _patches = [];
+
+    private int _dataStart = -1;
 
     public Assembler(ulong baseAddress = 0) : base(baseAddress)
     {
@@ -72,15 +74,31 @@ public class Assembler : AssemblerBase
 
     public override void EmitData(string label, byte[] data)
     {
-        if (label != null)
+        Align8(); 
+        if (_dataStart < 0)
+            _dataStart = (int)_stream.Position;
+        if (!string.IsNullOrEmpty(label))
             MarkLabel(label);
-        Align8(); // выравнивание до 8
         _writer.Write(data);
     }
 
     /// <summary>Собрать байт-код, подставить адреса меток.</summary>
     public override byte[] Build()
     {
+        int totalSize = (int)_stream.Position;
+        if (_dataStart >= 0)
+        {
+            DataSectionStart = _dataStart;
+            DataSectionSize = totalSize - _dataStart;
+            CodeSectionSize = _dataStart;
+        }
+        else
+        {
+            DataSectionStart = totalSize;   // data пустая, "начало" = конец
+            DataSectionSize = 0;
+            CodeSectionSize = totalSize;
+        }
+
         byte[] bytes = _stream.ToArray();
         foreach (var (pos, label) in _patches)
         {
