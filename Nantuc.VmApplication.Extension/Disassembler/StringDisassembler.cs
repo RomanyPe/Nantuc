@@ -9,9 +9,9 @@ public static class StringDisassembler
 {
     extension(CompilationResult res)
     {
-        public string DisassembleToString() => Disassemble(res.Program,
-                                                           res.CodeSize!.Value,
-                                                           res.StartAdress!.Value);
+        public string DisassembleToString() => res.Success 
+            ? Disassemble(res.Program, res.CodeSize, res.StartAdress)
+            : "(no program)";
     }
 
     /// <summary>

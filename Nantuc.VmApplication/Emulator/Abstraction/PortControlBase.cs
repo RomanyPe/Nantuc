@@ -2,7 +2,7 @@
 
 namespace Nantuc.VmApplication.Emulator.Abstraction;
 
-public abstract class PortControlBase : IPortController, IDisposable
+public abstract class PortControlBase : IPortController
 {
     private int _disposed;
 

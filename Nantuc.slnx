@@ -4,6 +4,7 @@
   </Folder>
   <Project Path="Nantuc.Compiler/Nantuc.Compiler.csproj" Id="75871bb8-1afc-4dbd-a928-24eef852977b" />
   <Project Path="Nantuc.Samples.Minimal/Nantuc.Samples.Minimal.csproj" Id="ea4ef80c-7cdd-4ac1-8e8e-8656508a911d" />
+  <Project Path="Nantuc.Samples.Scratch/Nantuc.Samples.Scratch.csproj" Id="b38d5d4f-d2f0-4c25-81d1-fb440a50fb36" />
   <Project Path="Nantuc.VmApplication.Extension/Nantuc.VmApplication.Extensions.csproj" Id="6179165b-3a6d-4186-87d3-9230a29f1a61" />
   <Project Path="Nantuc.Kernel.Common/Nantuc.Kernel.Common.csproj" Id="e0c23665-b03d-415f-8e85-c395a482ef5b" />
   <Project Path="Nantuc.Kernel.Contracts/Nantuc.Kernel.Contracts.csproj" Id="3b7898ca-010b-4d99-9da1-81a6b1740138" />

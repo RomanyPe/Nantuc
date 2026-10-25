@@ -21,18 +21,18 @@ public readonly struct CompilationResult
     {
         Program = null;
         StartAdress = 0;
-        CodeSize = null;
-        DataStart = null;
-        DataSize = null;
+        CodeSize = -1;
+        DataStart = -1;
+        DataSize = -1;
         OptimizationResultLog = null;
         Errors = errors;
     }
 
     public byte[]? Program { get; }
-    public ulong? StartAdress { get; }
-    public int? CodeSize { get; }
-    public int? DataStart { get; }
-    public int? DataSize { get; }
+    public ulong StartAdress { get; }
+    public int CodeSize { get; }
+    public int DataStart { get; }
+    public int DataSize { get; }
     public OptimizationResultLog? OptimizationResultLog { get; }
     public IReadOnlyList<string>? Errors { get; }
     public bool Success => Errors == null || Errors.Count == 0;

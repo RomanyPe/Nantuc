@@ -5,12 +5,15 @@
 	<ImplicitUsings>enable</ImplicitUsings>
 	<Nullable>enable</Nullable>
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<Authors>RomanyPe</Authors>
+	<RepositoryUrl>https://github.com/RomanyPe/Nantuc.git</RepositoryUrl>
+	<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Nantuc.Compiler\Nantuc.Compiler.csproj" />
-    <ProjectReference Include="..\Nantuc.Kernel.Contracts\Nantuc.Kernel.Contracts.csproj" />
-    <ProjectReference Include="..\Nantuc.Kernel\Nantuc.Kernel.csproj" />
+	<ProjectReference Include="..\Nantuc.Compiler\Nantuc.Compiler.csproj" />
+	<ProjectReference Include="..\Nantuc.Kernel.Contracts\Nantuc.Kernel.Contracts.csproj" />
+	<ProjectReference Include="..\Nantuc.Kernel\Nantuc.Kernel.csproj" />
   </ItemGroup>
 
 </Project>

@@ -14,7 +14,7 @@ namespace Nantuc.VmApplication.Extensions.Disassembler
                 ThrowIfNotSucces(res);
 
                 ReadOnlySpan<byte> program = res.Program;
-                ulong baseAddress = res.StartAdress!.Value;
+                ulong baseAddress = res.StartAdress;
                 int size = program.Length;
 
                 // Если codeSize не задан — весь поток считается кодом (обратная совместимость)

@@ -1,11 +1,9 @@
-﻿using Nantuc.Compiler.ASM.Utils;
-using Nantuc.Kernel.Common;
-using Nantuc.Samples.Minimal;
+﻿using Nantuc.Kernel.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
-using Nantuc.VmApplication.Extensions.Disassembler;
 using Nantuc.VmApplication.Extensions.Emulator.IO;
 using Nantuc.VmApplication.Extensions.Host;
+using Nantuc.VmApplication.Extensions.LibraresIncludes;
 
 const string source1 =
     """
@@ -13,58 +11,18 @@ const string source1 =
 
     char str[] = "Hello world";
 
-    void main(){
-        print(&str);
-    }
-    
+    void main() {
+        print8(str);
+    }    
     """;
 
-const string ioSource = """
-
-    func_In:
-        IN r1, r0;
-        MOV r0, r1;
-        RET;
-
-    func_Out:
-        OUT r0, r1;
-        RET;
-    """;
-
-const string printSource =
-    """
-    #include "io.nanasm"
-
-    extern void Out(byte value, int port);
-
-    int portWrite = 0x10;
-    int portFlush = 0x12;
-
-    void print(char* str){
-        int i = 0;
-
-        while (str[i] != '\0') { 
-            write(str[i]);
-            i = i + 1;
-        }
-        flush();
-    }
-
-    void write(byte c){
-        Out(c, portWrite);
-    }
-
-    void flush(){
-        Out(1, portFlush);
-    }
-    """;
 
 using var host = VmHostFactory.CreateDefault();
-var lfPolicy = new LoggingFaultPolicy(Console.Out);
+var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);
 
 host.Project.SaveFileProject("main.minic", source1);
-host.Project.SaveFileInclude("io.nanasm", ioSource);
-host.Project.SaveFileInclude("print.minic",  printSource);
+host.Project.SaveFileInclude("io.nanasm", Librare.io_nanasm);
+host.Project.SaveFileInclude("print.minic",  Librare.print_minic);
 
 var handle = DeviceSpec.Create(
     ramSize: RamSize.MB128,
