@@ -4,7 +4,7 @@ using Nantuc.Kernel.Contracts;
 namespace Nantuc.Kernel.ControllersData;
 
 
-public sealed class PortBus
+public sealed class PortBus : IPortBus
 {
     private readonly ulong _totalPorts;
     private readonly uint _portsOnDevice;
@@ -101,4 +101,3 @@ public sealed class PortBus
     }
 }
 
-public record struct ReadPortResult(byte Data, BiosStatus Status = BiosStatus.Success);

@@ -24,6 +24,8 @@ public class Emulator : IDisposable
 
     public IEnumerable<DeviceInfo> AllDeviceInfo => _manager.GetAllDevices();
 
+    public PortBus PortBus => _portBus;
+
     public int RegisterDevice(
         IPortController device,
         string? name,

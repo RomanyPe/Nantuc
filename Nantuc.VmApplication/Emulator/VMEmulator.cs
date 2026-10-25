@@ -1,14 +1,16 @@
 ﻿using Nantuc.Kernel.BiosSystem;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Contracts;
+using Nantuc.Kernel.ControllersData;
 
 namespace Nantuc.VmApplication.Emulator;
 
 public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
 {
     private readonly Kernel.Utilites.Emulator _emulator = emulator;
+    internal PortBus AsPortBus => _emulator.PortBus;
 
-
+    public IPortBus GetPortBus() => _emulator.PortBus;
     public DeviceContext? GetDeviceContext(int id)
     {
         return _emulator.TryGetDevice<Device>(id, out var device) 

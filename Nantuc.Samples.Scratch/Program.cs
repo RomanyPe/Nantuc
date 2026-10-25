@@ -1,5 +1,6 @@
 ﻿using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Kernel.Common;
+using Nantuc.Samples.Scratch;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.DeviceCtx;
