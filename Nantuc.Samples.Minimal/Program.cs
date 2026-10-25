@@ -89,7 +89,6 @@ if (!resCompile.Success)
         Console.WriteLine(err);
     return;
 }
-Console.WriteLine(resCompile.DisassembleToString());
 
 if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
 {
@@ -97,20 +96,3 @@ if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, o
     return;
 }
 deviceCtx.Run();
-var regs = deviceCtx.GetRegistersSnapshot();
-Console.WriteLine($"{RegType.r0.RegName()}: {regs[RegType.r0]}");
-Console.WriteLine($"{RegType.r0.RegName()}: {regs[RegType.r0]}");
-Console.WriteLine($"{RegType.r1.RegName()}: {regs[RegType.r1]}");
-Console.WriteLine($"{RegType.r2.RegName()}: {regs[RegType.r2]}");
-//for (RegType i = 0; i < RegType.rIP + 1; i++)
-//{
-//    Console.WriteLine(regs[i]);
-//}
-//var ram = deviceCtx.NativeReadOnlyBuffer;
-//var buffer = new byte[resCompile.Program!.Length];
-
-//for (nuint i = 0; i < (nuint)resCompile.Program!.Length; i++)
-//{
-//    buffer[i] = ram[i];
-//}
-//Console.WriteLine(StringDisassembler.Disassemble(buffer, resCompile.CodeSize!.Value));
