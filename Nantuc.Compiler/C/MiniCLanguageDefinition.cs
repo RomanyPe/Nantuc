@@ -17,15 +17,15 @@ public static partial class MiniCLanguageDefinition
     static MiniCLanguageDefinition()
     {
         // Ключевые слова (регистрозависимы, как в C)
-        Keywords = ["int", "char", "void", "if", "else", "while", "for", "return",
-            "break", "struct", "byte", "ushort", "ulong", "new", "asm", "extern"];
-
+        Keywords = ["int", "char", "void", "if", "else", "do", "while", "for", "return",
+            "break", "struct", "byte", "ushort", "ulong", "new", "asm", "extern", "continue",
+            "short", "long", "uint", "sizeof"];
         // Операторы (одиночные символы)
         Operators = ['+', '-', '*', '/', '%', '=', '!', '<', '>', '&', '|', '^', '~', '#'];
 
         // Знаки пунктуации
         Punctuation = ['(', ')', '{', '}', '[', ']', ';', ',', '.', ':'];
-
+        
         // Построение регулярных выражений после инициализации коллекций
         _keywordRegex = new(GetKeywordPattern(), RegexOptions.Compiled);
     }

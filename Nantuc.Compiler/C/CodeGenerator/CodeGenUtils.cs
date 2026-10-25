@@ -13,19 +13,14 @@ namespace Nantuc.Compiler.C.CodeGenerator;
 
 public static class CodeGenUtils
 {
-    public const uint ADDR_SCRATCH_REG = (uint)RegType.r27;
     public const RegType ADDR_SCRATCH_REG_EN = RegType.r27;
-
-    // Обратная совместимость (переименуйте использования постепенно):
-    public const uint TMP_REG = ADDR_SCRATCH_REG;
-    public const RegType TMP_REG_EN = ADDR_SCRATCH_REG_EN;
 
     public static OpCodeSize GetSizeForType(string? type) => type switch
     {
         "byte" => OpCodeSize.S8,
-        "ushort" or "char"=> OpCodeSize.S16,
-        "ulong" => OpCodeSize.S64,
-        "int" => OpCodeSize.S32,
+        "ushort" or "char" or "short" => OpCodeSize.S16,
+        "ulong" or "long" => OpCodeSize.S64,
+        "int" or "uint" => OpCodeSize.S32,
         _ => ThrowHelper.ThrowMiniC<OpCodeSize>(ErrorCode.CodeGen_UnknownTypeSize, type!)
     };
 
@@ -40,10 +35,20 @@ public static class CodeGenUtils
 
     public static void EmitMultiplyByConstant(this AssemblerBase asm, RegType reg, int multiplier)
     {
-        for (int i = 1; i < multiplier; i *= 2)
+        if (multiplier <= 0 || multiplier == 1) return;
+        if (multiplier == 2) { asm.EmitAdd(reg, reg); return; }
+
+        bool isPow2 = (multiplier & (multiplier - 1)) == 0;
+        if (isPow2)
         {
-            asm.EmitAdd(reg, reg);
+            for (int i = 1; i < multiplier; i *= 2)
+                asm.EmitAdd(reg, reg);
+            return;
         }
+
+        // Общий случай: scratch * multiplier через MULT_INT
+        asm.EmitLdi(ADDR_SCRATCH_REG_EN, (ulong)multiplier);
+        asm.EmitMultInt(reg, ADDR_SCRATCH_REG_EN);
     }
 
     public static bool IsComparisonOperator(string op) => op is "==" or "!=" or "<" or ">" or "<=" or ">=";
@@ -51,9 +56,9 @@ public static class CodeGenUtils
     public static int GetAlignment(string type) => type switch
     {
         "byte" => 1,
-        "ushort" or "char" => 2,
-        "int" => 4,
-        "ulong" => 8,
+        "ushort" or "char" or "short" => 2,
+        "int" or "uint" => 4,
+        "ulong" or "long" => 8,
         _ => 8  // структуры/указатели выравниваются на 8
     };
 
@@ -67,7 +72,7 @@ public static class CodeGenUtils
 
     public static bool IsPrimitiveType(string type) => type switch
     {
-        "int" or "char" or "void" or "byte" or "ushort" or "ulong" => true,
+        "int" or "char" or "void" or "byte" or "ushort" or "ulong" or "uint" or "long" or "short"=> true,
         _ => false
     };
 
@@ -84,10 +89,10 @@ public static class CodeGenUtils
             return 8; // наибольшее выравнивание, можно брать максимальное из полей, но 8 ок
         return type switch
         {
-            "byte" or "char" => 1,
-            "ushort" => 2,
-            "int" => 4,
-            "ulong" => 8,
+            "byte" => 1,
+            "ushort" or "char" or "short" => 2,
+            "int" or "uint" => 4,
+            "ulong" or "long" => 8,
             _ => 8
         };
     }

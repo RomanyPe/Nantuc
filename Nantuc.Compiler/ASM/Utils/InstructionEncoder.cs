@@ -207,6 +207,7 @@ public static class InstructionEncoder
             OpCode.MULT_INT or 
             OpCode.SHR or 
             OpCode.SHL or
+            OpCode.MOD or
             OpCode.DIV or
             OpCode.TEST or
             OpCode.CMP
@@ -308,6 +309,7 @@ public static class InstructionEncoder
             OpCode.SUB => "SUB",
             OpCode.MULT_INT => "MULT_INT",
             OpCode.SHR => "SHR",
+            OpCode.MOD => "MOD",
             OpCode.SHL => "SHL",
             OpCode.INC => "INC",
             OpCode.DEC => "DEC",
@@ -374,6 +376,8 @@ public static class AsmExtensions
             => asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.SHL.ToUint(), dst.ToUint(), src.ToUint()));
         public void EmitShr(RegType dst, RegType src)
             => asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.SHR.ToUint(), dst.ToUint(), src.ToUint()));
+        public void EmitMod(RegType dst, RegType src)
+            => asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.MOD.ToUint(), dst.ToUint(), src.ToUint()));
 
         public void EmitCmp(RegType dst, RegType src)
             => asm.EmitInstruction(InstructionEncoder.EncodeR(OpCode.CMP.ToUint(), dst.ToUint(), src.ToUint()));
@@ -428,6 +432,7 @@ public static class AsmExtensions
         public void EmitNop() => asm.EmitInstruction(InstructionEncoder.EncodeNOP());
         public void EmitHalt() => asm.EmitInstruction(InstructionEncoder.EncodeHALT());
         public void EmitWake() => asm.EmitInstruction(InstructionEncoder.EncodeWAKE());
+
         public void EmitInst(OpCode op, RegType r1, RegType r2, OpCodeSize size)
             => asm.EmitInstruction(InstructionEncoder.Encode(op.ToUint(), r1.ToUint(), r2.ToUint(), size.ToUint()));
         public void EmitInstU(OpCode op, RegType r1)

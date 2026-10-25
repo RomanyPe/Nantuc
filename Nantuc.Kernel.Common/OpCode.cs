@@ -60,5 +60,6 @@ public enum OpCode : byte
     CMP,
     TEST,
     SHL,
+    MOD,
 }
 

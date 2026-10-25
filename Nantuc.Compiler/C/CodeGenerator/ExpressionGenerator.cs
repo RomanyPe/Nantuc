@@ -58,7 +58,18 @@ public class ExpressionGenerator(AssemblerBase asm,
             case DereferenceNode deref:
                 GenerateDereference(deref, RegType.r0);
                 break;
-
+            case AssignmentNode assign:
+                GenerateAssignmentExpr(assign, RegType.r0);
+                break;
+            case IncrementNode inc:
+                GenerateIncrement(inc, RegType.r0);
+                break;
+            case SizeofTypeNode st:
+                GenerateSizeofType(st, RegType.r0);
+                break;
+            case SizeofExprNode se:
+                GenerateSizeofExpr(se, RegType.r0);
+                break;
             default:
                 ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"Unsupported expression: {expr.GetType()}");
                 break;
@@ -88,6 +99,9 @@ public class ExpressionGenerator(AssemblerBase asm,
             case BinaryOpNode binop:
                 GenerateBinaryOp(binop, targetReg);
                 break;
+            case AssignmentNode assign:
+                GenerateAssignmentExpr(assign, targetReg);
+                break;
             case UnaryOpNode unop:
                 GenerateUnaryOp(unop, targetReg);
                 break;
@@ -103,12 +117,289 @@ public class ExpressionGenerator(AssemblerBase asm,
             case MemberAccessNode member:
                 GenerateMemberAccess(member, targetReg);
                 break;
+            case IncrementNode inc:
+                GenerateIncrement(inc, targetReg);
+                break;
+            case SizeofTypeNode st:
+                GenerateSizeofType(st, targetReg);
+                break;
+            case SizeofExprNode se:
+                GenerateSizeofExpr(se, targetReg);
+                break;
             default:
                 GenerateExpression(expr);
                 if (targetReg != RegType.r0)
                     _asm.EmitMov(targetReg, RegType.r0);
                 break;
         }
+    }
+
+    private void GenerateSizeofType(SizeofTypeNode node, RegType targetReg)
+    {
+        long size;
+        if (node.IsPointer) size = 8;
+        else if (_structTable.TryGetValue(node.TypeName, out var layout)) size = layout.Size;
+        else if (CodeGenUtils.IsPrimitiveType(node.TypeName))
+            size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(node.TypeName));
+        else 
+        { 
+            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownTypeSize, node.TypeName);
+            return;
+        }
+        _asm.EmitLdi(targetReg, (ulong)size);
+    }
+
+    private void GenerateSizeofExpr(SizeofExprNode node, RegType targetReg)
+    {
+        _asm.EmitLdi(targetReg, (ulong)InferExprTypeSize(node.Operand));
+    }
+
+    private long InferExprTypeSize(ASTNode expr) => expr switch
+    {
+        IdentifierNode id => GetVariableTypeSize(id.Name),
+        DereferenceNode deref => GetPointedTypeSize(deref.Operand),
+        ArrayAccessNode arr => GetIndexedElemSizeBytes(arr.ArrayName),
+        MemberAccessNode mem => GetMemberTypeSize(mem),
+        NumberNode => 4,   // int
+        _ => ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported,
+                 $"sizeof of {expr.GetType().Name} not supported")
+    };
+
+    private long GetVariableTypeSize(string name)
+    {
+        if (_funcCtx.VarMap.TryGetValue(name, out var loc))
+        {
+            long elem = loc.IsPointer ? 8
+                      : loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l) ? l.Size
+                      : CodeGenUtils.GetSizeInBytes(loc.TypeSize);
+            return loc.IsArray ? elem * loc.ArraySize : elem;
+        }
+        if (_globalMem.Contains(name))
+        {
+            var g = _globalMem.GetInfo(name)!.Value;
+            long elem = g.IsPointer ? 8
+                      : _structTable.TryGetValue(g.Type, out var l) ? l.Size
+                      : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type));
+            return g.IsArray ? elem * g.ArraySize : elem;
+        }
+        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, name);
+        return 0;
+    }
+
+    private long GetPointedTypeSize(ASTNode operand)
+    {
+        if (operand is IdentifierNode id)
+        {
+            if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc) && loc.IsPointer && loc.PointedType != null)
+                return GetTypeSizeBytes(loc.PointedType);
+            if (_globalMem.Contains(id.Name))
+            {
+                var g = _globalMem.GetInfo(id.Name)!.Value;
+                if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
+            }
+        }
+        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownPointedType);
+        return 0;
+    }
+
+    private long GetIndexedElemSizeBytes(string arrayName)
+    {
+        if (_funcCtx.VarMap.TryGetValue(arrayName, out var loc))
+        {
+            if (loc.IsArray)
+                return loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l)
+                    ? l.Size : CodeGenUtils.GetSizeInBytes(loc.TypeSize);
+            if (loc.IsPointer && loc.PointedType != null) return GetTypeSizeBytes(loc.PointedType);
+        }
+        else if (_globalMem.Contains(arrayName))
+        {
+            var g = _globalMem.GetInfo(arrayName)!.Value;
+            if (g.IsArray)
+                return _structTable.TryGetValue(g.Type, out var l) ? l.Size : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type));
+            if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
+        }
+        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        return 0;
+    }
+
+    private long GetMemberTypeSize(MemberAccessNode mem)
+    {
+        var (_, field, _) = ResolveMemberAccessType(mem);
+        return GetTypeSizeBytes(field.Type);
+    }
+
+    internal void GenerateIncrement(IncrementNode node, RegType targetReg)
+    {
+        // dispatch по типу target
+        switch (node.Target)
+        {
+            case IdentifierNode id:
+                GenerateIncrementIdent(id.Name, node.Delta, node.IsPrefix, targetReg);
+                break;
+            case ArrayAccessNode arrAcc:
+                GenerateIncrementArray(arrAcc, node.Delta, node.IsPrefix, targetReg);
+                break;
+            case DereferenceNode deref:
+                GenerateIncrementDeref(deref, node.Delta, node.IsPrefix, targetReg);
+                break;
+            case MemberAccessNode member:
+                GenerateIncrementMember(member, node.Delta, node.IsPrefix, targetReg);
+                break;
+            default:
+                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported,
+                                $"Increment target must be lvalue: {node.Target.GetType().Name}");
+                break;
+        }
+    }
+    private void GenerateIncrementArray(ArrayAccessNode arrAcc, int delta, bool isPrefix, RegType targetReg)
+    {
+        OpCodeSize size = GetIndexedElemSize(arrAcc.ArrayName);
+        GenerateIncrementIndirect(
+            reg => ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, reg),
+            size, delta, isPrefix, targetReg);
+    }
+
+    private OpCodeSize GetIndexedElemSize(string name)
+    {
+        if (_funcCtx.VarMap.TryGetValue(name, out var loc))
+        {
+            if (loc.IsArray) return loc.TypeSize;                                 // size of element
+            if (loc.IsPointer) return CodeGenUtils.GetSizeForType(loc.PointedType!);
+        }
+        else if (_globalMem.Contains(name))
+        {
+            var gInfo = _globalMem.GetInfo(name)!.Value;
+            if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type);
+            if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!);
+        }
+        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, name);
+        return default;
+    }
+
+    private void GenerateIncrementDeref(DereferenceNode deref, int delta, bool isPrefix, RegType targetReg)
+    {
+        OpCodeSize size = GetPointedSize(deref.Operand);
+        GenerateIncrementIndirect(
+            reg => GenerateExpression(deref.Operand, reg),
+            size, delta, isPrefix, targetReg);
+    }
+
+    private void GenerateIncrementMember(MemberAccessNode member, int delta, bool isPrefix, RegType targetReg)
+    {
+        var (_, field, _) = ResolveMemberAccessType(member);
+        OpCodeSize size = CodeGenUtils.GetSizeForType(field.Type);
+        GenerateIncrementIndirect(
+            reg => GenerateMemberAddress(member, reg),
+            size, delta, isPrefix, targetReg);
+    }
+    private void GenerateIncrementIdent(string name, int delta, bool isPrefix, RegType targetReg)
+    {
+        long step = GetIncrementStepBytes(name);
+
+        // Fast path: переменная в регистре
+        if (_varAccessor.TryGetRegister(name, out RegType xReg))
+        {
+            if (!isPrefix)
+                _asm.EmitMov(targetReg, xReg);                 // targetReg = old
+
+            EmitIncrementStep(xReg, delta, step, avoid1: targetReg);
+
+            if (isPrefix && targetReg != xReg)
+                _asm.EmitMov(targetReg, xReg);                 // targetReg = new
+            return;
+        }
+
+        // Slow path: стек/глобал
+        _varAccessor.LoadToRegister(name, targetReg);           // targetReg = old
+        if (!isPrefix)
+        {
+            RegType temp = (targetReg != RegType.r0) ? RegType.r0 : RegType.r1;
+            _asm.EmitMov(temp, targetReg);                     // temp = old
+            EmitIncrementStep(temp, delta, step, avoid1: targetReg);   // temp = new
+            _varAccessor.StoreFromRegister(name, temp);        // x = new
+        }
+        else
+        {
+            EmitIncrementStep(targetReg, delta, step, avoid1: targetReg);
+            _varAccessor.StoreFromRegister(name, targetReg);   // x = new
+        }
+    }
+
+    private void EmitIncrementStep(RegType reg, int delta, long step, RegType avoid1)
+    {
+        if (step == 1)
+        {
+            if (delta > 0) _asm.EmitInc(reg); else _asm.EmitDec(reg);
+            return;
+        }
+
+        // scratch ≠ reg И ≠ avoid1 (чтобы не затереть ни новое значение, ни preserved)
+        RegType scratch;
+        if (reg != RegType.r0 && avoid1 != RegType.r0) scratch = RegType.r0;
+        else if (reg != RegType.r1 && avoid1 != RegType.r1) scratch = RegType.r1;
+        else scratch = RegType.r2;
+
+        _asm.EmitLdi(scratch, (ulong)step);
+        if (delta > 0) _asm.EmitAdd(reg, scratch); else _asm.EmitSub(reg, scratch);
+    }
+
+    private long GetIncrementStepBytes(string name)
+    {
+        if (_funcCtx.VarMap.TryGetValue(name, out var loc))
+        {
+            if (loc.IsPointer && loc.PointedType != null)
+                return GetTypeSizeBytes(loc.PointedType);
+            return 1;
+        }
+        if (_globalMem.Contains(name))
+        {
+            var gInfo = _globalMem.GetInfo(name)!.Value;
+            if (gInfo.IsPointer && gInfo.PointedType != null)
+                return GetTypeSizeBytes(gInfo.PointedType);
+            return 1;
+        }
+        return 1;   // ThrowHelper вылетит позже в LoadToRegister
+    }
+
+    private long GetTypeSizeBytes(string type)
+    {
+        if (_structTable.TryGetValue(type, out var layout)) return layout.Size;
+        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(type));
+    }
+
+    private void GenerateIncrementIndirect(
+        Action<RegType> computeAddress, OpCodeSize size,
+        int delta, bool isPrefix, RegType targetReg)
+    {
+        RegType addrReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
+
+        computeAddress(addrReg);
+        int addrSlot = SaveRegToStack(addrReg);
+        _asm.EmitLoadInd(targetReg, addrReg, size);       // targetReg = old
+
+        if (!isPrefix)
+        {
+            RegType tempReg = (targetReg != RegType.r0 && addrReg != RegType.r0)
+                              ? RegType.r0 : RegType.r1;
+            _asm.EmitMov(tempReg, targetReg);
+            if (delta > 0) _asm.EmitInc(tempReg); else _asm.EmitDec(tempReg);
+
+            RestoreRegFromStack(addrSlot, addrReg);
+            _asm.EmitStoreInd(tempReg, addrReg, size);
+        }
+        else
+        {
+            if (delta > 0) _asm.EmitInc(targetReg); else _asm.EmitDec(targetReg);
+            RestoreRegFromStack(addrSlot, addrReg);
+            _asm.EmitStoreInd(targetReg, addrReg, size);
+        }
+    }
+
+
+    private void GenerateAssignmentExpr(AssignmentNode assign, RegType targetReg)
+    {
+        GenerateExpression(assign.Value, targetReg);   // value → targetReg
+        _varAccessor.StoreFromRegister(assign.Name, targetReg);
     }
 
     private bool IsArrayIdentifier(string name)
@@ -193,6 +484,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             // генерируем правый операнд во временный регистр (например, r1, если targetReg != r1, иначе r2)
             RegType tempReg = (targetReg != RegType.r1) ? RegType.r1 : RegType.r2;
             GenerateExpression(binop.Right, tempReg);
+            ApplyPointerArithmeticScaling(binop.Operator, binop.Left, binop.Right, targetReg, tempReg);
             EmitBinaryOperation(binop.Operator, targetReg, tempReg);
             return;
         }
@@ -201,16 +493,17 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (binop.Right is IdentifierNode rightId && _varAccessor.TryGetRegister(rightId.Name, out var rightReg) && rightReg == targetReg
             && (binop.Operator == "+" || binop.Operator == "*")) // только коммутативные
         {
-            RegType tempReg = (targetReg != RegType.r0) ? RegType.r0 : RegType.r1;
-            GenerateExpression(binop.Left, tempReg);
-            EmitBinaryOperation(binop.Operator, targetReg, tempReg);
+            RegType tempReg2 = (targetReg != RegType.r0) ? RegType.r0 : RegType.r1;
+            GenerateExpression(binop.Left, tempReg2);
+            ApplyPointerArithmeticScaling(binop.Operator, binop.Left, binop.Right, tempReg2, targetReg);
+            EmitBinaryOperation(binop.Operator, targetReg, tempReg2);
             return;
         }
 
         // Общий случай
         GenerateExpression(binop.Left, targetReg);
         RegType rReg = (targetReg != RegType.r1) ? RegType.r1 : RegType.r2;
-        RegType addrReg = RegType.r3;
+        RegType addrReg = RegType.r4;
 
         int saveOffset = _funcCtx.TotalLocalSize + _funcCtx.ExpressionSaveDepth * 8;
 
@@ -225,13 +518,74 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         _funcCtx.ExpressionSaveDepth--;
 
-        // Восстанавливаем левый операнд
         _asm.EmitLdi(addrReg, (ulong)saveOffset);
         _asm.EmitAdd(addrReg, RegType.rSP);
         _asm.EmitLoadInd(targetReg, addrReg, OpCodeSize.S64);
 
+        ApplyPointerArithmeticScaling(binop.Operator, binop.Left, binop.Right, targetReg, rReg);
         EmitBinaryOperation(binop.Operator, targetReg, rReg);
     }
+
+    private void ApplyPointerArithmeticScaling(string op, ASTNode left, ASTNode right,
+                                           RegType leftReg, RegType rightReg)
+    {
+        if (op != "+" && op != "-") return;
+
+        bool leftIsPtr = TryGetPointerElemSize(left, out int leftSize);
+        bool rightIsPtr = TryGetPointerElemSize(right, out int rightSize);
+
+        if (leftIsPtr && !rightIsPtr)
+        {
+            // ptr ± int → scale int by sizeof(*ptr)
+            if (leftSize > 1)
+                _asm.EmitMultiplyByConstant(rightReg, leftSize);
+        }
+        else if (rightIsPtr && !leftIsPtr && op == "+")
+        {
+            // int + ptr → scale int by sizeof(*ptr)
+            if (rightSize > 1)
+                _asm.EmitMultiplyByConstant(leftReg, rightSize);
+        }
+        // ptr ± ptr: пока не масштабируем (разница в байтах; отдельная фича для int-деления)
+    }
+
+    private bool TryGetPointerElemSize(ASTNode node, out int size)
+    {
+        size = 0;
+        if (node is IdentifierNode id)
+        {
+            if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc))
+            {
+                if (loc.IsArray)
+                {
+                    size = CodeGenUtils.GetSizeInBytes(loc.TypeSize);
+                    return true;
+                }
+                if (loc.IsPointer && loc.PointedType != null)
+                {
+                    size = (int)GetTypeSizeBytes(loc.PointedType);
+                    return true;
+                }
+                return false;
+            }
+            if (_globalMem.Contains(id.Name))
+            {
+                var g = _globalMem.GetInfo(id.Name)!.Value;
+                if (g.IsArray)
+                {
+                    size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type));
+                    return true;
+                }
+                if (g.IsPointer && g.PointedType != null)
+                {
+                    size = (int)GetTypeSizeBytes(g.PointedType);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private void GenerateUnaryOp(UnaryOpNode unop, RegType targetReg)
     {
         switch (unop.Operator)
@@ -270,91 +624,45 @@ public class ExpressionGenerator(AssemblerBase asm,
     }
     public void GenerateMemberAddress(MemberAccessNode node, RegType targetReg)
     {
-        string? structType = null;
+        // 1) вычислить базу — значение указателя для ->, адрес для .
         switch (node.Object)
         {
-            case IdentifierNode identifer:
-                _varAccessor.LoadAddressToRegister(identifer.Name, targetReg);
-                return;
-            case MemberAccessNode node1:
-                {
-                    // Рекурсивно вычисляем адрес вложенного объекта (результат в targetReg)
-                    GenerateMemberAddress(node1, targetReg);
+            case IdentifierNode identifier:
+                if (node.IsArrow)
+                    _varAccessor.LoadToRegister(identifier.Name, targetReg);       // p
+                else
+                    _varAccessor.LoadAddressToRegister(identifier.Name, targetReg); // &p
+                break;
 
-                    // Получаем ТИП поля node1, чтобы понять, в какой структуре искать текущее поле
-                    var (_, _, innerFieldType) = ResolveMemberAccessType(node1);
+            case MemberAccessNode inner:
+                // Рекурсивно: адрес вложенного поля
+                GenerateMemberAddress(inner, targetReg);
+                break;
 
-                    if (!_structTable.TryGetValue(innerFieldType, out var innerLayout))
-                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, $"Unknown struct type '{innerFieldType}'", innerFieldType);
-
-                    var currentField = innerLayout.GetField(node.FieldName)
-                                       ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, innerFieldType);
-
-                    if (currentField.Offset > 0)
-                    {
-                        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)currentField.Offset);
-                        _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
-                    }
-                    return;
-                }
+            case ArrayAccessNode arrAcc:
+                // &arr[i]
+                ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, targetReg);
+                break;
 
             case DereferenceNode:
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Dereference member access not implemented yet");
+                // (*ptr).field — пока не поддерживаем, но задел:
+                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType,
+                    "Dereference member access not implemented yet");
                 return;
-            case ArrayAccessNode arrAcc:
-                {
-                    string? arrStructType = ResolveArrayStructType(arrAcc.ArrayName);
-                    var layoutstr = _structTable[arrStructType!];
-                    var fieldstr = layoutstr.GetField(node.FieldName)
-                                   ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
-
-                    GenerateExpression(arrAcc.Index, targetReg);   // index → targetReg
-                    _asm.EmitMov(RegType.r3, targetReg);           // save index в r4
-
-                    _varAccessor.LoadAddressToRegister(arrAcc.ArrayName, targetReg);  // base → targetReg
-
-                    int elemSize = layoutstr.Size;
-                    if (elemSize > 1)
-                        _asm.EmitMultiplyByConstant(RegType.r3, elemSize);
-
-                    _asm.EmitAdd(targetReg, RegType.r3);           // base + offset
-
-                    if (fieldstr.Offset > 0)
-                    {
-                        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)fieldstr.Offset);
-                        _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
-                    }
-                    return;
-                }
 
             default:
-                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Unsupported object for member access");
+                GenerateExpression(node.Object, targetReg);
                 break;
         }
 
-        if (structType == null)
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
-
-        var layout = _structTable[structType];
-        var field = layout.GetField(node.FieldName) ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
-
-        if (node.IsArrow)
-        {
-            GenerateExpression(node.Object, targetReg);  // r0 = ptr
-        }
-        else
-        {
-            if (node.Object is IdentifierNode identifer)
-                _varAccessor.LoadToRegister(identifer.Name, targetReg);
-            else ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_InvalidDotAccess, "Dot address only for simple variables");
-        }
+        // 2) + offset текущего поля
+        var (_, field, _) = ResolveMemberAccessType(node);
         if (field.Offset > 0)
         {
             _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)field.Offset);
             _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
         }
     }
-
 
     private void GenerateMemberAccess(MemberAccessNode node, RegType targetReg)
     {
@@ -409,36 +717,27 @@ public class ExpressionGenerator(AssemblerBase asm,
                     var fieldstr = layoutstr.GetField(node.FieldName)
                                 ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
 
-                    // 1) index → targetReg
-                    GenerateExpression(arrAcc.Index, targetReg);
+                    ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, targetReg);
 
-                    // 2) save index в r4 (r4 не используется как targetReg, безопасен)
-                    _asm.EmitMov(RegType.r3, targetReg);
-
-                    // 3) base address → targetReg (НЕ LoadToRegister!)
-                    _varAccessor.LoadAddressToRegister(arrAcc.ArrayName, targetReg);
-
-                    // 4) index * elemSize (в r4)
-                    int elemSize = layoutstr.Size;
-                    if (elemSize > 1)
-                        _asm.EmitMultiplyByConstant(RegType.r3, elemSize);
-
-                    // 5) targetReg = base + offset
-                    _asm.EmitAdd(targetReg, RegType.r3);
-
-                    // 6) + field offset
                     if (fieldstr.Offset > 0)
                     {
                         _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)fieldstr.Offset);
                         _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
                     }
 
-                    // 7) value → targetReg
                     OpCodeSize fieldSizestr = CodeGenUtils.GetSizeForType(fieldstr.Type);
                     _asm.EmitLoadInd(targetReg, targetReg, fieldSizestr);
                     return;
                 }
             default:
+                if (node.IsArrow)
+                {
+                    GenerateMemberAddress(node, targetReg);
+                    var (_, f, _) = ResolveMemberAccessType(node);
+                    OpCodeSize sz = CodeGenUtils.GetSizeForType(f.Type);
+                    _asm.EmitLoadInd(targetReg, targetReg, sz);
+                    return;
+                }
                 ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Unsupported object for member access");
                 break;
         }
@@ -483,45 +782,52 @@ public class ExpressionGenerator(AssemblerBase asm,
     {
         string? structType = null;
 
-        if (node.Object is IdentifierNode id)
+        switch (node.Object)
         {
-            // локальная или глобальная переменная
-            if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc))
-            {
-                if (loc.StructTypeName != null)
-                    structType = loc.StructTypeName;
-                else if (loc.IsPointer && loc.PointedType != null && _structTable.ContainsKey(loc.PointedType))
-                    structType = loc.PointedType;
-            }
-            else if (_globalMem.Contains(id.Name))
-            {
-                var gInfo = _globalMem.GetInfo(id.Name)!.Value;
-                if (_structTable.ContainsKey(gInfo.Type))
-                    structType = gInfo.Type;
-                else if (gInfo.IsPointer && gInfo.PointedType != null && _structTable.ContainsKey(gInfo.PointedType))
-                    structType = gInfo.PointedType;
-            }
+            case IdentifierNode id:
+                {
+                    // локальная или глобальная переменная
+                    if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc))
+                    {
+                        if (loc.StructTypeName != null)
+                            structType = loc.StructTypeName;
+                        else if (loc.IsPointer && loc.PointedType != null && _structTable.ContainsKey(loc.PointedType))
+                            structType = loc.PointedType;
+                    }
+                    else if (_globalMem.Contains(id.Name))
+                    {
+                        var gInfo = _globalMem.GetInfo(id.Name)!.Value;
+                        if (_structTable.ContainsKey(gInfo.Type))
+                            structType = gInfo.Type;
+                        else if (gInfo.IsPointer && gInfo.PointedType != null && _structTable.ContainsKey(gInfo.PointedType))
+                            structType = gInfo.PointedType;
+                    }
 
-            if (structType == null)
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonStructAccess, id.Name);
-        }
-        else if (node.Object is MemberAccessNode innerMember)
-        {
-            // рекурсивно получаем тип поля внутреннего доступа
-            var (_, _, innerFieldType) = ResolveMemberAccessType(innerMember);
-            structType = innerFieldType; // тип поля, к которому обращаемся дальше
-        }
-        else if (node.Object is ArrayAccessNode arrAcc)
-        {
-            structType = ResolveArrayStructType(arrAcc.ArrayName);
-        }
-        else if (node.Object is DereferenceNode)
-        {
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported");
-        }
-        else
-        {
-            ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Unsupported object for member access");
+                    if (structType == null)
+                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                    break;
+                }
+
+            case MemberAccessNode innerMember:
+                {
+                    // рекурсивно получаем тип поля внутреннего доступа
+                    var (_, _, innerFieldType) = ResolveMemberAccessType(innerMember);
+                    structType = innerFieldType; // тип поля, к которому обращаемся дальше
+                    break;
+                }
+
+            case ArrayAccessNode arrAcc:
+                structType = ResolveArrayStructType(arrAcc.ArrayName);
+                break;
+            case DereferenceNode:
+                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported");
+                break;
+            case BinaryOpNode bin when bin.Operator == "+" || bin.Operator == "-":
+                structType = TryInferStructTypeFromPointerExpr(bin);
+                if (structType == null)
+                    ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType,
+                        "Cannot determine struct type from pointer arithmetic");
+                break;
         }
 
         if (structType == null)
@@ -534,6 +840,36 @@ public class ExpressionGenerator(AssemblerBase asm,
                     ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
 
         return (layout, field, field.Type);
+    }
+
+    internal string? TryInferStructTypeFromPointerExpr(ASTNode expr)
+    {
+        if (expr is IdentifierNode id)
+        {
+            if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc))
+            {
+                if (loc.StructTypeName != null) return loc.StructTypeName;
+                if (loc.IsPointer && loc.PointedType != null && _structTable.ContainsKey(loc.PointedType))
+                    return loc.PointedType;
+            }
+            if (_globalMem.Contains(id.Name))
+            {
+                var g = _globalMem.GetInfo(id.Name)!.Value;
+                if (_structTable.ContainsKey(g.Type)) return g.Type;
+                if (g.IsPointer && g.PointedType != null && _structTable.ContainsKey(g.PointedType))
+                    return g.PointedType;
+            }
+        }
+        else if (expr is BinaryOpNode bin && (bin.Operator == "+" || bin.Operator == "-"))
+        {
+            return TryInferStructTypeFromPointerExpr(bin.Left)
+                ?? TryInferStructTypeFromPointerExpr(bin.Right);
+        }
+        else if (expr is ArrayAccessNode arrAcc)
+        {
+            return ResolveArrayStructType(arrAcc.ArrayName);
+        }
+        return null;
     }
 
     public string? ResolveArrayStructType(string arrayName)
@@ -613,14 +949,17 @@ public class ExpressionGenerator(AssemblerBase asm,
     }
     private void LoadArrayElementFromLocal(VarLocation loc, ASTNode indexExpr, RegType targetReg)
     {
+        if (loc.IsArray && loc.StructTypeName != null)
+            ThrowHelper.ThrowMiniC(ErrorCode.NotSupported,
+                $"Cannot load struct value from array element (use member access)");
         var typeSize = loc.TypeSize;
         GenerateExpression(indexExpr, targetReg);
         if (typeSize != OpCodeSize.S8)
             _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize));
-        _asm.EmitLdi(CodeGenUtils.TMP_REG_EN, (ulong)loc.StackOffset);
-        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, RegType.rSP);
-        _asm.EmitAdd(CodeGenUtils.TMP_REG_EN, targetReg);
-        _asm.EmitLoadInd(targetReg, CodeGenUtils.TMP_REG_EN, typeSize);
+        _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+        _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, targetReg);
+        _asm.EmitLoadInd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, typeSize);
     }
     private void LoadArrayElementFromGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, RegType targetReg)
     {
@@ -665,12 +1004,13 @@ public class ExpressionGenerator(AssemblerBase asm,
             pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!);
         else pointedSize = CodeGenUtils.GetSizeForType("expection type");
         // 1. Вычисляем индекс → r1
-        GenerateExpression(indexExpr, RegType.r2);           // index → r3 (scratch)
-        _varAccessor.LoadToRegister(pointerName, targetReg); // r1 = pointer value (использует TMP_REG=r27)
+        RegType idxReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
+        GenerateExpression(indexExpr, idxReg);
+        _varAccessor.LoadToRegister(pointerName, targetReg);
         if (pointedSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r2, CodeGenUtils.GetSizeInBytes(pointedSize));
-        _asm.EmitAdd(targetReg, RegType.r2);                 // r1 = pointer + offset
-        _asm.EmitLoadInd(targetReg, targetReg, pointedSize); // result → targetReg
+            _asm.EmitMultiplyByConstant(idxReg, CodeGenUtils.GetSizeInBytes(pointedSize));
+        _asm.EmitAdd(targetReg, idxReg);
+        _asm.EmitLoadInd(targetReg, targetReg, pointedSize);
     }
 
     private void StoreArrayElementToLocal(VarLocation loc, ASTNode indexExpr, int slot)
@@ -843,7 +1183,8 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         _asm.MarkLabel(endLabel);
     }
-    private void EmitBinaryOperation(string op, RegType dest, RegType src)
+
+    internal void EmitBinaryOperation(string op, RegType dest, RegType src)
     {
         switch (op)
         {
@@ -856,6 +1197,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             case "^": _asm.EmitXOr(dest, src); break;
             case "<<": _asm.EmitShl(dest, src); break;
             case ">>": _asm.EmitShr(dest, src); break;
+            case "%": _asm.EmitMod(dest, src); break;
             default: ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"Unsupported operator in EmitBinaryOperation: {op}"); break;
         }
     }
@@ -867,6 +1209,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             "-" => value1 - value2,
             "*" => value1 * value2,
             "/" => ComputeDiv(value1, value2),
+            "%" => ComputeMod(value1, value2),
             "&" => value1 & value2,
             "|" => value1 | value2,
             "^" => value1 ^ value2,
@@ -880,83 +1223,102 @@ public class ExpressionGenerator(AssemblerBase asm,
     private static long ComputeDiv(long value1, long value2) => value2 != 0 ? value1 / value2
             : ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported, $"Div on zero");
 
-    public void GenerateComparison(string op)
-    {
-        _asm.EmitSub(RegType.r1, RegType.r0);
-        _asm.EmitMov(RegType.r0, RegType.r1);
-        _asm.EmitCmp(RegType.r1, RegType.r0);
-        string trueLabel = _getLabel();
-        string endLabel = _getLabel();
-        _asm.EmitLdi(RegType.r0, 0);
+    private static long ComputeMod(long value1, long value2) => value2 != 0 ? value1 % value2
+            : ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported, $"Div on zero");
 
-        switch (op)
+    /// <summary>
+    /// Вычисляет адрес arr[index] (или p[index] для указателя) и кладёт в addrReg.
+    /// ВАЖНО: addrReg не должен быть r0 — r0 используется как scratch для индекса.
+    /// </summary>
+    internal void ComputeArrayElementAddress(string arrayName, ASTNode indexExpr, RegType addrReg)
+    {
+        // Индекс кладём в регистр, который НЕ совпадает с addrReg.
+        // addrReg будет использоваться под базу, indexReg под масштабированный индекс.
+        RegType indexReg = PickIndexReg(addrReg);
+
+        if (_funcCtx.VarMap.TryGetValue(arrayName, out var loc))
         {
-            case "<":
-                _asm.EmitMov(RegType.r1, RegType.rFL);
-                _asm.EmitLdi(RegType.r2, 2);
-                _asm.EmitAnd(RegType.r1, RegType.r2);
-                _asm.EmitJnz(trueLabel);
-                _asm.EmitJmp(endLabel);
-                _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r0, 1);
-                _asm.MarkLabel(endLabel);
-                break;
-            case ">":
-                _asm.EmitMov(RegType.r1, RegType.rFL);
-                _asm.EmitLdi(RegType.r2, 3);
-                _asm.EmitAnd(RegType.r1, RegType.r2);
-                _asm.EmitJz(trueLabel);
-                _asm.EmitJmp(endLabel);
-                _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r0, 1);
-                _asm.MarkLabel(endLabel);
-                break;
-            case "<=":
-                _asm.EmitMov(RegType.r1, RegType.rFL);
-                _asm.EmitLdi(RegType.r2, 3);
-                _asm.EmitAnd(RegType.r1, RegType.r2);
-                _asm.EmitJnz(trueLabel);
-                _asm.EmitJmp(endLabel);
-                _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r0, 1);
-                _asm.MarkLabel(endLabel);
-                break;
-            case ">=":
-                _asm.EmitMov(RegType.r1, RegType.rFL);
-                _asm.EmitLdi(RegType.r2, 2);
-                _asm.EmitAnd(RegType.r1, RegType.r2);
-                _asm.EmitJz(trueLabel);
-                _asm.EmitJmp(endLabel);
-                _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r0, 1);
-                _asm.MarkLabel(endLabel);
-                break;
-            case "==":
-                _asm.EmitMov(RegType.r1, RegType.rFL);
-                _asm.EmitLdi(RegType.r2, 1);
-                _asm.EmitAnd(RegType.r1, RegType.r2);
-                _asm.EmitJnz(trueLabel);
-                _asm.EmitJmp(endLabel);
-                _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r0, 1);
-                _asm.MarkLabel(endLabel);
-                break;
-            case "!=":
-                _asm.EmitMov(RegType.r1, RegType.rFL);
-                _asm.EmitLdi(RegType.r2, 1);
-                _asm.EmitAnd(RegType.r1, RegType.r2);
-                _asm.EmitJz(trueLabel);
-                _asm.EmitJmp(endLabel);
-                _asm.MarkLabel(trueLabel);
-                _asm.EmitLdi(RegType.r0, 1);
-                _asm.MarkLabel(endLabel);
-                break;
-            default:
-                ThrowHelper.ThrowMiniC(ErrorCode.NotImplemented, op);
-                return;
+            int elemBytes = GetArrayElemBytes(loc);
+
+            // 1) index * elemBytes → indexReg
+            GenerateExpression(indexExpr, indexReg);
+            if (elemBytes > 1)
+                _asm.EmitMultiplyByConstant(indexReg, elemBytes);
+
+            // 2) сохранить масштабированный индекс
+            int slot = SaveRegToStack(indexReg);
+
+            // 3) база → addrReg
+            if (loc.IsArray)
+            {
+                _asm.EmitLdi(addrReg, (ulong)loc.StackOffset);
+                _asm.EmitAdd(addrReg, RegType.rSP);
+            }
+            else
+                _varAccessor.LoadToRegister(arrayName, addrReg);
+
+            // 4) addrReg += index
+            RestoreRegFromStack(slot, indexReg);
+            _asm.EmitAdd(addrReg, indexReg);
+            return;
         }
+
+        if (_globalMem.Contains(arrayName))
+        {
+            var gInfo = _globalMem.GetInfo(arrayName)!.Value;
+            int elemBytes = GetArrayElemBytes(gInfo);
+
+            GenerateExpression(indexExpr, indexReg);
+            if (elemBytes > 1)
+                _asm.EmitMultiplyByConstant(indexReg, elemBytes);
+
+            int slot = SaveRegToStack(indexReg);
+
+            if (gInfo.IsArray)
+                _asm.EmitLdi(addrReg, GlobalMemoryManager.GetLabel(arrayName));
+            else
+                _varAccessor.LoadToRegister(arrayName, addrReg);
+
+            RestoreRegFromStack(slot, indexReg);
+            _asm.EmitAdd(addrReg, indexReg);
+            return;
+        }
+
+        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, arrayName);
     }
 
+    /// <summary>Возвращает регистр для индекса, гарантированно отличный от addrReg.</summary>
+    private static RegType PickIndexReg(RegType addrReg)
+    {
+        if (addrReg != RegType.r0) return RegType.r0;
+        if (addrReg != RegType.r1) return RegType.r1;
+        return RegType.r2;
+    }
+    private int GetArrayElemBytes(VarLocation loc)
+    {
+        if (!loc.IsArray)
+        {
+            if (loc.PointedType == null)
+                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownPointedType);
+            return (int)GetTypeSizeBytes(loc.PointedType);
+        }
+        if (loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l))
+            return l.Size;
+        return CodeGenUtils.GetSizeInBytes(loc.TypeSize);
+    }
+
+    private int GetArrayElemBytes(GlobalInfo gInfo)
+    {
+        if (!gInfo.IsArray)
+        {
+            if (gInfo.PointedType == null)
+                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownPointedType);
+            return (int)GetTypeSizeBytes(gInfo.PointedType);
+        }
+        if (_structTable.TryGetValue(gInfo.Type, out var l))
+            return l.Size;
+        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(gInfo.Type));
+    }
     private void GenerateAddressOf(AddressOfNode addrOf, RegType targetReg)
     {
         if (addrOf.Operand is IdentifierNode id)
@@ -984,11 +1346,10 @@ public class ExpressionGenerator(AssemblerBase asm,
 
     private void GenerateDereference(DereferenceNode deref, RegType targetReg)
     {
-        GenerateExpression(deref.Operand);
+        GenerateExpression(deref.Operand, targetReg);
         OpCodeSize size = GetPointedSize(deref.Operand);
         _asm.EmitLoadInd(targetReg, targetReg, size);
     }
-
     private OpCodeSize GetPointedSize(ASTNode expr)
     {
         if (expr is IdentifierNode id)

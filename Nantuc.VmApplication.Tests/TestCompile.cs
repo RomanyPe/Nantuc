@@ -347,7 +347,276 @@ public class TestCompile(ITestOutputHelper outPut)
         int add(int a, int b) { return a + b; }
         int main() { int x = 1; int y = 2; return add((x, y), 0); }   // (x,y) = comma → y=2; add(2, 0) = 2
         """, 2)]
+    // break в for
+    [InlineData("""
+int main() {
+    int sum = 0;
+    for (int i = 1; i <= 10; i = i + 1) {
+        if (i > 5) break;
+        sum = sum + i;
+    }
+    return sum;   // 1+2+3+4+5 = 15
+}
+""", 15)]
 
+    // continue в for
+    [InlineData("""
+int main() {
+    int sum = 0;
+    for (int i = 1; i <= 10; i = i + 1) {
+        if (i % 2 == 0) continue;   // пропустить чётные
+        sum = sum + i;
+    }
+    return sum;   // 1+3+5+7+9 = 25
+}
+""", 25)]
+
+    // continue в while
+    [InlineData("""
+int main() {
+    int i = 0, s = 0;
+    while (i < 10) {
+        i = i + 1;
+        if (i % 2 == 0) continue;
+        s = s + i;
+    }
+    return s;   // 1+3+5+7+9 = 25
+}
+""", 25)]
+
+    // вложенные циклы — break только из внутреннего
+    [InlineData("""
+int main() {
+    int s = 0;
+    for (int i = 0; i < 3; i = i + 1) {
+        for (int j = 0; j < 10; j = j + 1) {
+            if (j == 2) break;
+            s = s + 1;
+        }
+    }
+    return s;   // 3 * 2 = 6
+}
+""", 6)]
+
+    // do-while
+    [InlineData("""
+int main() {
+    int i = 0, s = 0;
+    do { s = s + i; i = i + 1; } while (i < 5);
+    return s;   // 0+1+2+3+4 = 10
+}
+""", 10)]
+
+    // do-while с continue
+    [InlineData("""
+int main() {
+    int i = 0, s = 0;
+    do {
+        i = i + 1;
+        if (i % 2 == 0) continue;
+        s = s + i;
+    } while (i < 5);
+    return s;   // 1+3+5 = 9
+}
+""", 9)]
+
+    // % модуло
+    [InlineData("""
+int main() { return 17 % 5 + 20 % 3; }   // 2 + 2 = 4
+""", 4)]
+
+    // compound: +=
+    [InlineData("""
+int main() { int x = 10; x += 5; x -= 3; x *= 2; return x; }   // (10+5-3)*2 = 24
+""", 24)]
+
+    // compound: bitwise
+    [InlineData("""
+int main() { int x = 0xF0; x |= 0x0F; x &= 0x3C; return x; }   // (0xF0|0x0F)&0x3C = 0xFF & 0x3C = 0x3C = 60
+""", 60)]
+
+    // compound в массиве
+    [InlineData("""
+int main() { int a[1] = { 10 }; a[0] += 5; return a[0]; }   // 15
+""", 15)]
+
+    // compound в поле структуры
+    [InlineData("""
+struct P { int x; };
+int main() { struct P p; p.x = 10; p.x *= 3; return p.x; }   // 30
+""", 30)]
+
+    // compound через указатель
+    [InlineData("""
+int main() { int a[1] = { 7 }; int *q = a; *q += 3; return a[0]; }   // 10
+""", 10)]
+
+    // chained assignment
+    [InlineData("""
+int main() { int x = 0, y = 0; x = y = 5; return x + y; }   // 10
+""", 10)]
+    [InlineData("""
+int s4(int a, int b, int c, int d) { return a + b + c + d; }
+int main() { int i = 3, j = 4; return s4(1, 2, 3, i + j); }   // 1+2+3+7 = 13
+""", 13)]
+    [InlineData("""
+int main() {
+    int a[3] = { 10, 20, 30 };
+    int *p = a;
+    return (p[1] + 5) * (p[2] + 3);   // 25 * 33 = 825
+}
+""", 825)]
+    // Postfix возвращает old
+    [InlineData("int main() { int a[1] = { 5 }; int x = a[0]++; return x + a[0]; }", 11)] // 5 + 6
+                                                                                          // Prefix возвращает new
+    [InlineData("int main() { int a[1] = { 5 }; int x = ++a[0]; return x + a[0]; }", 12)] // 6 + 6
+                                                                                          // Указатель
+    [InlineData("""
+int main() {
+    int a[2] = { 10, 20 }; int *p = a;
+    (*p)++;                          // a[0] = 11, p не двигается
+    return a[0] + a[1];              // 11 + 20 = 31
+}
+""", 31)]
+    // Struct member
+    [InlineData("struct P { int x; }; int main() { struct P p; p.x = 10; int y = p.x++; return y + p.x; }", 21)] // 10 + 11
+                                                                                                                 // Цикл с i++
+    [InlineData("int main() { int s = 0; for (int i = 0; i < 5; i++) s = s + i; return s; }", 10)]
+    // Compound body: декремент в while
+    [InlineData("int main() { int n = 5; int s = 0; while (n--) s = s + n; return s; }", 10)] // 4+3+2+1+0
+                                                                                              // Prefix deref как statement
+    [InlineData("""
+int main() { int a[1] = { 7 }; int *q = a; ++(*q); return a[0]; }   // 8
+""", 8)]
+
+    // Postfix array: результат отбрасывается (statement)
+    [InlineData("""
+int main() { int a[1] = { 5 }; a[0]++; return a[0]; }   // 6
+""", 6)]
+
+    // Prefix array: результат отбрасывается
+    [InlineData("""
+int main() { int a[1] = { 5 }; ++a[0]; return a[0]; }   // 6
+""", 6)]
+
+    // Member postfix как statement
+    [InlineData("""
+struct P { int x; };
+int main() { struct P p; p.x = 5; p.x++; return p.x; }   // 6
+""", 6)]
+
+    // Increment в expression с targetReg != r0 (проверяет tempReg)
+    [InlineData("""
+int main() { int a[1] = { 5 }; int x = 100 + a[0]++; return x + a[0]; }   // (100+5) + 6 = 111
+""", 111)]
+
+    // for-цикл со statement-increment внутри
+    [InlineData("""
+int main() { int sum = 0; int i = 0; while (i < 3) { sum = sum + i; i++; } return sum; }   // 0+1+2 = 3
+""", 3)]
+    [InlineData("""
+int main() { int a[1] = { 7 }; int *p = a; int y = 5 + *p; return y; }   // 12
+""", 12)]
+    [InlineData("""
+int main() { int a[1] = { 7 }; int *p = a; int x = *p + *p; return x; }   // 14
+""", 14)]
+    [InlineData("""
+int main() { int a[1] = { 7 }; int *p = a; return *p * 3; }   // 21
+""", 21)]
+
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = a; p++; return *p; }   // 20
+""", 20)]
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = a; ++p; return *p; }   // 20
+""", 20)]
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = a; int *q = p++; return *q + *p; }   // 10+20 = 30
+""", 30)]
+    [InlineData("""
+struct P { int x; int y; };
+int main() { struct P arr[2]; struct P *p = arr; p++; p->x = 42; return arr[1].x; }   // 42
+""", 42)]
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = a + 2; p--; return *p; }   // 20 (требует pointer arithmetic)
+""", 20)]
+    [InlineData("int main() { return sizeof(int); }", 4)]
+    [InlineData("int main() { return sizeof(char); }", 2)]
+    [InlineData("int main() { return sizeof(byte); }", 1)]
+    [InlineData("int main() { return sizeof(ushort); }", 2)]
+    [InlineData("int main() { return sizeof(ulong); }", 8)]
+    [InlineData("int main() { return sizeof(int*); }", 8)]
+    [InlineData("""
+struct P { int x; int y; };
+int main() { return sizeof(P); }
+""", 8)]
+    [InlineData("""
+struct P { int x; int y; };
+int main() { return sizeof(struct P); }
+""", 8)]
+    [InlineData("int main() { int x; return sizeof(x); }", 4)]
+    [InlineData("int main() { ulong x; return sizeof(x); }", 8)]
+    [InlineData("int main() { int arr[10]; return sizeof(arr); }", 40)]
+    [InlineData("int main() { int *p; return sizeof(p); }", 8)]
+    [InlineData("int main() { int a[1]; int *p = a; return sizeof(*p); }", 4)]
+    [InlineData("int main() { return sizeof(int) * 2; }", 8)]
+    [InlineData("""
+struct P { int x; byte b; };
+int main() { struct P p; return sizeof(p.x) + sizeof(p.b); }
+""", 5)]
+
+    // pointer + int (array decay)
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = a + 2; return *p; }   // 30
+""", 30)]
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = a + 2; p--; return *p; }   // 20
+""", 20)]
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = a + 1; int *q = p + 1; return *q; }   // 30
+""", 30)]
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = 1 + a; return *p; }   // 20 (commutative)
+""", 20)]
+    [InlineData("""
+int main() { int a[3] = { 10, 20, 30 }; int *p = a + 2; int *q = p - 1; return *q; }   // 20
+""", 20)]
+
+    [InlineData("""
+struct P { int x; int y; };
+int main() { struct P arr[2]; struct P *p = arr; p->y = 7; return arr[0].y; }   // 7
+""", 7)]
+    [InlineData("""
+struct P { int x; int y; };
+int main() { struct P arr[2]; struct P *p = arr + 1; p->x = 42; p->y = 43; return arr[1].x + arr[1].y; }   // 85
+""", 85)]
+
+    // struct with non-power-of-2 size (проверяет EmitMultiplyByConstant)
+    [InlineData("""
+struct S { int a; int b; int c; };  // 24 байта (не степень 2)
+int main() { struct S arr[2]; struct S *p = arr; p++; p->a = 5; return arr[1].a; }   // 5
+""", 5)]
+
+    // p + int + p->field
+    [InlineData("""
+struct P { int x; };
+int main() {
+    struct P arr[3];
+    (arr + 0)->x = 10;
+    (arr + 1)->x = 20;
+    (arr + 2)->x = 30;
+    return (arr + 1)->x;
+}
+""", 20)]
+    [InlineData("""
+struct P { int x; int y; };
+int main() {
+    struct P arr[2];
+    struct P *p = arr + 1;
+    p->x = 42;
+    return arr[1].x;
+}
+""", 42)]
     public void RunCompile(string program, ulong res)
     {
         using var host = VmHostFactory.CreateDefault();

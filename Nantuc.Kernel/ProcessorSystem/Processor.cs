@@ -178,6 +178,7 @@ public sealed class Processor(MemoryBus ram,
             OpCode.SHR => InstructionSHR(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.SHL => InstructionSHL(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.DIV => InstructionDIV(GetReg1(rawInst), GetReg2(rawInst)),
+            OpCode.MOD => InstructionMOD(GetReg1(rawInst), GetReg2(rawInst)),
 
             // === 4. Логика ===
             OpCode.AND => InstructionAND(GetReg1(rawInst), GetReg2(rawInst)),
@@ -217,6 +218,21 @@ public sealed class Processor(MemoryBus ram,
             ProcessorFault fault = new(dat, _lastFaultData, ip, opCode);
             Volatile.Write(ref _isRunning, _processorFaultPolicy.ShouldContinue(fault));
         }
+    }
+
+    private BiosStatus InstructionMOD(RegType reg1, RegType reg2)
+    {
+        ulong divisor = _registers[reg2.Int()];
+        if (divisor == 0)
+        {
+            ulong ip = _registers[RegType.rIP.Int()];
+            _lastFaultData = ip;
+            return BiosStatus.DivOnZero;
+        }
+        ulong dividend = _registers[reg1.Int()];
+        ulong res = dividend % divisor;
+        _registers[reg1.Int()] = res;
+        return BiosStatus.Success;
     }
 
     private BiosStatus InstructionJMP_IND(RegType r)

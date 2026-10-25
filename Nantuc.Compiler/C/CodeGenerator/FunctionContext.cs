@@ -191,7 +191,10 @@ public class FunctionContext
             BlockNode blk => blk.Statements.Count > 0
                                 ? blk.Statements.Max(ComputeMaxBinaryDepth)
                                 : 0,
-
+            DoWhileNode d => Math.Max(
+                ComputeMaxBinaryDepth(d.Body),
+                1 + ComputeMaxBinaryDepth(d.Condition)),
+            IncrementNode inc => 1 + ComputeMaxBinaryDepth(inc.Target),
             _ => 0,
         };
     }

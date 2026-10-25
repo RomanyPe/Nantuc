@@ -56,6 +56,7 @@ public class AssignmentNode(string name, ASTNode value, ASTNode? indexExpr = nul
     public ASTNode Value { get; set; } = value;
     public ASTNode? IndexExpr { get; set; } = indexExpr;
     public ASTNode? LValue { get; set; }
+    public string? CompoundOp { get; set; }
 
 }
 
@@ -148,4 +149,31 @@ public class MemberAccessNode(ASTNode obj, string fieldName, bool isArrow) : AST
     public ASTNode Object { get; set; } = obj;
     public string FieldName { get; set; } = fieldName;
     public bool IsArrow { get; set; } = isArrow;
+}
+
+public class BreakNode : ASTNode;
+public class ContinueNode : ASTNode;
+
+public class DoWhileNode(ASTNode body, ASTNode condition) : ASTNode
+{
+    public ASTNode Body { get; set; } = body;   // BlockNode
+    public ASTNode Condition { get; set; } = condition;
+}
+
+public class IncrementNode(ASTNode target, int delta, bool isPrefix) : ASTNode
+{
+    public ASTNode Target { get; set; } = target;   // IdentifierNode / ArrayAccessNode / DereferenceNode / MemberAccessNode
+    public int Delta { get; set; } = delta;    // +1 для ++, -1 для --
+    public bool IsPrefix { get; set; } = isPrefix; // ++x = true, x++ = false
+}
+
+public class SizeofTypeNode(string typeName, bool isPointer) : ASTNode
+{
+    public string TypeName { get; set; } = typeName;
+    public bool IsPointer { get; set; } = isPointer;
+}
+
+public class SizeofExprNode(ASTNode operand) : ASTNode
+{
+    public ASTNode Operand { get; set; } = operand;
 }

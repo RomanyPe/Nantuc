@@ -43,4 +43,6 @@ public enum ErrorCode
     Asm_InvalidInstruction = 1402,
     Asm_UnknownRegister = 1403,
     Asm_UnknownMnemonic = 1404,
+    CodeGen_BreakOutsideLoop = 1405,
+    CodeGen_ContinueOutsideLoop = 1406,
 }

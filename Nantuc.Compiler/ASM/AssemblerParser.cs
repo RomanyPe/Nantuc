@@ -92,6 +92,7 @@ public partial class AssemblerParser
         { "SHL", OpCode.SHL },
         { "MULT_INT", OpCode.MULT_INT },
         { "DIV", OpCode.DIV },
+        { "MOD", OpCode.MOD },
         { "HALT", OpCode.HALT },
         { "WAKE", OpCode.WAKE},
         { "WAKE_INT", OpCode.WAKE_INT },
@@ -203,6 +204,7 @@ public partial class AssemblerParser
 
             // Формат R (два регистра)
             case "MOV":
+            case "MOD":
             case "ADD":
             case "SUB":
             case "AND":
@@ -392,7 +394,7 @@ public static class AsmLanguageDefinition
             "LOAD_UNSAFE", "STORE_UNSAFE", "JMP", "JZ",
             "JNZ", "JG", "JL", "CALL", "LOAD_IND", "STORE_IND","LOAD_IND_UNSAFE", "STORE_IND_UNSAFE",
             "IN", "OUT", "SHR", "MULT_INT", "DIV", "HALT", "WAKE", "WAKE_INT", "CMP", "TEST",
-            "JMP_IND", "CALL_IND"
+            "JMP_IND", "CALL_IND", "SHL", "MOD"
         ];
 
         Registers = [

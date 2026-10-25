@@ -55,7 +55,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
             byte[] data = new byte[(size + 7) & ~7];
 
             if (global.ArrayInitializer != null)
-                FillArrayInitializerData(data, global);
+                FillArrayInitializerData(data, global, _structTable);
 
             _asm.EmitData(GlobalMemoryManager.GetLabel(global.Name), data);
         }
@@ -85,7 +85,8 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         return varNode.IsArray ? baseSize * varNode.ArraySize : baseSize;
     }
 
-    private static void FillArrayInitializerData(byte[] data, VariableNode varNode)
+    private static void FillArrayInitializerData(byte[] data, VariableNode varNode,
+                                                  Dictionary<string, StructLayout> structTable)
     {
         OpCodeSize elemSize = CodeGenUtils.GetSizeForType(varNode.Type);
         int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize);
@@ -93,13 +94,37 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
 
         for (int i = 0; i < count; i++)
         {
-            long value = EvaluateConstant(varNode.ArrayInitializer[i]);
+            long value = EvaluateConstant(varNode.ArrayInitializer[i], structTable);
             int offset = i * elemBytes;
             // little-endian запись
             for (int b = 0; b < elemBytes; b++)
                 data[offset + b] = (byte)(value >> (b * 8));
         }
 
+    }
+    private static long EvaluateConstant(ASTNode node, Dictionary<string, StructLayout> structTable) => node switch
+    {
+        NumberNode num => num.Value,
+        UnaryOpNode { Operator: "-" } u => -EvaluateConstant(u.Operand, structTable),
+        UnaryOpNode { Operator: "+" } u => EvaluateConstant(u.Operand, structTable),
+        UnaryOpNode { Operator: "~" } u => ~EvaluateConstant(u.Operand, structTable),
+        BinaryOpNode bin => ExpressionGenerator.ComputeConstant(
+                                       EvaluateConstant(bin.Left, structTable),
+                                       EvaluateConstant(bin.Right, structTable),
+                                       bin.Operator),
+        SizeofTypeNode st => GetSizeofTypeConstant(st, structTable),
+        _ => ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported,
+                 $"Non-constant initializer in array: {node.GetType().Name}")
+    }; 
+    
+    private static long GetSizeofTypeConstant(SizeofTypeNode st, Dictionary<string, StructLayout> structTable)
+    {
+        if (st.IsPointer) return 8;
+        if (structTable.TryGetValue(st.TypeName, out var layout)) return layout.Size;
+        if (CodeGenUtils.IsPrimitiveType(st.TypeName))
+            return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(st.TypeName));
+        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownTypeSize, st.TypeName);
+        return 0;
     }
 
     private static long EvaluateConstant(ASTNode node) => node switch
@@ -250,6 +275,9 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                         CollectLocalVars(fr.Body, map);
                         break;
                     }
+                case DoWhileNode dw:
+                    if (dw.Body is BlockNode bodyBlock) CollectLocalVars(bodyBlock, map);
+                    break;
             }
         }
     }

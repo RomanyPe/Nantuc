@@ -360,8 +360,37 @@ public class Parser(List<Token> tokens)
         "for" => ParseFor(),
         "return" => ParseReturn(),
         "asm" => ParseInlineAsm(),
+        "break" => ParseBreak(),
+        "continue" => ParseContinue(),
+        "do" => ParseDoWhile(),
         _ => ParseStatement(),
     };
+
+    private BreakNode ParseBreak()
+    {
+        Expect(TokenType.Keyword, "break");
+        Expect(TokenType.Punctuation, ";");
+        return new BreakNode();
+    }
+
+    private ContinueNode ParseContinue()
+    {
+        Expect(TokenType.Keyword, "continue");
+        Expect(TokenType.Punctuation, ";");
+        return new ContinueNode();
+    }
+
+    private DoWhileNode ParseDoWhile()
+    {
+        Expect(TokenType.Keyword, "do");
+        var body = ParseBody();
+        Expect(TokenType.Keyword, "while");
+        Expect(TokenType.Punctuation, "(");
+        ASTNode cond = ParseExpression();
+        Expect(TokenType.Punctuation, ")");
+        Expect(TokenType.Punctuation, ";");
+        return new DoWhileNode(body, cond);
+    }
 
     private static List<ASTNode> ParseStringToNodes(string raw)
     {
@@ -573,20 +602,22 @@ public class Parser(List<Token> tokens)
     private ASTNode ParseAssignment()
     {
         ASTNode left = ParseLogicalOr();
-        if (Current.Type == TokenType.Operator && Current.Value == "=")
+        if (Current.Type == TokenType.Operator &&
+            Current.Value is "=" or "+=" or "-=" or "*=" or "/=" or "%=" or
+                            "&=" or "|=" or "^=" or "<<=" or ">>=")
         {
+            string op = Current.Value;
             Advance();
             ASTNode right = ParseAssignment();
             return left switch
             {
-                IdentifierNode id => new AssignmentNode(id.Name, right) { LValue = left },
-                ArrayAccessNode arr => new AssignmentNode(arr.ArrayName, right, arr.Index) { LValue = left },
-                MemberAccessNode => new AssignmentNode(null!, right) { LValue = left },
-                DereferenceNode => new AssignmentNode(null!, right) { LValue = left },
+                IdentifierNode id => new AssignmentNode(id.Name, right) { LValue = left, CompoundOp = op },
+                ArrayAccessNode arr => new AssignmentNode(arr.ArrayName, right, arr.Index) { LValue = left, CompoundOp = op },
+                MemberAccessNode => new AssignmentNode(null!, right) { LValue = left, CompoundOp = op },
+                DereferenceNode => new AssignmentNode(null!, right) { LValue = left, CompoundOp = op },
                 _ => ThrowHelper.ThrowMiniC<ASTNode>(ErrorCode.Parser_InvalidAssignment),
             };
         }
-
         return left;
     }
     private ASTNode ParseLogicalOr()
@@ -721,6 +752,27 @@ public class Parser(List<Token> tokens)
 
     private ASTNode ParseUnary()
     {
+        if (Current.Type == TokenType.Keyword && Current.Value == "sizeof")
+        {
+            Advance();
+            if (Current.Type == TokenType.Punctuation && Current.Value == "(" && IsSizeofTypeParen())
+            {
+                Advance();                              // "("
+                string typeName = ParseType();
+                bool isPointer = false;
+                if (Current.Type == TokenType.Operator && Current.Value == "*") { isPointer = true; Advance(); }
+                Expect(TokenType.Punctuation, ")");
+                return new SizeofTypeNode(typeName, isPointer);
+            }
+            return new SizeofExprNode(ParseUnary());
+        }
+        if (Current.Type == TokenType.Operator && (Current.Value == "++" || Current.Value == "--"))
+        {
+            string op = Current.Value;
+            Advance();
+            ASTNode operand = ParseUnary();   // поддержка --++x
+            return new IncrementNode(operand, op == "++" ? 1 : -1, isPrefix: true);
+        }
         if (Current.Type == TokenType.Operator && (Current.Value == "+" || Current.Value == "-" ||
                                                    Current.Value == "!" || Current.Value == "~" ||
                                                    Current.Value == "*" || Current.Value == "&"))
@@ -733,6 +785,15 @@ public class Parser(List<Token> tokens)
             return new UnaryOpNode(op, operand);
         }
         return ParsePrimary();
+    }
+
+    private bool IsSizeofTypeParen()
+    {
+        int save = _position;
+        Advance();                              // '('
+        bool isType = IsTypeSpecifier();
+        _position = save;
+        return isType;
     }
 
     private ASTNode ParsePrimary()
@@ -806,13 +867,24 @@ public class Parser(List<Token> tokens)
         }
 
         // --- ЦИКЛ ПОСТФИКСНЫХ ОПЕРАТОРОВ: . и -> ---
-        while (Current.Type == TokenType.Punctuation && Current.Value == "."
-               || Current.Type == TokenType.Arrow)
+        while (true)
         {
-            bool isArrow = Current.Type == TokenType.Arrow;
-            Advance(); // пропускаем '.' или '->'
-            string fieldName = Expect(TokenType.Identifier).Value;
-            expr = new MemberAccessNode(expr, fieldName, isArrow);
+            if (Current.Type == TokenType.Punctuation && Current.Value == "." || Current.Type == TokenType.Arrow)
+            {
+                bool isArrow = Current.Type == TokenType.Arrow;
+                Advance();
+                string fieldName = Expect(TokenType.Identifier).Value;
+                expr = new MemberAccessNode(expr, fieldName, isArrow);
+                continue;
+            }
+            if (Current.Type == TokenType.Operator && (Current.Value == "++" || Current.Value == "--"))
+            {
+                string op = Current.Value;
+                Advance();
+                expr = new IncrementNode(expr, op == "++" ? 1 : -1, isPrefix: false);
+                continue;
+            }
+            break;
         }
 
         return expr;

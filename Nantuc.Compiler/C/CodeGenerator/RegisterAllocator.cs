@@ -246,7 +246,22 @@ CollectVarEvents(BlockNode body)
                     foreach (var stmt in block.Statements)
                         Walk(stmt);
                     break;
-
+                case DoWhileNode dw:
+                    Walk(dw.Body);
+                    Walk(dw.Condition);
+                    break;
+                case IncrementNode inc:
+                    Walk(inc.Target);
+                    // target — lvalue, но с точки зрения def/use это и def, и use
+                    if (inc.Target is IdentifierNode idNode)
+                    {
+                        AddDef(defs, idNode.Name, counter);
+                        AddUse(uses, idNode.Name, counter);
+                    }
+                    break;
+                case SizeofTypeNode:
+                case SizeofExprNode:
+                    break;
                 default:
                     // Пропускаем неизвестные узлы
                     break;
