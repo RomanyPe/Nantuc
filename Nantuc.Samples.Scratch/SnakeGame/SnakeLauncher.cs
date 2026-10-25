@@ -10,7 +10,7 @@ namespace Nantuc.Samples.Scratch.SnakeGame;
 
 public class SnakeLauncher
 {
-    public static void LaunchSnake()
+    public static void LaunchSnake(int period = 200)
     {
         using var host = VmHostFactory.CreateDefault();
 
@@ -75,7 +75,7 @@ public class SnakeLauncher
         using var ticker = new Timer(_ =>
         {
             if (running) portBus.WakeProcessor(0);
-        }, null, 200, 200);
+        }, null, 200, period);
 
         // -------- запуск --------
         Console.CursorVisible = false;
@@ -99,9 +99,10 @@ public class SnakeLauncher
 
     }
 
+    private static readonly StringBuilder sb = new();
+
     private static void RenderToConsole(byte[] fb, int w, int h)
     {
-        var sb = new StringBuilder(w * h * 6 + 64);
         sb.Append("\x1b[H");
         for (int y = 0; y < h; y++)
         {
@@ -111,5 +112,6 @@ public class SnakeLauncher
         }
         sb.Append("Arrows=move  Q=quit\n");
         Console.Write(sb.ToString());
+        sb.Clear();
     }
 }
