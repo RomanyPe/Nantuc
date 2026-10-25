@@ -104,6 +104,33 @@ public sealed class Device : IPortController
 
         onEnd?.Invoke( timeSpan);
     }
+    public void RunWithLimit(ulong? start,
+                    long limit,
+                    bool snowTimer,
+                    Action? onLaunch,
+                    Action<ISimulationResult?>? onEnd)
+    {
+
+        onLaunch?.Invoke();
+
+        ulong startIndex = start ?? _ram.Length;
+        stepCounter = 0;
+
+        _processor.LaunchProgramm(startIndex);
+
+        Stopwatch? sw = snowTimer ? Stopwatch.StartNew() : null;
+
+        RunSimulationLoopWithLimit(limit);
+
+        SimulationResult? timeSpan = null;
+        if (sw != null)
+        {
+            sw.Stop();
+            timeSpan = new(sw.Elapsed, stepCounter);
+        }
+
+        onEnd?.Invoke( timeSpan);
+    }
 
     public void DebugRun(ulong start,
                         long stepLimit,
@@ -154,6 +181,25 @@ public sealed class Device : IPortController
     {
         while (_processor.IsRunning)
         {
+            _processor.Step();
+
+            if (_processor.IsSleeping)
+            {
+                _wakeSignal.Wait(15);
+                _wakeSignal.Reset();
+            }
+            else
+            {
+                stepCounter++;
+            }
+        }
+    }
+    private void RunSimulationLoopWithLimit(long limit)
+    {
+        while (_processor.IsRunning)
+        {
+            if (limit <= stepCounter) Stop();
+            
             _processor.Step();
 
             if (_processor.IsSleeping)

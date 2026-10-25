@@ -68,6 +68,21 @@ public class DeviceContext
         SetNoneMode();
     }
 
+    public void RunWithLimit(LaunchOptions? opt = null, long stepLimit = long.MaxValue)
+    {
+        ThrowIfRunning();
+        ThrowByMode(Mode.Continuous);
+
+        opt ??= LaunchOptions.Default;
+        _device.RunWithLimit(opt.StartAddress,
+            stepLimit,
+            opt.ShowTimer,
+            opt.OnLaunch,
+            opt.OnEnd);
+
+        SetNoneMode();
+    }
+
     public void DebugRun(LaunchOptionsDebug? opt = null)
     {
         ThrowIfRunning();
