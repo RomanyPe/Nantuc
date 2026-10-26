@@ -5,52 +5,52 @@ using Nantuc.VmApplication.Extensions.Emulator.IO;
 using Nantuc.VmApplication.Extensions.Host;
 using Nantuc.VmApplication.Extensions.LibraresIncludes;
 
-const string source1 =
+const string source =
     """
     #include "print.minic"
-
     char str[] = "Hello world";
-
-    void main() {
-        print16(str);
-    }    
+    void main() { print16(str); }
     """;
 
-
 using var host = VmHostFactory.CreateDefault();
-var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);
-
-host.Project.SaveFileProject("main.minic", source1);
+host.Project.SaveFileProject("main.minic", source);
 host.Project.SaveFileInclude("io.nanasm", Librare.io_nanasm);
-host.Project.SaveFileInclude("print.minic",  Librare.print_minic);
+host.Project.SaveFileInclude("print.minic", Librare.print_minic);
 
-var handle = DeviceSpec.Create(
-    ramSize: RamSize.MB128,
-    processorFaultPolicy: lfPolicy,
-    name: "ConsoleVM"
-);
+// 1) Регистрация VM — через TryRegisterDevice, IdState вместо int < 0
+var vmState = host.Emulator.TryRegisterDevice(
+    DeviceSpec.Create(RamSize.MB128, name: "ConsoleVM"),
+    sector: 0,
+    out int vmId);
+if (vmState != IdState.Valid) { Console.Error.WriteLine($"register vm: {vmState}"); return; }
 
-var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf16);
+// 2) Регистрация UART — тоже через TryRegisterDevice
+var uartState = host.Emulator.TryRegisterDevice(
+    new QueuedIOStream(Console.Out, PortCharEncoding.Utf16),
+    name: "console",
+    sector: 1,
+    out _);
+if (uartState != IdState.Valid) { Console.Error.WriteLine($"register uart: {uartState}"); return; }
 
-int deviceId = host.Emulator.RegisterDevice(handle: handle, sector: 0);
-host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
+// 3) DeviceContext — через TryGetDeviceContext (без !)
+if (!host.Emulator.TryGetDeviceContext(vmId, out var vm)) { Console.Error.WriteLine("no ctx"); return; }
 
-var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
-
-var resCompile = host.Project.CompileToIL(
-    baseAddress: 0,  
-    optimize: true ).Build();
-
-if (!resCompile.Success)
+// 4) Компиляция
+var compilation = host.Project.CompileToIL(baseAddress: 0, optimize: true).Build();
+if (!compilation.Success)
 {
-    foreach (var err in resCompile.Errors!)
-        Console.WriteLine(err);
+    foreach (var e in compilation.Errors!) Console.Error.WriteLine(e);
     return;
 }
 
-if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
+// 5) Загрузка — через TryFastLoadProgram
+if (!vm.TryFastLoadProgram(compilation.Program!, loadAddress: 0, out var error))
 {
-    Console.WriteLine(error);
+    Console.Error.WriteLine(error);
     return;
 }
-deviceCtx.Run();
+
+// 6) Запуск — Run возвращает ProcessorFault, статус можно проверить
+ProcessorFault fault = vm.Run();
+if (fault.Status != BiosStatus.EndProgramm)
+    Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");

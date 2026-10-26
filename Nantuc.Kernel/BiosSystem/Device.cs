@@ -79,7 +79,7 @@ public sealed class Device : IPortController
         return true;
     }
 
-    public ProcessorFault Run(ulong? start,
+    public ProcessorFault Run(ulong start,
                     long? limit,
                     bool snowTimer,
                     Action? onLaunch,
@@ -88,7 +88,7 @@ public sealed class Device : IPortController
 
         onLaunch?.Invoke();
 
-        ulong startIndex = start ?? _ram.Length;
+        ulong startIndex = start;
         stepCounter = 0;
 
         _processor.LaunchProgramm(startIndex);
