@@ -191,7 +191,7 @@ public partial class AssemblerParser
         }
 
         if (!_opMap.TryGetValue(baseMnemonic, out OpCode opCode))
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
 
         switch (baseMnemonic)
         {
@@ -267,7 +267,7 @@ public partial class AssemblerParser
                 break;
 
             default:
-                ThrowHelper.ThrowMiniC(ErrorCode.Asm_UnknownMnemonic,baseMnemonic);
+                ThrowCompiler.Throw(ErrorCode.Asm_UnknownMnemonic,baseMnemonic);
                 break;
         }
     }
@@ -285,7 +285,7 @@ public partial class AssemblerParser
     private void FormatJumpType(string[] tokens, string baseMnemonic, OpCode opCode)
     {
         if (tokens.Length < 2)
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         string target = tokens[1];
 
         if (IsNumber(target))
@@ -297,7 +297,7 @@ public partial class AssemblerParser
     private void FormateLOAD_IND__STORE_IND(string[] tokens, OpCodeSize size, string baseMnemonic, OpCode opCode)
     {
         if (tokens.Length < 3)
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rInd1 = ParseReg(tokens[1]);
         RegType rInd2 = ParseReg(tokens[2]);
         _asm.EmitInst(opCode, rInd1, rInd2, size);
@@ -306,7 +306,7 @@ public partial class AssemblerParser
     private void FormatLOAD__STORE(string[] tokens, OpCodeSize size, string baseMnemonic, bool isLoad)
     {
         if (tokens.Length < 3)
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
 
         RegType rMem = ParseReg(tokens[1]);
         ulong addr = ParseNumber(tokens[2]);
@@ -318,7 +318,7 @@ public partial class AssemblerParser
     private void FormatLDI(string[] tokens, string baseMnemonic)
     {
         if (tokens.Length < 3)
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rLdi = ParseReg(tokens[1]);
         string operand = tokens[2];
         if (IsNumber(operand))
@@ -335,7 +335,7 @@ public partial class AssemblerParser
     private void FormatU(string[] tokens, string baseMnemonic, OpCode opCode)
     {
         if (tokens.Length < 2)
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rU = ParseReg(tokens[1]);
         _asm.EmitInstU(opCode, rU);
     }
@@ -343,7 +343,7 @@ public partial class AssemblerParser
     private void FormatR(string[] tokens, string baseMnemonic, OpCode opCode)
     {
         if (tokens.Length < 3)
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType r1 = ParseReg(tokens[1]);
         RegType r2 = ParseReg(tokens[2]);
         _asm.EmitInstR(opCode, r1, r2);
@@ -353,7 +353,7 @@ public partial class AssemblerParser
     {
         if (_regMap.TryGetValue(s, out RegType reg))
             return reg;
-        return ThrowHelper.ThrowMiniC<RegType>(ErrorCode.Asm_UnknownRegister, _currentLine);
+        return ThrowCompiler.Throw<RegType>(ErrorCode.Asm_UnknownRegister, _currentLine);
     }
 
     private static ulong ParseNumber(string s)

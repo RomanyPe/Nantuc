@@ -1,10 +1,11 @@
 ﻿using System.Collections.Frozen;
+using System.Collections.ObjectModel;
 
 namespace Nantuc.Kernel.Diagnostics;
 
-public class DefaultErrorMessageProvider : IErrorMessageProvider
+public class DefaultErrorMessageProvider(Dictionary<ErrorCode, string>? overrides = null) : IErrorMessageProvider
 {
-    private readonly FrozenDictionary<ErrorCode, string> _templates = new Dictionary<ErrorCode, string>()
+    private static readonly FrozenDictionary<ErrorCode, string> templates = new Dictionary<ErrorCode, string>()
     {
         { ErrorCode.NotSupported, "Not supported: {0}" },
         { ErrorCode.NotImplemented, "Feature not implemented: {0}" },
@@ -34,6 +35,8 @@ public class DefaultErrorMessageProvider : IErrorMessageProvider
         { ErrorCode.CodeGen_ParameterNotInRegister, "Parameter '{0}' not allocated to a register" },
         { ErrorCode.CodeGen_UnknownPointedType, "Cannot determine pointed type for dereference" },
         { ErrorCode.CodeGen_DirectStructLoadStore, "Direct load/store of struct variable '{0}' is not supported" },
+        { ErrorCode.CodeGen_BreakOutsideLoop, "Operator \"break\" outside loop" },
+        { ErrorCode.CodeGen_ContinueOutsideLoop, "Operator \"continue\" outside loop" },
 
         { ErrorCode.Asm_UndefinedLabel, "Undefined label '{0}' at position '{1}'" },
         { ErrorCode.Asm_DuplicateLabel, "Label '{0}' already defined at position {1}" },
@@ -43,11 +46,21 @@ public class DefaultErrorMessageProvider : IErrorMessageProvider
         { ErrorCode.Lexer_InvalidNumber, "Invalid number literal '{0}' at {1}:{2}" },
         { ErrorCode.Lexer_UnterminatedString, "Unterminated string starting at {0}:{1}" }
     }.ToFrozenDictionary();
+    public static FrozenDictionary<ErrorCode, string> DefaultTemplates => templates;
+    public IReadOnlyDictionary<ErrorCode, string> Templates => _templates;
+    private readonly ReadOnlyDictionary<ErrorCode, string> _templates =
+        overrides != null
+        ? overrides.AsReadOnly()
+        : templates.AsReadOnly();
 
+    protected virtual string? TryGetTemplate(ErrorCode code)
+    {
+        return _templates.TryGetValue(code, out var v) ? v : null;
+    }
     public string GetMessage(ErrorCode code, params ReadOnlySpan<object> args)
     {
-        if (!_templates.TryGetValue(code, out var template))
-            throw new InvalidOperationException($"No message template for error code {code}");
+        var template = TryGetTemplate(code)
+            ?? throw new InvalidOperationException($"No message template for error code {code}");
         return string.Format(template, args);
     }
 }

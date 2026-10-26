@@ -86,7 +86,7 @@ public unsafe sealed class NativeMemoryBuffer : IDisposable
 
     public void Dispose()
     {
-        if (Volatile.Read(ref _disposed))
+        if (!Volatile.Read(ref _disposed))
         {
             Volatile.Write(ref _disposed, true);
             NativeMemory.Free(_ptrRam);

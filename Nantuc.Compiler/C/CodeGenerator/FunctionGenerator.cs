@@ -113,7 +113,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                                        EvaluateConstant(bin.Right, structTable),
                                        bin.Operator),
         SizeofTypeNode st => GetSizeofTypeConstant(st, structTable),
-        _ => ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported,
+        _ => ThrowCompiler.Throw<long>(ErrorCode.NotSupported,
                  $"Non-constant initializer in array: {node.GetType().Name}")
     }; 
     
@@ -123,7 +123,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         if (structTable.TryGetValue(st.TypeName, out var layout)) return layout.Size;
         if (CodeGenUtils.IsPrimitiveType(st.TypeName))
             return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(st.TypeName));
-        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownTypeSize, st.TypeName);
+        ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownTypeSize, st.TypeName);
         return 0;
     }
 
@@ -137,7 +137,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                                                        EvaluateConstant(bin.Left),
                                                        EvaluateConstant(bin.Right),
                                                        bin.Operator),
-        _ => ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported,
+        _ => ThrowCompiler.Throw<long>(ErrorCode.NotSupported,
                  $"Non-constant initializer in array: {node.GetType().Name}")
     };
     private void GenerateGlobalInit(ProgramNode program)
@@ -181,12 +181,16 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
 
         bool isMain = func.Name == "main";
         int stackAlloc = funcCtx.TotalLocalSize + funcCtx.SaveAreaSize;
+        var savedRegs = funcCtx.UsedRegisters
+           .OrderBy(r => (int)r)
+           .ToList();
 
         if (!isMain)
         {
-            foreach (var reg in funcCtx.UsedRegisters.OrderBy(r => (int)r))
+            foreach (var reg in savedRegs)
                 _asm.EmitPush(reg);
         }
+
         // Пролог
         if (stackAlloc > 0)
         {
@@ -203,7 +207,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                 {
                     RegType incomingReg = (RegType)i;
                     if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc))
-                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+                        ThrowCompiler.Throw(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
                     if (loc.IsRegister)
                     {
                         if (loc.Register != incomingReg)
@@ -219,7 +223,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                 else
                 {
                     if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc) || !loc.IsRegister)
-                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+                        ThrowCompiler.Throw(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
                     string globalName = $"__param_{func.Name}_{param.Name}";
                     string label = GlobalMemoryManager.GetLabel(globalName);
                     OpCodeSize size = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type);
@@ -241,11 +245,13 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                 _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)stackAlloc);
                 _asm.EmitAdd(RegType.rSP, CodeGenUtils.ADDR_SCRATCH_REG_EN);
             }
-            for (int i = funcCtx.UsedRegisters.Count - 1; i >= 0; i--)
-                _asm.EmitPop(funcCtx.UsedRegisters[i]);
+
+            for (int i = savedRegs.Count - 1; i >= 0; i--)
+                _asm.EmitPop(savedRegs[i]);
+
             _asm.EmitRet();
         }
-        
+
     }
 
     private static void CollectLocalVars(BlockNode block, Dictionary<string, VariableNode> map)

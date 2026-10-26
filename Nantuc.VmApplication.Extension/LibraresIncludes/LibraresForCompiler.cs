@@ -34,7 +34,7 @@ public static class Librare
 
     public const string alloc_minic =
         """
-        #include "heap.nanasm"
+                #include "heap.nanasm"
 
         extern ulong HeapGet();
         extern void  HeapSet(ulong ptr);
@@ -43,75 +43,156 @@ public static class Librare
         extern void  Store64(ulong addr, ulong value);
 
         // =====================================================================
-        // First-fit аллокатор с минимальным использованием callee-saved регистров.
+        // First-fit аллокатор с split'ом и coalescing'ом.
         //
-        // ВАЖНО: обходной путь для бага кодогенерации MiniC — если функция
-        // держит 3-4 переменные в r5..r8, компилятор генерирует несимметричный
-        // push/pop и портит r5/r6 у вызывающего. Поэтому всё, что живёт через
-        // вызовы функций, храним в глобалах, а в регистрах — максимум 1–2.
+        // Раскладка блока (всё выровнено на 8, size кратен 8):
+        //   +0..7    : size | FREE_BIT(бит0)        — заголовок
+        //   +8..15   : next_free (только для free)  — либо начало payload
+        //   +16..sz-8: продолжение payload / unused
+        //   +sz-8..sz: size | FREE_BIT(бит0)        — футер (для слияния влево)
         //
-        // Формат блока (заголовок 16 байт, выравнивание 8):
-        //   +0..7  : размер блока в байтах включая заголовок (кратен 8)
-        //   +8..15 : next — указатель на следующий свободный блок
-        //   +16..  : пользовательские данные
+        //   payload у пользователя начинается с +8.
+        //   Минимальный блок: 24 байта (8 hdr + 8 payload + 8 ftr).
         // =====================================================================
 
-        ulong heapFreeList = 0;   // голова free-list
-        ulong heapPrev     = 0;   // prev для поиска в free-list
-        ulong heapNeed     = 0;   // требуемый размер в alloc
-        ulong heapResult   = 0;   // результат allocSearch
-        ulong heapHP       = 0;   // временное хранение rHP в alloc
+        ulong heapFreeList;   // голова free-list
+        ulong heapCur;        // вершина bump'а (== rHP)
+        ulong heapStart;      // первый блок (для остановки coalesce влево)
 
-        // Tail-recursive поиск в free-list. В callee-saved — только `curr`
-        // (плюс `next` на коротком участке до Store64). Максимум 2 → как в free.
-        ulong allocSearch(ulong curr)
+        ulong FREE_BIT  = 1;
+        ulong MIN_BLOCK = 24;
+
+        ulong blkSize(ulong b) { return Load64(b) & ~FREE_BIT; }
+        ulong blkFree(ulong b) { return Load64(b) & FREE_BIT; }
+
+        void blkMark(ulong b, ulong size, int isFree)
         {
-            if (curr == 0) return 0;
+            ulong v = size;
+            if (isFree) v = v | FREE_BIT;
+            Store64(b, v);              // header
+            Store64(b + size - 8, v);   // footer
+        }
 
-            if (Load64(curr) >= heapNeed)
+        // Удаляет блок из free-list (поиск с головы).
+        void blkRemove(ulong b)
+        {
+            ulong prev = 0;
+            ulong curr = heapFreeList;
+            while (curr != 0 && curr != b)
             {
-                ulong next = Load64(curr + 8);
-                if (heapPrev == 0) heapFreeList = next;
-                else               Store64(heapPrev + 8, next);
-                Store64(curr + 8, 0);
-                return curr + 16;
+                prev = curr;
+                curr = Load64(curr + 8);
             }
+            if (curr == 0) return;
 
-            heapPrev = curr;
-            return allocSearch(Load64(curr + 8));
+            ulong next = Load64(b + 8);
+            if (prev == 0) heapFreeList = next;
+            else           Store64(prev + 8, next);
+            Store64(b + 8, 0);
+        }
+
+        void blkPush(ulong b)
+        {
+            Store64(b + 8, heapFreeList);
+            heapFreeList = b;
+        }
+
+        // Слить b с правым соседом, если тот свободен.
+        ulong mergeRight(ulong b)
+        {
+            ulong sz = blkSize(b);
+            ulong nb = b + sz;
+            if (nb >= heapCur)    return b;   // дальше bump не продвинулся
+            if (blkFree(nb) == 0) return b;   // правый занят
+
+            blkRemove(nb);
+            blkMark(b, sz + blkSize(nb), 1);
+            return b;
+        }
+
+        // Слить b с левым соседом, если тот свободен.
+        ulong mergeLeft(ulong b)
+        {
+            if (b <= heapStart) return b;
+
+            ulong pf  = Load64(b - 8);          // футер левого соседа
+            ulong psz = pf & ~FREE_BIT;
+            if ((pf & FREE_BIT) == 0) return b; // левый занят
+
+            ulong p = b - psz;
+            blkRemove(p);
+            blkMark(p, psz + blkSize(b), 1);
+            return p;
+        }
+
+        void heapInit()
+        {
+            if (heapCur != 0) return;
+            ulong hp = HeapGet();
+            if (hp == 0) hp = 0x100000;
+            hp = (hp + 7) & ~7;
+            heapCur   = hp;
+            heapStart = hp;
         }
 
         ulong alloc(ulong size)
         {
-            if (size == 0) size = 8;
-            heapNeed = ((size + 7) / 8) * 8 + 16;   // size умирает здесь
-            heapPrev = 0;
+            if (size == 0) size = 1;
+            ulong need = ((size + 7) / 8) * 8 + 16;   // payload + hdr + ftr
+            if (need < MIN_BLOCK) need = MIN_BLOCK;
+            heapInit();
 
-            // --- 1. free-list ---
-            heapResult = allocSearch(heapFreeList);
-            if (heapResult != 0) return heapResult;
+            // ---- 1. free-list (first fit) + split ----
+            ulong prev = 0;
+            ulong curr = heapFreeList;
+            while (curr != 0)
+            {
+                ulong csz = blkSize(curr);
+                if (csz >= need)
+                {
+                    ulong next = Load64(curr + 8);
+                    if (prev == 0) heapFreeList = next;
+                    else           Store64(prev + 8, next);
+                    Store64(curr + 8, 0);
 
-            // --- 2. bump ---
-            heapHP = HeapGet();
-            if (heapHP == 0) heapHP = 0x100000;
+                    if (csz - need >= MIN_BLOCK)
+                    {
+                        ulong rest = curr + need;
+                        blkMark(rest, csz - need, 1);
+                        blkPush(rest);
+                        blkMark(curr, need, 0);
+                    }
+                    else
+                    {
+                        blkMark(curr, csz, 0);
+                    }
+                    return curr + 8;                  // payload
+                }
+                prev = curr;
+                curr = Load64(curr + 8);
+            }
 
-            if (heapHP + heapNeed > GetSP()) return 0;
+            // ---- 2. bump ----
+            ulong sp = GetSP();
+            if (heapCur + need > sp) return 0;
 
-            HeapSet(heapHP + heapNeed);
-            Store64(heapHP,      heapNeed);
-            Store64(heapHP + 8,  0);
-            return heapHP + 16;
+            ulong b   = heapCur;
+            heapCur   = heapCur + need;
+            blkMark(b, need, 0);
+            HeapSet(heapCur);
+            return b + 8;
         }
 
         void free(ulong ptr)
         {
             if (ptr == 0) return;
-            ulong block = ptr - 16;
-            Store64(block + 8, heapFreeList);
-            heapFreeList = block;
+            ulong b = ptr - 8;
+            blkMark(b, blkSize(b), 1);
+            b = mergeRight(b);
+            b = mergeLeft(b);
+            blkPush(b);
         }
         """;
-
     public const string io_nanasm = """
 
     func_In:
@@ -142,8 +223,20 @@ public static class Librare
         flush();
     }
 
+    void print16(char* str) {
+        int i = 0;
+        while (str[i] != '\0') {
+            write16(str[i]);
+            i = i + 1;
+        }
+        flush();
+    }
     void write8(byte c) {
         Out(c, portWrite);
+    }
+    void write16(char c) {
+        write8(c);
+        write8(c >> 8);
     }
 
     void flush() {

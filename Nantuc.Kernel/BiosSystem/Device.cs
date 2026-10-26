@@ -113,7 +113,7 @@ public sealed class Device : IPortController
 
         onLaunch?.Invoke();
 
-        ulong startIndex = start ?? _ram.Length;
+        ulong startIndex = start ?? 0;
         stepCounter = 0;
 
         _processor.LaunchProgramm(startIndex);
@@ -231,8 +231,10 @@ public sealed class Device : IPortController
             }
             if (stepCounter >= stepLimit)
             {
-                _processorFaultPolicy.ShouldContinue(new(BiosStatus.InfinityLoop, (ulong)stepCounter, _processor.GetRegValue(RegType.rIP), (OpCode)255));
-                break;
+                if (_processorFaultPolicy.ShouldContinue(new(BiosStatus.InfinityLoop, (ulong)stepCounter, _processor.GetRegValue(RegType.rIP), (OpCode)255)))
+                {
+                    Stop();
+                }
             }
             onStep?.Invoke(_processor.GetCurrentProcessorReader());
             if (useSleepMode) Thread.Sleep(delay);

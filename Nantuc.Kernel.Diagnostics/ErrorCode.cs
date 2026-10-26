@@ -36,6 +36,8 @@ public enum ErrorCode
     CodeGen_ParameterNotInRegister = 1311,
     CodeGen_UnknownPointedType = 1312,
     CodeGen_DirectStructLoadStore = 1313,
+    CodeGen_BreakOutsideLoop = 1314,
+    CodeGen_ContinueOutsideLoop = 1315,
 
     // Ассемблер
     Asm_UndefinedLabel = 1400,
@@ -43,6 +45,4 @@ public enum ErrorCode
     Asm_InvalidInstruction = 1402,
     Asm_UnknownRegister = 1403,
     Asm_UnknownMnemonic = 1404,
-    CodeGen_BreakOutsideLoop = 1405,
-    CodeGen_ContinueOutsideLoop = 1406,
 }

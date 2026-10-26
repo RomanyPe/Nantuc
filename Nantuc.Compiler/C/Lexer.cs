@@ -89,7 +89,7 @@ public class Lexer(string source)
                 continue;
             }
 
-            ThrowHelper.ThrowMiniC(ErrorCode.Lexer_UnexpectedCharacter, c, _line, _column);
+            ThrowCompiler.Throw(ErrorCode.Lexer_UnexpectedCharacter, c, _line, _column);
         }
 
         _tokens.Add(new Token(TokenType.EOF, "", _line, _column));
@@ -162,7 +162,7 @@ public class Lexer(string source)
         while (_position < _source.Length)
         {
             char c = _source[_position];
-            if (char.IsDigit(c) || (isHex && (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+            if (char.IsDigit(c) || (isHex && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))))
             {
                 _position++;
                 _column++;

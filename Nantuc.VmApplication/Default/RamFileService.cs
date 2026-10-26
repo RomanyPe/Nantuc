@@ -12,7 +12,7 @@ public class RamFileService : IFileService
 
     public IEnumerable<string> GetNameFiles(IProjectFilesConfig path)
     {
-        return _files.Keys.Where(file => !file.StartsWith(path.IncludePath) && IsCorrectly(file, path));
+        return _files.Keys.Where(file => !file.StartsWith(path.IncludePath, StringComparison.Ordinal) && IsCorrectly(file, path));
     }
 
     private static bool IsCorrectly(string file, IProjectFilesConfig filesConfig)
@@ -23,7 +23,7 @@ public class RamFileService : IFileService
     {
         foreach (var ext in extensions)
         {
-            if (file.EndsWith(ext)) return true;
+            if (file.EndsWith(ext, StringComparison.Ordinal)) return true;
         }
         return false;
     }

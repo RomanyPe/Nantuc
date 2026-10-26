@@ -61,7 +61,7 @@ public class StructLayout
         } while (remaining.Count > 0 && lastResolved > 0);
 
         if (remaining.Count > 0)
-            ThrowHelper.ThrowMiniC(ErrorCode.Parser_StructNotDefined,string.Join(", ", remaining.Select(d => d.Name)));
+            ThrowCompiler.Throw(ErrorCode.Parser_StructNotDefined,string.Join(", ", remaining.Select(d => d.Name)));
         return layouts;
     }
 

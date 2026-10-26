@@ -21,7 +21,7 @@ public static class CodeGenUtils
         "ushort" or "char" or "short" => OpCodeSize.S16,
         "ulong" or "long" => OpCodeSize.S64,
         "int" or "uint" => OpCodeSize.S32,
-        _ => ThrowHelper.ThrowMiniC<OpCodeSize>(ErrorCode.CodeGen_UnknownTypeSize, type!)
+        _ => ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownTypeSize, type!)
     };
 
     public static int GetSizeInBytes(OpCodeSize size) => size switch
@@ -30,7 +30,7 @@ public static class CodeGenUtils
         OpCodeSize.S16 => 2,
         OpCodeSize.S32 => 4,
         OpCodeSize.S64 => 8,
-        _ => ThrowHelper.ThrowMiniC<int>(ErrorCode.CodeGen_UnknownOpCodeSize, (int)size)
+        _ => ThrowCompiler.Throw<int>(ErrorCode.CodeGen_UnknownOpCodeSize, (int)size)
     };
 
     public static void EmitMultiplyByConstant(this AssemblerBase asm, RegType reg, int multiplier)
@@ -68,7 +68,7 @@ public static class CodeGenUtils
     public static StructLayout GetStructLayout(string type, Dictionary<string, StructLayout> structTable)
         => structTable.TryGetValue(type, out var layout) 
         ? layout 
-        : ThrowHelper.ThrowMiniC<StructLayout>(ErrorCode.CodeGen_UnknownStructType, type);
+        : ThrowCompiler.Throw<StructLayout>(ErrorCode.CodeGen_UnknownStructType, type);
 
     public static bool IsPrimitiveType(string type) => type switch
     {

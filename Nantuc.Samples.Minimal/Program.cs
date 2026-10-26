@@ -12,7 +12,7 @@ const string source1 =
     char str[] = "Hello world";
 
     void main() {
-        print8(str);
+        print16(str);
     }    
     """;
 
@@ -30,7 +30,7 @@ var handle = DeviceSpec.Create(
     name: "ConsoleVM"
 );
 
-var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
+var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf16);
 
 int deviceId = host.Emulator.RegisterDevice(handle: handle, sector: 0);
 host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);

@@ -1,6 +1,5 @@
 ﻿using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Kernel.Common;
-using Nantuc.Samples.Scratch;
 using Nantuc.Samples.Scratch.SnakeGame;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
@@ -12,46 +11,52 @@ using Nantuc.VmApplication.Extensions.LibraresIncludes;
 
 const string source1 =
     """
-#include "alloc.minic"
+    #include "alloc.minic"
 
-int main() {
-    // 1. Базовое выделение
-    ulong a = alloc(16);
-    ulong b = alloc(16);
-    if (a == 0 || b == 0) return 1;
-    if (a == b)           return 2;
+    int main() {
+        ulong a = alloc(16);
+        ulong b = alloc(16);
+        if (a == 0 || b == 0) return 1;
+        if (a == b)           return 2;
 
-    // 2. Store / Load
-    Store64(a, 111);
-    Store64(b, 222);
-    if (Load64(a) != 111) return 3;
-    if (Load64(b) != 222) return 4;
+        Store64(a, 111);
+        Store64(b, 222);
+        if (Load64(a) != 111) return 3;
+        if (Load64(b) != 222) return 4;
 
-    // 3. free + переиспользование (LIFO — вернётся тот же адрес)
-    free(a);
-    ulong c = alloc(16);
-    if (c != a) return 5;
-    Store64(c, 333);
-    if (Load64(c) != 333) return 6;
+        free(a);
+        ulong c = alloc(16);
+        if (c != a) return 5;          // free-list вернул тот же блок
+        Store64(c, 333);
+        if (Load64(c) != 333) return 6;
+        if (Load64(b) != 222) return 7; // сосед не тронут
 
-    // 4. Соседний блок b не тронут
-    if (Load64(b) != 222) return 7;
+        free(b);
+        free(c);
 
-    free(b);
-    free(c);
-
-    // 5. Несколько итераций alloc/Load без free — сумма = 1+2+3+4
-    ulong s = 0;
-    ulong i = 0;
-    while (i < 4) {
-        ulong p = alloc(8);
-        Store64(p, i + 1);
-        s = s + Load64(p);
-        i = i + 1;
+        // bump после освобождений + split
+        ulong s = 0;
+        ulong i = 0;
+        while (i < 4) {
+            ulong p = alloc(8);
+            Store64(p, i + 1);
+            s = s + Load64(p);
+            i = i + 1;
+        }
+        return s;   // 10
     }
-    return s;   // 10
+    """;
+
+if (args.Length >= 2 && args[0] == "-snake")
+{
+    int period = int.TryParse(args[1], out int res) && res > 0
+        ? res
+        : 200;
+
+    var game = new SnakeLauncher(period);
+    game.LaunchSnake();
+    return;
 }
-""";
 
 using var host = VmHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);

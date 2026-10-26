@@ -1,0 +1,20 @@
+{
+  "profiles": {
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
+    },
+    "Game": {
+      "commandName": "Project",
+      "commandLineArgs": "-snake 150",
+      "environmentVariables": {
+        "-snake": "150"
+      },
+      "debugEngines": "managed"
+    },
+    "Default": {
+      "commandName": "Project",
+      "debugEngines": "managed"
+    }
+  }
+}

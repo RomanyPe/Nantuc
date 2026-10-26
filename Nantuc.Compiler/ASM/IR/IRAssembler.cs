@@ -26,7 +26,7 @@ public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
                 }
                 currentPos++;
             }
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_DuplicateLabel, name, existingPos);
+            ThrowCompiler.Throw(ErrorCode.Asm_DuplicateLabel, name, existingPos);
             return;
         }
         _items.Add(new AsmLabel(name));
@@ -44,7 +44,7 @@ public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
         var op = InstructionDecoder.GetOpCode(instruction);
         if (!InstructionDecoder.HasNeed64IntData(op))
         {
-            ThrowHelper.ThrowMiniC(ErrorCode.Asm_InvalidInstruction, op);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, op);
         }
         _items.Add(new AsmInstruction(instruction, data));
     }
@@ -144,7 +144,7 @@ public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
                             if (instr.IsJump)
                             {
                                 if (!labelAddresses.TryGetValue(instr.TargetLabel!, out var targetAddr))
-                                    ThrowHelper.ThrowMiniC(ErrorCode.Asm_UndefinedLabel, instr.TargetLabel!, 0);
+                                    ThrowCompiler.Throw(ErrorCode.Asm_UndefinedLabel, instr.TargetLabel!, 0);
                                 data = targetAddr;
                             }
                             else

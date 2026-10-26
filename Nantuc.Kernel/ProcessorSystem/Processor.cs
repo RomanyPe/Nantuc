@@ -770,7 +770,7 @@ public sealed class Processor(MemoryBus ram,
         var result = _portBus.ReadPort(portAddress);
         if (result.Status != BiosStatus.Success)
         {
-            _lastFaultData = _ram.FaultData;
+            _lastFaultData = portAddress;
             return result.Status;
         }
 
@@ -785,7 +785,7 @@ public sealed class Processor(MemoryBus ram,
         var status = _portBus.WritePort(portAddress, value);
         if (status != BiosStatus.Success)
         {
-            _lastFaultData = _ram.FaultData;
+            _lastFaultData = portAddress;
             return status;
         }
         // Флаги обычно не меняются при выводе, но можно обновить по желанию

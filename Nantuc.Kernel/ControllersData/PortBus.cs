@@ -74,7 +74,7 @@ public sealed class PortBus : IPortBus
         var (device, offset) = ResolveAddress(address);
         return device != null
             ? new(device.ReadPort(offset))
-            : new((byte)address, BiosStatus.NullDeviceInput);
+            : new(0, BiosStatus.NullDeviceInput);
     }
 
     public BiosStatus WritePort(ulong address, byte value)

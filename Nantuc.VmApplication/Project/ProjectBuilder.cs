@@ -97,7 +97,7 @@ public static class ProjectBuilder
 
                 case SourceLanguage.None:
                 default:
-                    ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"extension for include \"{inc}\""); 
+                    ThrowCompiler.Throw(ErrorCode.NotSupported, $"extension for include \"{inc}\""); 
                     break;
             }
         }

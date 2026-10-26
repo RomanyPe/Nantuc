@@ -1,668 +1,327 @@
-# Nantuc — Virtual Machine & Emulator Platform
+# Nantuc
 
-> !ВАЖНО! Статус: платформа/тулкит, не фреймворк. API не гарантирует semver.
+> Платформа для выполнения байткода с собственным языком MiniC (почти полноценный C), ассемблером NANASM, компилятором, виртуальной машиной и публичным API для встраивания.  
+> Написана на C# (.NET 10). Компилятор и рантайм разделены по слоям, unsafe-код изолирован в ядре, публичный API — тонкий фасад.
 
-> Для лучшей читаемости доменный префикс `Nantuc.` убран, но держите в голове что он используется
+Nantuc — это мини-фреймворк, в котором есть всё, что нужно для запуска программы на C-подобном языке: лексер, парсер, AST-оптимизатор, кодогенератор в байткод, ассемблер (текстовый и IR), виртуальная машина с регистрами, памятью и порт-шиной, дизассемблер, I/O-устройства и API для встраивания в приложение. Проект вырос до 12 тысяч строк, индекс поддерживаемости по метрикам Visual Studio — 80–96 из 100. В репозитории есть играбельная змейка на MiniC, тест аллокатора и бенчмарк VM.
 
-Платформа для сборки, компиляции и исполнения виртуальных машин с собственным байт-кодом,
-компилятором C-подобного языка (MiniC) и ассемблером (NANASM), плюс секторно-адресуемая шина
-портов для IO и меж-устройственного взаимодействия.
+## Содержание
+- [Ключевые особенности](#ключевые-особенности)
+- [Быстрый старт](#быстрый-старт)
+- [Архитектура](#архитектура)
+- [Структура репозитория](#структура-репозитория)
+- [Модули](#модули)
+- [Языки и ISA](#языки-и-isa)
+- [Требования](#требования)
+- [Сборка и запуск](#сборка-и-запуск)
+- [Примеры](#примеры)
+- [Метрики и качество](#метрики-и-качество)
+- [Статус и планы](#статус-и-планы)
+- [Вклад](#вклад)
+- [Лицензия](#лицензия)
 
-Название «Kernel» в проектах `Kernel.*` — историческое. По сути это **общие (публичные)
-контракты и примитивы** платформы, а не ядро. Настоящее ядро-исполнитель живёт в проекте
-`Kernel` и наружу не выставляется.
+## Ключевые особенности
 
----
+- **Два языка**: MiniC (C-подобный: структуры, указатели, массивы, `sizeof`, inline `asm`, `extern`, `#include`) и NANASM (ассемблер с метками и размерными суффиксами).
+- **Компилятор с нуля**: лексер, рекурсивный парсер, AST, жадная раскраска регистров, кодогенерация в 32-битный байткод, AST- и peephole-оптимизации.
+- **VM с изолированным `unsafe`**: нативная RAM через `NativeMemory`, регистры в `InlineArray` (без аллокаций на шаг), порт-шина с маршрутизацией `address → (device, offset)`.
+- **Устройства как first-class**: VM сама является устройством (`IPortController`) — можно вкладывать VM друг в друга, подключать UART, мониторы, клавиатуры.
+- **Публичный API без хаков**: `VmHost` / `DeviceContext` / `VmHostProject` — весь unsafe и нативные буферы спрятаны в `Nantuc.Kernel`.
+- **Дизассемблер** с секциями кода и данных, текстовый и структурный.
+- **Стандартные оптимизации** (AST и peephole) и инфраструктура для своих правил.
+- **Бенчмарк** с 12 кейсами: память (safe/unsafe), ALU (ILP и без), вызовы, стек, битовые операции, умножение, ветвления. MIPS, перцентили, CV, JIT-impact.
 
+## Быстрый старт
 
-
-# Слои:
-```
-┌────────────────────────────────────────────────────────────────────┐
-│  Tests                                                             │
-│  Samples.Minimal, Benchmarks                                       │
-└────────────────────────────────────────────────────────────────────┘
-                              │
-┌────────────────────────────────────────────────────────────────────┐
-│  VMApplication.Extensions                                          │
-│  Готовые peephole-правила, AST-правила, IO-устройства, host-helpers│
-└────────────────────────────────────────────────────────────────────┘
-                              │
-┌────────────────────────────────────────────────────────────────────┐
-│  VMApplication                                                     │
-│  VMHost, VMHostFactory, VMEmulator, DeviceContext, ProjectBuilder, │
-│  компилятор-фасад, оптимизатор-фасады, IFileService и прочее       │
-└────────────────────────────────────────────────────────────────────┘
-                              │
-┌────────────────────────────────────────────────────────────────────┐
-│  Kernel                       │  Compiller                         │
-│  Processor, Device,           │  Lexer, Parser, CodeGen,           │
-│  MemoryBus, PortBus,          │  Assembler, Disassembler,          │
-│  ManagerDevices, Emulator     │  AstOptimizer, PeepholeOptimizer   │
-└────────────────────────────────────────────────────────────────────┘
-                              │
-┌────────────────────────────────────────────────────────────────────┐
-│  Kernel.Common                │  Kernel.Contracts                  │
-│  RegType, OpCode, RamSize,    │  IPortController, IProcessorReader,│
-│  PortSize, BiosStatus,        │  IProcessorFaultPolicy,            │
-│  LogLevel, InstructionDecoder │  IDeviceLoggerContext,             │
-│                               │  ISimulationResult, OptimizationId │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-`Kernel.Common` и `Kernel.Contracts` — публичные. Они специально выделены в отдельные проекты, чтобы истинное ядро (`Kernel`) не утекало наружу.
-Ссылаться на них — нормально.
-
----
-
-# Бытсрый старт
+Минимальный пример — компиляция и запуск `Hello world` на MiniC с выводом через UART:
 
 ```csharp
-using Nantuc.VmAplication;
-using Nantuc.VmAplication.Project;
+using Nantuc.Kernel.Common;
+using Nantuc.VmApplication;
+using Nantuc.VmApplication.Emulator;
+using Nantuc.VmApplication.Extensions.Emulator.IO;
+using Nantuc.VmApplication.Extensions.Host;
+using Nantuc.VmApplication.Extensions.LibraresIncludes;
 
 const string source =
-"""
-    LDI r0, 1
-    LDI r1, 100
-    ADD r0, r1
-    END
-""";
+    """
+    #include "print.minic"
+    char str[] = "Hello world";
+    void main() { print16(str); }
+    """;
 
-using var host = VMHostFactory.CreateDefault();
+using var host = VmHostFactory.CreateDefault();
+host.Project.SaveFileProject("main.minic", source);
+host.Project.SaveFileInclude("io.nanasm", Librare.io_nanasm);
+host.Project.SaveFileInclude("print.minic", Librare.print_minic);
 
-var comp = host.Project.Compiler.CompileToIL(source, 0, optimize: true, SourceLanguage.Asm).Build();
+int vmId = host.Emulator.RegisterDevice(
+    DeviceSpec.Create(RamSize.MB128, name: "ConsoleVM"), sector: 0);
+host.Emulator.RegisterDevice(
+    new QueuedIOStream(Console.Out, PortCharEncoding.Utf16), name: "console", sector: 1);
 
-if (!comp.Success)
-{
-    foreach (var err in comp.Errors!) Console.WriteLine(err);
-    return;
-}
+var ctx = host.Emulator.GetDeviceContext(vmId)!;
+var compilation = host.Project.CompileToIL(baseAddress: 0, optimize: true).Build();
+if (!compilation.Success) { foreach (var e in compilation.Errors!) Console.WriteLine(e); return; }
+if (!ctx.TryFastLoadProgram(compilation.Program!, 0, out var error)) { Console.WriteLine(error); return; }
 
-var handle = DeviceSpec.Create(
-    ramSize: RamSize.MB128,
-    name: "ConsoleVM"
-);
-int id = host.Emulator.RegisterDevice(handle: handle, sector: 0);
-var ctx = host.Emulator.GetDeviceContext(id)!;
-
-ctx.TryFastLoadProgram(comp.Program!, 0, out var error);
 ctx.Run();
-// Dispose у host сам уберёт устройство.
 ```
 
-# Работа платформы
+Подробный разбор — в [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md).
 
-## Что такое `VMHost`
-`VMHost` — это фасад всей ВМ. Он объединяет три подсистемы:
+## Архитектура
 
- - `VMHostProject` — компилятор (`CompileToIL`, `Compile`) и файловый сервис.
- - `VMEmulator` — реестр устройств, `PortBus`, создание/удаление `Device`.
- - `VMHostLogger` — единая точка логов.
+Слои идут снизу вверх. Каждый следующий зависит только от предыдущих, обратных зависимостей нет.
 
-## Управление жизненным циклом
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Nantuc.Samples.Minimal   Nantuc.Samples.Scratch   Nantuc.Benchmarks  │
+│  (примеры и конечные продукты)                                       │
+└──────────────────────────────────────────────────────────────────────┘
+                              │
+┌──────────────────────────────────────────────────────────────────────┐
+│  Nantuc.VmApplication.Extensions                                     │
+│  (дизассемблер, I/O, стандартные оптимизации, библиотеки, утилиты)   │
+└──────────────────────────────────────────────────────────────────────┘
+                              │
+┌──────────────────────────────────────────────────────────────────────┐
+│  Nantuc.VmApplication                                                │
+│  (VmHost, DeviceContext, VmEmulator, VmHostProject, CompilationResult)│
+└──────────────────────────────────────────────────────────────────────┘
+              │                                │
+┌──────────────────────────┐    ┌──────────────────────────────────────┐
+│  Nantuc.Compiler         │    │  Nantuc.Kernel                       │
+│  (MiniC + NANASM)        │    │  (Processor, MemoryBus, PortBus,     │
+│                          │    │   Device, ManagerDevices)            │
+└──────────────────────────┘    └──────────────────────────────────────┘
+              │                                │
+┌──────────────────────────────────────────────────────────────────────┐
+│  Nantuc.Kernel.Contracts                                             │
+│  (IPortBus, IPortUse, IPortController, IProcessorReader, ...)        │
+└──────────────────────────────────────────────────────────────────────┘
+              │                                │
+┌──────────────────────────────────────────────────────────────────────┐
+│  Nantuc.Kernel.Common            Nantuc.Kernel.Diagnostics           │
+│  (ISA, размеры, BiosStatus)      (ErrorCode, ThrowCompiler)          │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-- VMHost реализует IDisposable. При Dispose он сам убирает все устройства и освобождает их память.
-- Если хост и устройство живут одинаково долго — не нужно вызывать RemoveDevice вручную.
-- Не рекомендуется вызывать Dispose у DeviceContext вручную, если устройство принадлежит хосту. 
-Это приведёт либо к двойному Dispose (если ваш класс это не защищает), либо к попытке хоста убрать 
-уже освобождённое устройство.
+Обратите внимание:
+- **`Kernel.Diagnostics` не зависит ни от одного проекта Nantuc.** Это сделано намеренно: автор компилятора не тянет unsafe-ядро ради кодов ошибок.
+- **Компилятор не зависит от рантайма.** `Nantuc.Compiler` знает только про `Kernel.Common` (ISA) и `Kernel.Diagnostics` (ошибки), но не про `Processor`/`MemoryBus`.
+- **VMApplication — единственный модуль, который одновременно знает про компилятор и рантайм.** Именно он склеивает «скомпилировать» и «запустить».
 
-### ВАЖНО!
+## Структура репозитория
 
-Метод `VMHostFactory.CreateDefault()` создает хоста с стандартными сервисами (они подходят для в основном только для простых задач), если нужно более точная настройка
-используйте билдеры.
+```
+Nantuc/
+├── Nantuc.Kernel.Common/              # ISA, размеры, BiosStatus, ProcessorFault
+├── Nantuc.Kernel.Contracts/           # публичные контракты (порты, процессор)
+├── Nantuc.Kernel.Diagnostics/         # ErrorCode, ThrowCompiler, CodeException
+├── Nantuc.Kernel/                     # реализация CPU, RAM, PortBus, Device
+├── Nantuc.Compiler/                   # MiniC + NANASM (frontend, backend, ASM, оптимизации)
+├── Nantuc.VmApplication/              # основной API
+├── Nantuc.VmApplication.Extensions/   # дизассемблер, I/O, оптимизации, библиотеки
+├── Nantuc.Samples.Minimal/            # Hello world
+├── Nantuc.Samples.Scratch/            # тест аллокатора + змейка
+└── Nantuc.Benchmarks/                 # бенчмарк VM
+```
 
-Этот метод показан как пример проверки работоспособности с минимальным возможным кодом. Но лучше использовать свои сервисы.
+## Модули
+
+| Модуль | Назначение | Кому |
+|---|---|---|
+| [`Nantuc.Kernel.Common`](Nantuc.Kernel.Common/README.md) | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, декодер инструкций | Авторы компилятора, расширений, дизассемблера |
+| [`Nantuc.Kernel.Contracts`](Nantuc.Kernel.Contracts/README.md) | `IPortBus`, `IPortUse`, `IPortController`, `IProcessorReader`, `IProcessorFaultPolicy`, `OptimizationId` | Авторы устройств и расширений |
+| [`Nantuc.Kernel.Diagnostics`](Nantuc.Kernel.Diagnostics/README.md) | `ErrorCode`, `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | Авторы компилятора, IDE, CI |
+| [`Nantuc.Kernel`](Nantuc.Kernel/README.md) | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices`, `Emulator`, `Device` | Встраивающий код, автор отладчика |
+| [`Nantuc.Compiler`](Nantuc.Compiler/README.md) | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer` | Автор IDE, автор правил оптимизации |
+| [`Nantuc.VmApplication`](Nantuc.VmApplication/README.md) | `VmHost`, `DeviceContext`, `VmEmulator`, `VmHostProject`, `CompilationResult`, `DeviceSpec` | Конечный пользователь платформы |
+| [`Nantuc.VmApplication.Extensions`](Nantuc.VmApplication.Extensions/README.md) | Дизассемблер, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Librare`, `RunAndKeep`/`RunOnce` | Автор IDE, автор игр, автор своих оптимизаций |
+| [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md) | Минимальный Hello world | Новый пользователь |
+| [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.md) | Тест аллокатора + змейка с монитором и клавиатурой | Пример игрового цикла и I/O |
+| [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.md) | Бенчмарк 12 кейсов с MIPS и статистикой | Автор ядра/компилятора |
+
+## Языки и ISA
+
+### MiniC
+
+C-подобный язык. Поддерживает:
+
+- Типы: `int`, `char`, `byte`, `ushort`, `short`, `ulong`, `long`, `uint`, `void`, `struct`.
+- Указатели (`*`, `&`, `->`), массивы (включая инициализаторы `{...}` и строковые литералы для `char[]`).
+- `if`/`else`, `while`, `for`, `do-while`, `break`, `continue`, `return`.
+- `sizeof(type)` и `sizeof(expr)`.
+- Inline-ассемблер `asm { ... }`.
+- `extern` для внешних функций (реализуются в NANASM).
+- `#include "file"` для C и ASM.
+- `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`.
+- Префиксные/постфиксные `++`/`--`.
+
+### NANASM
+
+Ассемблер с метками и размерными суффиксами для инструкций памяти:
+
+```asm
+start:
+    LDI r0, 0x10
+    LOAD.S64 r1, [r0]
+    ADD r1, r1
+    STORE.S64 [r0], r1
+    END
+```
+
+Поддерживаются `MOV`, `ADD`, `SUB`, `MULT_INT`, `DIV`, `MOD`, `SHR`, `SHL`, `AND`, `OR`, `XOR`, `NOT`, `INC`, `DEC`, `CMP`, `TEST`, `JMP`/`JZ`/`JNZ`/`JG`/`JL`, `CALL`/`RET`, `PUSH`/`POP`, `LOAD`/`STORE` и `*_IND`-варианты, `IN`/`OUT`, `HALT`/`WAKE`/`WAKE_INT`, `NOP`, `END`.
+
+### ISA (кратко)
+
+32-битная инструкция, little-endian:
+
+```
+бит:  31…20    | 19…18     | 17…13  | 12…8   | 7…0
+      spare    | OpCodeSize| Reg2   | Reg1   | OpCode
+```
+
+- 8 бит на опкод, 5 бит на регистр (32 регистра: `r0..r27`, `rFL`, `rSP`, `rHP`, `rIP`), 2 бита на размер (`S8`/`S16`/`S32`/`S64`).
+- Опкоды с immediate дополняются 8-байтным операндом с выравниванием до 8 (может быть до 4 байт паддинга).
+- Полная спецификация — в [`Nantuc.Kernel.Common`](Nantuc.Kernel.Common/README.md) и в `docs/bytecode.md` (по мере наполнения).
+
+## Требования
+
+- **.NET 10 SDK** (preview/GA — по состоянию на момент сборки). Все проекты таргетят `net10.0`.
+- **C# 14**: используются `extension`-блоки, `[InlineArray]`, `params ReadOnlySpan`, `field`-keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
+- **Windows / Linux / macOS**. В WASM работает `Kernel.Common`/`Contracts`/`Diagnostics`/`Compiler`, но `Nantuc.Kernel` требует `unsafe`, а `Nantuc.Benchmarks` — `Process`/P/Invoke.
+
+## Сборка и запуск
+
+**Собрать всё:**
+
+```bash
+dotnet build Nantuc.sln -c Release
+```
+
+**Запустить Hello world:**
+
+```bash
+dotnet run --project Nantuc.Samples.Minimal -c Release
+```
+
+**Запустить змейку** (заменив `Program.cs` на вызов `SnakeLauncher.LaunchSnake(period: 200)`):
+
+```bash
+dotnet run --project Nantuc.Samples.Scratch -c Release
+```
+
+Управление: стрелки — движение, `Q`/`Escape` — выход.
+
+**Запустить бенчмарк** (Linux: для `PriorityClass.High` нужен `sudo`):
+
+```bash
+dotnet run --project Nantuc.Benchmarks -c Release
+```
+
+Результаты сохраняются в `Nantuc.Benchmarks/bin/.../logs/result_Benchmark_Logs_{timestamp}.txt`.
+
+**Запустить тесты** (если есть тестовый проект):
+
+```bash
+dotnet test -c Release
+```
+
+## Примеры
+
+### Hello world (UTF-16 через UART)
+
+См. [`Nantuc.Samples.Minimal/README.md`](Nantuc.Samples.Minimal/README.md) — полный разбор `Program.cs`, объяснение портов `0x10`/`0x12` и `QueuedIOStream`.
+
+### Змейка
+
+См. [`Nantuc.Samples.Scratch/README.md`](Nantuc.Samples.Scratch/README.md) — `SnakeLauncher`, `MonochromeMonitor` (32×16), `KeyboardDevice`, HALT/WAKE-цикл, тикер, ANSI-рендер.
+
+### Тест аллокатора
+
+См. [`Nantuc.Samples.Scratch/README.md`](Nantuc.Samples.Scratch/README.md), `Program.cs` — `Librare.alloc_minic` (first-fit + free-list), проверка `return 10`, дамп регистров и дизассемблер RAM.
+
+### Своя игра / демо
 
 ```csharp
-using var host = VMHostFactory.CreateDefault();
-var handle = DeviceSpec.Create(
-    ramSize: RamSize.MB128,
-    name: "ConsoleVM"
-);
-int id = host.Emulator.RegisterDevice(handle: handle, sector: 0);
-// ... работа ...
-// Dispose у host сделает всё сам.
+using var host = VmHostFactory.CreateDefault();
+host.Project.SaveFileProject("main.minic", source);
+host.Project.SaveFileInclude("monitor.nanasm", LibCode.monitor_nanasm);
+
+int vmId = host.Emulator.RegisterDevice(
+    DeviceSpec.Create(RamSize.MB32, name: "MyVM"), sector: 0);
+host.Emulator.RegisterDevice(new MonochromeMonitor(64, 32, MyRenderer), "mon", sector: 1);
+
+var ctx = host.Emulator.GetDeviceContext(vmId)!;
+var comp = host.Project.CompileToIL(0, optimize: true).Build();
+if (comp.Success) { ctx.TryFastLoadProgram(comp.Program!, 0, out _); ctx.Run(); }
 ```
-Если устройство нужно убрать раньше хоста — используйте `host.Emulator.RemoveDevice(id)`. Он автоматически вызовет Dispose. Учитывайте это.
 
-## Компилятор
-
-Компилятор встроен в `VmAplication` и вызывается через `host.Project.Compiler`:
+### Своя оптимизация
 
 ```csharp
-CompilationResult il = host.Project.Compiler.CompileToIL(source, 0, optimize: true, SourceLanguage.C).Build();
-;
+using Nantuc.VmApplication.Extensions.Optimizators;
+
+host.Project.Optimizator.VMAstOptimizer.AddStdRules();
+host.Project.Optimizator.VMPeepholeOptimizer.AddStdRules();
+host.Project.Optimizator.VMAstOptimizer.Add(new MyCustomRule());
 ```
 
-### Поддерживается:
+## Метрики и качество
 
-- MiniC - C-подобный язык (`int`, `char`, `void`, `byte`, `ushort`, `ulong`, `struct`, `if`, `while`, `for`, `return`, `asm`, `extern`
-, указатели, массивы).
-- NANASM — ассемблер (`LDI`, `MOV`, `ADD`, `LOAD`, `STORE`, `JMP`, `CALL`, `IN`, `OUT`, `HALT` и т.д.).
-- **Inline asm** через `asm { ... }`.
+- **Размер кодовой базы**: около 12 000 строк.
+- **Индекс поддерживаемости (Visual Studio Code Metrics)**: 80–96 из 100 по основным модулям.
+- **Модульность**: 10 проектов с чёткими зависимостями, `unsafe` изолирован в `Nantuc.Kernel`, диагностика отделена в `Nantuc.Kernel.Diagnostics`.
+- **Публичный API**: `Nantuc.VmApplication` — единственный модуль, который нужен конечному пользователю. Остальное — опциональные расширения.
+- **Бенчмарк**: 12 кейсов, MIPS, перцентили, CV, trimmed mean, JIT-impact. Формат отчёта — в [`Nantuc.Benchmarks/README.md`](Nantuc.Benchmarks/README.md).
 
-### Важно про оптимизаторы
+## Статус и планы
 
-Оптимизаторы не заложены «**в коробку**». Встроенный компилятор работает без них. Чтобы включить:
+**Готово:**
+- MiniC (лексер, парсер, AST, кодогенерация, структуры, указатели, массивы, inline asm, `#include`, `extern`).
+- NANASM (текстовый ассемблер, размерные суффиксы, метки).
+- VM (регистры, RAM, стек, heap, порты, HALT/WAKE, внешние команды, fault-policy).
+- Устройства: UART (sync/async/numeric), монитор (32×16), клавиатура.
+- Дизассемблер (текстовый и структурный).
+- Стандартные AST- и peephole-оптимизации.
+- Публичный API (`VmHost`, `DeviceContext`, `VmHostProject`, `DeviceSpec`).
+- Примеры: Hello world, змейка, тест аллокатора.
+- Бенчмарк.
 
-- подключите `VmApplication.Extension` и вызовите `AddStdRules()` для AST- и peephole-оптимизаторов, либо
-напишите свои правила (`IAstOptimizationRule`, `IPeepholeRule`).
+**В работе / планы:**
+- Полная спецификация байткода (`docs/bytecode.md`).
+- Отладчик поверх `IProcessorReader` (точки останова, шаг, инспекция стека).
+- Sandbox для недоверенного кода (лимиты памяти/времени/стека, ограничение `OUT`).
+- Тесты: юнит на лексер/парсер/кодогенерацию, golden-тесты на исполнение, fuzz парсера.
+- CI (GitHub Actions): сборка, тесты, бенчмарк на Windows/Linux.
+- NuGet-пакеты для `Kernel.Common`, `Kernel.Contracts`, `Kernel.Diagnostics`, `Compiler`, `VmApplication`.
+- Публикация бенчмарков в BenchmarkDotNet-совместимом формате.
 
-```csharp
-using Nantuc.VmApplication.Extension.Optimizators;
+## Вклад
 
-host.Project.Optimizator
-    .VMAstOptimizer.AddStdRules();
+Проект открыт для issues и pull request'ов.
 
-host.Project.Optimizator
-    .VMPeepholeOptimizer.AddStdRules();
+- **Нашли баг** — issue с минимальным примером (MiniC/NANASM + ожидаемое/фактическое поведение).
+- **Хотите фичу** — issue с описанием сценария (что делаете, что мешает).
+- **Правка** — fork → branch → PR. Для крупных изменений сначала issue (обсудить дизайн).
+- **Стиль**: следуйте стилю соседних файлов; `Nullable=enable`, `ImplicitUsings=enable`; `unsafe` — только в `Nantuc.Kernel`.
+
+Перед PR:
+```bash
+dotnet build Nantuc.sln -c Release
+dotnet test -c Release
 ```
 
-### Ограничения кодогенерации
+## Лицензия
 
-Кодогенератор сознательно простой и не претендует на качество промышленных компиляторов: 
-слабое распределение регистров, 
-консервативный inline, 
-ограниченная поддержка указателей и структур. 
-Если критична скорость готового байт-кода — либо пишите критичные участки на NANASM напрямую, 
-либо используйте `optimize: true` если вы подключили расширения, в ином случае без расширений оптимизаций никаких не будет.
+См. файл `LICENSE` в корне репозитория.
 
-## IO и шина портов
+## Ссылки
 
-Ограничений на IO нет: реализуйте `IPortController` (или унаследуйтесь от `PortControlBase`) — и всё.
-
-### Рекомендация: `PortControlBase`, а не `IPortController`
-
-- Наследуйтесь от PortControlBase, если вам нужна защита от двойного Dispose — она уже реализована.
-- Реализуйте `IPortController` напрямую только если обязаны наследоваться от другого класса
-(C# не даёт множественного наследования).
-
-```csharp
-using Nantuc.VmApplication.Emulator.Abstraction;
-
-public sealed class MyDevice : PortControlBase
-{
-    public override byte ReadPort(ulong offset) => 0;
-    public override void WritePort(ulong offset, byte value) { /* ... */ }
-    public override void WakeProcessor() { /* ... */ }
-
-    // При необходимости:
-    protected override void OnDispose() { /* освободить ресурсы */ }
-}
-```
-
-### Как работает `PortBus`
-
-`PortBus` — линейно-блочный (секторный) маршрутизатор портов. Адрес разбивается 
-на сектор (`address >> deviceShift`) и смещение внутри устройства (`address & offsetMask`). 
-Реализовано через битовые сдвиги и маски — размеры блоков всегда кратны степеням двойки, 
-это даёт предсказуемую и быструю адресацию.
-
-- Помимо связи CPU ↔ устройство, `PortBus` позволяет устройствам общаться друг с другом — регистрируйте 
-контроллеры в разных секторах и читайте/пишите в чужие адреса.
-- `PortSize` — размер всего адресного пространства портов (степень 2, от 64 B до 512 KiB).
-- `DevicePortSize` — размер блока одного устройства (степень 2, от 8 B до 128 B).
-Оба типа — публичные value-типы, `default(T)` невалиден.
-
-## `Kernel` — прямой доступ к интерпретатору
-
-Проект `Kernel` — это минимальный возможный уровень работы с интерпретатором, памятью, IO и контрактами. 
-Он не предназначен для обычного использования. 
-Чтобы воспользоваться им напрямую, нужно явно указать:
-```
-using Nantuc.Kernel;
-```
-
-### `Device` — интерпретатор
-
-Если быть точным то интерпритатор это именно `Processor`, а не сам `Device`, но вы не сможете использовать его без 
-`Device`, так что лучше считать именно `Device` интерпритатором.
-
-- Хорошая производительность; инструкции работы с памятью сравнимы по скорости с арифметикой.
-- Точные цифры на вашем железе — в проекте `TestVMSpeed` 
-(12 кейсов: `Memory`, `Math`, `ALU`, `Call`, `PushPop`, `BitOps`, `Mul`, `Branch`).
-- `Device` всегда выделяет нативную память под ОЗУ. Это позволяет создавать ВМ практически любого размера. 
-Сейчас разумный предел — ~2 GiB; расширение до 16 GiB технически возможно, 
-но редко осмысленно (не на каждой машине столько ОЗУ можно выделить только под эмулятор).
-- ОЗУ полностью инкапсулировано внутри `Device`.
-Даже `INativeReadOnlyBuffer` — это отдельный фасад-класс; 
-никакие приведения не дадут записать в ОЗУ в обход API.
-
-### Processor
-
-Ядро интерпретатора. Обрабатывает 32-битные инструкции:
-
-```
-Bits 0-7:   OpCode
-Bits 8-12:  Reg1 (Destination/Primary)
-Bits 13-17: Reg2 (Source/Secondary)
-Bits 18-19: OpCodeSize (S8, S16, S32, S64)
-Bits 20-31: Reserved/Operand data
-```
-### Device
-
-Обёртка над `Processor` и `MemoryBus`. Обрабатывает загрузку программы, симуляцию и аппаратные прерывания.
-
-### MemoryBus
-
-Управляет нативной памятью с проверкой выравнивания для 16/32/64-битного доступа.
-
-| Метод | Описание |
-|-------|----------|
-| `ReadIntXLE` | Безопасное чтение |
-| `ReadIntXLEUnSafe` | Небезопасное чтение (без проверок) |
-
-### ManagerDevices
-
-Управление устройствами в `Kernel`. Поддерживает переиспользование слотов при удалении устройств.
-### Безопасность
-
-Использование `Kernel` напрямую — это небезопасный сценарий. 
-Вы работаете с низкоуровневой памятью, регистрами и портами без страховок, 
-которые даёт `VmApplication`. Для обычных задач используйте `VmApplication` + `VmApplication.Extension`.
-
----
-
-# Рекомендации
-
-1. Наследуйтесь от `PortControlBase`, а не реализуйте `IPortController` вручную — иначе сами отвечаете за идемпотентность Dispose.
-2. Критичные по скорости участки пишите сразу на NANASM или инлайните через `asm { }` — кодогенератор слабоват.
-3. Размеры портов (`PortSize`, `DevicePortSize`) — только из статических фабрик (`PortSize.KB64`, `DevicePortSize.B16`); `default` невалиден.
-4. Файловый сервис (`IFileService`) и конфиг путей (`IProjectFilesConfig`) — подменяемые; удобно для тестов и `in-memory` сборок (`RamFileService` в комплекте).
-
-## Проекты решения
-
-| Проект | Назначение |
-|-------------|-------------|
-| `Nantuc.Kernel.Common` | Публичные примитивы: `RegType`, `OpCode`, `OpCodeSize`, `RamSize`, `PortSize`, `DevicePortSize`, `BiosStatus`, `LogLevel`, `InstructionDecoder`, `AlignmentExtensions`.|
-| `Nantuc.Kernel.Contracts` | Публичные контракты: `IPortController`/`IPortUse`, `IPortController`, `IProcessorReader`, `IProcessorFaultPolicy`, `IDeviceLoggerContext`, `INativeReadOnlyBuffer`, `ISimulationResult`, `OptimizationId`, `IReadOnlyLogOptimization`.|
-| `Nantuc.Kernel` | Реализация: `Processor`, `Device`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Emulator`. Небезопасный, прямой доступ. |
-| `Nantuc.Kernel.Diagnostics` | `ErrorCode`, `IErrorMessageProvider`, `DefaultErrorMessageProvider`, `ThrowHelper`, `CodeExpection`. |
-| `Nantuc.Compiler` | Лексер, парсер, AST, кодогенератор, ассемблер/дизассемблер, платформенных оптимизаторов. |
-| `Nantuc.VmApplication` | Фасад: `VMHost`, `VMHostFactory`, `VMEmulator`, `DeviceContext`, `ProjectBuilder`, `VMHostProjectCompiler`, `IFileService`, `IOutputView`, билдеры. |
-| `Nantuc.VmApplication.Extension` | Готовые AST- и peephole-правила, `PortControlBase`-совместимые IO-устройства (`QueuedIOStream`, `SynchronousIOStream`), host-helpers (`RunAndKeep`, `RunOnce`, `RunAndCleanup`). |
-| `Nantuc.Samples.Minimal` | Консольный пример запуска. |
-| `Nantuc.Benchmarks` | Бенчмарк интерпретатора (warmup + прогоны, статистика, дизассемблер). |
-
----
-## Расширения (Extensions)
-
-### HostExtensions
-
-Помощники для быстрого запуска:
-
-```csharp
-using Nantuc.VmApplication.Extension.Host;
-
-// Запуск с сохранением устройства
-var outcome = host.RunAndKeep(
-    source: "main: LDI r1, 0x41; END",
-    lang: SourceLanguage.Asm,
-    ram: RamSize.MB16,
-    optimize: false,
-    deviceName: "vm"
-);
-
-// outcome.Device — контекст устройства
-// outcome.StepCount — количество шагов
-// outcome.Success — успех выполнения
-
-// Запуск с удалением устройства после выполнения
-bool success = host.RunAndCleanup(source, lang, ram, optimize);
-
-// Запуск с удалением устройства и очисткой результата
-var outcome2 = host.RunOnce(source, lang, ram, optimize);
-```
-
-### Пользовательские оптимизации
-
-```csharp
-// Замена безопасного доступа к памяти на небезопасный
-host.Project.Optimizator.VMPeepholeOptimizer.Add(
-    new ReplaceSafeMemAccessWithUnsafeRule { SizeRam = RamSize.MB16 }
-);
-```
-
----
-
-## Справочник типов
-
-### Kernel.Common
-
-#### RegType — Типы регистров
-
-32 регистра: `r0`–`r27`, `rFL`, `rSP`, `rHP`, `rIP`
-
-#### RamSize — Размер памяти
-
-Value-тип, хранит размер как `log2(bytes)`. `default(RamSize)` невалиден.
-
-
-| Статическое свойство | Размер | Значение в байтах |
-|----------------------|--------|-------------------|
-| `B64`                | 64 B   | 64                |
-| `B128`               | 128 B  | 128               |
-| `B256`               | 256 B  | 256               |
-| `B512`               | 512 B  | 512               |
-| `KB1`                | 1 KiB  | 1,024             |
-| `KB2`                | 2 KiB  | 2,048             |
-| `KB4`                | 4 KiB  | 4,096             |
-| `KB8`                | 8 KiB  | 8,192             |
-| `KB16`               | 16 KiB | 16,384            |
-| `KB32`               | 32 KiB | 32,768            |
-| `KB64`               | 64 KiB | 65,536            |
-| `KB128`              | 128 KiB| 131,072           |
-| `KB256`              | 256 KiB| 262,144           |
-| `KB512`              | 512 KiB| 524,288           |
-| `MB1`                | 1 MiB  | 1,048,576         |
-| `MB2`                | 2 MiB  | 2,097,152         |
-| `MB4`                | 4 MiB  | 4,194,304         |
-| `MB8`                | 8 MiB  | 8,388,608         |
-| `MB16`               | 16 MiB | 16,777,216        |
-| `MB32`               | 32 MiB | 33,554,432        |
-| `MB64`               | 64 MiB | 67,108,864        |
-| `MB128`              | 128 MiB| 134,217,728       |
-| `MB256`              | 256 MiB| 268,435,456       |
-| `MB512`              | 512 MiB| 536,870,912       |
-| `GB1`                | 1 GiB  | 1,073,741,824     |
-| `GB2`                | 2 GiB  | 2,147,483,648     |
-
-
-#### PortSize — Размер шины портов
-
-От 64 B до 512 KiB. `default(PortSize)` невалиден.
-
-| Статическое свойство | Размер | Значение в байтах |
-|----------------------|--------|-------------------|
-| `B64`                | 64 B   | 64                |
-| `B128`               | 128 B  | 128               |
-| `B256`               | 256 B  | 256               |
-| `B512`               | 512 B  | 512               |
-| `KB1`                | 1 KiB  | 1,024             |
-| `KB2`                | 2 KiB  | 2,048             |
-| `KB4`                | 4 KiB  | 4,096             |
-| `KB8`                | 8 KiB  | 8,192             |
-| `KB16`               | 16 KiB | 16,384            |
-| `KB32`               | 32 KiB | 32,768            |
-| `KB64`               | 64 KiB | 65,536            |
-| `KB128`              | 128 KiB| 131,072           |
-| `KB256`              | 256 KiB| 262,144           |
-| `KB512`              | 512 KiB| 524,288           |
-
-#### DevicePortSize — Размер блока устройства
-
-От 8 B до 128 B. `default(DevicePortSize)` невалиден.
-
-| Статическое свойство | Размер | Значение в байтах |
-|----------------------|--------|-------------------|
-| `B8`                 | 8 B    | 8                 |
-| `B16`                | 16 B   | 16                |
-| `B32`                | 32 B   | 32                |
-| `B64`                | 64 B   | 64                |
-| `B128`               | 128 B  | 128               |
-
-#### OpCode — Коды операций
-
-60+ инструкций, сгруппированных:
-
-| Группа | Инструкции |
-|--------|------------|
-| **Системные** | `NOP`, `END`, `HALT`, `WAKE` |
-| **Память** | `MOV`, `LOAD`, `STORE`, `LOAD_UNSAFE`, `STORE_UNSAFE`, `LDI` |
-| **ALU** | `ADD`, `SUB`, `MULT_INT`, `SHR`, `DIV`, `CMP`, `TEST`, `INC`, `DEC` |
-| **Логика** | `AND`, `OR`, `XOR`, `NOT` |
-| **Потоки** | `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `CALL`, `RET`|
-| **Указатели** | `JMP_IND`, `CALL_IND`, `LOAD_IND`, `STORE_IND` |
-| **Стек** | `PUSH`, `POP` |
-| **IO** | `IN`, `OUT` |
-
-#### BiosStatus — Статус BIOS
-
-| Значение | Описание |
-|----------|----------|
-| `Success` | Успешно выполнено |
-| `SegmentationFault` | Выход за границы ОЗУ |
-| `AlignmentFault` | Попытка прочесть данные по невыровненному адресу (например, 0x03, зависит от размера числа) |
-| `ReadViolation` | Попытка чтения из защищенной области памяти |
-| `EndProgramm` | Остановка программы (не является ошибкой), но может появиться при `Stop()` устройства |
-| `NotImplementedOpCode` | Неизвестная команда OpCode |
-| `NullDeviceInput` | Пустой ввод устройства |
-| `NullDeviceOutput` | Пустой вывод устройства |
-| `InfinityLoop` | Бесконечный цикл |
-| `DivOnZero` | Деление на ноль |
-| `NotSupportedOpCode` | Неподдерживаемая команда OpCode |
-| `StackUnderflow` | Опустошение стека (Stack Underflow) |
-
-#### LogLevel — Уровень логирования
-
-Используется в `VMHostLogger`.
-
-### Kernel.Contracts
-
-#### IPortController
-
-Интерфейс для IO-устройств:
-
-```csharp
-public interface IPortController
-{
-    byte ReadPort(ulong offset);
-    void WritePort(ulong offset, byte value);
-    void WakeProcessor();
-}
-```
-
-#### IProcessorFaultPolicy
-
-Определяет, продолжать ли выполнение после ошибки:
-
-```csharp
-public interface IProcessorFaultPolicy
-{
-    bool ShouldContinue(in ProcessorFault fault);
-}
-
-// По умолчанию:
-// - Success → продолжать
-// - NullDeviceOutput → продолжать
-// - Остальные → остановить
-```
-
-#### IDeviceLoggerContext
-
-Контекст логирования для устройств.
-
-#### INativeReadOnlyBuffer
-
-Фасад для чтения нативной памяти ВМ.
-```csharp
-public interface INativeReadOnlyBuffer
-{
-    nuint Length { get; }
-    byte this[nuint index] { get; }
-}
-```
-#### ISimulationResult
-
-Результат симуляции по времени.
-```csharp
-public interface ISimulationResult
-{
-    TimeSpan Elapsed { get; }
-    long Steps { get; }
-}
-```
-
-#### IProcessorReader
-```csharp
-public interface IProcessorReader
-{
-    bool IsRunning { get; }
-    bool IsSleeping { get; }
-    ulong GetRegister(RegType regType);
-}
-```
-Текущее состояние регистров на итерацию
-
-#### OptimizationId
-
-Идентификатор правила оптимизации.
-
-### API DeviceContext
-
-Класс `DeviceContext` который возвращает `host.Emulator.GetDeviceContext(deviceId)` нужен для управления потоком симуляции 1 
-устройства закрепленным по его id.
-
-Методы:
-
-- Общие:
-    - `LoadProgram(byte[] program, ulong loadAddress)` - запускает цикл загрузки программы в ОЗУ устройства, медленная так как на каждой итерации проверяет корректность загруженных данных, при ошибки кидает исключение
-    - `TryFastLoadProgram(ReadOnlySpan<byte> program, ulong loadAddress, out string? error)` - загружает программу быстрее но если данные будут повреждены информации об этом не будет, вместо исключения возвращает false
-    - `ResetMemoryRam()` - очищает ОЗУ
-    - `ReadPort(ulong offset)` - читает данные из IO буфера устройства, можно читать во время работу устройства
-    - `CopyRegisters(Span<ulong> destination)` - копирует в `Span<ulong> destination` регистры процессора, можно читать во время устройства
-    - `GetRegistersSnapshot()` - возвращает структуру снапшот которая содержит `ulong[]`, индексатор `ulong this[RegType reg]` принимает перечисление RegType
-    - Свойства:
-        - `IsRunning` - текущее состояние устройства - запущено / не запущено
-        - `StepCount` - количество шагов устросйтва на данный момент
-        - `MaxRamSize` - размер озу
-        - `NativeReadOnlyBuffer` - возвращает интерфейс 
-- Loop режим:
-    - `Stop()` - останавливает цикл симуляции для устройства запущенный через `Run()`, потокобезопасен
-    - `Run(LaunchOptions? opt)` - запускает устройство, принимает `LaunchOptions`
-    - `DebugRun(LaunchOptionsDebug? opt)` -  запускает устрйоство в режиме отладки, медленнее, но больше информации, принимает `LaunchOptionsDebug`
-- Step режим:
-    - `RunStepMode(ulong startAddress, Action? onLaunch)` - переводит устройство в режим Step, отключает Loop
-    - `SingleStep(Action<IProcessorReader>? onStep)` -  делает 1 шаг симуляции
-    - `MultiStep(int count, Action<IProcessorReader>? onStep)` - делает `count` шагов симуляции
-    - `EndStepMode()` - останавливает и переводит устройство из Step в не выбранный режим
-
-
----
-
-## Известные ограничения
-
-### Кодогенератор MiniC
-
-- Базовое распределение регистров
-- Ограниченная поддержка указателей и структур в параметрах функций
-- **Рекомендация:** Критичные по скорости участки пишите на NANASM или инлайните через `asm { }`
-
-### Оптимизаторы
-
-- Не включены по умолчанию
-- Отсутсвуют встроенные оптимизаторы
-- Нужно подключать вручную через `AddStdRules()` или добавление своих правил
-
-### Целевые платформы
-
-| Проект | Target |
-|--------|--------|
-| `Nantuc.Kernel.*`, `Nantuc.Compiler` | `net10.0` |
-| `Nantuc.VmApplication` | `net10.0; net10.0` |
-| `Nantuc.VmApplication.Extension`, `Nantuc.Benchmarks` | `net10.0` |
-
-### Прямое использование Kernel
-
-- Небезопасно
-- Не рекомендуется без веской причины
-- Используйте `Nantuc.VmApplication` + `Nantuc.VmApplication.Extension` для обычных задач
-- `Nantuc.VmApplication` покрывает большинство сценариев
-
-### Размеры памяти
-
-- Разумный предел — ~2 GiB
-- Технически возможно до 16 GiB, но редко осмысленно
-
----
-
-## Рекомендации
-
-1. Наследуйтесь от `PortControlBase`, а не реализуйте `IPortController` вручную.
-2. Критичные по скорости участки пишите сразу на NANASM или инлайните через `asm { }`.
-3. Размеры портов (`PortSize`, `DevicePortSize`) — только из статических фабрик (`PortSize.KB64`, `DevicePortSize.B16`); `default` невалиден.
-4. Файловый сервис (`IFileService`) и конфиг путей (`IProjectFilesConfig`) — подменяемые; удобно для тестов и `in-memory` сборок (`RamFileService` в комплекте).
-
----
-
-## Примеры проектов
-
-| Проект | Назначение |
-|--------|------------|
-| `Nantuc.Samples.Minimal` | Консольный пример запуска |
-| `Nantuc.Benchmarks` | Бенчмарк интерпретатора (12 кейсов: Memory, Math, ALU, Call, PushPop, BitOps, Mul, Branch) |
-| `include/` | Стандартные библиотеки NANASM (`sys.nanasm`, `std.nanasm`, `math.nanasm`) |
-
----
-
-
-Таблица мнемоник AssemblerParser
-Легенда типов мнемоник:
-
-|Тип |	Значение	  |Формат операндов|
-|----|----------------|----------------|
-|`N`| нет операндов  | - |
-|`R`| `register-register`	| `reg`, `reg` |
-|`U`| `unary` / один регистр	| `reg` |
-|`I`| `immediate` / адрес |	`reg`, `imm` или `reg`, `addr` |
-|`J`| `jump` / `call` |	`label` или `abs_addr` |
-|`RS`| `register-register-size` | `reg`, `reg[, .Sxx]` |
-
-- Опциональный суффикс размера: `.S8`, `.S16`, `.S32`, `.S64` или `.8`, `.16`, `.32`, `.64`.
-- Парсер разбирает суффикс для всех мнемоник, но фактически использует его только в `LOAD*`, `STORE*`, `LOAD_IND*`, `STORE_IND*`. По умолчанию — `S64`.
-
-
-| Мнемоника | Тип | Операнды | Метод парсера | Кодирование |
-| :--- | :---: | :--- | :--- | :--- |
-| NOP | N | — | case "NOP" | EncodeNOP() |
-| END | N | — | case "END" | EncodeEND() |
-| RET | N | — | case "RET" | EncodeRET() |
-| HALT | N | — | case "HALT" | EncodeHALT() |
-| WAKE | N | — | case "WAKE" | EncodeWAKE() |
-| ADD | R | reg, reg | FormatR | EncodeR |
-| AND | R | reg, reg | FormatR | EncodeR |
-| CMP | R | reg, reg | FormatR | EncodeR |
-| DIV | R | reg, reg | FormatR | EncodeR |
-| IN | R | reg, reg | FormatR | EncodeR |
-| MOV | R | reg, reg | FormatR | EncodeR |
-| MULT_INT | R | reg, reg | FormatR | EncodeR |
-| OR | R | reg, reg | FormatR | EncodeR |
-| OUT | R | reg, reg | FormatR | EncodeR |
-| SHR | R | reg, reg | FormatR | EncodeR |
-| SUB | R | reg, reg | FormatR | EncodeR |
-| TEST | R | reg, reg | FormatR | EncodeR |
-| XOR | R | reg, reg | FormatR | EncodeR |
-| CALL_IND | U | reg | FormatU | EncodeU |
-| DEC | U | reg | FormatU | EncodeU |
-| INC | U | reg | FormatU | EncodeU |
-| JMP_IND | U | reg | FormatU | EncodeU |
-| NOT | U | reg | FormatU | EncodeU |
-| POP | U | reg | FormatU | EncodeU |
-| PUSH | U | reg | FormatU | EncodeU |
-| WAKE_INT | U | reg | FormatU | EncodeU |
-| LDI | I | reg, imm/label | FormatLDI | EncodeLDI + 64-bit |
-| LOAD | I | reg, addr | FormatLOAD__STORE | EncodeLOAD + 64-bit |
-| LOAD_UNSAFE | I | reg, addr | FormatLOAD__STORE | EncodeSTORE + 64-bit* |
-| STORE | I | reg, addr | FormatLOAD__STORE | EncodeSTORE + 64-bit |
-| STORE_UNSAFE | I | reg, addr | FormatLOAD__STORE | EncodeSTORE + 64-bit |
-| LOAD_IND | RS | reg, reg[, .Sxx] | FormatLOAD_IND__STORE_IND | EncodeRS |
-| LOAD_IND_UNSAFE | RS | reg, reg[, .Sxx] | FormatLOAD_IND__STORE_IND | EncodeRS |
-| STORE_IND | RS | reg, reg[, .Sxx] | FormatLOAD_IND__STORE_IND | EncodeRS |
-| STORE_IND_UNSAFE | RS | reg, reg[, .Sxx] | FormatLOAD_IND__STORE_IND | EncodeRS |
-| CALL | J | label/abs | FormatJumpType | EncodeJ + target |
-| JG | J | label/abs | FormatJumpType | EncodeJ + target |
-| JL | J | label/abs | FormatJumpType | EncodeJ + target |
-| JMP | J | label/abs | FormatJumpType | EncodeJ + target |
-| JNZ | J | label/abs | FormatJumpType | EncodeJ + target |
-| JZ | J | label/abs | FormatJumpType | EncodeJ + target |
-
----
-
-## Известные ограничения
-
-- Кодогенератор MiniC: базовое распределение регистров, ограниченная поддержка указателей/структур в параметрах функций.
-- Оптимизаторы нужно подключать вручную.
-- `TestVMSpeed` и `ExtensionsVMApplication` таргетят net10.0; `Compiller` и `Kernel.`* — net8.0; `VMApplication` — net8.0;net10.0.
-- Прямое использование `Kernel` небезопасно и не рекомендуется без веской причины.
+- GitHub: [RomanyPe/Nantuc](https://github.com/RomanyPe/Nantuc)
+- Документация по модулям — README в каждой папке (ссылки в разделе [Модули](#модули)).
+- Спецификация байткода — `docs/bytecode.md` (в работе).
+- Примеры — [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md), [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.md).
+- Бенчмарк — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.md).

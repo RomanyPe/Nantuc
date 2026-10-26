@@ -92,7 +92,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
     private void GenerateLocalArrayInit(VariableNode var)
     {
         if (!_funcCtx.VarMap.TryGetValue(var.Name, out var loc) || loc.IsRegister)
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_CannotGetRegisterAddress, var.Name);
+            ThrowCompiler.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, var.Name);
 
         OpCodeSize elemSize = loc.TypeSize;
         int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize);
@@ -325,7 +325,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
             if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type);
             if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!);
         }
-        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         return default;
     }
 
@@ -388,18 +388,18 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
             case BinaryOpNode bin when bin.Operator == "+" || bin.Operator == "-":
                 rootStructType = _exprGen.TryInferStructTypeFromPointerExpr(bin);
                 if (rootStructType == null)
-                    ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType,
+                    ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
                         "Cannot determine struct type from pointer arithmetic");
                 break;
             case DereferenceNode:
                 // (*pp) — разыменование указателя на указатель, для потомков
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType,
+                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
                     "Dereference member access not implemented yet");
                 break;
         }
 
         if (rootStructType == null)
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
+            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
 
         // 3. Проходим по цепочке, получая раскладку и поле на каждом уровне
         StructLayout? currentLayout = null;
@@ -409,10 +409,10 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         foreach (var fieldName in chain)
         {
             if (!_structTable.TryGetValue(currentType, out var layout))
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, currentType);
+                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, currentType);
             currentLayout = layout;
             currentField = layout.GetField(fieldName)
-                           ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, fieldName, currentType);
+                           ?? ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, fieldName, currentType);
             currentType = currentField.Type;
         }
 
@@ -432,7 +432,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
                     return CodeGenUtils.GetSizeForType(gInfo.PointedType!);
             }
         }
-        return ThrowHelper.ThrowMiniC<OpCodeSize>(ErrorCode.CodeGen_UnknownPointedType);
+        return ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownPointedType);
     }
     private void GenerateIf(IfNode ifNode)
     {
@@ -550,14 +550,14 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
     private void GenerateBreak()
     {
         if (_loopStack.Count == 0)
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_BreakOutsideLoop);
+            ThrowCompiler.Throw(ErrorCode.CodeGen_BreakOutsideLoop);
         _asm.EmitJmp(_loopStack.Peek().BreakLabel);
     }
 
     private void GenerateContinue()
     {
         if (_loopStack.Count == 0)
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ContinueOutsideLoop);
+            ThrowCompiler.Throw(ErrorCode.CodeGen_ContinueOutsideLoop);
         _asm.EmitJmp(_loopStack.Peek().ContinueLabel);
     }
 

@@ -71,7 +71,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 GenerateSizeofExpr(se, RegType.r0);
                 break;
             default:
-                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"Unsupported expression: {expr.GetType()}");
+                ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported expression: {expr.GetType()}");
                 break;
         }
     }
@@ -143,7 +143,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(node.TypeName));
         else 
         { 
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownTypeSize, node.TypeName);
+            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownTypeSize, node.TypeName);
             return;
         }
         _asm.EmitLdi(targetReg, (ulong)size);
@@ -161,7 +161,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         ArrayAccessNode arr => GetIndexedElemSizeBytes(arr.ArrayName),
         MemberAccessNode mem => GetMemberTypeSize(mem),
         NumberNode => 4,   // int
-        _ => ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported,
+        _ => ThrowCompiler.Throw<long>(ErrorCode.NotSupported,
                  $"sizeof of {expr.GetType().Name} not supported")
     };
 
@@ -182,7 +182,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                       : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type));
             return g.IsArray ? elem * g.ArraySize : elem;
         }
-        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, name);
+        ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, name);
         return 0;
     }
 
@@ -198,7 +198,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
             }
         }
-        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownPointedType);
+        ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
         return 0;
     }
 
@@ -218,7 +218,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 return _structTable.TryGetValue(g.Type, out var l) ? l.Size : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type));
             if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
         }
-        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         return 0;
     }
 
@@ -246,7 +246,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 GenerateIncrementMember(member, node.Delta, node.IsPrefix, targetReg);
                 break;
             default:
-                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported,
+                ThrowCompiler.Throw(ErrorCode.NotSupported,
                                 $"Increment target must be lvalue: {node.Target.GetType().Name}");
                 break;
         }
@@ -272,7 +272,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type);
             if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!);
         }
-        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, name);
+        ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, name);
         return default;
     }
 
@@ -617,7 +617,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 break;
 
             default:
-                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported,
+                ThrowCompiler.Throw(ErrorCode.NotSupported,
                     $"Unsupported unary operator: {unop.Operator}");
                 return;
         }
@@ -646,7 +646,7 @@ public class ExpressionGenerator(AssemblerBase asm,
 
             case DereferenceNode:
                 // (*ptr).field — пока не поддерживаем, но задел:
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType,
+                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
                     "Dereference member access not implemented yet");
                 return;
 
@@ -680,7 +680,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                             structType = loc.StructTypeName;
                         else if (loc.IsPointer && loc.PointedType != null && _structTable.ContainsKey(loc.PointedType))
                             structType = loc.PointedType; // ptr->field
-                        else ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        else ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     }
                     else if (_globalMem.Contains(id.Name))
                     {
@@ -689,10 +689,10 @@ public class ExpressionGenerator(AssemblerBase asm,
                             structType = gInfo.Type;
                         else if (gInfo.IsPointer && gInfo.PointedType != null && _structTable.ContainsKey(gInfo.PointedType))
                             structType = gInfo.PointedType;
-                        else ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        else ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     }
                     else
-                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, id.Name);
+                        ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, id.Name);
                     break;
                 }
 
@@ -708,14 +708,14 @@ public class ExpressionGenerator(AssemblerBase asm,
                 }
 
             case DereferenceNode:
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Dereference member access not implemented yet");
+                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference member access not implemented yet");
                 return;
             case ArrayAccessNode arrAcc:
                 {
                     string? arrStructType = ResolveArrayStructType(arrAcc.ArrayName);
                     var layoutstr = _structTable[arrStructType!];
                     var fieldstr = layoutstr.GetField(node.FieldName)
-                                ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
+                                ?? ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
 
                     ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, targetReg);
 
@@ -738,15 +738,15 @@ public class ExpressionGenerator(AssemblerBase asm,
                     _asm.EmitLoadInd(targetReg, targetReg, sz);
                     return;
                 }
-                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Unsupported object for member access");
+                ThrowCompiler.Throw(ErrorCode.NotSupported, "Unsupported object for member access");
                 break;
         }
 
         if (structType == null)
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
+            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
 
         var layout = _structTable[structType];
-        var field = layout.GetField(node.FieldName) ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
+        var field = layout.GetField(node.FieldName) ?? ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
 
         if (node.IsArrow)
         {
@@ -760,7 +760,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             }
             else
             {
-                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Dot access only supported for simple variables currently");
+                ThrowCompiler.Throw(ErrorCode.NotSupported, "Dot access only supported for simple variables currently");
             }
         }
 
@@ -804,7 +804,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                     }
 
                     if (structType == null)
-                        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     break;
                 }
 
@@ -820,24 +820,24 @@ public class ExpressionGenerator(AssemblerBase asm,
                 structType = ResolveArrayStructType(arrAcc.ArrayName);
                 break;
             case DereferenceNode:
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported");
+                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported");
                 break;
             case BinaryOpNode bin when bin.Operator == "+" || bin.Operator == "-":
                 structType = TryInferStructTypeFromPointerExpr(bin);
                 if (structType == null)
-                    ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType,
+                    ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
                         "Cannot determine struct type from pointer arithmetic");
                 break;
         }
 
         if (structType == null)
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
+            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
 
         if (!_structTable.TryGetValue(structType, out var layout))
-            ThrowHelper.ThrowMiniC(ErrorCode.NotImplemented, structType);
+            ThrowCompiler.Throw(ErrorCode.NotImplemented, structType);
 
         var field = layout.GetField(node.FieldName)
-                    ?? ThrowHelper.ThrowMiniC<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
+                    ?? ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
 
         return (layout, field, field.Type);
     }
@@ -889,7 +889,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             if (_structTable.ContainsKey(gInfo.Type))
                 return gInfo.Type;
         }
-        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         return null;
     }
 
@@ -902,7 +902,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (loc.IsPointer)
                 LoadPointerElementToR0(arrayName, loc, indexExpr, targetReg);
             else
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else if (_globalMem.Contains(arrayName))
         {
@@ -912,10 +912,10 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (gInfo.IsPointer)
                 LoadPointerElementToR0(arrayName, null, indexExpr, targetReg);
             else
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+            ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
     }
 
     public void StoreR0ToArrayElement(string arrayName, ASTNode indexExpr)
@@ -930,7 +930,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (loc.IsPointer)
                 StorePointerElement(arrayName, loc, indexExpr, slot);
             else
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else if (_globalMem.Contains(arrayName))
         {
@@ -940,17 +940,17 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (gInfo.IsPointer)
                 StorePointerElement(arrayName, null, indexExpr, slot);
             else
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+            ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
 
         ReleaseSaveSlot();
     }
     private void LoadArrayElementFromLocal(VarLocation loc, ASTNode indexExpr, RegType targetReg)
     {
         if (loc.IsArray && loc.StructTypeName != null)
-            ThrowHelper.ThrowMiniC(ErrorCode.NotSupported,
+            ThrowCompiler.Throw(ErrorCode.NotSupported,
                 $"Cannot load struct value from array element (use member access)");
         var typeSize = loc.TypeSize;
         GenerateExpression(indexExpr, targetReg);
@@ -1198,7 +1198,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             case "<<": _asm.EmitShl(dest, src); break;
             case ">>": _asm.EmitShr(dest, src); break;
             case "%": _asm.EmitMod(dest, src); break;
-            default: ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, $"Unsupported operator in EmitBinaryOperation: {op}"); break;
+            default: ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported operator in EmitBinaryOperation: {op}"); break;
         }
     }
     public static long ComputeConstant(long value1, long value2, string op)
@@ -1215,16 +1215,16 @@ public class ExpressionGenerator(AssemblerBase asm,
             "^" => value1 ^ value2,
             "<<" => value1 << (int)value2,
             ">>" => value1 >> (int)value2,
-            _ => ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported, $"Unsupported operator: {op}"),
+            _ => ThrowCompiler.Throw<long>(ErrorCode.NotSupported, $"Unsupported operator: {op}"),
         };
         return result;
     }
 
     private static long ComputeDiv(long value1, long value2) => value2 != 0 ? value1 / value2
-            : ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported, $"Div on zero");
+            : ThrowCompiler.Throw<long>(ErrorCode.NotSupported, $"Div on zero");
 
     private static long ComputeMod(long value1, long value2) => value2 != 0 ? value1 % value2
-            : ThrowHelper.ThrowMiniC<long>(ErrorCode.NotSupported, $"Div on zero");
+            : ThrowCompiler.Throw<long>(ErrorCode.NotSupported, $"Div on zero");
 
     /// <summary>
     /// Вычисляет адрес arr[index] (или p[index] для указателя) и кладёт в addrReg.
@@ -1284,7 +1284,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             return;
         }
 
-        ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+        ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
     }
 
     /// <summary>Возвращает регистр для индекса, гарантированно отличный от addrReg.</summary>
@@ -1299,7 +1299,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (!loc.IsArray)
         {
             if (loc.PointedType == null)
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownPointedType);
+                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
             return (int)GetTypeSizeBytes(loc.PointedType);
         }
         if (loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l))
@@ -1312,7 +1312,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (!gInfo.IsArray)
         {
             if (gInfo.PointedType == null)
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownPointedType);
+                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
             return (int)GetTypeSizeBytes(gInfo.PointedType);
         }
         if (_structTable.TryGetValue(gInfo.Type, out var l))
@@ -1327,7 +1327,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
             {
                 if (loc.IsRegister)
-                    ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
+                    ThrowCompiler.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
                 _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
                 _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
                 _asm.EmitMov(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
@@ -1338,10 +1338,10 @@ public class ExpressionGenerator(AssemblerBase asm,
                 _asm.EmitLdi(targetReg, label);
             }
             else
-                ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UndefinedVariable, varName);
+                ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
         }
         else
-            ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Address-of only supports simple variables currently");
+            ThrowCompiler.Throw(ErrorCode.NotSupported, "Address-of only supports simple variables currently");
     }
 
     private void GenerateDereference(DereferenceNode deref, RegType targetReg)
@@ -1370,9 +1370,9 @@ public class ExpressionGenerator(AssemblerBase asm,
     private void GenerateFunctionCall(FunctionCallNode call)
     {
         if (!_functionTable.TryGetValue(call.Name, out var targetFunc))
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_UnknownFunction, call.Name);
+            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownFunction, call.Name);
         if (call.Arguments.Count != targetFunc.Parameters.Count)
-            ThrowHelper.ThrowMiniC(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
+            ThrowCompiler.Throw(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
 
         // 1) args 4+ → pseudo-globals (r0..r3 пусты, можно свободно)
         for (int i = 4; i < call.Arguments.Count; i++)
@@ -1393,7 +1393,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             var param = targetFunc.Parameters[i];
             if (_structTable.ContainsKey(param.Type))
-                ThrowHelper.ThrowMiniC(ErrorCode.NotSupported, "Struct parameters via registers not yet supported");
+                ThrowCompiler.Throw(ErrorCode.NotSupported, "Struct parameters via registers not yet supported");
             GenerateExpression(call.Arguments[i], (RegType)i);
             slots[i] = SaveRegToStack((RegType)i);   // ← сохраняем возвращаемый offset
         }

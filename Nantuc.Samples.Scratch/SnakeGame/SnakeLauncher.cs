@@ -8,9 +8,11 @@ using System.Text;
 
 namespace Nantuc.Samples.Scratch.SnakeGame;
 
-public class SnakeLauncher
+public class SnakeLauncher(int period = 200)
 {
-    public static void LaunchSnake(int period = 200)
+    private readonly StringBuilder sb = new();
+    private readonly int _period = period;
+    public void LaunchSnake()
     {
         using var host = VmHostFactory.CreateDefault();
 
@@ -75,7 +77,7 @@ public class SnakeLauncher
         using var ticker = new Timer(_ =>
         {
             if (running) portBus.WakeProcessor(0);
-        }, null, 200, period);
+        }, null, 200, _period);
 
         // -------- запуск --------
         Console.CursorVisible = false;
@@ -99,9 +101,7 @@ public class SnakeLauncher
 
     }
 
-    private static readonly StringBuilder sb = new();
-
-    private static void RenderToConsole(byte[] fb, int w, int h)
+    private void RenderToConsole(byte[] fb, int w, int h)
     {
         sb.Append("\x1b[H");
         for (int y = 0; y < h; y++)
