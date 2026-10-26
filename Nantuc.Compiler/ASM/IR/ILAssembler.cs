@@ -5,7 +5,7 @@ using Nantuc.Kernel.Diagnostics;
 
 namespace Nantuc.Compiler.ASM.IR;
 
-public class IRAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
+public class ILAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
 {
     private readonly List<AsmItem> _items = new(64);
     private readonly HashSet<string> _labelNames = new(StringComparer.Ordinal);

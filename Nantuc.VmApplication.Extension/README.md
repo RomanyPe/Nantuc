@@ -10,21 +10,22 @@
 - [API](#api)
 - [Примеры для API](#примеры-для-api)
 - [Приближенность модуля к пользователю](#приближенность-модуля-к-пользователю)
+- [Что исправлено в этой версии](#что-исправлено-в-этой-версии)
 - [Особенная информация](#особенная-информация)
 - [Что исправить](#что-исправить)
 
 ## Об этом модуле
 
-`Nantuc.VmApplication.Extensions` — это «батарейки» к основному API. Здесь нет новых абстракций ядра, только расширения поверх уже существующих: `DeviceContext`, `VmHost`, `VmHostProject`, `VmEmulator`, `IPortController`. Модуль можно не подключать — основной API работает и без него. Но с ним появляются:
+`Nantuc.VmApplication.Extensions` — это «батарейки» к основному API. Здесь нет новых абстракций ядра, только расширения поверх существующих: `DeviceContext`, `VmHost`, `VmHostProject`, `VmEmulator`, `IPortController`. Модуль можно не подключать — основной API работает и без него. Но с ним появляются:
 
 - **Дизассемблер** (`Disassembler`/`StringDisassembler`): разбор `CompilationResult.Program` на `DecodedInstruction[]` + `DecodedDataChunk[]` и текстовая форма (как `objdump`).
 - **I/O-устройства** (`NumericIOStream`, `SynchronousIOStream`, `QueuedIOStream`): вывод байтов/UTF-8/UTF-16 из VM в `TextWriter`. Плюс `PortCharEncoding` и `OutputPortLayout` (раскладка 8-байтного окна).
 - **Стандартные оптимизации**: AST-правила (`FoldConstants`, `PropagateConstants`, `RemoveUnusedVariables`, `RemoveUnreachableCode`, `InlineSmallVoidFunctions`) и peephole-правила (`ConstantFolding`, `RemoveNoopMov`, `RemovePushPopPair`, `RemoveSwapMovPair`, `RemoveJumpToNextLabel`, `RemoveMultiEndPair`).
 - **Утилиты компиляции** (`ProjectExtension`, `HostExtensions`): `host.Project.CompileToIL("int main(){}", 0, true, SourceLanguage.C)` и `host.RunAndKeep(...)`, `host.RunOnce(...)` — одна строка вместо пайплайна.
-- **Встроенные библиотеки** (`Librare`): строковые константы `heap.nanasm`, `alloc.minic`, `io.nanasm`, `print.minic` для `#include`.
+- **Встроенные библиотеки** (`Librare`): строковые константы `heap.nanasm`, `alloc.minic` (first-fit с split/coalescing), `io.nanasm`, `print.minic` для `#include`.
 - **RAM-утилиты** (`DeviceContextExtensions`): `GetRamAsNewArray`, `CopyRamTo` — читать RAM работающей/остановленной VM.
 
-Ключевая идея — **не менять контракт** `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IPeepholeRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`. Никаких новых интерфейсов в `Kernel.Contracts`.
+Ключевая идея — не менять контракт `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IPeepholeRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`. Никаких новых интерфейсов в `Kernel.Contracts`.
 
 ## Дерево локального проекта
 
@@ -38,7 +39,7 @@ Nantuc.VmApplication.Extensions/
 ├── Disassembler/
 │   ├── DecodedDataChunk.cs                   # record struct (Address, Value, Bytes, DecodedString, ByteLength)
 │   ├── DecodedInstruction.cs                 # record struct (Address, RawInstruction, OpCode, Reg1, Reg2, Size, Data64, ByteLength)
-│   ├── Disassembler.cs                       # internal static: extension(res).Disassemble(int?) → DisassemblyResult
+│   ├── Disassembler.cs                       # public static: extension(res).Disassemble(int?) → DisassemblyResult
 │   ├── DisassemblyResult.cs                  # sealed: Instructions[], DataChunks[], BaseAddress, CodeSize, TotalSize
 │   ├── InstructionFormatter.cs               # static: Format(DisassemblyResult | DecodedInstruction | DecodedDataChunk)
 │   └── StringDisassembler.cs                 # static: Disassemble(ReadOnlySpan<byte>, int, ulong) → string; extension(res).DisassembleToString()
@@ -82,18 +83,18 @@ Nantuc.VmApplication.Extensions/
 
 ### Дизассемблер
 
-**`DecodedInstruction`** (namespace `Nantuc.VmApplication.Extensions.Disassembler`):
+**`DecodedInstruction`**:
 
 ```csharp
 public readonly record struct DecodedInstruction(
-    ulong Address,           // IP инструкции
-    uint RawInstruction,     // исходные 4 байта
+    ulong Address,
+    uint RawInstruction,
     OpCode OpCode,
     RegType Reg1,
     RegType Reg2,
     OpCodeSize DataSize,
-    ulong? Data64,           // null, если immediate нет
-    int ByteLength)          // 4 (без data) или 4 + pad + 8 (с data)
+    ulong? Data64,
+    int ByteLength)
 {
     public bool HasData64 { get; }
     public override string ToString();  // = InstructionFormatter.Format(this)
@@ -104,10 +105,10 @@ public readonly record struct DecodedInstruction(
 
 ```csharp
 public readonly record struct DecodedDataChunk(
-    ulong Address,          // IP чанка
-    ulong Value,            // 64-битное значение (LE)
-    byte[] Bytes,           // реальные байты (1..8)
-    string? DecodedString,  // если удалось декодировать UTF-16LE (printable ASCII)
+    ulong Address,
+    ulong Value,
+    byte[] Bytes,
+    string? DecodedString,
     int ByteLength);
 ```
 
@@ -129,20 +130,23 @@ public sealed class DisassemblyResult(
     public int TotalSize { get; }
     public int BytesConsumed { get; }
     public bool HasDataSection { get; }
-    public override string ToString();  // = InstructionFormatter.Format(this)
+    public override string ToString();
 }
 ```
 
-**`Disassembler`** — `internal static class`, extension:
+**`Disassembler`** — теперь **`public static class`** (было `internal`), extension доступен снаружи:
 
 ```csharp
-extension(CompilationResult res)
+public static class Disassembler
 {
-    public DisassemblyResult Disassemble(int? codeSize = null);
+    extension(CompilationResult res)
+    {
+        public DisassemblyResult Disassemble(int? codeSize = null);
+    }
 }
 ```
 
-⚠ **Класс `internal`**, поэтому extension **не доступен из других сборок**. См. [Что исправить, п.1](#что-исправить). Внутри сборки: `compilation.Disassemble()` (весь поток как код) или `compilation.Disassemble(codeSize: compilation.CodeSize)` (с секцией данных).
+`compilation.Disassemble()` — весь поток как код; `compilation.Disassemble(codeSize: compilation.CodeSize)` — с секцией данных. Структурный результат (`DecodedInstruction[]` + `DecodedDataChunk[]`) теперь можно получить извне, а не только через `StringDisassembler.Disassemble(...)` → `string`.
 
 **`StringDisassembler`** — `public static class`:
 
@@ -155,7 +159,7 @@ extension(CompilationResult res)
 public static string Disassemble(ReadOnlySpan<byte> program, int codeSize, ulong baseAddress = 0);
 ```
 
-Повторяет логику `Disassembler.Disassemble`, но сразу в текст. Формат: `XXXXXXXX: XXXXXXXX   MNEMONIC [data = 0x...]` — как `objdump`. Для data-секции: `XXXXXXXX: XX XX ... .data 0xXXXXXXXXXXXXXXXX  "строка"`.
+Формат: `XXXXXXXX: XXXXXXXX   MNEMONIC [data = 0x...]` — как `objdump`. Для data-секции: `XXXXXXXX: XX XX ... .data 0xXXXXXXXXXXXXXXXX  "строка"`.
 
 **`InstructionFormatter`**:
 
@@ -167,8 +171,6 @@ public static void   Format(StringBuilder sb, DecodedInstruction inst);
 public static void   Format(StringBuilder sb, DecodedDataChunk chunk);
 ```
 
-Использует `InstructionEncoder.Decode(rawInstruction)` из `[Nantuc.Compiler](../Nantuc.Compiler/README.md)` для мнемоники. Data-chunk печатается с hex-байтами и ASCII-строкой (если получилось декодировать).
-
 ### I/O-устройства
 
 **`PortCharEncoding`**:
@@ -176,10 +178,6 @@ public static void   Format(StringBuilder sb, DecodedDataChunk chunk);
 ```csharp
 public enum PortCharEncoding { BytePerChar, Utf8, Utf16 }
 ```
-
-- `BytePerChar` — 1 запись в порт = 1 байт (Latin-1).
-- `Utf8` — 1..4 записей = 1 code point (UTF-8 через `Decoder`).
-- `Utf16` — 2 записи = 1 code unit (UTF-16LE, low byte first).
 
 **`OutputPortLayout`** — раскладка 8-байтного окна:
 
@@ -207,7 +205,7 @@ public SynchronousIOStream(TextWriter writer, PortCharEncoding encoding);
 public NumericIOStream(TextWriter writer, PortCharEncoding encoding, bool hex = false);
 ```
 
-`BytePerChar` → `EmitNumber(value)` (0..255). `Utf8`/`Utf16` → `EmitNumber(codePoint)`. Формат: `"42 "` или `"0x2A "`. Удобно для отладки кодировок.
+`BytePerChar` → `EmitNumber(value)` (0..255). `Utf8`/`Utf16` → `EmitNumber(codePoint)`. Формат: `"42 "` или `"0x2A "`.
 
 **`QueuedIOStream : PortControlBase`** — асинхронный, через `Channel<byte>`:
 
@@ -215,7 +213,7 @@ public NumericIOStream(TextWriter writer, PortCharEncoding encoding, bool hex = 
 public QueuedIOStream(TextWriter writer, PortCharEncoding encoding);
 ```
 
-`WritePort(Data, value)` → `Channel.Writer.TryWrite(value)` + `Interlocked.Increment(ref _pendingCount)`. `ReadPort(Status)` → `1` если pending, `0` иначе. `ReadPort(Data)` → 0. `WritePort(Flush, _)` → синхронный polling до 2 сек. `Dispose` → `Complete` + `_drainTask.Wait(5s)`.
+`WritePort(Data, value)` → `Channel.Writer.TryWrite(value)` + `Interlocked.Increment`. `ReadPort(Status)` → `1` если pending, `0` иначе. `WritePort(Flush, _)` → polling до 2 сек. `Dispose` → `Complete` + `_drainTask.Wait(5s)`.
 
 **`PortBusExtensions`** — extension на `PortBus` из `[Nantuc.Kernel](../Nantuc.Kernel/README.md)`:
 
@@ -228,19 +226,19 @@ extension(PortBus bus)
 
 ### Оптимизации
 
-**`AstOptimizerExtension`** (namespace `Nantuc.VmApplication.Extensions.Optimizators`):
+**`AstOptimizerExtension`**:
 
 ```csharp
 extension(VmAstOptimizer optimizer)
 {
-    public VmAstOptimizer AddStdRules();   // добавляет 5 правил (см. ниже)
+    public VmAstOptimizer AddStdRules();
 }
 
-public static readonly OptimizationId FunctionInlined;
-public static readonly OptimizationId ConstantPropagated;
-public static readonly OptimizationId ConstantFolded;
-public static readonly OptimizationId NodeRemoved;
-public static readonly OptimizationId VariableRemoved;
+public static readonly OptimizationId FunctionInlined;      // astnode-opt.inline-func
+public static readonly OptimizationId ConstantPropagated;   // astnode-opt.const-propagate
+public static readonly OptimizationId ConstantFolded;       // astnode-opt.const-fold
+public static readonly OptimizationId NodeRemoved;          // astnode-opt.remove-node
+public static readonly OptimizationId VariableRemoved;      // astnode-opt.remove-variable-unused
 ```
 
 Стандартные AST-правила (`AddStdRules`):
@@ -249,23 +247,23 @@ public static readonly OptimizationId VariableRemoved;
 3. `RemoveUnusedVariablesRule` — убирает `VariableNode` без чтений (только если initializer side-effect-free).
 4. `RemoveUnreachableCodeRule` — убирает код после `return` и `if(false)`/`while(false)`.
 5. `InlineSmallVoidFunctionsRule` — инлайнит `void`-функции ≤ 10 операторов, без рекурсии.
-6. `RemoveUnreachableCodeRule` — ещё раз (после инлайна). ⚠ см. [Что исправить, п.3](#что-исправить).
+6. `RemoveUnreachableCodeRule` — ещё раз (после инлайна). См. [Что исправить, п.3](#что-исправить).
 
 **`PeepholeOptimizerExtension`**:
 
 ```csharp
 extension(VmPeepholeOptimizer peephole)
 {
-    public VmPeepholeOptimizer AddStdRules();   // 6 правил
+    public VmPeepholeOptimizer AddStdRules();
 }
 
-public static readonly OptimizationId ConstantFolding;
-public static readonly OptimizationId RemoveJumpToNextLabel;
-public static readonly OptimizationId RemoveMultiEnd;
-public static readonly OptimizationId RemoveNoopMove;
-public static readonly OptimizationId RemovePushPop;
-public static readonly OptimizationId RemoveSwapMov;
-public static readonly OptimizationId ReplaceSafeAccess;   // не добавляется в AddStdRules
+public static readonly OptimizationId ConstantFolding;          // peephole.constant-folding
+public static readonly OptimizationId RemoveJumpToNextLabel;    // peephole.remove-jump-to-next-label
+public static readonly OptimizationId RemoveMultiEnd;           // peephole.remove-multi-end
+public static readonly OptimizationId RemoveNoopMove;           // peephole.remove-noop-mov
+public static readonly OptimizationId RemovePushPop;            // peephole.remove-push-pop
+public static readonly OptimizationId RemoveSwapMov;            // peephole.remove-swap-mov
+public static readonly OptimizationId ReplaceSafeAccess;        // peephole.replace-safe-mem-acces-with-unsafe
 ```
 
 Стандартные peephole-правила (`AddStdRules`):
@@ -281,12 +279,24 @@ public static readonly OptimizationId ReplaceSafeAccess;   // не добавл�
 ```csharp
 public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
 {
-    public RamSize SizeRam { get; set; }   // ⚠ должен быть задан явно
-    // ...
+    public RamSize SizeRam { get; set; } = RamSize.B128;   // теперь с дефолтом
 }
 ```
 
-Заменяет `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` на `*_UNSAFE`-варианты, если адрес известен и в границах RAM. Требует явной установки `SizeRam` — иначе правило не срабатывает (см. [Что исправить, п.5](#что-исправить)).
+Заменяет `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` на `*_UNSAFE`-варианты, если адрес известен и в границах `SizeRam`. Дефолт `RamSize.B128` (128 байт) — **заниженный**, правило сработает только на самых маленьких адресах, если `SizeRam` не выставлен под реальный размер RAM у `Device`. См. [Что исправить, п.1](#что-исправить).
+
+**`PeepholeLog`**:
+
+```csharp
+public class PeepholeLog(OptimizationId id) : ILogOptimization
+{
+    public OptimizationId Id => id;                  // без дополнительного префикса
+    public void Append(int passCount, AsmItem item); // форматирует AsmItem в строку
+    public void Append(int pass, string message);
+    public void Clear();
+    public IReadOnlyList<OptimizationLogEntry> GetLogs(); // возвращает лог, НЕ очищает
+}
+```
 
 ### Утилиты компиляции и запуска
 
@@ -295,23 +305,20 @@ public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
 ```csharp
 extension(VmHostProject proj)
 {
-    // Компиляция всего проекта (файлы из IFileService)
     public CompilationToILResult CompileToIL(ulong baseAddress, bool optimize);
     public CompilationResult    Compile(ulong baseAddress, bool optimize);
 
-    // Компиляция одной строки/набора строк
     public CompilationToILResult CompileToIL(string source, ulong baseAddress, bool optimize, SourceLanguage language);
     public CompilationToILResult CompileToIL(IEnumerable<string> sources, ulong baseAddress, bool optimize, SourceLanguage language);
     public CompilationResult    Compile(string source, ulong baseAddress, bool optimize, SourceLanguage language);
     public CompilationResult    Compile(IEnumerable<string> sources, ulong baseAddress, bool optimize, SourceLanguage language);
 
-    // Сохранение исходников
     public void SaveFileInclude(string localPath, string content);
     public void SaveFileProject(string localPath, string content);
 }
 ```
 
-`SaveFileInclude`/`SaveFileProject` используют `proj.FileService.Combine(paths.IncludePath/ProjectPath, localPath)` и `SaveFile`. ⚠ Без проверки `localPath` на `..` — см. [Что исправить, п.6](#что-исправить).
+`SaveFileInclude`/`SaveFileProject` используют `proj.FileService.Combine(paths.IncludePath/ProjectPath, localPath)` и `SaveFile`. Без проверки `localPath` на `..` — см. [Что исправить, п.6](#что-исправить).
 
 **`VMHostRunExtensions`**:
 
@@ -322,21 +329,27 @@ public sealed record RunOutcome(
     CompilationResult Compilation,
     long StepCount,
     bool Success,
-    IReadOnlyList<string> Diagnostics);
+    IReadOnlyList<string> Diagnostics,
+    ProcessorFault FaultInfo);   // новое: результат Run
 
 extension(VmHost host)
 {
-    public RunOutcome RunAndKeep(string source, SourceLanguage lang,
-                                 RamSize? ram = null, bool optimize = false,
-                                 string deviceName = "run");
-    public bool RunAndCleanup(string source, SourceLanguage lang,
-                              RamSize? ram = null, bool optimize = false);
-    public RunOutcome RunOnce(string source, SourceLanguage lang,
-                              RamSize? ram = null, bool optimize = false);
+    public RunOutcome RunAndKeep(
+        string source, SourceLanguage lang,
+        RamSize? ram = null, bool optimize = false,
+        string deviceName = "run", uint sector = 0);
+
+    public bool RunAndCleanup(
+        string source, SourceLanguage lang,
+        RamSize? ram = null, bool optimize = false, uint sector = 0);
+
+    public RunOutcome RunOnce(
+        string source, SourceLanguage lang,
+        RamSize? ram = null, bool optimize = false, uint sector = 0);
 }
 ```
 
-- `RunAndKeep` — компилирует `source`, создаёт `DeviceSpec` (`RamSize.MB16` по умолчанию), регистрирует на **sector 0**, грузит, запускает. Возвращает `RunOutcome` с живым `Device` — можно читать RAM/регистры после завершения.
+- `RunAndKeep` — компилирует `source`, создаёт `DeviceSpec` (`RamSize.MB16` по умолчанию), регистрирует на `sector`, грузит, запускает. Возвращает `RunOutcome` с живым `Device` и `ProcessorFault` из `ctx.Run(...)`. **`sector` теперь параметр** (было захардкожено 0).
 - `RunAndCleanup` — `RunAndKeep` + `UnregisterDevice`. Возвращает `Success`.
 - `RunOnce` — то же, но возвращает `RunOutcome` с `Device = null, DeviceId = null` (чтобы не путать с «живым» device).
 
@@ -355,11 +368,9 @@ public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorFaultPolic
 **`Librare`** — `static class` со строковыми константами (namespace `Nantuc.VmApplication.Extensions.LibraresIncludes`):
 
 - `heap_nanasm` — `func_HeapGet`, `func_HeapSet`, `func_GetSP`, `func_Load64/32/16/8`, `func_Store64/32/16/8`.
-- `alloc_minic` — first-fit аллокатор с free-list, использует `heap_nanasm`. Содержит важный комментарий про обход бага кодогенератора (см. [Особенная информация](#особенная-информация)).
+- `alloc_minic` — first-fit аллокатор **с split и coalescing** (переписан). Раскладка блока: header (size | FREE_BIT) + payload + footer (для слияния влево). Минимальный блок — 24 байта (8 hdr + 8 payload + 8 ftr). Поддерживает `mergeRight`/`mergeLeft`. `MIN_BLOCK = 24`.
 - `io_nanasm` — `func_In`, `func_Out`.
 - `print_minic` — `print8`, `print16`, `write8`, `write16`, `flush` через `io.nanasm`.
-
-Используются через `#include "heap.nanasm"` в MiniC-исходниках (парсер `#include` резолвит их через `IFileService.ReadFile` в `ProjectBuilder.ResolveIncludesRecursive`).
 
 ### RAM-утилиты
 
@@ -373,7 +384,7 @@ extension(DeviceContext ctx)
 }
 ```
 
-Оба бросают `InvalidOperationException`, если `ctx.IsRunning`. Проверяют `start + length <= bufferLength` и `length <= int.MaxValue`. Копирование по-байтовое (через `INativeReadOnlyBuffer`), т.е. без `NativeMemory.Copy` — см. [Особенная информация](#особенная-информация).
+Оба бросают `InvalidOperationException`, если `ctx.IsRunning`. Проверяют `start + length <= bufferLength` и `length <= int.MaxValue`. Копирование по-байтовое (через `INativeReadOnlyBuffer`).
 
 ## Примеры для API
 
@@ -387,12 +398,15 @@ using var host = VmHostFactory.CreateDefault();
 var sources = host.Project.GetSourceFiles();
 var comp = host.Project.Compile(sources, 0, optimize: false);
 
-// Внутри сборки Extensions (или если сделать Disassembler public):
+// Структурный API — доступен снаружи, т.к. Disassembler теперь public
 var disasm = comp.Disassemble(codeSize: comp.CodeSize);
 foreach (var inst in disasm.Instructions)
     Console.WriteLine($"{inst.Address:X8}: {inst.RawInstruction:X8}  {inst.OpCode}");
 
-// Публичный текстовый API — работает всегда:
+foreach (var chunk in disasm.DataChunks)
+    Console.WriteLine($"{chunk.Address:X8}: {chunk.Value:X16}  \"{chunk.DecodedString}\"");
+
+// Или текстом
 Console.WriteLine(comp.DisassembleToString());
 ```
 
@@ -404,9 +418,6 @@ using Nantuc.VmApplication.Extensions.Emulator.IO;
 using var host = VmHostFactory.CreateDefault();
 var uart = new SynchronousIOStream(Console.Out, PortCharEncoding.Utf8);
 host.Emulator.RegisterDevice(uart, name: "UART0", sector: 1);
-
-// VM на sector 0 пишет в порт 0x10 (Data) и 0x12 (Flush):
-// OUT r0, r1   ; где r1 = base(UART) + Data
 ```
 
 **Queued I/O — не блокирует CPU:**
@@ -415,7 +426,6 @@ host.Emulator.RegisterDevice(uart, name: "UART0", sector: 1);
 var writer = new StreamWriter("output.txt");
 var uart = new QueuedIOStream(writer, PortCharEncoding.Utf8);
 host.Emulator.RegisterDevice(uart, name: "UART0", sector: 1);
-// VM пишет, drain-таск разгружает очередь в фоне
 ```
 
 **Стандартные AST-оптимизации:**
@@ -435,8 +445,6 @@ if (comp.OptimizationResultLog is { } logs)
 **Стандартные peephole-оптимизации:**
 
 ```csharp
-using Nantuc.VmApplication.Extensions.Optimizators;
-
 host.Project.Optimizator.VMPeepholeOptimizer.AddStdRules();
 
 var il = host.Project.CompileToIL(sources, 0, optimize: false);
@@ -444,20 +452,17 @@ il = host.Project.OptimizationIL(il, peepholeOptimizationCount: 5);
 var comp = il.Build();
 ```
 
-**Запуск «одной строкой»:**
+**Запуск «одной строкой» с диагностикой:**
 
 ```csharp
 using Nantuc.VmApplication.Extensions.Host;
 using Nantuc.VmApplication.Project;
+using Nantuc.Kernel.Common;
 
 using var host = VmHostFactory.CreateDefault();
 
-// Просто проверить, что компилируется и не падает:
-bool ok = host.RunAndCleanup("""
-    int main() { return 0; }
-    """, SourceLanguage.C);
+bool ok = host.RunAndCleanup("int main() { return 0; }", SourceLanguage.C);
 
-// С сохранением device для инспекции:
 var outcome = host.RunAndKeep("""
     int main() {
         int x = 42;
@@ -469,7 +474,18 @@ if (outcome.Success)
 {
     var regs = outcome.Device!.GetRegistersSnapshot();
     Console.WriteLine($"r0={regs[RegType.r0]}, steps={outcome.StepCount}");
+
+    if (outcome.FaultInfo.Status != BiosStatus.EndProgramm)
+        Console.Error.WriteLine($"VM fault: {outcome.FaultInfo.Status} " +
+                                $"at IP=0x{outcome.FaultInfo.InstructionPointer:X}");
 }
+```
+
+**Регистрация на другом секторе:**
+
+```csharp
+// Не на sector 0, а на sector 5
+var outcome = host.RunAndKeep(source, SourceLanguage.C, sector: 5);
 ```
 
 **Сохранение исходников в проект:**
@@ -488,136 +504,114 @@ var outcome = host.RunAndKeep("int main() { int x = 42; return x; }", SourceLang
 if (outcome.Success)
 {
     var ram = outcome.Device!.GetRamAsNewArray(0, 256);
-    // ram[0..255] — первые 256 байт RAM
 }
 ```
 
 ## Приближенность модуля к пользователю
 
-**Средняя-высокая.** Это опциональный слой поверх основного API. Если вы пишете «просто запустить и посмотреть» — подключайте `Nantuc.VmApplication.Extensions` и используйте `RunAndKeep`/`RunOnce`/`AddStdRules`. Если вы пишете IDE или отладчик — используйте `Disassembler`/`StringDisassembler`/`InstructionFormatter`. Если пишете игру — `SynchronousIOStream`/`QueuedIOStream` для UART.
+Средняя-высокая. Это опциональный слой поверх основного API. Если вы пишете «просто запустить и посмотреть» — подключайте `Nantuc.VmApplication.Extensions` и используйте `RunAndKeep`/`RunOnce`/`AddStdRules`. Если вы пишете IDE или отладчик — используйте `Disassembler`/`StringDisassembler`/`InstructionFormatter`. Если пишете игру — `SynchronousIOStream`/`QueuedIOStream` для UART.
 
 **Что стоит делать:**
 - Подключать `AddStdRules()` в `VmHostFactory.CreateDefault`-сценарии для компиляции с оптимизациями.
 - Использовать `QueuedIOStream` для неблокирующего вывода (игровой цикл), `SynchronousIOStream` — для простых случаев.
-- Для отладки — `DisassembleToString()` (текст) или `Disassemble()` (структура, но только внутри сборки).
+- Для отладки — `DisassembleToString()` (текст) или `Disassemble()` (структура, теперь доступна снаружи).
 - Для сохранения RAM — `GetRamAsNewArray` (снимок) и `CopyRamTo` (в готовый `Span<byte>`).
-- Задавать `ReplaceSafeMemAccessWithUnsafeRule.SizeRam` явно, если используете это правило.
-- `SaveFileProject`/`SaveFileInclude` — с проверкой `localPath` на отсутствие `..` (сейчас проверки нет).
+- Выставлять `ReplaceSafeMemAccessWithUnsafeRule.SizeRam` под реальный размер RAM у `Device`, если используете это правило.
+- `SaveFileProject`/`SaveFileInclude` — с проверкой `localPath` на отсутствие `..`.
 
 **Что не стоит делать:**
-- Вызывать `RunAndKeep` несколько раз на одном `VmHost` — sector 0 будет занят (см. [Что исправить, п.4](#что-исправить)).
-- Использовать `RunAndKeep` для недоверенного кода — он регистрирует VM на sector 0 без sandbox'а.
+- Вызывать `RunAndKeep` несколько раз на одном `VmHost` с тем же `sector` — сектор будет занят (см. [Что исправить, п.4](#что-исправить)). Используйте `sector:` явно или `RunOnce`.
+- Использовать `RunAndKeep` для недоверенного кода — он регистрирует VM на указанном секторе без sandbox'а.
 - Полагаться на `AddStdRules` для peephole — `ReplaceSafeMemAccessWithUnsafeRule` **не** добавляется автоматически.
-- Ожидать, что `RunOutcome.Success` отражает runtime-фолты — он отражает только компиляцию и загрузку (см. [Что исправить, п.7](#что-исправить)).
+- Ожидать, что `RunOutcome.Success` отражает runtime-фолты — `Success` только про компиляцию и загрузку. Для статуса — `outcome.FaultInfo`.
 - Использовать `Librare.alloc_minic` без понимания, что он написан в обход бага кодогенератора (см. [Особенная информация](#особенная-информация)).
+
+## Что исправлено в этой версии
+
+По сравнению с прошлой фиксацией `Nantuc.VmApplication.Extensions`:
+
+- **`Disassembler` теперь `public static class`** (было `internal`). Extension `res.Disassemble(int?)` доступен извне, структурный `DisassemblyResult` можно получить без хаков.
+- **`PeepholeLog.GetLogs()` больше не вызывает `log.Clear()`** — лог больше не пустой.
+- **`PeepholeLog.Id => id`** (было `id.WithPeepholePrefix()`) — двойной префикс `peephole.peephole.*` исправлен.
+- **`ReplaceSafeMemAccessWithUnsafeRule.SizeRam = RamSize.B128`** — у правила теперь дефолт (было `default(RamSize)`, `IsValid == false`, правило было no-op).
+- **`RunOutcome` теперь содержит `ProcessorFault FaultInfo`** — можно узнать статус завершения из результата.
+- **`RunAndKeep`/`RunAndCleanup`/`RunOnce` принимают `sector`** (было захардкожено `0`).
+- **`RunAndKeep` прокидывает `ProcessorFault` из `ctx.Run(...)`** в `RunOutcome.FaultInfo`.
+- **`Librare.alloc_minic` переписан**: first-fit с split и coalescing, header + footer, `FREE_BIT`, `MIN_BLOCK = 24`. Устраняет фрагментацию, поддерживает слияние соседей.
+- **`Nantuc.VmApplication.Extensions.csproj` — убран `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>`** (в коде модуля `unsafe` нет).
 
 ## Особенная информация
 
 ### Двойной проход по data-секции
 
-И `Disassembler.Disassemble`, и `StringDisassembler.Disassemble` делят поток на code и data по `codeSize`. Если `codeSize == 0`, весь поток — data. Если `codeSize == size`, data-секции нет. Если последняя инструкция с `data64` выходит за `codeSize` (паддинг + 8 байт), `pos` после цикла будет `> codeSize`, и data-цикл начнётся с `pos`, а не с `codeSize`. Это значит: **первые `pos - codeSize` байт data-секции фактически являются хвостом последней инструкции** и не будут показаны как data. По комментарию в коде — это осознанно («не трактуем как данные»). Но `bytesConsumed` в `DisassemblyResult` всё равно равен `pos`, поэтому `TotalSize - BytesConsumed` может быть меньше `TotalSize - CodeSize`.
+И `Disassembler.Disassemble`, и `StringDisassembler.Disassemble` делят поток на code и data по `codeSize`. Если `codeSize == 0`, весь поток — data. Если `codeSize == size`, data-секции нет. Если последняя инструкция с `data64` выходит за `codeSize` (паддинг + 8 байт), `pos` после цикла будет `> codeSize`, и data-цикл начнётся с `pos`, а не с `codeSize`. Первые `pos - codeSize` байт data-секции фактически являются хвостом последней инструкции и не будут показаны как data. `bytesConsumed` в `DisassemblyResult` всё равно равен `pos`.
 
-### Формат вывода
+### `Librare.alloc_minic` — обход бага кодогенератора
 
-Формат строки инструкции (`InstructionFormatter.Format`):
-```
-XXXXXXXX: XXXXXXXX   MNEMONIC [data = 0xXXXXXXXXXXXXXXXX (N)]
-```
-где `XXXXXXXX` — IP и raw instruction (8 hex-цифр), `MNEMONIC` — из `InstructionEncoder.Decode`.
+`alloc_minic` держит всё состояние (`heapFreeList`, `heapCur`, `heapStart`, `FREE_BIT`, `MIN_BLOCK`) в глобалах, а не в локалах. Причина — баг `FunctionGenerator.GenerateFunction` (`[Nantuc.Compiler](../Nantuc.Compiler/README.md)`, [Что исправить, п.1](../Nantuc.Compiler/README.md#что-исправить)): несимметричный push/pop регистров калечит callee-saved регистры при 3-4 локальных переменных. Пока баг не исправлен в компиляторе, `alloc_minic` работает как workaround.
 
-Формат data-chunk:
+Раскладка блока:
 ```
-XXXXXXXX: XX XX XX XX XX XX XX XX .data 0xXXXXXXXXXXXXXXXX  "строка"
++0..7    : size | FREE_BIT(бит0)        — заголовок
++8..15   : next_free (только для free)  — либо начало payload
++16..sz-8: продолжение payload / unused
++sz-8..sz: size | FREE_BIT(бит0)        — футер (для слияния влево)
 ```
-8 hex-байт с паддингом (3 пробела на отсутствующий байт), `.data` — маркер, `0x...` — 64-битное значение (LE), `"строка"` — UTF-16LE printable ASCII (если удалось).
-
-Секция данных отделяется строкой `--- data section (N bytes) ---`.
-
-### `Librare.alloc_minic` и баг кодогенератора
-
-В `alloc_minic` есть комментарий:
-```
-// ВАЖНО: обходной путь для бага кодогенерации MiniC — если функция
-// держит 3-4 переменные в r5..r8, компилятор генерирует несимметричный
-// push/pop и портит r5/r6 у вызывающего.
-```
-Это тот самый баг из `[Nantuc.Compiler](../Nantuc.Compiler/README.md)`, [Что исправить, п.1](#что-исправить): `FunctionGenerator.GenerateFunction` делает `EmitPush` в отсортированном порядке, а `EmitPop` — в порядке `UsedRegisters`, который не отсортирован. Пока баг не исправлен в компиляторе, `alloc_minic` работает как workaround: держит переменные в глобалах, а не в регистрах.
+`payload` начинается с `+8`. Минимальный блок — 24 байта (8 hdr + 8 payload + 8 ftr). При освобождении: `blkMark(b, size, 1)` → `mergeRight(b)` → `mergeLeft(b)` → `blkPush(b)`. При аллокации: first-fit по `heapFreeList`, при достаточном размере — `split` (если `csz - need >= MIN_BLOCK`), иначе `blkMark(curr, csz, 0)` (без split); иначе bump через `GetSP()`.
 
 ### `PortBusExtensions.GetBaseAddress`
 
-`(ulong)sector * bus.PortsOnDevice` — вычисляет абсолютный адрес начала сектора в port-пространстве. `bus.PortsOnDevice` — `uint`, но `sector` сначала приводится к `ulong`, поэтому переполнения нет (даже при `sector = uint.MaxValue`, `sector * 64` = 274 млрд, влезает в `ulong`).
+`(ulong)sector * bus.PortsOnDevice` — вычисляет абсолютный адрес начала сектора в port-пространстве. `sector` сначала приводится к `ulong`, переполнения нет.
 
-### `HostExtensions` и sector 0
+### `HostExtensions` и `sector`
 
-`RunAndKeep` жёстко регистрирует VM на **sector 0**. Это значит:
-- Повторный вызов `RunAndKeep`/`RunOnce` на том же `VmHost` после `RunAndKeep` (без `RunAndCleanup`) упадёт: `RegisterDevice` вернёт `-2` (sector busy), `GetDeviceContext(-2)` вернёт `null`, `!` даст NRE.
-- `RunOnce` и `RunAndCleanup` освобождают sector 0, поэтому их можно вызывать повторно.
+`RunAndKeep`/`RunOnce`/`RunAndCleanup` принимают `sector` (по умолчанию `0`). Если `sector` занят другим устройством, `RegisterDevice` вернёт `-2`, `GetDeviceContext(-2)!` даст NRE (см. [Что исправить, п.2](#что-исправить)). `RunOnce` и `RunAndCleanup` освобождают `sector` через `UnregisterDevice`, поэтому их можно вызывать повторно с тем же `sector`. `RunAndKeep` — нет, пока не сделаете `UnregisterDevice` вручную.
 
-### `Disassembler` — internal
+### `RunOutcome.FaultInfo`
 
-`internal static class Disassembler` и extension `res.Disassemble(int?)` **не доступны** из других сборок. Структурный API (`DisassemblyResult`, `DecodedInstruction`, `DecodedDataChunk`) публичный, но получить его снаружи можно только через `StringDisassembler.Disassemble` (возвращает `string`) — структурный результат недоступен. Это делает `InstructionFormatter.Format(DisassemblyResult)` практически бесполезным для внешних пользователей (они не могут создать `DisassemblyResult`).
+`FaultInfo` — это `ProcessorFault` из `ctx.Run(new LaunchOptions(...))`. На успехе — `BiosStatus.EndProgramm`; на падении — соответствующий статус с `InstructionPointer`/`OpCode`. Важно: `_faultData` в `Processor` не сбрасывается в `LaunchProgramm` (`[Nantuc.Kernel](../Nantuc.Kernel/README.md)`, [Что исправить, п.2](../Nantuc.Kernel/README.md#что-исправить)) — второй `Run` на том же `Device` может вернуть fault от первого, если первый был падением.
 
 ### Ограничения платформ
 
-- **`net10.0`**, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — но `unsafe`-кода в модуле нет. Возможно, включено для транзитивных зависимостей или на будущее.
-- **`Thread.Sleep(1)`** в `QueuedIOStream.Flush` — в WASM либо no-op, либо `PlatformNotSupportedException`. Для WASM используйте `SynchronousIOStream`.
-- **`Channel<byte>`** и `Task.Run(DrainAsync)` — работают в WASM, но фоновые задачи могут не выполниться до явного `await`. Для WASM-хоста используйте `SynchronousIOStream`.
-- **`ImmutableArray<T>`** — работает в AOT/WASM, но каждая мутация через `CreateBuilder` аллоцирует. Для больших программ (10k+ инструкций) `DisassemblyResult` может занимать много памяти. Для стриминга используйте `StringDisassembler.Disassemble`.
-- **`Guid.NewGuid().GetHashCode()`** в `InlineSmallVoidFunctionsRule` — стабильно в пределах процесса, но не между процессами. Для детерминированной сборки это может быть проблемой.
-
-### Что этот модуль не делает
-
-- Не реализует свой `IFileService` — только `DefaultFileService`/`RamFileService` из `VmApplication`.
-- Не содержит UI/REPL — только библиотека.
-- Не реализует `IPortController` для VM — это `DeviceContextUnsafeExtensions.AsRawDevice()` из `VmApplication.Unsafe` (для этого модуля — `AsRawDevice` не нужен, всё через `VmHost`/`DeviceContext`).
-- Не регистрирует устройства автоматически — это делает пользователь через `host.Emulator.RegisterDevice(...)`.
-- Не заменяет `AddStdRules` — можно добавлять свои правила вперемешку.
+- `net10.0`, `<AllowUnsafeBlocks>` **не** включён (было включено — убрано, `unsafe`-кода в модуле нет).
+- `Thread.Sleep(1)` в `QueuedIOStream.Flush` — в WASM либо no-op, либо `PlatformNotSupportedException`. Для WASM используйте `SynchronousIOStream`.
+- `Channel<byte>` и `Task.Run(DrainAsync)` — работают в WASM, но фоновые задачи могут не выполниться до явного `await`.
+- `ImmutableArray<T>` — работает в AOT/WASM, но каждая мутация через `CreateBuilder` аллоцирует. Для больших программ (10k+ инструкций) `DisassemblyResult` может занимать много памяти. Для стриминга — `StringDisassembler.Disassemble`.
+- `Guid.NewGuid().GetHashCode()` в `InlineSmallVoidFunctionsRule` — стабильно в пределах процесса, но не между процессами. Для детерминированной сборки — проблема.
 
 ## Что исправить
 
-1. **`Disassembler` — `internal`, extension недоступен снаружи.**  
-   Файл: `Disassembler/Disassembler.cs`, `internal static class Disassembler` + `extension(CompilationResult res) { public DisassemblyResult Disassemble(int? codeSize = null); }`.  
-   Типы `DecodedInstruction`, `DecodedDataChunk`, `DisassemblyResult` — `public`, но единственный способ их получить — этот extension, а класс `internal`. Значит, `DisassemblyResult` снаружи не получить (только `StringDisassembler.Disassemble`, который возвращает `string`).  
-   Фикс: сделать `Disassembler` `public static class` (сам по себе класс не страшный — внутри только extension-метод). Если не хотите публиковать `Disassembler`, вынесите extension в `StringDisassembler` (тоже `public static`) или в отдельный `DisassemblyExtensions : public static`.
+По убыванию важности. Ссылки на файлы и методы.
 
-2. **`PeepholeLog.Id` — двойной префикс; `GetLogs()` очищает лог.**  
-   Файл: `Optimizators/PeepholeOptimizerExtension.cs`, класс `PeepholeLog`:
-   ```csharp
-   public OptimizationId Id => id.WithPeepholePrefix();
-   public IReadOnlyLogOptimization GetLogs() { log.Clear(); return log; }  // в каждом rule
-   ```
-   `PeepholeOptimizerExtension.ConstantFolding = Peephole("constant-folding")` = `peephole.constant-folding`. `new PeepholeLog(ConstantFolding).Id` = `peephole.peephole.constant-folding`. Двойной префикс.  
-   Плюс: `PeepholeOptimizer.Optimize` сначала `rule.Clear()`, в конце `rule.GetLogs()`. А `GetLogs()` у большинства правил сам вызывает `log.Clear()` — то есть **лог всегда пустой**.  
-   Фикс: `public OptimizationId Id => id;` (id уже с префиксом) и `GetLogs()` без `Clear()`. `Clear()` — отдельный метод, `Optimize` его вызывает сам.
+1. **`ReplaceSafeMemAccessWithUnsafeRule.SizeRam` — дефолт `RamSize.B128` может быть неверным.**  
+   Файл: `Optimizators/IRAsmRules/ReplaceSafeMemAccessWithUnsafeRule.cs`, свойство `public RamSize SizeRam { get; set; } = RamSize.B128;`.  
+   `RamSize.B128` — 128 байт. Если реальный `Device` имеет `RamSize.MB16`, правило будет считать «безопасными» только адреса `< 128` — то есть почти все `LOAD`/`STORE` останутся safe, а `*_UNSAFE` не применится. Если наоборот (`SizeRam = RamSize.GB1`, а `Device` = `RamSize.KB64`), правило может заменить safe на unsafe для адреса за реальной границей RAM — и `Processor` упадёт с access violation.  
+   Фикс: либо сделать `SizeRam` обязательным в конструкторе, либо брать реальный размер у `Device`/`Emulator` в момент добавления правила. В `AddStdRules` правило не добавляется — так что текущая защита: пользователь должен сам выставить `SizeRam`. Но дефолт всё равно опасен.
 
-3. **`AstOptimizerExtension.AddStdRules` — дублирует `RemoveUnreachableCodeRule`.**  
-   Файл: `Optimizators/AstOptimizerExtension.cs`, метод `AddStdRules`:
+2. **`HostExtensions.RunAndKeep` — `GetDeviceContext(id)!` без проверки, `Success` не отражает fault.**  
+   Файл: `Host/HostExtensions.cs`, `RunAndKeep`:
    ```csharp
-   optimizer.Add(new RemoveUnreachableCodeRule());   // строка 1
-   // ...
-   optimizer.Add(new InlineSmallVoidFunctionsRule());
-   optimizer.Add(new RemoveUnreachableCodeRule());   // строка 6 — дубликат
-   ```
-   Если это намеренно (unreachable после инлайна), задокументируйте комментарием. Если нет — уберите второй вызов.
-
-4. **`HostExtensions.RunAndKeep` — sector 0 захардкожен, `!` на `GetDeviceContext`.**  
-   Файл: `Host/HostExtensions.cs`, метод `RunAndKeep`:
-   ```csharp
-   int id = host.Emulator.RegisterDevice(spec, 0);
+   int id = host.Emulator.RegisterDevice(spec, sector);
    var ctx = host.Emulator.GetDeviceContext(id)!;
    ```
-   Если `RegisterDevice` вернул `-1..-4` (sector 0 занят, нет места), `GetDeviceContext(-2)` вернёт `null`, `!` даст NRE.  
-   Фикс: `if (id < 0) return new(null, null, comp, 0, false, [$"RegisterDevice failed: {id}"]);` и `if (ctx is null) return ...`. Плюс либо сделать sector параметром (`uint sector = 0`), либо искать первый свободный.
-
-5. **`ReplaceSafeMemAccessWithUnsafeRule.SizeRam` — не инициализирован, правило не срабатывает.**  
-   Файл: `Optimizators/IRAsmRules/ReplaceSafeMemAccessWithUnsafeRule.cs`, свойство `public RamSize SizeRam { get; set; }` с дефолтом `default(RamSize)`. `default(RamSize).Bytes == 1`, `default(RamSize).IsValid == false`. В `TryOptimize`:
+   Если `RegisterDevice` вернул `-1..-4` (sector занят, нет места), `GetDeviceContext(-2)` вернёт `null`, `!` даст NRE. Также `Success` устанавливается в `true` после `ctx.Run(...)`, даже если `fault.Status != EndProgramm`.  
+   Фикс:
    ```csharp
-   if (address + (ulong)dataSize > SizeRam.Bytes) return false;
+   var state = host.Emulator.TryRegisterDevice(spec, sector, out int id);
+   if (state != IdState.Valid) return new(null, null, comp, 0, false, [$"RegisterDevice failed: {state}"], default);
+   if (!host.Emulator.TryGetDeviceContext(id, out var ctx)) { ... }
+   var fault = ctx.Run(...);
+   return new(ctx, id, comp, ctx.StepCount, fault.Status == BiosStatus.EndProgramm, [], fault);
    ```
-   Всегда `true` (кроме `address == 0 && dataSize == 1`) → правило — no-op.  
-   Фикс: либо сделать `SizeRam` обязательным в конструкторе (`public ReplaceSafeMemAccessWithUnsafeRule(RamSize sizeRam)`), либо проверять `SizeRam.IsValid` и бросать `InvalidOperationException("SizeRam must be set")`.
 
-6. **`ProjectExtension.SaveFileInclude/SaveFileProject` — path traversal.**  
+3. **`AstOptimizerExtension.AddStdRules` — дублирует `RemoveUnreachableCodeRule`.**  
+   Файл: `Optimizators/AstOptimizerExtension.cs`, `AddStdRules`: `RemoveUnreachableCodeRule` добавляется дважды (до и после `InlineSmallVoidFunctionsRule`). Если это намеренно (unreachable после инлайна), задокументируйте комментарием. Если нет — уберите второй вызов.
+
+4. **`HostExtensions` — `RunAndKeep` не освобождает `sector`, `RunOnce`/`RunAndCleanup` — да.**  
+   Файл: `Host/HostExtensions.cs`. `RunAndKeep` оставляет устройство на `sector` — повторный вызов с тем же `sector` упадёт (см. п.2). `RunOnce`/`RunAndCleanup` освобождают. Это несогласованно: имя `RunAndKeep` подразумевает «оставить device», но не «занять sector навсегда».  
+   Рекомендация: задокументировать в XML-doc `RunAndKeep`, что он **не** освобождает `sector`, и вызывать `host.Emulator.UnregisterDevice(outcome.DeviceId!.Value)` для повторного использования.
+
+5. **`ProjectExtension.SaveFileInclude`/`SaveFileProject` — path traversal.**  
    Файл: `Host/ProjectExtension.cs`, методы `SaveFileInclude`/`SaveFileProject`:
    ```csharp
    fs.SaveFile(fs.Combine(paths.IncludePath, localPath), content);
@@ -625,50 +619,52 @@ XXXXXXXX: XX XX XX XX XX XX XX XX .data 0xXXXXXXXXXXXXXXXX  "строка"
    Если `localPath = "../../etc/passwd"` — запись за пределы проекта. Для библиотеки, которая принимает `localPath` от пользователя (IDE, web-сервис), это дыра.  
    Фикс: `Path.GetFullPath(fs.Combine(paths.IncludePath, localPath))` и проверка, что результат начинается с `Path.GetFullPath(paths.IncludePath) + Path.DirectorySeparatorChar`. Либо запретить `..` и абсолютные пути в `localPath` явно.
 
-7. **`RunOutcome.Success` не отражает runtime-фолты.**  
-   Файл: `Host/HostExtensions.cs`, `RunAndKeep`. Возвращает `new(ctx, id, comp, ctx.StepCount, true, [])` после `ctx.Run(...)`. Если VM упала с `DivOnZero` (policy `ShouldContinue` вернул `false`), `Run` просто выходит из цикла, `IsRunning == false`, `Success == true`. Пользователь думает «всё ок».  
-   Фикс: либо `RunAndKeep` должен принимать `IProcessorFaultPolicy` и возвращать информацию о фолте (сейчас он использует `IProcessorFaultPolicy.Default` из `DeviceSpec.Create` — то есть останавливает на фолте, но не сообщает о нём), либо задокументировать: «`Success` — только компиляция + загрузка; для runtime-фолтов передайте свой `IProcessorFaultPolicy` через `DeviceSpec`».
-
-8. **`Librare` / `LibraresIncludes` / `LibraresForCompiler` — опечатки в публичном API.**  
+6. **`Librare` / `LibraresIncludes` / `LibraresForCompiler` — опечатки в публичном API.**  
    Файлы: `LibraresIncludes/LibraresForCompiler.cs`, namespace `Nantuc.VmApplication.Extensions.LibraresIncludes`, `public static class Librare`.  
-   Должно быть `Libraries`, `LibrariesIncludes`, `LibrariesForCompiler`, `Library` (или `Libraries`). Пока не зафиксировано в потребителях — переименовать сейчас (breaking change, но опечатка стоит дороже).
+   Должно быть `Libraries`, `LibrariesIncludes`, `LibrariesForCompiler`, `Library` (или `Libraries`). Пока не зафиксировано в потребителях — переименовать сейчас.
 
-9. **`StringDisassembler.Disassemble` — XML-doc не соответствует сигнатуре.**  
-   Файл: `Disassembler/StringDisassembler.cs`, метод `Disassemble(ReadOnlySpan<byte> program, int codeSize, ulong baseAddress = 0)`:
-   ```csharp
-   /// <param name="length"> [OUTPUT] количество строк кода программы </param>
-   /// <param name="size"> [OUTPUT] размер программы в byte</param>
-   ```
-   Но параметров `length`/`size` нет — это локальные переменные. Копипаст из старой версии. Фикс: удалить эти `<param>` или переписать под актуальные `program`/`codeSize`/`baseAddress`.
+7. **`Disassembler.ThrowIfNotSucces` — опечатка и пустое сообщение.**  
+   Файл: `Disassembler/Disassembler.cs`, `private static void ThrowIfNotSucces(CompilationResult res)`.  
+   Должно быть `ThrowIfNotSuccess`. Бросает `new InvalidOperationException()` без сообщения — фикс: `throw new InvalidOperationException("CompilationResult has errors; cannot disassemble.")`.
 
-10. **`StringDisassembler.Disassemble` — `BitConverter.ToUInt32`/`ToUInt64` (endianness-зависимо).**  
-    Файл: `Disassembler/StringDisassembler.cs`, строки с `BitConverter.ToUInt32(program.Slice(pos, 4))` и `BitConverter.ToUInt64(program.Slice(nextPos, 8))`. То же в `Disassembler.cs`.  
-    На big-endian хосте (WASM-эмуляция) прочитает неправильно. `Nantuc.Kernel.MemoryBus` использует `BinaryPrimitives.ReadUInt32LittleEndian` — правильно.  
-    Фикс: `BinaryPrimitives.ReadUInt32LittleEndian(program.Slice(pos, 4))` и `ReadUInt64LittleEndian`.
+8. **`StringDisassembler.Disassemble` / `Disassembler.Disassemble` — `BitConverter.ToUInt32/ToUInt64` (endianness-зависимо).**  
+   Файлы: `Disassembler/StringDisassembler.cs` и `Disassembler/Disassembler.cs`, строки с `BitConverter.ToUInt32(program.Slice(pos, 4))` и `BitConverter.ToUInt64(program.Slice(nextPos, 8))`.  
+   На big-endian хосте прочитает неправильно. `Nantuc.Kernel.MemoryBus` использует `BinaryPrimitives.ReadUInt32LittleEndian` — правильно.  
+   Фикс: `BinaryPrimitives.ReadUInt32LittleEndian(program.Slice(pos, 4))` и `ReadUInt64LittleEndian(...)`.
 
-11. **`DeviceContextExtensions.CopyRamTo` — `nameof(destination)` в `ThrowIfGreaterThan`.**  
-    Файл: `DeviceCtx/DeviceContextExtensions.cs`, `ArgumentOutOfRangeException.ThrowIfGreaterThan(length, bufferLength - start, nameof(destination))`. Параметр `destination` — это `Span<byte>`, а не число, поэтому сообщение «destination too big» вводит в заблуждение. Фикс: `nameof(length)` или явное сообщение через `ThrowHelper`/`throw new ArgumentOutOfRangeException(nameof(destination), ...)`.
+9. **`DeviceContextExtensions.CopyRamTo` — `nameof(destination)` в `ThrowIfGreaterThan`.**  
+   Файл: `DeviceCtx/DeviceContextExtensions.cs`, `ArgumentOutOfRangeException.ThrowIfGreaterThan(length, bufferLength - start, nameof(destination))`. Параметр `destination` — `Span<byte>`, а не число, сообщение «destination too big» вводит в заблуждение.  
+   Фикс: `nameof(length)`.
 
-12. **`HostExtensions.RunAndCleanup` и `RunOnce` — дублирование.**  
-    Файл: `Host/HostExtensions.cs`. `RunAndCleanup` возвращает `bool`, `RunOnce` — `RunOutcome` с очищенными `Device`/`DeviceId`. Оба вызывают `RunAndKeep` + `UnregisterDevice`. Можно оставить один (`RunOnce`) и сделать `RunAndCleanup` тонкой обёрткой (`=> RunOnce(...).Success`), либо удалить `RunAndCleanup`.
+10. **`LoggingFaultPolicyMinimal` — не на месте.**  
+    Файл: `Host/ProjectExtension.cs`. Класс не связан с extension-методами проекта — это политика fault'ов.  
+    Фикс: перенести в `Host/HostExtensions.cs` или отдельный `Host/FaultPolicies.cs`.
 
-13. **`ProjectExtension.LoggingFaultPolicyMinimal` — не на месте.**  
-    Файл: `Host/ProjectExtension.cs`. Класс не связан с extension-методами проекта — это политика fault'ов. Фикс: перенести в `Host/HostExtensions.cs` или отдельный `Host/FaultPolicies.cs`.
-
-14. **`InlineSmallVoidFunctionsRule` — `Guid.NewGuid().GetHashCode() & 0xFFFF`.**  
-    Файл: `Optimizators/AstRules/InlineSmallVoidFunctionsRule.cs`, метод `CreateInlineBlock`. Уникальность в пределах процесса, но не между процессами (детерминизм сборки), плюс возможны коллизии (16 бит). Для inlining обычно ок, но если вы кэшируете байткод между запусками — сломается.  
+11. **`InlineSmallVoidFunctionsRule` — `Guid.NewGuid().GetHashCode() & 0xFFFF`.**  
+    Файл: `Optimizators/AstRules/InlineSmallVoidFunctionsRule.cs`, метод `CreateInlineBlock`. Уникальность в пределах процесса, но не между процессами (детерминизм сборки), плюс возможны коллизии (16 бит).  
     Фикс: статический `Interlocked.Increment(ref _counter)` в классе правила.
 
-15. **`Disassembler.cs` — `ThrowIfNotSucces` (опечатка).**  
-    Файл: `Disassembler/Disassembler.cs`, метод `private static void ThrowIfNotSucces`.  
-    Должно быть `ThrowIfNotSuccess`. Плюс бросает `new InvalidOperationException()` без сообщения — фикс: `throw new InvalidOperationException("CompilationResult has errors; cannot disassemble.")`.
+12. **`ConstantFoldingRule` — `HasLabelBetween` проверяет только `items[index-1]`.**  
+    Файл: `Optimizators/IRAsmRules/ConstantFoldingRule.cs`, `HasLabelBetween(items, index - 2, index)` — проверяет `items[index-1]` (между двумя LDI и op). Если `items[index-2]` — это `AsmLabel` (метка перед первой LDI), правило всё равно применится — это правильно. OK. Но `ReplaceSafeMemAccessWithUnsafeRule` (`Optimizators/IRAsmRules/ReplaceSafeMemAccessWithUnsafeRule.cs`) для `LOAD_IND`/`STORE_IND` смотрит на `items[index - 1]` без проверки на `AsmLabel`. Если между `LDI` и `LOAD_IND` стоит метка (jump target), `prev.FirstReg == instr.SecondReg` может сработать, но `address` относится к другой ветке исполнения.  
+    Рекомендация: добавить `!HasLabelBetween(items, index - 1, index)` в `ReplaceSafeMemAccessWithUnsafeRule`.
 
-16. **`ConstantFoldingRule` — `HasLabelBetween` не проверяется для `LDI`/`LDI` (там `HasLabelBetween` есть, но порядок аргументов).**  
-    Файл: `Optimizators/IRAsmRules/ConstantFoldingRule.cs`, `HasLabelBetween(items, index - 2, index)`. Проверяет `items[index-1]` (между двумя LDI и op). Если `items[index-2]` — это `LDI`, `items[index-1]` — это `LDI`, `items[index]` — `ADD`, то `HasLabelBetween(index-2, index)` проверяет `items[index-1]` на `AsmLabel` — но там `AsmInstruction`, не метка. Значит, если метка есть **перед** первой LDI, правило всё равно применится — и это правильно (метка до LDI не влияет на fold). OK, но `HasLabelBetween` не проверяет **между LDI-1 и LDI-2** — тоже правильно, там уже `LDI` (проверено). Так что логика верна, но защита от меток между LDI и `op` — есть. OK.
+13. **`QueuedIOStream.Flush` — polling до 2 секунд.**  
+    Файл: `Emulator/IO/QueuedIOStream.cs`, `Flush`:
+    ```csharp
+    var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
+    while (Volatile.Read(ref _pendingCount) > 0 && DateTime.UtcNow < deadline)
+        Thread.Sleep(1);
+    ```
+    Блокирует вызывающий поток до 2 секунд, если очередь не пустеет. В игровом цикле это может быть заметно.  
+    Рекомендация: либо уменьшить deadline, либо использовать `Task`/`await` (но тогда `IPortUse.WritePort` не подходит — он `void`), либо задокументировать в XML-doc, что `Flush` блокирующий.
 
-17. **`ReplaceSafeMemAccessWithUnsafeRule` — `LOAD_IND` смотрит на `items[index - 1]` без проверки на `AsmLabel`.**  
-    Файл: `Optimizators/IRAsmRules/ReplaceSafeMemAccessWithUnsafeRule.cs`, ветка `else if (instr.OpCode is OpCode.LOAD_IND or OpCode.STORE_IND)`. Если между `LDI` и `LOAD_IND` стоит метка (например, jump target), `prev.FirstReg == instr.SecondReg` может сработать, но `address` относится к другой ветке исполнения. Фикс: `if (index > 0 && items[index-1] is AsmInstruction prev && ... && !HasLabelBetween(items, index - 1, index))` — как в `ConstantFoldingRule`.
+14. **`README.md` для `Nantuc.VmApplication.Extensions` — файл `Nantuc.VmApplication.Extensions.csproj` теперь без `AllowUnsafeBlocks`.**  
+    Это не баг, но если где-то в документации упоминалось `unsafe` — обновите. В этом README раздел [Ограничения платформ](#ограничения-платформ) уже отражает актуальное состояние.
 
-18. **`Nantuc.VmApplication.Extensions.csproj` — `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` без `unsafe`-кода.**  
-    Файл: `Nantuc.VmApplication.Extensions.csproj`. В коде модуля `unsafe` нет. Либо это для транзитивных зависимостей (но `AllowUnsafeBlocks` не наследуется через `ProjectReference` — каждая сборка решает сама), либо забыто.  
-    Фикс: убрать, если действительно не нужно (или добавить комментарий «нужно для будущего»).
+15. **`OptimizationResultLog.Upsert` (в `VmApplication`) — комментарий врёт про мердж.**  
+    Не в этом модуле, но связано: `OptimizationIL` использует `logger.AddRange(log)`, а не `Upsert`. `Upsert` документирован как «мерджим записи», но реализован как перезапись. Если `AstOptimizerExtension.AddStdRules` добавил два одинаковых `OptimizationId` — второй перезапишет первый в `_logs`.  
+    Рекомендация: либо исправить `Upsert` (конкатенация `OptimizationLogEntry`), либо исправить комментарий.
+
+16. **`RunOutcome.FaultInfo` — default при ошибках компиляции/загрузки.**  
+    Файл: `Host/HostExtensions.cs`, `RunAndKeep`. При `!comp.Success` или `!ctx.TryFastLoadProgram(...)` возвращается `new(..., default)` — `FaultInfo` будет `default(ProcessorFault)` с `Status = BiosStatus.Success`. Это вводит в заблуждение: fault как бы «успешный».  
+    Рекомендация: либо `ProcessorFault?` в `RunOutcome`, либо явно ставить `new ProcessorFault(BiosStatus.SegmentationFault, 0, 0, OpCode.NOP)` для ошибок загрузки.

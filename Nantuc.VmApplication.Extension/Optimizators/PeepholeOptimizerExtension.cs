@@ -53,7 +53,7 @@ public class PeepholeLog(OptimizationId id) : ILogOptimization
 {
     private readonly List<OptimizationLogEntry> _entries = [];
 
-    public OptimizationId Id => id.WithPeepholePrefix();
+    public OptimizationId Id => id;
 
 
     public void Append(int passCount, AsmItem item)

@@ -18,7 +18,8 @@ public enum OpCode : byte
     ADD, // Сложение (ADD R1, R2 -> R1 = R1 + R2)
     SUB, // Вычитание (SUB R1, R2 -> R1 = R1 - R2)
     MULT_INT, //Умножение (MULT_INT R1 R2 -> R1 = R1 * R2)
-    SHR, //Деление SHR r1, r2 (r1 = r1 >> r2)
+    SHR, //Лог сдвиг вправо SHR r1, r2 (r1 = r1 >> r2)
+    SHL, //Лог сдвиг влево SHL r1, r2 (r1 = r1 << r2)
     INC, // Инкремент значения в регистре (INC R1)
     DEC, // Декремент значения в регистре (DEC R1)
     DIV,
@@ -45,8 +46,8 @@ public enum OpCode : byte
     // === 7. Ввод-вывод ===
     IN,  // Чтение из порта: IN Rdest, Rport  (Rdest ← порт[Rport])
     OUT,  // Запись в порт:  OUT Rsrc, Rport  (порт[Rport] ← Rsrc)
-    CALL_IND,   // программное прерывание
-    JMP_IND,   // возврат из прерывания
+    CALL_IND, //  Косвенный вызов: CALL_IND R -> CALL [R]
+    JMP_IND, // Косвенный переход: JMP_IND R -> JMP [R]
 
     HALT,
     WAKE,
@@ -59,7 +60,6 @@ public enum OpCode : byte
     LOAD_IND_UNSAFE,
     CMP,
     TEST,
-    SHL,
     MOD,
 }
 

@@ -9,11 +9,7 @@ namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 public sealed class ConstantFoldingRule : IPeepholeRule
 {
     private readonly PeepholeLog log = new(PeepholeOptimizerExtension.ConstantFolding);
-    public IReadOnlyLogOptimization GetLogs()
-    {
-        log.Clear();
-        return log;
-    }
+    public IReadOnlyLogOptimization GetLogs() => log;
     public void Clear() => log.Clear();
 
     public bool TryOptimize(List<AsmItem> items, int index, int passCount, out int newIndex)

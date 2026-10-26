@@ -2,9 +2,16 @@
 
 namespace Nantuc.VmApplication.Project;
 
-// Результат компиляции
+/// <summary>
+/// Результат компиляции
+/// </summary>
 public readonly struct CompilationResult
 {
+    /// <summary>
+    /// Конструктор успешной компиляции
+    /// </summary>
+    /// <param name="asm"> Экзмепляр Ассемблера </param>
+    /// <param name="log"> Экземпляр логов оптимизации </param>
     public CompilationResult(AssemblerBase asm, OptimizationResultLog? log)
     {
         Program = asm.Build();
@@ -16,7 +23,10 @@ public readonly struct CompilationResult
         Errors = null;
     }
 
-    // Конструктор ошибки
+    /// <summary>
+    /// Конструктор ошибок
+    /// </summary>
+    /// <param name="errors">Список ошибок</param>
     public CompilationResult(IReadOnlyList<string>? errors)
     {
         Program = null;
@@ -33,7 +43,11 @@ public readonly struct CompilationResult
     public int CodeSize { get; }
     public int DataStart { get; }
     public int DataSize { get; }
+
+    /// <summary> Логи оптимизации </summary>
     public OptimizationResultLog? OptimizationResultLog { get; }
+    /// <summary> Список ошибок </summary>
     public IReadOnlyList<string>? Errors { get; }
+    /// <summary> Успешность выполненной компиляции </summary>
     public bool Success => Errors == null || Errors.Count == 0;
 }

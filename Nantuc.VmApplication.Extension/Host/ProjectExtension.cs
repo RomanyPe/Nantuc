@@ -67,7 +67,7 @@ public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorFaultPolic
     public bool ShouldContinue(in ProcessorFault fault)
     {
         _out.WriteLine(
-            $"[FAULT] status={fault.Status}, " +
+            $"\n[FAULT] status={fault.Status}, " +
             $"data=0x{fault.FaultData:X}, " +
             $"ip=0x{fault.InstructionPointer:X}, " +
             $"op={fault.OpCode}");

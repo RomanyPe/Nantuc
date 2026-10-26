@@ -1,5 +1,6 @@
 ﻿namespace Nantuc.Kernel.Common;
 
+///<summary>разрядность числа. S8 = нумератор для 8 бит = 1 байт, </summary>
 public enum OpCodeSize
 {
     S8 = 0b00,

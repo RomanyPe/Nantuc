@@ -12,11 +12,7 @@ public sealed class RemoveMultiEndPairRule : IPeepholeRule
 {
     private readonly PeepholeLog log = new(PeepholeOptimizerExtension.RemoveMultiEnd);
 
-    public IReadOnlyLogOptimization GetLogs()
-    {
-        log.Clear();
-        return log;
-    }
+    public IReadOnlyLogOptimization GetLogs() => log;
     public void Clear() => log.Clear();
 
     public bool TryOptimize(List<AsmItem> items, int index, int passCount, out int newIndex)

@@ -8,7 +8,12 @@ public static class DeviceContextUnsafeExtensions
 {
     extension(DeviceContext context)
     {
-        // Метод расширения, который «подтягивает» внутреннее свойство
+        /// <summary>
+        /// Получения класса <see cref="Device"/> из <see cref="DeviceContext"/> без рефлексии
+        /// Использовать <see cref="Device"/> на свой страх и риск, почти не имеет ограничений поэтому легче сломать
+        /// </summary>
+        /// <returns><see cref="Device"/></returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public Device AsRawDevice()
         {
             ArgumentNullException.ThrowIfNull(context);
@@ -21,6 +26,12 @@ public static class VmEmulatorUnsafeExtension
 {
     extension(VmEmulator vm)
     {
+        /// <summary>
+        /// Получения класса <see cref="PortBus"/> из <see cref="VmEmulator"/> без рефлексии и привидений
+        /// Использовать <see cref="PortBus"/> на свой страх и риск, почти не имеет ограничений поэтому легче сломать
+        /// </summary>
+        /// <returns><see cref="PortBus"/></returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public PortBus GetRawPortBus() 
         {
             ArgumentNullException.ThrowIfNull(vm);

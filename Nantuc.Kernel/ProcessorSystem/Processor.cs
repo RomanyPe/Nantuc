@@ -43,6 +43,8 @@ public sealed class Processor(MemoryBus ram,
     private bool ZeroFlagSet => (_registers[RegType.rFL.Int()] & 1UL) != 0UL;
     private bool NegativeFlagSet => (_registers[RegType.rFL.Int()] & 2UL) != 0UL;
 
+    private ProcessorFault _faultData = new(BiosStatus.Success, 0, 0, OpCode.NOP);
+    public ProcessorFault GetDiagnosticData() => _faultData;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ulong GetRegValue(RegType reg) => _registers[reg.Int()];
@@ -114,8 +116,8 @@ public sealed class Processor(MemoryBus ram,
         {
             if (result != BiosStatus.Success)
             {
-                ProcessorFault fault = new(result, _lastFaultData, _registers[RegType.rIP.Int()], 0);
-                Volatile.Write(ref _isRunning, _processorFaultPolicy.ShouldContinue(fault));
+                _faultData = new(result, _lastFaultData, _registers[RegType.rIP.Int()], 0);
+                Volatile.Write(ref _isRunning, _processorFaultPolicy.ShouldContinue(_faultData));
                 return;
             }
         }
@@ -215,8 +217,8 @@ public sealed class Processor(MemoryBus ram,
 
         if (dat != BiosStatus.Success)
         {
-            ProcessorFault fault = new(dat, _lastFaultData, ip, opCode);
-            Volatile.Write(ref _isRunning, _processorFaultPolicy.ShouldContinue(fault));
+            _faultData = new(dat, _lastFaultData, ip, opCode);
+            Volatile.Write(ref _isRunning, _processorFaultPolicy.ShouldContinue(_faultData));
         }
     }
 

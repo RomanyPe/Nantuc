@@ -9,7 +9,7 @@ namespace Nantuc.Kernel.Common;
 public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<DevicePortSize>
 {
     public const byte MinLog2 = 3;   // 8 B
-    public const byte MaxLog2 = 6;   // 64 B
+    public const byte MaxLog2 = 8;   // 256 B
 
     public byte Log2 { get; }
     public ulong Bytes => 1UL << Log2;
@@ -22,6 +22,7 @@ public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<
     public static DevicePortSize B32 => new(5);
     public static DevicePortSize B64 => new(6);
     public static DevicePortSize B128 => new(7);
+    public static DevicePortSize B256 => new(8);
 
     public bool Equals(DevicePortSize other) => Log2 == other.Log2;
     public override bool Equals(object? obj) => obj is DevicePortSize p && Equals(p);

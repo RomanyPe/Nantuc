@@ -54,47 +54,36 @@ public class DeviceContext
         error = $"Failed to load the program: memory out of bounds (loadAddress + {program.Length} > RAM) or other unexpected error.";
         return false;
     }
-    public void Run(LaunchOptions? opt = null)
+    public ProcessorFault Run(LaunchOptions? opt = null)
     {
         ThrowIfRunning();
         ThrowByMode(Mode.Continuous);
 
         opt ??= LaunchOptions.Default;
-        _device.Run(opt.StartAddress,
+        var fault = _device.Run(opt.StartAddress,
+            opt.StepLimit,
             opt.ShowTimer,
             opt.OnLaunch,
             opt.OnEnd);
 
         SetNoneMode();
+        return fault;
     }
 
-    public void RunWithLimit(LaunchOptions? opt = null, long stepLimit = long.MaxValue)
-    {
-        ThrowIfRunning();
-        ThrowByMode(Mode.Continuous);
 
-        opt ??= LaunchOptions.Default;
-        _device.RunWithLimit(opt.StartAddress,
-            stepLimit,
-            opt.ShowTimer,
-            opt.OnLaunch,
-            opt.OnEnd);
-
-        SetNoneMode();
-    }
-
-    public void DebugRun(LaunchOptionsDebug? opt = null)
+    public ProcessorFault DebugRun(LaunchOptionsDebug? opt = null)
     {
         ThrowIfRunning();
         ThrowByMode(Mode.Continuous);
         opt ??= LaunchOptionsDebug.Default;
-        _device.DebugRun(opt.StartAddress,
+        var fault = _device.DebugRun(opt.StartAddress,
                          opt.StepLimit,
                          opt.DelayMs,
                          opt.OnLaunch,
                          opt.OnStep,
                          opt.OnEnd);
         SetNoneMode();
+        return fault;
     }
 
 

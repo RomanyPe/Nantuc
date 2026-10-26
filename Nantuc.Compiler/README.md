@@ -1,7 +1,6 @@
 ﻿# Nantuc.Compiler — README
 
-> Компилятор MiniC и ассемблер NANASM: frontend (лексер, парсер, AST), backend (кодогенерация в байткод), оптимизации и IR-ассемблер.  
-> Зависит от `[Kernel.Common](../Nantuc.Kernel.Common/README.md)`, `[Kernel.Contracts](../Nantuc.Kernel.Contracts/README.md)` и `[Kernel.Diagnostics](../Nantuc.Kernel.Diagnostics/README.md)`.  
+> Обновление предыдущей версии: единственное изменение — переименование `IRAssembler` → `ILAssembler` (и файла `IRAssembler.cs` → `ILAssembler.cs`). Семантика та же: ассемблер через список `AsmItem` с двухпроходной сборкой и патчами меток. Имя теперь согласовано с `CompilationToILResult` / `CompileToIL` в `[Nantuc.VmApplication]`. Остальное — без изменений.  
 > `[← Корень](../README.md) · [Common](../Nantuc.Kernel.Common/README.md) · [Contracts](../Nantuc.Kernel.Contracts/README.md) · [Diagnostics](../Nantuc.Kernel.Diagnostics/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
 
 ## Содержание
@@ -15,19 +14,19 @@
 
 ## Об этом модуле
 
-`Nantuc.Compiler` — это **компилятор MiniC** (почти C) и **ассемблер NANASM** в одном проекте. Проект не зависит от `Nantuc.Kernel` (runtime), только от нижних слоёв: `Common` (ISA и размеры), `Contracts` (контракты оптимизаций) и `Diagnostics` (`ErrorCode`, `ThrowCompiler`, `CodeException`). Это позволяет использовать компилятор как самостоятельную библиотеку — например, в IDE, CI-сборке, REPL — без загрузки виртуальной машины и `unsafe`-кода ядра.
+`Nantuc.Compiler` — компилятор MiniC и ассемблер NANASM в одном проекте. Проект не зависит от `Nantuc.Kernel` (runtime), только от нижних слоёв: `Common` (ISA и размеры), `Contracts` (контракты оптимизаций) и `Diagnostics` (`ErrorCode`, `ThrowCompiler`, `CodeException`). Это позволяет использовать компилятор как самостоятельную библиотеку — например, в IDE, CI-сборке, REPL — без загрузки виртуальной машины и unsafe-кода ядра.
 
 Модуль покрывает два независимых пути генерации байткода:
 
-- **MiniC → байткод**: `Lexer` → `Parser` → AST → `FunctionGenerator` (+ `ExpressionGenerator`, `StatementGenerator`, `VariableAccessor`, `RegisterAllocator`, `GlobalMemoryManager`) → `[AssemblerBase]` → `byte[]`.
-- **NANASM (текст) → байткод**: `AssemblerParser` → `AssemblerBase` (`Assembler` — прямой эмит, `IRAssembler` — через IR-список с последующей peephole-оптимизацией) → `byte[]`.
+- MiniC → байткод: `Lexer` → `Parser` → AST → `FunctionGenerator` (+ `ExpressionGenerator`, `StatementGenerator`, `VariableAccessor`, `RegisterAllocator`, `GlobalMemoryManager`) → `AssemblerBase` → `byte[]`.
+- NANASM (текст) → байткод: `AssemblerParser` → `AssemblerBase` (`Assembler` — прямой эмит, `ILAssembler` — через список `AsmItem` с последующей peephole-оптимизацией) → `byte[]`.
 
 Ключевые роли:
-- **Frontend**: `Lexer`, `MiniCLanguageDefinition`, `Parser`, иерархия `ASTNode`.
-- **Семантика**: `StructLayout` (раскладка полей с выравниванием), `CodeGenUtils` (размеры/выравнивания типов, эмит умножения на константу).
-- **Backend**: `FunctionGenerator` (главный вход), `RegisterAllocator` (жадная раскраска графа интерференции), `ExpressionGenerator`, `StatementGenerator`, `VariableAccessor`, `FunctionContext`, `GlobalMemoryManager`.
-- **ASM**: `AssemblerBase` (абстракция), `Assembler` (прямой), `IRAssembler` (через `List<AsmItem>`), `AsmInstruction`/`AsmLabel`/`AsmData`, `InstructionEncoder` (кодирование 32-битной инструкции), `AssemblerParser` (текст → байткод).
-- **Оптимизации**: `AstOptimizer` + `IAstOptimizationRule` (AST-уровень), `PeepholeOptimizer` + `IPeepholeRule` (IR-уровень). Логи оптимизаций реализуют `IReadOnlyLogOptimization` из `[Kernel.Contracts](../Nantuc.Kernel.Contracts/README.md)`.
+- Frontend: `Lexer`, `MiniCLanguageDefinition`, `Parser`, иерархия `ASTNode`.
+- Семантика: `StructLayout` (раскладка полей с выравниванием), `CodeGenUtils` (размеры/выравнивания типов, эмит умножения на константу).
+- Backend: `FunctionGenerator` (главный вход), `RegisterAllocator` (жадная раскраска графа интерференции), `ExpressionGenerator`, `StatementGenerator`, `VariableAccessor`, `FunctionContext`, `GlobalMemoryManager`.
+- ASM: `AssemblerBase` (абстракция), `Assembler` (прямой), `ILAssembler` (через `List<AsmItem>`), `AsmInstruction`/`AsmLabel`/`AsmData`, `InstructionEncoder` (кодирование 32-битной инструкции), `AssemblerParser` (текст → байткод).
+- Оптимизации: `AstOptimizer` + `IAstOptimizationRule` (AST-уровень), `PeepholeOptimizer` + `IPeepholeRule` (IR-уровень). Логи оптимизаций реализуют `IReadOnlyLogOptimization` из `[Kernel.Contracts](../Nantuc.Kernel.Contracts/README.md)`.
 
 ## Дерево локального проекта
 
@@ -59,17 +58,17 @@ Nantuc.Compiler/
 │       └── ILogOptimization.cs             # расширение IReadOnlyLogOptimization
 └── ASM/                                    (namespace Nantuc.Compiler.ASM)
     ├── Assembler.cs                        # прямой эмит в byte[]
-    ├── AssemblerParser.cs                  # текстовый asm → byte[]/IR
+    ├── AssemblerParser.cs                  # текстовый asm → byte[]/IL
     ├── Base/AssemblerBase.cs               # абстракция (Emit*, MarkLabel, Build)
     ├── IR/                                 (namespace Nantuc.Compiler.ASM.IR)
     │   ├── AsmInstruction.cs               # AsmItem/AsmLabel/AsmData/AsmInstruction
     │   ├── IPeepholeRule.cs                # контракт peephole-правила
-    │   ├── IRAssembler.cs                  # AssemblerBase через List<AsmItem>
+    │   ├── ILAssembler.cs                  # AssemblerBase через List<AsmItem>
     │   └── PeepholeOptimizer.cs            # список правил + multi-pass
     └── Utils/InstructionEncoder.cs         # Encode*/Decode + AsmExtensions (Emit*)
 ```
 
-Замечание: `VarLocation.cs` содержит **два** публичных типа — `VarLocation` и `RegisterAllocationResult`. Мелочь, но grep по `RegisterAllocationResult` ведёт в файл с другим именем.
+Замечание: `VarLocation.cs` содержит два публичных типа — `VarLocation` и `RegisterAllocationResult`. Мелочь, но grep по `RegisterAllocationResult` ведёт в файл с другим именем.
 
 ## API
 
@@ -93,19 +92,9 @@ public ProgramNode Parse();
 
 Рекурсивный спуск с классическими уровнями приоритетов: `ParseComma → ParseAssignment → ParseLogicalOr → ParseLogicalAnd → ParseBitwiseOr/Xor/And → ParseEquality → ParseRelational → ParseShift → ParseAdditive → ParseMultiplicative → ParseUnary → ParsePrimary`. Поддерживает `struct`, `extern`, `#include`, `if/else`, `while`, `for`, `do-while`, `break`, `continue`, `return`, `asm { ... }`, `sizeof(type)`, `sizeof(expr)`, `->`, `.`, префиксные/постфиксные `++/--`, указатели, массивы, вызовы функций.
 
-**`ProgramNode`** (namespace `Nantuc.Compiler.C`):
+**`ProgramNode`** — корень AST: `StructNodes`, `FunctionNodes`, `GlobalVarNodes`, `IncludesList`.
 
-```csharp
-public class ProgramNode : ASTNode
-{
-    public List<StructDeclNode> StructNodes { get; set; }
-    public List<FunctionNode> FunctionNodes { get; set; }
-    public List<VariableNode> GlobalVarNodes { get; set; }
-    public List<string> IncludesList { get; set; }
-}
-```
-
-**ASTNode** — иерархия (namespace `Nantuc.Compiler.C`): `ProgramNode`, `FunctionNode`, `ParameterNode`, `BlockNode`, `VariableNode`, `AssignmentNode`, `BinaryOpNode`, `UnaryOpNode`, `NumberNode`, `IdentifierNode`, `IfNode`, `WhileNode`, `ForNode`, `ReturnNode`, `FunctionCallNode`, `ArrayAccessNode`, `AddressOfNode`, `DereferenceNode`, `InlineAsmNode`, `StructDeclNode`, `MemberAccessNode`, `BreakNode`, `ContinueNode`, `DoWhileNode`, `IncrementNode`, `SizeofTypeNode`, `SizeofExprNode`. Все узлы — mutable-классы с сеттерами, кроме `BreakNode`/`ContinueNode` (маркерные).
+**ASTNode** — иерархия: `ProgramNode`, `FunctionNode`, `ParameterNode`, `BlockNode`, `VariableNode`, `AssignmentNode`, `BinaryOpNode`, `UnaryOpNode`, `NumberNode`, `IdentifierNode`, `IfNode`, `WhileNode`, `ForNode`, `ReturnNode`, `FunctionCallNode`, `ArrayAccessNode`, `AddressOfNode`, `DereferenceNode`, `InlineAsmNode`, `StructDeclNode`, `MemberAccessNode`, `BreakNode`, `ContinueNode`, `DoWhileNode`, `IncrementNode`, `SizeofTypeNode`, `SizeofExprNode`. Все — mutable-классы с сеттерами, кроме `BreakNode`/`ContinueNode` (маркерные).
 
 ### Семантика
 
@@ -137,7 +126,7 @@ public static bool IsComparisonOperator(string op);
 public static void EmitMultiplyByConstant(this AssemblerBase asm, RegType reg, int multiplier);
 ```
 
-Это **единственное место**, где «зашит» маппинг `int/char/byte/ushort/...` → `OpCodeSize` и размеры. Все остальные классы ходят сюда. `r27` — глобальный scratch для временных адресов, зарезервирован за кодогенератором (его нельзя использовать в раскраске регистров).
+Единственное место, где «зашит» маппинг `int/char/byte/ushort/...` → `OpCodeSize` и размеры. `r27` — глобальный scratch для временных адресов, зарезервирован за кодогенератором (нельзя использовать в раскраске регистров).
 
 ### Backend
 
@@ -148,9 +137,9 @@ public FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayout> str
 public void Generate(ProgramNode program);
 ```
 
-Порядок секций в генерируемом байткоде: `__global_init` → `EmitJmp("func_main")` (если main есть) → функции → data-секция (глобалы и pseudo-globals для параметров ≥ 5-го). `AssemblerBase` можно заменить на `IRAssembler`, чтобы прогнать peephole перед `.Build()`.
+Порядок секций в генерируемом байткоде: `__global_init` → `EmitJmp("func_main")` (если main есть) → функции → data-секция (глобалы и pseudo-globals для параметров ≥ 5-го). `AssemblerBase` можно заменить на `ILAssembler`, чтобы прогнать peephole перед `.Build()`.
 
-**`ExpressionGenerator`** (namespace `Nantuc.Compiler.C.CodeGenerator`) — генерация выражений. Два overload'а:
+**`ExpressionGenerator`** — генерация выражений. Два overload'а:
 
 ```csharp
 public void GenerateExpression(ASTNode expr);                // → r0
@@ -159,9 +148,9 @@ public void GenerateExpression(ASTNode expr, RegType targetReg);  // → targetR
 
 Внутри — рекурсивный генератор с сохранением промежуточных значений через `SaveRegToStack`/`RestoreRegFromStack` (стек относительно `rSP`). Оптимизации: свёртка констант (`ComputeConstant`), выгрузка `x = x op y` без save-слота, масштабирование указателей (`ApplyPointerArithmeticScaling`).
 
-**`StatementGenerator`** (namespace `Nantuc.Compiler.C.CodeGenerator`) — блоки, `if/while/for/do-while`, `break/continue`, `return`, inline `asm { ... }`, compound assignment (`+=`, `<<=` и т.д.), локальные массивы.
+**`StatementGenerator`** — блоки, `if/while/for/do-while`, `break/continue`, `return`, inline `asm { ... }`, compound assignment (`+=`, `<<=` и т.д.), локальные массивы.
 
-**`RegisterAllocator`** (namespace `Nantuc.Compiler.C.CodeGenerator`, `static`):
+**`RegisterAllocator`** (`static`):
 
 ```csharp
 public static RegisterAllocationResult AllocateRegisters(
@@ -170,9 +159,9 @@ public static RegisterAllocationResult AllocateRegisters(
     Dictionary<string, StructLayout> structTable);
 ```
 
-Жадная раскраска графа интерференции на диапазонах `[firstDef, lastUse]`. Зарезервированы: `r0..r4` (scratch/аргументы/возврат), `r27` (ADDR_SCRATCH_REG_EN), `rFL`, `rSP`, `rHP`, `rIP`. Под переменные идут `r5..r26` (22 регистра). Переменные, не поместившиеся в регистр (массивы, структуры, указатели, а также всё сверх 22), остаются в стеке.
+Жадная раскраска графа интерференции на диапазонах `[firstDef, lastUse]`. Зарезервированы: `r0..r4` (scratch/аргументы/возврат), `r27` (`ADDR_SCRATCH_REG_EN`), `rFL`, `rSP`, `rHP`, `rIP`. Под переменные идут `r5..r26` (22 регистра). Переменные, не поместившиеся в регистр (массивы, структуры, указатели, а также всё сверх 22), остаются в стеке.
 
-**`VariableAccessor`** (namespace `Nantuc.Compiler.C.CodeGenerator`):
+**`VariableAccessor`** — единая точка доступа к переменной: регистр → стек → глобал, в этом порядке.
 
 ```csharp
 public void LoadToRegister(string varName, RegType targetReg);
@@ -182,9 +171,9 @@ public OpCodeSize GetVariableSize(string varName);
 public bool TryGetRegister(string varName, out RegType reg);
 ```
 
-Единая точка доступа к переменной: регистр → стек → глобал, в этом порядке. `LoadAddressToRegister` бросает `CodeGen_CannotGetRegisterAddress`, если переменная в регистре (у регистра нет адреса).
+`LoadAddressToRegister` бросает `CodeGen_CannotGetRegisterAddress`, если переменная в регистре (у регистра нет адреса).
 
-**`FunctionContext`** (namespace `Nantuc.Compiler.C.CodeGenerator`) — контекст текущей функции (`VarMap: Dictionary<string, VarLocation>`, `TotalLocalSize`, `SaveAreaSize`, `UsedRegisters`, `ExpressionSaveDepth`). Создаётся через `FunctionContext.Create(func, localVarNodes, structTable)`. `ComputeMaxBinaryDepth` рекурсивно считает пиковую глубину save-слота — по ней вычисляется `SaveAreaSize`.
+**`FunctionContext`** — контекст текущей функции (`VarMap: Dictionary<string, VarLocation>`, `TotalLocalSize`, `SaveAreaSize`, `UsedRegisters`, `ExpressionSaveDepth`). Создаётся через `FunctionContext.Create(func, localVarNodes, structTable)`. `ComputeMaxBinaryDepth` рекурсивно считает пиковую глубину save-слота — по ней вычисляется `SaveAreaSize`.
 
 ### ASM
 
@@ -208,11 +197,22 @@ public abstract class AssemblerBase(ulong baseAddress)
 }
 ```
 
-Расширения `Emit*` (`EmitLdi`, `EmitAdd`, `EmitLoadInd`, `EmitJz`, …) живут в `AsmExtensions` (`InstructionEncoder.cs`) и работают поверх **любого** `AssemblerBase` — это позволяет подменить прямой `Assembler` на `IRAssembler` без переписывания кодогенератора.
+Расширения `Emit*` (`EmitLdi`, `EmitAdd`, `EmitLoadInd`, `EmitJz`, …) живут в `AsmExtensions` (`InstructionEncoder.cs`) и работают поверх любого `AssemblerBase` — это позволяет подменить прямой `Assembler` на `ILAssembler` без переписывания кодогенератора.
 
 **`Assembler`** (namespace `Nantuc.Compiler.ASM`) — прямой эмит в `MemoryStream`. Метки собираются в `_labels`, патчи адресов — в `_patches` (разрешаются в `Build`). `EmitInstruction64` вставляет padding до 8-байтной границы перед операндом. В `Build` проставляет `CodeSectionSize`/`DataSectionStart`/`DataSectionSize`.
 
-**`IRAssembler`** (namespace `Nantuc.Compiler.ASM.IR`) — то же API, но копит `List<AsmItem>` (`AsmInstruction`/`AsmLabel`/`AsmData`) и строит байты в `Build` двумя проходами (адреса меток → байты). Позволяет прогнать `PeepholeOptimizer` между эмитом и сборкой.
+**`ILAssembler`** (namespace `Nantuc.Compiler.ASM.IR`) — то же API, но копит `List<AsmItem>` (`AsmInstruction`/`AsmLabel`/`AsmData`) и строит байты в `Build` двумя проходами (адреса меток → байты). Позволяет прогнать `PeepholeOptimizer` между эмитом и сборкой.
+
+```csharp
+public class ILAssembler(ulong baseAddress = 0) : AssemblerBase(baseAddress)
+{
+    public List<AsmItem> GetItems();
+    public override byte[] Build();
+    // ... все Emit*, MarkLabel
+}
+```
+
+`Build` использует `InstructionEncoder.Encode(...)` для реконструкции `uint raw` из `OpCode`/`FirstReg`/`SecondReg`/`Size` — это ключевое отличие от `Assembler`, который пишет `uint` сразу при эмите.
 
 **`AssemblerParser`** (namespace `Nantuc.Compiler.ASM`) — текстовый парсер:
 
@@ -280,12 +280,12 @@ byte[] bytecode = asm.Build();
 File.WriteAllBytes("snake.nbin", bytecode);
 ```
 
-**То же, но через `IRAssembler` + peephole:**
+**То же, но через `ILAssembler` + peephole:**
 
 ```csharp
 using Nantuc.Compiler.ASM.IR;
 
-var asm = new IRAssembler(baseAddress: 0);
+var asm = new ILAssembler(baseAddress: 0);
 new FunctionGenerator(asm, structTable).Generate(program);
 
 var peephole = new PeepholeOptimizer();
@@ -342,17 +342,17 @@ var logs = ast.Optimize(program).ToList();
 
 ## Приближенность модуля к пользователю
 
-**Средняя.** Пользователь MiniC/NANASM напрямую этот модуль не импортирует — он пишет исходники. Модуль предназначен для:
+Средняя. Пользователь MiniC/NANASM напрямую этот модуль не импортирует — он пишет исходники. Модуль предназначен для:
 
-- **Автора компилятора/ассемблера**: `Lexer`/`Parser` — для frontend'а, `FunctionGenerator` — для backend'а, `AssemblerParser` — для текстового asm. Ошибки — через `ThrowCompiler` + `ErrorCode`.
-- **Автора IDE/REPL/CI**: `Lexer`/`Parser` для подсветки/валидации, `AssemblerParser` для быстрой сборки, `PeepholeOptimizer`/`AstOptimizer` для оптимизационных пайплайнов. `InstructionEncoder.Decode` — для дизассемблера/отладчика.
-- **Автора расширений к компилятору**: `IAstOptimizationRule` / `IPeepholeRule` — единственный «официальный» способ вмешаться в генерацию без форка.
+- Автора компилятора/ассемблера: `Lexer`/`Parser` — для frontend'а, `FunctionGenerator` — для backend'а, `AssemblerParser` — для текстового asm. Ошибки — через `ThrowCompiler` + `ErrorCode`.
+- Автора IDE/REPL/CI: `Lexer`/`Parser` для подсветки/валидации, `AssemblerParser` для быстрой сборки, `PeepholeOptimizer`/`AstOptimizer` для оптимизационных пайплайнов. `InstructionEncoder.Decode` — для дизассемблера/отладчика.
+- Автора расширений к компилятору: `IAstOptimizationRule` / `IPeepholeRule` — единственный «официальный» способ вмешаться в генерацию без форка.
 
 **Что стоит делать:**
 - Использовать `ThrowCompiler.Throw(ErrorCode..., ...)` для ошибок компиляции — коды стабильны, сообщения локализуются через `IErrorMessageProvider`.
-- Собирать `StructLayout.Resolve(program.StructNodes)` **до** `FunctionGenerator.Generate` — иначе кодогенератор упадёт на неизвестной структуре.
+- Собирать `StructLayout.Resolve(program.StructNodes)` до `FunctionGenerator.Generate` — иначе кодогенератор упадёт на неизвестной структуре.
 - Считать `TotalLocalSize + SaveAreaSize` (в `FunctionGenerator.GenerateFunction`) единственным источником истины по размеру стекового фрейма — не дублировать эту арифметику.
-- Прогонять `PeepholeOptimizer` **до** `IRAssembler.Build` — после `Build` список уже скомпилирован в байты.
+- Прогонять `PeepholeOptimizer` до `ILAssembler.Build` — после `Build` список уже скомпилирован в байты.
 - Для своих правил `IAstOptimizationRule` возвращать `OptimizationResult`, а не `null` — `AstOptimizer` пробрасывает коллекцию наружу.
 
 **Что не стоит делать:**
@@ -366,69 +366,76 @@ var logs = ast.Optimize(program).ToList();
 
 ### Два ассемблера, один API
 
-`Assembler` (прямой) и `IRAssembler` (через `List<AsmItem>`) реализуют один `AssemblerBase`, поэтому `AsmExtensions.Emit*` работают с обоими. Разница:
+`Assembler` (прямой) и `ILAssembler` (через `List<AsmItem>`) реализуют один `AssemblerBase`, поэтому `AsmExtensions.Emit*` работают с обоими. Разница:
 
-| | `Assembler` | `IRAssembler` |
+| | `Assembler` | `ILAssembler` |
 |---|---|---|
 | Хранение | `MemoryStream` + `BinaryWriter` | `List<AsmItem>` |
 | Патчи меток | разрешаются в `Build` | разрешаются в `Build` (двухпроходный) |
 | Peephole | недоступен | `PeepholeOptimizer.Optimize(asm.GetItems())` |
 | Скорость | быстрее (прямая запись) | медленнее (список + 2 прохода) |
 | Память | ниже | выше |
+| Кодирование `uint raw` | в момент эмита | в `Build` (через `InstructionEncoder.Encode`) |
 
-Для одноразовой сборки — `Assembler`. Для пайплайна «сборка → оптимизация → сборка» — `IRAssembler`.
+Для одноразовой сборки — `Assembler`. Для пайплайна «сборка → оптимизация → сборка» — `ILAssembler`.
 
 ### Формат инструкции и паддинг
 
-32-битная инструкция (см. `[Kernel.Common](../Nantuc.Kernel.Common/README.md)`) + опциональный 8-байтный immediate. **Правило выравнивания**: `Assembler.EmitInstruction64` и `IRAssembler.Build` выравнивают поток до 8 байт **перед** записью 64-битного операнда. Это значит: после 4-байтной инструкции с immediate может быть до 4 байт padding'а. `Processor.Step()` в `[Kernel](../Nantuc.Kernel/README.md)` учитывает это через `Get64IntData` (`AlignUp(ip, 8)`). Любой сторонний backend обязан соблюдать это правило — иначе байткод развалится на immediate-инструкциях.
+32-битная инструкция (см. `[Kernel.Common](../Nantuc.Kernel.Common/README.md)`) + опциональный 8-байтный immediate. Правило выравнивания: `Assembler.EmitInstruction64` и `ILAssembler.Build` выравнивают поток до 8 байт перед записью 64-битного операнда. После 4-байтной инструкции с immediate может быть до 4 байт padding'а. `Processor.Step()` в `[Kernel](../Nantuc.Kernel/README.md)` учитывает это через `Get64IntData` (`AlignUp(ip, 8)`). Любой сторонний backend обязан соблюдать это правило — иначе байткод развалится на immediate-инструкциях.
 
 ### Стек и save-слоты
 
-`ExpressionGenerator.SaveRegToStack` использует `_funcCtx.TotalLocalSize + _funcCtx.ExpressionSaveDepth * 8` — save-слоты начинаются **после** локальных переменных. `FunctionContext.SaveAreaSize = (ComputeMaxBinaryDepth + 1) * 8` — резерв на пиковую глубину вложенности выражений. В прологе `FunctionGenerator.GenerateFunction` вычитает `TotalLocalSize + SaveAreaSize` из `rSP`; в эпилоге возвращает обратно. `ComputeMaxBinaryDepth` — рекурсивный расчёт по AST; если вы добавите новый тип узла, **обязательно** добавьте его в `ComputeMaxBinaryDepth`, иначе save-слот переполнится и затрёт локальные переменные.
+`ExpressionGenerator.SaveRegToStack` использует `_funcCtx.TotalLocalSize + _funcCtx.ExpressionSaveDepth * 8` — save-слоты начинаются после локальных переменных. `FunctionContext.SaveAreaSize = (ComputeMaxBinaryDepth + 1) * 8` — резерв на пиковую глубину вложенности выражений. В прологе `FunctionGenerator.GenerateFunction` вычитает `TotalLocalSize + SaveAreaSize` из `rSP`; в эпилоге возвращает обратно. `ComputeMaxBinaryDepth` — рекурсивный расчёт по AST; если вы добавите новый тип узла, обязательно добавьте его в `ComputeMaxBinaryDepth`, иначе save-слот переполнится и затрёт локальные переменные.
 
 ### Регистры: резервирование и раскраска
 
-`RegisterAllocator.ReservedRegs`: `r0..r4` (scratch/return/args), `r27` (`ADDR_SCRATCH_REG_EN`), `rFL`, `rSP`, `rHP`, `rIP`. Под переменные — `r5..r26` (22 регистра). Если функция использует больше 22 одновременно живых скаляров, часть уйдёт в стек. Указатели, массивы и структуры **всегда** в стеке (ограничение `AllocateRegisters`: `if (varNode.IsArray || structTable.ContainsKey(varNode.Type)) continue;`, а также `canUseRegister` в `FunctionContext.Create`).
+`RegisterAllocator.ReservedRegs`: `r0..r4` (scratch/return/args), `r27` (`ADDR_SCRATCH_REG_EN`), `rFL`, `rSP`, `rHP`, `rIP`. Под переменные — `r5..r26` (22 регистра). Если функция использует больше 22 одновременно живых скаляров, часть уйдёт в стек. Указатели, массивы и структуры всегда в стеке.
 
 ### Вызов функций: 4 регистра + pseudo-globals
 
-Первые 4 аргумента передаются в `r0..r3`, остальные — через pseudo-globals `__param_{func}_{name}`. `FunctionGenerator.Generate` эмитит под них `AsmData` в data-секции (по 8 байт), `ExpressionGenerator.GenerateFunctionCall` пишет `EmitStore(r0, opSize, label)`, `FunctionGenerator.GenerateFunction` восстанавливает `EmitLoad(loc.Register, size, label)`. Ограничение: параметр ≥ 5 **обязан** быть в регистре (иначе `CodeGen_ParameterNotInRegister`). Структуры как параметры через регистры не поддерживаются (`ThrowCompiler.Throw(ErrorCode.NotSupported, "Struct parameters via registers not yet supported")`).
+Первые 4 аргумента передаются в `r0..r3`, остальные — через pseudo-globals `__param_{func}_{name}`. `FunctionGenerator.Generate` эмитит под них `AsmData` в data-секции (по 8 байт), `ExpressionGenerator.GenerateFunctionCall` пишет `EmitStore(r0, opSize, label)`, `FunctionGenerator.GenerateFunction` восстанавливает `EmitLoad(loc.Register, size, label)`. Ограничение: параметр ≥ 5 обязан быть в регистре (иначе `CodeGen_ParameterNotInRegister`). Структуры как параметры через регистры не поддерживаются.
 
 ### Inline `asm { ... }`
 
-`Parser.ParseInlineAsm` собирает токены в строку, `StatementGenerator.GenerateInlineAsm` создаёт **новый** `AssemblerParser` и эмитит в текущий `AssemblerBase`. Это значит: inline asm может содержать любые метки и инструкции, но его метки попадают в общее пространство имён с остальным байткодом (риск коллизии; используйте префикс `__asm_`).
+`Parser.ParseInlineAsm` собирает токены в строку, `StatementGenerator.GenerateInlineAsm` создаёт новый `AssemblerParser` и эмитит в текущий `AssemblerBase`. Inline asm может содержать любые метки и инструкции, но его метки попадают в общее пространство имён с остальным байткодом (риск коллизии; используйте префикс `__asm_`).
 
 ### Ограничения платформ
 
-- **`net10.0`**, `<AllowUnsafeBlocks>` **не** включён — модуль безопасен для WASM/AOT без `unsafe`.
-- **`params ReadOnlySpan<object>`** в `ThrowCompiler` требует `net9.0+`; проект на `net10.0`.
-- **`params ReadOnlySpan`**, `extension`-блоки (в `InstructionEncoder`), `FrozenDictionary`/`FrozenSet`, `[GeneratedRegex]` — всё это доступно на `net10.0`. Старые тулчейны не соберут.
-- **`Enum.GetValues<ErrorCode>()`** в `ThrowCompiler` — при `PublishTrimmed=true` может понадобиться `[DynamicDependency]` на `ErrorCode`. Проверьте AOT-публикацию.
-- **`BinaryWriter`/`MemoryStream`** в `Assembler` — работают в AOT, но `Assembler.Build` не идемпотентен: после вызова `_stream` и `_writer` закрыты, повторный `Build` упадёт.
-- **`AssemblerParser`** использует `Regex` (`GetRexExtensionAsm`) — в AOT это работает через source generator (`[GeneratedRegex]`), но проверьте, что `AsmLanguageDefinition` тоже не стримится, если используете его в IDE-плагине.
+- `net10.0`, `<AllowUnsafeBlocks>` не включён — модуль безопасен для WASM/AOT без `unsafe`.
+- `params ReadOnlySpan<object>` в `ThrowCompiler` требует `net9.0+`; проект на `net10.0`.
+- `extension`-блоки (в `InstructionEncoder`), `FrozenDictionary`/`FrozenSet`, `[GeneratedRegex]` — всё это доступно на `net10.0`. Старые тулчейны не соберут.
+- `Enum.GetValues<ErrorCode>()` в `ThrowCompiler` — при `PublishTrimmed=true` может понадобиться `[DynamicDependency]` на `ErrorCode`. Проверьте AOT-публикацию.
+- `BinaryWriter`/`MemoryStream` в `Assembler` — работают в AOT, но `Assembler.Build` не идемпотентен: после вызова `_stream` и `_writer` закрыты, повторный `Build` упадёт.
+- `AssemblerParser` использует `Regex` (`GetRexExtensionAsm`) — в AOT это работает через source generator (`[GeneratedRegex]`), но проверьте, что `AsmLanguageDefinition` тоже не стримится, если используете его в IDE-плагине.
 
+## Что исправить
 
-## TODO Что исправить
+Ниже — конкретные проблемы с привязкой к файлам и методам. Порядок — по убыванию серьёзности. Все пункты из прошлой фиксации актуальны; переименование `IRAssembler` → `ILAssembler` на них не влияет.
 
-1. (DONE) **`FunctionGenerator.GenerateFunction` — push и pop регистров в разном порядке.**  
+1. **`FunctionGenerator.GenerateFunction` — push и pop регистров в разном порядке.**  
    Файл: `C/CodeGenerator/FunctionGenerator.cs`, метод `GenerateFunction`.  
-   В прологе: `foreach (var reg in funcCtx.UsedRegisters.OrderBy(r => (int)r)) _asm.EmitPush(reg);` — push в **отсортированном** порядке. В эпилоге: `for (int i = funcCtx.UsedRegisters.Count - 1; i >= 0; i--) _asm.EmitPop(funcCtx.UsedRegisters[i]);` — pop в порядке, **обратном неотсортированному** `UsedRegisters`. Если `UsedRegisters` не отсортирован (а он собирается из `varMap.Values`, порядок недетерминирован), pop восстановит регистры не в те, из которых push'ил. Фикс: либо `var sorted = funcCtx.UsedRegisters.OrderBy(r => (int)r).ToList();` и использовать `sorted` в обоих местах, либо push тоже в порядке `UsedRegisters` без сортировки.
+   В прологе: `foreach (var reg in funcCtx.UsedRegisters.OrderBy(r => (int)r)) _asm.EmitPush(reg);` — push в отсортированном порядке. В эпилоге: `for (int i = funcCtx.UsedRegisters.Count - 1; i >= 0; i--) _asm.EmitPop(funcCtx.UsedRegisters[i]);` — pop в порядке, обратном неотсортированному `UsedRegisters`. Если `UsedRegisters` не отсортирован, pop восстановит регистры не в те, из которых push'ил.  
+   Фикс: либо `var sorted = funcCtx.UsedRegisters.OrderBy(r => (int)r).ToList();` и использовать `sorted` в обоих местах, либо push тоже в порядке `UsedRegisters` без сортировки.
 
-2. (DONE) **`Lexer.ReadNumber` — `A-F` съедаются без `isHex`.**  
+2. **`Lexer.ReadNumber` — `A-F` съедаются без `isHex`.**  
    Файл: `C/Lexer.cs`, метод `ReadNumber`, условие `if (char.IsDigit(c) || (isHex && (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))`.  
-   Из-за приоритета `&&`/`||` это `IsDigit(c) || (isHex && a-f) || (A-F)` — `A-F` принимаются всегда. `int x = 10A` съест `A` как часть числа, потом `long.Parse` упадёт. Фикс: `if (char.IsDigit(c) || (isHex && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))))`.
+   Из-за приоритета `&&`/`||` это `IsDigit(c) || (isHex && a-f) || (A-F)` — `A-F` принимаются всегда. `int x = 10A` съест `A` как часть числа, потом `long.Parse` упадёт.  
+   Фикс: `if (char.IsDigit(c) || (isHex && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))))`.
 
-3. (DONE) **`Parser.IsTypeSpecifier` не признаёт `short`, `long`, `uint`.**  
+3. **`Parser.IsTypeSpecifier` не признаёт `short`, `long`, `uint`.**  
    Файл: `C/Parser.cs`, метод `IsTypeSpecifier`.  
-   Проверяет только `"int"`, `"char"`, `"void"`, `"byte"`, `"ushort"`, `"ulong"`. Но `MiniCLanguageDefinition.Keywords` содержит `"short"`, `"long"`, `"uint"` — они классифицируются лексером как `Keyword`, но `IsTypeSpecifier` возвращает `false`, и парсер падает с `Parser_UnexpectedToken`. Фикс: добавить `"short"`, `"long"`, `"uint"` в проверку.
+   Проверяет только `"int"`, `"char"`, `"void"`, `"byte"`, `"ushort"`, `"ulong"`. Но `MiniCLanguageDefinition.Keywords` содержит `"short"`, `"long"`, `"uint"` — они классифицируются лексером как `Keyword`, но `IsTypeSpecifier` возвращает `false`, и парсер падает с `Parser_UnexpectedToken`.  
+   Фикс: добавить `"short"`, `"long"`, `"uint"` в проверку.
 
 4. **`Parser.Expect` — неверные аргументы для шаблона `Parser_ExpectedToken`.**  
    Файл: `C/Parser.cs`, метод `Expect`.  
-   Вызов: `ThrowCompiler.Throw(ErrorCode.Parser_ExpectedToken, type, Current.Type, Current.Value, Current.Column)`. Шаблон (`DefaultErrorMessageProvider`): `"Expected {0}, got {1} at {2}:{3}"`. В `{2}` попадает `Current.Value` (string), в `{3}` — `Current.Column` (int). Получается `Expected Keyword, got Identifier at foo:5`, хотя должно быть `line:column`. Фикс: `..., Current.Type, Current.Value, Current.Line, Current.Column` (но тогда в `{1}` попадёт `Type`, а `Value` — в `{2}`; либо менять шаблон, либо передавать `Current.Line, Current.Column`). Проверьте также вызовы в `Parse()` и `ParsePrimary` — там 3 аргумента при шаблоне с 1 плейсхолдером (лишние игнорируются `string.Format`, но вводят в заблуждение).
+   Вызов: `ThrowCompiler.Throw(ErrorCode.Parser_ExpectedToken, type, Current.Type, Current.Value, Current.Column)`. Шаблон: `"Expected {0}, got {1} at {2}:{3}"`. В `{2}` попадает `Current.Value` (string), в `{3}` — `Current.Column` (int). Получается `Expected Keyword, got Identifier at foo:5`, хотя должно быть `line:column`.  
+   Фикс: передавать `Current.Line, Current.Column` (но тогда в `{1}` попадёт `Type`, а `Value` — в `{2}`; либо менять шаблон).
 
 5. **`Parser.ParseDeclarators` не поддерживает массивы в multi-declaration.**  
    Файл: `C/Parser.cs`, метод `ParseDeclarators`.  
-   Рекурсивный цикл после запятой обрабатывает только `*` (указатель), но не `[N]` (массив). `int a, b[10];` — `b` парсится как scalar без `ArraySize`. Фикс: в цикле после `Expect Identifier` вызывать `ParseVariableTail(...)` (он уже обрабатывает `[...]`), а не собирать `VariableNode` вручную. Сейчас `ParseVariableTail` вызывается для первого имени и для каждого последующего — но второй вызов идёт **после** ручного разбора `isPtr`, минуя `[...]`.
+   Рекурсивный цикл после запятой обрабатывает только `*` (указатель), но не `[N]` (массив). `int a, b[10];` — `b` парсится как scalar без `ArraySize`.  
+   Фикс: в цикле после `Expect Identifier` вызывать `ParseVariableTail(...)` (он уже обрабатывает `[...]`), а не собирать `VariableNode` вручную.
 
 6. **`InstructionEncoder.Decode` — опечатка в имени опкода.**  
    Файл: `ASM/Utils/InstructionEncoder.cs`, метод `Decode`, ветка `OpCode.JMP_IND => "JMP_INT"`.  
@@ -436,28 +443,35 @@ var logs = ast.Optimize(program).ToList();
 
 7. **`ExpressionGenerator.LoadPointerElementToR0` / `StorePointerElement` — «expection type» вместо явной ошибки.**  
    Файл: `C/CodeGenerator/ExpressionGenerator.cs`, методы `LoadPointerElementToR0` и `StorePointerElement`.  
-   В fallback-ветке `pointedSize = CodeGenUtils.GetSizeForType("expection type")` — это опечатка (`exception`), и она полагается на то, что `GetSizeForType` бросит `CodeGen_UnknownTypeSize` с сообщением про неизвестный тип. Работает, но сообщение вводит в заблуждение. Фикс: явный `ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownPointedType)`.
+   В fallback-ветке `pointedSize = CodeGenUtils.GetSizeForType("expection type")` — это опечатка (`exception`), и она полагается на то, что `GetSizeForType` бросит `CodeGen_UnknownTypeSize`. Работает, но сообщение вводит в заблуждение.  
+   Фикс: явный `ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownPointedType)`.
 
 8. **`ExpressionGenerator.GenerateAssignmentExpr` — `assign.Name` может быть `null`.**  
    Файл: `C/CodeGenerator/ExpressionGenerator.cs`, метод `GenerateAssignmentExpr`.  
-   `Parser.ParseAssignment` создаёт `AssignmentNode(null!, right)` для `MemberAccessNode`/`DereferenceNode`. `GenerateAssignmentExpr` вызывает `_varAccessor.StoreFromRegister(assign.Name, targetReg)` — `StoreFromRegister` бросит `CodeGen_UndefinedVariable` с `null`, либо NRE. В `StatementGenerator.GenerateAssignment` этот путь не достигается (Member/Deref обрабатываются раньше), но `AssignmentNode` как **выражение** (`x = (y = 5)` или условие) идёт через `GenerateExpression(assign, targetReg)` → `GenerateAssignmentExpr` → падение. Фикс: в `GenerateAssignmentExpr` для `assign.LValue is MemberAccessNode`/`DereferenceNode` вызывать соответствующие `GenerateMemberAddress`/`GenerateDereference` + `EmitStoreInd`, аналогично `StatementGenerator.GenerateAssignment`.
+   `Parser.ParseAssignment` создаёт `AssignmentNode(null!, right)` для `MemberAccessNode`/`DereferenceNode`. `GenerateAssignmentExpr` вызывает `_varAccessor.StoreFromRegister(assign.Name, targetReg)` — `StoreFromRegister` бросит `CodeGen_UndefinedVariable` с `null`, либо NRE. В `StatementGenerator.GenerateAssignment` этот путь не достигается (Member/Deref обрабатываются раньше), но `AssignmentNode` как выражение идёт через `GenerateExpression(assign, targetReg)` → `GenerateAssignmentExpr` → падение.  
+   Фикс: в `GenerateAssignmentExpr` для `assign.LValue is MemberAccessNode`/`DereferenceNode` вызывать соответствующие `GenerateMemberAddress`/`GenerateDereference` + `EmitStoreInd`, аналогично `StatementGenerator.GenerateAssignment`.
 
 9. **`RegisterAllocator.GetAvailableRegisters` — комментарий врёт про «23 регистра».**  
    Файл: `C/CodeGenerator/RegisterAllocator.cs`, метод `GetAvailableRegisters`, комментарий `// r5..r27 — 23 регистра`.  
-   `r27` зарезервирован (`ReservedRegs`), значит доступны `r5..r26` = **22** регистра. Мелочь, но в README и в документации лучше писать 22.
+   `r27` зарезервирован (`ReservedRegs`), значит доступны `r5..r26` = 22 регистра.  
+   Фикс: поправить комментарий и документацию.
 
 10. **`AsmExtensions.EmitStore` — параметр назван `dst`, но это source.**  
     Файл: `ASM/Utils/InstructionEncoder.cs`, `extension(AssemblerBase asm)`, метод `EmitStore(RegType dst, OpCodeSize size, string label)` и перегрузка с `ulong adrr`.  
-    `STORE [label], reg` — reg это **source**, а не destination. Работает корректно (внутри `EncodeSTORE(dst.ToUint(), ...)`), но имя сбивает с толку. Плюс опечатка `adrr` (должно быть `addr`). Фикс: переименовать параметр в `src`/`sourceReg`.
+    `STORE [label], reg` — reg это source, а не destination. Работает корректно (внутри `EncodeSTORE(dst.ToUint(), ...)`), но имя сбивает с толку. Плюс опечатка `adrr` (должно быть `addr`).  
+    Фикс: переименовать параметр в `src`/`sourceReg`.
 
 11. **`VarLocation.cs` содержит `RegisterAllocationResult`.**  
     Файл: `C/CodeGenerator/VarLocation.cs`.  
-    Два публичных типа в одном файле — `VarLocation` и `RegisterAllocationResult`. Мелочь для навигации (`grep RegisterAllocationResult` ведёт в файл `VarLocation.cs`). Фикс: вынести `RegisterAllocationResult` в отдельный файл или переименовать файл в `RegisterAllocation.cs`.
+    Два публичных типа в одном файле — `VarLocation` и `RegisterAllocationResult`. Мелочь для навигации.  
+    Фикс: вынести `RegisterAllocationResult` в отдельный файл или переименовать файл в `RegisterAllocation.cs`.
 
 12. **`Parser.ParsePrimary` — приоритет `&&`/`||` без скобок.**  
     Файл: `C/Parser.cs`, метод `ParsePrimary`, условие `if (Current.Type == TokenType.Punctuation && Current.Value == "." || Current.Type == TokenType.Arrow)`.  
-    Функционально правильно (`(A && B) || C`), но нечитаемо и легко сломать при правке. Фикс: `if (Current.Type == TokenType.Arrow || (Current.Type == TokenType.Punctuation && Current.Value == "."))`.
+    Функционально правильно (`(A && B) || C`), но нечитаемо.  
+    Фикс: `if (Current.Type == TokenType.Arrow || (Current.Type == TokenType.Punctuation && Current.Value == "."))`.
 
 13. **`FunctionGenerator.GenerateFunction` — для `main` не восстанавливаются параметры.**  
     Файл: `C/CodeGenerator/FunctionGenerator.cs`, метод `GenerateFunction`, блок `if (!isMain) { for (int i = 0; ...) ... }`.  
-    Для `main` параметры не копируются из регистров/пseudo-globals в `VarMap`. Если `main` объявлен с параметрами (например `int main(int argc, char** argv)`), они не будут доступны в теле. Обычно `main()` без параметров, но стоит либо задокументировать ограничение, либо убрать `if (!isMain)` для восстановления параметров (сохранение/восстановление регистров вокруг вызова — отдельный вопрос, для `main` оно не нужно, так как после `END` ничего не выполняется).
+    Для `main` параметры не копируются из регистров/pseudo-globals в `VarMap`. Если `main` объявлен с параметрами, они не будут доступны в теле.  
+    Фикс: либо задокументировать ограничение, либо убрать `if (!isMain)` для восстановления параметров.

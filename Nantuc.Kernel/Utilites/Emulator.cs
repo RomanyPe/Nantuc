@@ -26,12 +26,12 @@ public class Emulator : IDisposable
 
     public PortBus PortBus => _portBus;
 
-    public int RegisterDevice(
+    public IdState RegisterDevice(
         IPortController device,
         string? name,
-        uint sector)
+        uint sector, out int id)
     {
-        return _manager.AddDevice(device, name, sector);
+        return _manager.TryAddDevice(device, name, sector, out id);
     }
 
     public Device CreateDevice(

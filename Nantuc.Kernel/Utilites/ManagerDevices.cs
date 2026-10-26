@@ -1,4 +1,5 @@
-﻿using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Kernel.Common;
+using Nantuc.Kernel.Contracts;
 using Nantuc.Kernel.ControllersData;
 using System.Diagnostics.CodeAnalysis;
 
@@ -82,22 +83,35 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return false;
     }
 
-    public int AddDevice(
+    public IdState TryAddDevice(
         IPortController device,
         string? name,
-        uint sector)
+        uint sector, out int id)
     {
-        if (Count >= _count) return -1;
-        if (!_portBus.IsFreeSector(sector)) return -2;
+        if (Count >= _count)
+        {
+            id = -1;
+            return IdState.NotAssigned;
+        }
+
+        if (!_portBus.IsFreeSector(sector)) 
+        {
+            id = -2;
+            return IdState.OutOfRange; 
+        }
 
         var slot = FindFreeSlot();
         if (slot == null && _nextId >= _count)
-            return -3;
+        {
+            id = -3;
+            return IdState.NoFreeSlot;
+        }
 
         if (!_portBus.RegisterDevice(device, sector))
         {
             device.Dispose();
-            return -4;
+            id = -4;
+            return IdState.Rejected;
         }
 
         if (slot != null)
@@ -107,7 +121,8 @@ public class ManagerDevices(PortBus portBus) : IDisposable
             slot.Sector = sector;
             slot.Device = device;
             slot.IsFreed = false;
-            return slot.Id;
+            id = slot.Id;
+            return IdState.Valid;
         }
 
         int newId = _nextId++;
@@ -119,7 +134,8 @@ public class ManagerDevices(PortBus portBus) : IDisposable
             Device = device,
             IsFreed = false,
         });
-        return newId;
+        id = newId;
+        return IdState.Valid;
     }
 
     public bool RemoveDevice(int id)

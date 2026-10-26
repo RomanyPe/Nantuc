@@ -7,6 +7,14 @@ namespace Nantuc.VmApplication;
 
 public static class VmHostFactory
 {
+    /// <summary>
+    /// Создает хоста с дефолтными объектами
+    /// </summary>
+    /// <param name="projectConfig"> Своя файловая конфигурация </param>
+    /// <param name="fileService"> Свой файловый сервис </param>
+    /// <param name="portBusSize"> Размер шины портов </param>
+    /// <param name="portsPerDevice"> Размер сектора на устройство</param>
+    /// <returns></returns>
     public static VmHost CreateDefault(
         IProjectFilesConfig? projectConfig = null,
         IFileService? fileService = null,

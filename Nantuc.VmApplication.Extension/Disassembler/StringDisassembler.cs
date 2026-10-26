@@ -9,19 +9,23 @@ public static class StringDisassembler
 {
     extension(CompilationResult res)
     {
+        /// <summary>
+        /// Метод - extension
+        /// Нужен для дизассемблирования готовой программы 1 методом без параметров
+        /// </summary>
+        /// <returns> Возвращает готовую строку дизассемблера </returns>
         public string DisassembleToString() => res.Success 
             ? Disassemble(res.Program, res.CodeSize, res.StartAdress)
             : "(no program)";
     }
 
     /// <summary>
-    /// Метод для декодировани и представления программы Assembler в текстовом виде
+    /// Дизассемблирование программы в готовую строку
     /// </summary>
-    /// <param name="program"> Байт код программы </param>
-    /// <param name="length"> [OUTPUT] количество строк кода программы </param>
-    /// <param name="size"> [OUTPUT] размер программы в byte</param>
-    /// <param name="baseAddress"> Начальный адресс чтения программы </param>
-    /// <returns> Текстовое представление Assembler</returns>
+    /// <param name="program"> ReadOnySpan программы </param>
+    /// <param name="codeSize"> Размер блока кода </param>
+    /// <param name="baseAddress"> Стартовый адрес с которого будет дизассемблирование</param>
+    /// <returns></returns>
     public static string Disassemble(ReadOnlySpan<byte> program, int codeSize, ulong baseAddress = 0)
     {
         StringBuilder sb = new();

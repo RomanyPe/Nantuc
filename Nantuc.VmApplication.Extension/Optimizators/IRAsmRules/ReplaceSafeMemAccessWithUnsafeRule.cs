@@ -10,13 +10,10 @@ public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
 {
     private readonly PeepholeLog log = new(PeepholeOptimizerExtension.ReplaceSafeAccess);
 
-    public IReadOnlyLogOptimization GetLogs()
-    {
-        return log;
-    }
+    public IReadOnlyLogOptimization GetLogs() => log;
 
     public void Clear() => log.Clear();
-    public RamSize SizeRam { get; set; }
+    public RamSize SizeRam { get; set; } = RamSize.B128;
 
     public bool TryOptimize(List<AsmItem> items, int index, int passCount, out int newIndex)
     {

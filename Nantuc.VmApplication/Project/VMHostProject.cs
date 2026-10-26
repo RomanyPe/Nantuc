@@ -6,6 +6,12 @@ using System.Text.RegularExpressions;
 
 namespace Nantuc.VmApplication.Project;
 
+/// <summary>
+/// Дочерний хоста - менеджер проекта
+/// Содержить <see cref="IProjectFilesConfig"/> и <see cref="IFileService"/>
+/// </summary>
+/// <param name="paths">Файловая конфигурация</param>
+/// <param name="fileService">Файловый сервис</param>
 public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileService)
 {
     private readonly IProjectFilesConfig _projectPaths = paths;
@@ -16,10 +22,18 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
     public static Regex AsmRegisters => AsmLanguageDefinition.GetRegisterRegex();
     public static Regex MiniCMnemonics => MiniCLanguageDefinition.GetKeywordRegex();
 
+    /// <summary>Оптимизаторы</summary>
     public VmCompilerOptimizator Optimizator => _optimizator;
+    /// <summary>Файловая конфигурацяи зашитая в менеджер</summary>
     public IProjectFilesConfig Paths => _projectPaths;
+    /// <summary>Файловый сервис зашитый в менеджер</summary>
     public IFileService FileService => _fileService;
-
+    /// <summary>
+    /// Получения исходных файлов проекта
+    /// </summary>
+    /// <returns>
+    /// <see cref="IEnumerable{SourceFile}"/>
+    /// </returns>
     public IEnumerable<SourceFile> GetSourceFiles() => ProjectBuilder.GetSourceFiles(_fileService, Paths);
     // Общий метод, инкапсулирующий всю логику
     private TResult CompileInternal<TAssembler, TResult>(
@@ -51,6 +65,12 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
         }
     }
 
+    /// <summary>
+    /// Оптимизации для IL результатов компиляции
+    /// </summary>
+    /// <param name="res">Результаты компиляции в IL</param>
+    /// <param name="peepholeOptimizationCount">Количество циклов Peephole оптимизаций</param>
+    /// <returns>новый <see cref="CompilationToILResult"/> держащий ссылки на исходный <paramref name="res"/></returns>
     public CompilationToILResult OptimizationIL(CompilationToILResult res, int peepholeOptimizationCount)
     {
         if (res.Errors is { Count: > 0 })
@@ -70,22 +90,35 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
         }
         catch (Exception ex)
         {
-            return new CompilationToILResult(null, res.OptimizationResultLog, [ex.Message]);
+            return new CompilationToILResult([ex.Message]);
         }
     }
 
-
+    /// <summary>
+    /// Компиляция в IL
+    /// </summary>
+    /// <param name="files">Исходный код</param>
+    /// <param name="baseAddress">Стартовый адрес</param>
+    /// <param name="optimize">Нужны ли оптимизации AST</param>
+    /// <returns> <see cref="CompilationToILResult"/> </returns>
     public CompilationToILResult CompileToIL(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize)
     {
         return CompileInternal(
            baseAddress,
            optimize,
            files,
-           baseAddr => new IRAssembler(baseAddr),
+           baseAddr => new ILAssembler(baseAddr),
            (assembler, log, errors) => new CompilationToILResult(assembler, log, errors)
        );
     }
 
+    /// <summary>
+    /// Компиляция в бинарник
+    /// </summary>
+    /// <param name="files">Исходный код</param>
+    /// <param name="baseAddress">Стартовый адрес</param>
+    /// <param name="optimize">Нужны ли оптимизации AST</param>
+    /// <returns> <see cref="CompilationResult"/> </returns>
     public CompilationResult Compile(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize)
     {
         return CompileInternal(

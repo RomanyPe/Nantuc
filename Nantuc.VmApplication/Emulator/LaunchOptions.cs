@@ -4,6 +4,7 @@ using Nantuc.VmApplication.Project;
 namespace Nantuc.VmApplication.Emulator;
 
 public record class LaunchOptions(ulong StartAddress = ProjectBuilder.BaseAddressProgram,
+                             long? StepLimit = null,
                              bool ShowTimer = false,
                              Action? OnLaunch = null,
                              Action<ISimulationResult?>? OnEnd = null)

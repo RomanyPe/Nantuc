@@ -30,6 +30,7 @@ public sealed class Device : IPortController
     public ulong MaxRamSize => _ram.Length;
     public long StepCount => stepCounter;
 
+
     public Device(PortBus portBus, RamSize size, IProcessorFaultPolicy processorFaultPolicy)
     {
         _processorFaultPolicy = processorFaultPolicy;
@@ -78,7 +79,8 @@ public sealed class Device : IPortController
         return true;
     }
 
-    public void Run(ulong? start,
+    public ProcessorFault Run(ulong? start,
+                    long? limit,
                     bool snowTimer,
                     Action? onLaunch,
                     Action<ISimulationResult?>? onEnd)
@@ -92,35 +94,10 @@ public sealed class Device : IPortController
         _processor.LaunchProgramm(startIndex);
 
         Stopwatch? sw = snowTimer ? Stopwatch.StartNew() : null;
-
-        RunSimulationLoop();
-
-        SimulationResult? timeSpan = null;
-        if (sw != null)
-        {
-            sw.Stop();
-            timeSpan = new(sw.Elapsed, stepCounter);
-        }
-
-        onEnd?.Invoke( timeSpan);
-    }
-    public void RunWithLimit(ulong? start,
-                    long limit,
-                    bool snowTimer,
-                    Action? onLaunch,
-                    Action<ISimulationResult?>? onEnd)
-    {
-
-        onLaunch?.Invoke();
-
-        ulong startIndex = start ?? 0;
-        stepCounter = 0;
-
-        _processor.LaunchProgramm(startIndex);
-
-        Stopwatch? sw = snowTimer ? Stopwatch.StartNew() : null;
-
-        RunSimulationLoopWithLimit(limit);
+        if (limit.HasValue)
+            RunSimulationLoopWithLimit(limit.Value);
+        else
+            RunSimulationLoop();
 
         SimulationResult? timeSpan = null;
         if (sw != null)
@@ -129,10 +106,11 @@ public sealed class Device : IPortController
             timeSpan = new(sw.Elapsed, stepCounter);
         }
 
-        onEnd?.Invoke( timeSpan);
+        onEnd?.Invoke(timeSpan);
+        return _processor.GetDiagnosticData();
     }
 
-    public void DebugRun(ulong start,
+    public ProcessorFault DebugRun(ulong start,
                         long stepLimit,
                         int delay,
                         Action? onLaunch,
@@ -148,7 +126,7 @@ public sealed class Device : IPortController
         RunSimulationLoopDebug(delay, useSleepMode, stepLimit, onStep);
 
         onEnd?.Invoke();
-
+        return _processor.GetDiagnosticData();
     }
 
 
