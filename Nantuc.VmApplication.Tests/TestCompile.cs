@@ -631,7 +631,7 @@ int main() {
             _outPut.WriteLine(program);
         }
         Assert.True(comp.Success);
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         deviceCtx.Run();
         var regs = deviceCtx.GetRegistersSnapshot();

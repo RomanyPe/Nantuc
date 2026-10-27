@@ -10,29 +10,48 @@ namespace Nantuc.VmApplication.Project;
 public readonly record struct CompilationToILResult
 {
     internal readonly ILAssembler? Assembler;
+    /// <summary> Список ошибок </summary>
     public IReadOnlyList<string>? Errors { get; }
+    /// <summary>
+    /// Логи оптимизации
+    /// </summary>
     public OptimizationResultLog? OptimizationResultLog { get; }
 
+    /// <summary>
+    /// Конструктор ошибок
+    /// </summary>
+    /// <param name="errors">список ошибок</param>
     public CompilationToILResult(IReadOnlyList<string>? errors)
     {
         Assembler = null;
         Errors = errors;
         OptimizationResultLog = null;
     }
-
-    internal CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog)
+    /// <summary>
+    /// Конструктор успешной компиляции
+    /// </summary>
+    /// <param name="assembler">IL ассмеблер</param>
+    /// <param name="optimizationResultLog">логи оптимизации</param>
+    public CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog)
     {
         Assembler = assembler;
         OptimizationResultLog = optimizationResultLog;
     }
-
+    /// <summary>
+    /// Дефолтный конструктор со всеми параметрами
+    /// </summary>
+    /// <param name="assembler">IL ассмеблер</param>
+    /// <param name="optimizationResultLog">логи оптимизации</param>
+    /// <param name="errors">список ошибок</param>
     public CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors)
     {
         Assembler = assembler;
         Errors = errors;
         OptimizationResultLog = optimizationResultLog;
     }
-
+    /// <summary>
+    /// Собрать IL ассемблер в <see cref="CompilationResult"/>
+    /// </summary>
     public CompilationResult Build()
     {
         try

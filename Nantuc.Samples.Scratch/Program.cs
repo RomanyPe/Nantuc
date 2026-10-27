@@ -73,7 +73,7 @@ var handle = DeviceSpec.Create(
 
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 
-int deviceId = host.Emulator.RegisterDevice(handle: handle, sector: 0);
+int deviceId = host.Emulator.RegisterDevice(spec: handle, sector: 0);
 host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
 
 var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
@@ -89,7 +89,7 @@ if (!resCompile.Success)
     return;
 }
 
-if (!deviceCtx.TryFastLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
+if (!deviceCtx.TryLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
 {
     Console.WriteLine(error);
     return;

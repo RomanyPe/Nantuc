@@ -53,7 +53,7 @@ public class HaltWakeTests
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         var sleepDetected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -112,7 +112,7 @@ public class HaltWakeTests
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         deviceCtx.RunStepMode(startAddress: 0);
 
@@ -158,7 +158,7 @@ public class HaltWakeTests
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         deviceCtx.Run();
 
@@ -189,7 +189,7 @@ public class HaltWakeTests
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         deviceCtx.Run();
 
@@ -220,7 +220,7 @@ public class HaltWakeTests
             .CompileToIL(program, 0, false, SourceLanguage.Asm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         deviceCtx.Run();
 

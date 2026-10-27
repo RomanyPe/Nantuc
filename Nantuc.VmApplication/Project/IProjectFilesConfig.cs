@@ -1,13 +1,34 @@
 ﻿namespace Nantuc.VmApplication.Project;
 
+/// <summary>
+/// Конфигурация путей
+/// </summary>
 public interface IProjectFilesConfig
 {
+    /// <summary>
+    /// Базовая директория
+    /// </summary>
     string BaseDirectory { get; }
+    /// <summary>
+    /// Путь до проекта
+    /// </summary>
     string ProjectPath { get; }
+    /// <summary>
+    /// Путь до include
+    /// </summary>
     string IncludePath { get; }
+    /// <summary>
+    /// Поддерживаемые расширения для nanasm
+    /// </summary>
     IReadOnlyList<string> ExtensionsAsm { get; }
+    /// <summary>
+    /// Поддерживаемые расширения для MiniC
+    /// </summary>
     IReadOnlyList<string> ExtensionsMiniC { get; }
 
+    /// <summary>
+    /// Стандартная конфигурация
+    /// </summary>
     public static IProjectFilesConfig Default { get; } = new DefaultProjectFilesConfig();
 
     private sealed class DefaultProjectFilesConfig : IProjectFilesConfig

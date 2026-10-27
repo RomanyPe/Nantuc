@@ -11,6 +11,7 @@ public interface IProcessorFaultPolicy
         {
             BiosStatus.Success => true,
             BiosStatus.NullDeviceOutput => true,
+            BiosStatus.InfinityLoop => true,
             _ => false
         };
     }

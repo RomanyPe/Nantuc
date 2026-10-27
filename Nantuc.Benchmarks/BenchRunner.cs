@@ -50,7 +50,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
         var ctx = _host.Emulator.GetDeviceContext(_deviceId)!;
         Program = res;
 
-        if (!ctx.TryFastLoadProgram(res.Program, 0, out string? errorMath))
+        if (!ctx.TryLoadProgram(res.Program, 0, out string? errorMath))
         {
             Console.WriteLine($"Ошибка при загрузке программы для метрики блока {_case.Name}");
             Console.WriteLine(errorMath);

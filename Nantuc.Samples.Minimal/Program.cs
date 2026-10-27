@@ -44,7 +44,7 @@ if (!compilation.Success)
 }
 
 // 5) Загрузка — через TryFastLoadProgram
-if (!vm.TryFastLoadProgram(compilation.Program!, loadAddress: 0, out var error))
+if (!vm.TryLoadProgram(compilation.Program!, loadAddress: 0, out var error))
 {
     Console.Error.WriteLine(error);
     return;

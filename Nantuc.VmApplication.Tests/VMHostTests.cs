@@ -28,7 +28,7 @@ public class VMHostTests
 
         var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         deviceCtx.Run();
 
@@ -118,7 +118,7 @@ public class VMHostTests
             """;
         var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         deviceCtx.RunStepMode(startAddress: 0);
         Assert.True(deviceCtx.IsRunning);
@@ -153,7 +153,7 @@ public class VMHostTests
             """;
         var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         var options = new LaunchOptionsDebug(StartAddress: 0, StepLimit: 2);
         deviceCtx.DebugRun(options);
@@ -171,7 +171,7 @@ public class VMHostTests
         string program = "LDI r1, 1\nEND";
         var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         bool ended = false;
         var options = new LaunchOptions(StartAddress: 0, OnEnd: (res) => ended = true);
@@ -202,7 +202,7 @@ public class VMHostTests
             """;
         var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
-        Assert.True(deviceCtx.TryFastLoadProgram(comp.Program!, 0, out var err), err);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
         var runTask = Task.Run(() => deviceCtx.Run());
 

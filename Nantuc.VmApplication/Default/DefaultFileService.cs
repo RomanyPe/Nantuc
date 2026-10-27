@@ -2,6 +2,9 @@
 
 namespace Nantuc.VmApplication.Default;
 
+/// <summary>
+/// Класс реализующий <see cref="IFileService"/>, работает с файловой системой, хранит файлы на диске
+/// </summary>
 public sealed class DefaultFileService : IFileService
 {
     public IEnumerable<string> GetNameFiles(IProjectFilesConfig pathConfig)

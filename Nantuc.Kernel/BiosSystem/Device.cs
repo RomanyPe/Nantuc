@@ -49,23 +49,21 @@ public sealed class Device : IPortController
         return _processor.GetRegistersSnapshot();
     }
 
-    public void LoadProgram(byte[] program, ulong loadAddress)
+    public void LoadProgram(ReadOnlySpan<byte> program, ulong loadAddress)
     {
-        for (ulong i = 0; i < (ulong)program.Length; i++)
-        {
-            _ram.WriteInt8LE(loadAddress + i, program[i]);
-            var status = _ram.UpdateAndReadStatus();
-            if (status != BiosStatus.Success)
-            {
-                throw new InvalidOperationException(
-                    $"Failed to write the program to the address 0x{_ram.FaultData:X}");
+        ulong ramLength = _ram.Length;
+        ulong programLength = (ulong)program.Length;
 
-            }
+        if (loadAddress + programLength < loadAddress || loadAddress + programLength > ramLength)
+        {
+            throw new InvalidOperationException(
+                $"Failed to write the program to the address 0x{_ram.FaultData:X}");
         }
-        InitHeap(loadAddress, (ulong)program.LongLength);
+        _ram.LoadProgram(program, loadAddress);
+        InitHeap(loadAddress, (ulong)program.Length);
     }
 
-    public bool TryLoadProgramFast(ReadOnlySpan<byte> program, ulong loadAddress)
+    public bool TryLoadProgram(ReadOnlySpan<byte> program, ulong loadAddress)
     {
         ulong ramLength = _ram.Length;
         ulong programLength = (ulong)program.Length;
@@ -209,10 +207,9 @@ public sealed class Device : IPortController
             }
             if (stepCounter >= stepLimit)
             {
-                if (_processorFaultPolicy.ShouldContinue(new(BiosStatus.InfinityLoop, (ulong)stepCounter, _processor.GetRegValue(RegType.rIP), (OpCode)255)))
-                {
-                    Stop();
-                }
+                _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+                _processor.EnqueueExternalCommand((uint)OpCode.WAKE);
+                _wakeSignal.Set();
             }
             onStep?.Invoke(_processor.GetCurrentProcessorReader());
             if (useSleepMode) Thread.Sleep(delay);

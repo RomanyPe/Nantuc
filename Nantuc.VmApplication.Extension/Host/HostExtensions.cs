@@ -40,7 +40,7 @@ public static class VMHostRunExtensions
             int id = host.Emulator.RegisterDevice(spec, sector);
             var ctx = host.Emulator.GetDeviceContext(id)!;
 
-            if (!ctx.TryFastLoadProgram(comp.Program!, 0, out var err))
+            if (!ctx.TryLoadProgram(comp.Program!, 0, out var err))
             {
                 host.Emulator.UnregisterDevice(id);
                 return new(null, null, comp, 0, false, [err], default);

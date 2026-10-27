@@ -3,10 +3,13 @@ using System.Linq;
 
 namespace Nantuc.VmApplication.Default;
 
+/// <summary>
+/// Класс реализующий <see cref="IFileService"/>, хранит файлы на озу
+/// </summary>
 public class RamFileService : IFileService
 {
     private readonly Dictionary<string, string> _files = [];
-    public string Combine(string path1, string path2) => path1 + "\\" + path2;
+    public string Combine(string path1, string path2) => Path.Combine(path1, path2);
 
     public bool Exist(string fileName) => _files.ContainsKey(fileName);
 

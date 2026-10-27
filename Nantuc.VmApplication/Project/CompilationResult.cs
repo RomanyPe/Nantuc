@@ -37,11 +37,15 @@ public readonly struct CompilationResult
         OptimizationResultLog = null;
         Errors = errors;
     }
-
+    /// <summary>Готовый байт код программы</summary>
     public byte[]? Program { get; }
+    /// <summary>Стартовый адрес программы</summary>
     public ulong StartAdress { get; }
+    /// <summary>Размер .code секции</summary>
     public int CodeSize { get; }
+    /// <summary>Начала .data секции</summary>
     public int DataStart { get; }
+    /// <summary>Размер .data секции</summary>
     public int DataSize { get; }
 
     /// <summary> Логи оптимизации </summary>

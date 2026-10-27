@@ -38,7 +38,7 @@ public class SnakeLauncher(int period = 200)
             foreach (var e in res.Errors!) Console.WriteLine(e);
             return;
         }
-        if (!ctx.TryFastLoadProgram(res.Program!, 0, out var err))
+        if (!ctx.TryLoadProgram(res.Program!, 0, out var err))
         {
             Console.WriteLine(err);
             return;

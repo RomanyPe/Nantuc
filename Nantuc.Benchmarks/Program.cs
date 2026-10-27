@@ -290,7 +290,7 @@ internal class Program
 
         DeviceSpec deviceHandle = DeviceSpec.Create(ramSize: RamSize.MB64, name: "ConsoleVM");
         int deviceId = host.Emulator.RegisterDevice(
-            handle: deviceHandle,
+            spec: deviceHandle,
             sector: 0
         );
 
