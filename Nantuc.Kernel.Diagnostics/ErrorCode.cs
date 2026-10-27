@@ -19,7 +19,8 @@ public enum ErrorCode
     Parser_ArraySizeNotConstant = 1204,
     Parser_UnknownDirective = 1205,
     Parser_StructNotDefined = 1206,
-    Parser_InvalidCharLiteral = 1207,
+    Parser_InvalidCharLiteral = 1207, 
+    Parser_IncludeAmbiguous = 1208,
 
     // Генератор кода (CodeGen)
     CodeGen_UnknownTypeSize = 1300,

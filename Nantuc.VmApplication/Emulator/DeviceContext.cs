@@ -5,7 +5,6 @@ using Nantuc.VmApplication.Project;
 using System.Buffers;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
 
 namespace Nantuc.VmApplication.Emulator;
 
@@ -206,7 +205,11 @@ public class DeviceContext
         _device.CopyRegisters(destination);
         return new(destination);
     }
-
+    /// <summary>
+    /// Получить информацию о причине падения устройства, если устройство работает и не останавливалось будет иметь такие параметры: BiosStatus.Success, 0, 0, OpCode.NOP.
+    /// Не обновляется каждую итерацию ради оптимизаций
+    /// </summary>
+    public ProcessorFault GetLastFault() => _device.GetLastFault();
     private void ThrowIfRunning(
         string msg = "Cannot launch program while device is running. Call Stop() first.")
     {
@@ -230,94 +233,4 @@ public class DeviceContext
     }
     private void SetNoneMode() => _mode = Mode.None;
 
-}
-/// <summary>
-/// Zero-alloc структура, вместо массива <see cref="Array"/> имеет заинлайненный массив
-/// </summary>
-public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
-{
-    [InlineArray(32)]
-    private struct RegisterArray { public ulong _v0; }
-
-    private readonly RegisterArray _values;
-    /// <summary>
-    /// Конструктор
-    /// </summary>
-    /// <param name="values"><see cref="Span{T}"/> регистров</param>
-    public SnapshotRegisters(Span<ulong> values)
-    {
-        _values = new();
-        for (int i = 0; i < values.Length; i++)
-            _values[i] = values[i];
-    }
-
-    /// <summary>
-    /// Метод для создания нового массива из Zero-alloc структуры
-    /// </summary>
-    /// <returns></returns>
-    public ulong[] AsArray()
-    {
-        var arr = new ulong[32];
-        for (int i = 0; i < 32; i++) arr[i] = _values[i];
-        return arr;
-    }
-
-    /// <summary>
-    /// Индексатор
-    /// </summary>
-    /// <param name="r"><see cref="RegType"/>, чтобы нельзя было ошибиться с индексацией регистров в массиве</param>
-    /// <returns></returns>
-    public ulong this[RegType r]
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _values![r.Int()];
-    }
-    /// <summary>
-    /// Количество регистров, <![CDATA[static]]> так как количество регистров константно
-    /// </summary>
-    public static ulong Count => 32;
-
-    /// <summary>
-    /// Метод для создания <see cref="IEnumerable{T}"/> из регистров
-    /// </summary>
-    /// <returns><see cref="IEnumerable{T}"/> из регистров где <![CDATA[Type]]> это <see cref="RegType"/> а  <![CDATA[Value]]> это <see cref="ulong"/></returns>
-    public IEnumerable<(RegType Type, ulong Value)> Enumerate()
-    {
-        for (int i = 0; i < 32; i++)
-            yield return ((RegType)i, _values[i]);
-    }
-
-    public bool Equals(SnapshotRegisters other)
-    {
-        for(RegType i = 0; i < RegType.rIP + 1; i++)
-        {
-            if (this[i] != other[i])
-                return false;
-        }
-        return true;
-    }
-
-    public override int GetHashCode() => _values!.GetHashCode();
-
-    public override string ToString() =>
-        string.Join(", ", Enumerate().Select(e => $"{e.Type}={e.Value:X}"));
-
-    
-
-    public static bool operator ==(SnapshotRegisters left, SnapshotRegisters right)
-    {
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(SnapshotRegisters left, SnapshotRegisters right)
-    {
-        return !(left == right);
-    }
-
-#pragma warning disable CS8765 // Допустимость значений NULL для типа параметра не соответствует переопределенному элементу (возможно, из-за атрибутов допустимости значений NULL).
-    public override bool Equals(object obj)
-#pragma warning restore CS8765 // Допустимость значений NULL для типа параметра не соответствует переопределенному элементу (возможно, из-за атрибутов допустимости значений NULL).
-    {
-        return obj is SnapshotRegisters registers && Equals(registers);
-    }
 }

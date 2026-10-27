@@ -20,6 +20,7 @@ public class DefaultErrorMessageProvider(Dictionary<ErrorCode, string>? override
         { ErrorCode.Parser_UnknownDirective, "Unknown preprocessor directive: #{0}" },
         { ErrorCode.Parser_StructNotDefined, "Struct '{0}' is not defined" },
         { ErrorCode.Parser_InvalidCharLiteral, "Char literal '{0}' is invalid" },
+        { ErrorCode.Parser_IncludeAmbiguous, "The file {0} exists in both {1} and {2}; please select a specific file."},
 
         { ErrorCode.CodeGen_UnknownTypeSize, "Unknown type '{0}' for memory size" },
         { ErrorCode.CodeGen_UnknownOpCodeSize, "Unknown opcode size: {0}" },

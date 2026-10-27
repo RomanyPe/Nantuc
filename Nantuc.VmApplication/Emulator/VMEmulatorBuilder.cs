@@ -30,9 +30,8 @@ public class VmEmulatorBuilder
         return this;
     }
     /// <summary>
-    /// Собрать <see cref="VmEmulator"/> из предыдущих данных
+    /// Собрать <see cref="VmEmulator"/> из имеющихся данных
     /// </summary>
-    /// <returns></returns>
     public VmEmulator Build()
     {
         return new VmEmulator(new(_portBusSize, _portsPerDevice));

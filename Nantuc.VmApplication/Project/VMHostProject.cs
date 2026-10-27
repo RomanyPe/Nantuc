@@ -12,14 +12,17 @@ namespace Nantuc.VmApplication.Project;
 /// </summary>
 /// <param name="paths">Файловая конфигурация</param>
 /// <param name="fileService">Файловый сервис</param>
-public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileService)
+public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileService, VmCompilerOptimizator optimizator)
 {
     private readonly IProjectFilesConfig _projectPaths = paths;
     private readonly IFileService _fileService = fileService;
-    private readonly VmCompilerOptimizator _optimizator = new();
+    private readonly VmCompilerOptimizator _optimizator = optimizator;
 
+    /// <summary><see cref="Regex"/> мнемоник NANASM </summary>
     public static Regex AsmMnemonics => AsmLanguageDefinition.GetMnemonicRegex();
+    /// <summary><see cref="Regex"/> регистров NANASM </summary
     public static Regex AsmRegisters => AsmLanguageDefinition.GetRegisterRegex();
+    /// <summary><see cref="Regex"/> мнемоник MiniC </summary
     public static Regex MiniCMnemonics => MiniCLanguageDefinition.GetKeywordRegex();
 
     /// <summary>Оптимизаторы</summary>
@@ -44,12 +47,13 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
         Func<TAssembler, OptimizationResultLog?, string[]?, TResult> createResult)
         where TAssembler : AssemblerBase
     {
+        OptimizationResultLog? res = null;
+
         try
         {
             TAssembler assembler = createAssembler(baseAddress);
             var resLog = ProjectBuilder.Build(_fileService, _projectPaths,  files, optimize, assembler, _optimizator.AstOptimizer);
 
-            OptimizationResultLog? res = null;
             if (optimize)
             {
                 res = new OptimizationResultLog();
@@ -61,7 +65,7 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
         catch (Exception ex)
         {
             // Передаем null вместо ассемблера и лога в случае ошибки
-            return createResult(null!, null, [ex.Message]);
+            return createResult(null!, res, [ex.ToString()]);
         }
     }
 
@@ -80,17 +84,18 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
         if (asm is null)
             return res;
 
+        OptimizationResultLog? resOpt = null;
         try
         {
             var log = _optimizator.PeepholeOptimizer.Optimize(asm.GetItems(), peepholeOptimizationCount);
-            var logger = res.OptimizationResultLog ?? new OptimizationResultLog();
-            logger.AddRange(log);
+            resOpt = res.OptimizationResultLog ?? new OptimizationResultLog();
+            resOpt.AddRange(log);
 
-            return new CompilationToILResult(asm, logger);
+            return new CompilationToILResult(asm, resOpt);
         }
         catch (Exception ex)
         {
-            return new CompilationToILResult([ex.Message]);
+            return new CompilationToILResult(null, resOpt, [ex.Message]);
         }
     }
 

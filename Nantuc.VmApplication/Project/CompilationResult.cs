@@ -53,5 +53,5 @@ public readonly struct CompilationResult
     /// <summary> Список ошибок </summary>
     public IReadOnlyList<string>? Errors { get; }
     /// <summary> Успешность выполненной компиляции </summary>
-    public bool Success => Errors == null || Errors.Count == 0;
+    public bool Success => Program != null && (Errors == null || Errors.Count == 0);
 }

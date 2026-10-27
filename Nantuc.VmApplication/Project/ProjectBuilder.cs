@@ -9,8 +9,14 @@ using Nantuc.Kernel.Diagnostics;
 
 namespace Nantuc.VmApplication.Project;
 
+/// <summary>
+/// Билдер проекта, запускает парсинг, находит include, запускает оптимизациями, не хранит состояние
+/// </summary>
 public static class ProjectBuilder
 {
+    /// <summary>
+    /// Значение 0x0, стартовый адрес для большинства программ
+    /// </summary>
     public const int BaseAddressProgram = 0x00;
 
     internal static IEnumerable<IReadOnlyLogOptimization> Build(IFileService fileService, IProjectFilesConfig paths, IEnumerable<SourceFile> files, bool optimize, AssemblerBase assembler, AstOptimizer astOptimizer)
@@ -109,6 +115,15 @@ public static class ProjectBuilder
         return new Parser(tokens).Parse();
     }
 
+    /// <summary>
+    /// Читает 1 include файл, сам находит его либо в <see cref="IProjectFilesConfig.ProjectPath"/>, либо в <see cref="IProjectFilesConfig.IncludePath"/>
+    /// </summary>
+    /// <param name="service">файловый сервис где происходит поиск</param>
+    /// <param name="fileName">имя файла</param>
+    /// <param name="pathConfig">файловая конфигурация</param>
+    /// <returns>Контент файла если был найден</returns>
+    /// <exception cref="InvalidOperationException"></exception>
+    /// <exception cref="FileNotFoundException"></exception>
     public static string ReadInclude(IFileService service, string fileName, IProjectFilesConfig pathConfig)
     {
         string projPath = pathConfig.ProjectPath;
@@ -121,7 +136,7 @@ public static class ProjectBuilder
         bool incExist = service.Exist(fullPathInc);
 
         if (projExist && incExist)
-            throw new InvalidOperationException($"The file {fileName} exists in both {projPath} and {includePath}; please select a specific file.");
+            ThrowCompiler.Throw(ErrorCode.Parser_IncludeAmbiguous, fileName, projPath, includePath);
 
 
         if (projExist)
@@ -136,6 +151,13 @@ public static class ProjectBuilder
         throw new FileNotFoundException($"Included file not found: '{fileName}'. Searched in paths: {projPath}, {includePath}");
     }
 
+    /// <summary>
+    /// Метод для получения из <see cref="IFileService"/> и <see cref="IProjectFilesConfig"/> файлов исходного кода для компиляции
+    /// Сам определяет язык по расширению файла, пропускает файлы у которых язык не определен
+    /// </summary>
+    /// <param name="fileService">файловый сервис</param>
+    /// <param name="path">файловая конфигурация</param>
+    /// <returns><see cref="IEnumerable{T}"/> файлов ввиде: <see cref="SourceFile"/></returns>
     public static IEnumerable<SourceFile> GetSourceFiles(IFileService fileService, IProjectFilesConfig path)
     {
         var files = new List<SourceFile>();

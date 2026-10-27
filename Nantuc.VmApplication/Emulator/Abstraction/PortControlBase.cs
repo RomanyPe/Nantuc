@@ -3,7 +3,7 @@
 namespace Nantuc.VmApplication.Emulator.Abstraction;
 
 /// <summary>
-/// Асбстрактный класс который обезопасен от двойного <see cref="Dispose"/>
+/// Абстрактный класс который обезопасен от двойного <see cref="IDisposable.Dispose"/>
 /// </summary>
 public abstract class PortControlBase : IPortController
 {
@@ -39,7 +39,7 @@ public abstract class PortControlBase : IPortController
     public abstract void WritePort(ulong offset, byte value);
 
     /// <summary>
-    /// Безопасный метод для 
+    /// Безопасный метод для очистки ресурсов устройства
     /// </summary>
     protected virtual void OnDispose() { }
 }

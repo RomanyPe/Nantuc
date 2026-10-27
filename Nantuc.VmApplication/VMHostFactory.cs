@@ -13,17 +13,20 @@ public static class VmHostFactory
     /// <param name="projectConfig"> Своя файловая конфигурация </param>
     /// <param name="fileService"> Свой файловый сервис </param>
     /// <param name="portBusSize"> Размер шины портов </param>
+    /// <param name="optimizator">Готовые правила оптимизаций компиляции</param>
     /// <param name="portsPerDevice"> Размер сектора на устройство</param>
-    /// <returns></returns>
+    /// <returns>Объект <see cref="VmHost"/></returns>
     public static VmHost CreateDefault(
         IProjectFilesConfig? projectConfig = null,
         IFileService? fileService = null,
+        VmCompilerOptimizator? optimizator = null,
         PortSize? portBusSize = null,
         DevicePortSize? portsPerDevice = null)
     {
         var projectBuilder = new VmHostProjectBuilder()
             .WithPaths(projectConfig ?? IProjectFilesConfig.Default)
-            .WithFileService(fileService ?? new RamFileService());
+            .WithFileService(fileService ?? new RamFileService())
+            .WithOptimizator(optimizator);
         var project = projectBuilder.Build();
 
         var emulatorBuilder = new VmEmulatorBuilder()

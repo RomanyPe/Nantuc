@@ -289,4 +289,6 @@ public sealed class Device : IPortController
     {
         _processor.Reset();
     }
+
+    public ProcessorFault GetLastFault() => _processor.GetDiagnosticData();
 }
