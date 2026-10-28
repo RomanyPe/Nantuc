@@ -1,6 +1,7 @@
-# Nantuc
+# Nantuc — README
 
 > Платформа для выполнения байткода с собственным языком MiniC (почти полноценный C), ассемблером NANASM, компилятором, виртуальной машиной и публичным API для встраивания.  
+
 > Написана на C# (.NET 10). Компилятор и рантайм разделены по слоям, unsafe-код изолирован в ядре, публичный API — тонкий фасад с безопасными `Try*`-методами и `IdState`-диагностикой.
 
 Nantuc — это мини-фреймворк, в котором есть всё, что нужно для запуска программы на C-подобном языке: лексер, парсер, AST-оптимизатор, кодогенератор в байткод, ассемблер (текстовый и IL), виртуальная машина с регистрами, памятью и порт-шиной, дизассемблер, I/O-устройства и API для встраивания в приложение. Проект вырос до 12 тысяч строк, индекс поддерживаемости по метрикам Visual Studio — 80–96 из 100. В репозитории есть играбельная змейка на MiniC, тест аллокатора и бенчмарк VM.
@@ -45,7 +46,7 @@ Nantuc — это мини-фреймворк, в котором есть всё
 | Запуск VM | `Run()` → `void` | `Run(opt)` → `ProcessorFault` |
 | Остановка по лимиту | `RunWithLimit(...)` | `Run(new LaunchOptions(StepLimit: N))` |
 
-- **`IdState`** (`Nantuc.Kernel.Common`) — `Valid` / `NotAssigned` / `OutOfRange` / `NoFreeSlot` / `Rejected` / `Unknown`. Соответствует кодам `ManagerDevices.TryAddDevice`.
+- **`IdState`** (`Nantuc.Kernel.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). Возвращается из `ManagerDevices.TryAddDevice` (и из `Emulator.RegisterDevice`/`Emulator.TryRegisterDevice`). `default(IdState) == Unknown`, чтобы неинициализированный статус не воспринимался как успешный; **не полагайтесь на `default(IdState) == Valid`** — это изменилось.
 - **`ProcessorFault`** (`Nantuc.Kernel.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. На успехе `Status == EndProgramm`; на падении — `DivOnZero`/`SegmentationFault`/… с точным `IP` и `OpCode`.
 - **`IProcessorFaultPolicy`** — используется **внутри** VM для решения «продолжать ли». Возврат из `Run`/`DebugRun` — это уже `ProcessorFault`, отдельная политика не нужна.
 
@@ -179,7 +180,7 @@ Nantuc/
 
 | Модуль | Назначение | Кому |
 |---|---|---|
-| [`Nantuc.Kernel.Common`](Nantuc.Kernel.Common/README.md) | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState`, декодер инструкций | Авторы компилятора, расширений, дизассемблера |
+| [`Nantuc.Kernel.Common`](Nantuc.Kernel.Common/README.md) | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState` (`Unknown` = 0, default-safe), декодер инструкций | Авторы компилятора, расширений, дизассемблера |
 | [`Nantuc.Kernel.Contracts`](Nantuc.Kernel.Contracts/README.md) | `IPortBus`, `IPortUse`, `IPortController`, `IProcessorReader`, `IProcessorFaultPolicy`, `OptimizationId` | Авторы устройств и расширений |
 | [`Nantuc.Kernel.Diagnostics`](Nantuc.Kernel.Diagnostics/README.md) | `ErrorCode`, `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | Авторы компилятора, IDE, CI |
 | [`Nantuc.Kernel`](Nantuc.Kernel/README.md) | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | Встраивающий код, автор отладчика |
@@ -238,7 +239,13 @@ start:
 
 - **.NET 10 SDK**. Все проекты таргетят `net10.0`.
 - **C# 14**: `extension`-блоки, `[InlineArray]`, `params ReadOnlySpan`, `field`-keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
-- **Windows / Linux / macOS**. В WASM работает `Kernel.Common`/`Contracts`/`Diagnostics`/`Compiler`, но `Nantuc.Kernel` требует `unsafe`, а `Nantuc.Benchmarks` — `Process`/P/Invoke.
+- **Windows / Linux / macOS**. В WASM есть ограничения по модулям:
+  - `Kernel.Common` / `Kernel.Contracts` / `Kernel.Diagnostics` — полностью WASM-safe (managed, без `unsafe`, без `RegexOptions.Compiled`).
+  - `Nantuc.Compiler` — собирается, но `MiniCLanguageDefinition._keywordRegex` использует `RegexOptions.Compiled` — **browser-wasm AOT-blocker** (`PlatformNotSupportedException`). Без этой строки (или с заменой на `[GeneratedRegex]`) компилятор работает в AOT.
+  - `Nantuc.Kernel` — `unsafe` и `NativeMemory.AllocZeroed`/`Free`/`Clear` поддерживаются WASM (линейная память emscripten), но:
+    - `Device.Run`/`DebugRun` синхронные и блокируют текущий поток (`ManualResetEventSlim.Wait(15)` при `IsSleeping`, `Thread.Sleep(delay)` в `DebugRun`) — в single-threaded browser это блокировка UI; нужен Web Worker или async-цикл.
+    - `NativeMemory.AllocZeroed` для больших `RamSize` (≥ `MB512`, тем более `GB1`/`GB2`) рискует `OutOfMemoryException` из-за лимита линейной памяти WASM (~4 GiB на процесс, с фрагментацией). Практический потолок в браузере — ~256 MiB.
+  - `Nantuc.Benchmarks` — `Process`/P/Invoke, вне WASM.
 
 ## Сборка и запуск
 
@@ -329,7 +336,7 @@ host.Project.Optimizator.VMAstOptimizer.Add(new MyCustomRule());
 - **Индекс поддерживаемости (Visual Studio Code Metrics)**: 80–96 из 100 по основным модулям.
 - **Модульность**: 10 проектов с чёткими зависимостями, `unsafe` изолирован в `Nantuc.Kernel`, диагностика отделена в `Nantuc.Kernel.Diagnostics`.
 - **Публичный API**: `Nantuc.VmApplication` — единственный модуль, который нужен конечному пользователю. Остальное — опциональные расширения.
-- **Безопасность API**: `Try*`-методы вместо `null`/магических кодов, `IdState` для классификации возвратов, `ProcessorFault` для статуса исполнения.
+- **Безопасность API**: `Try*`-методы вместо `null`/магических кодов, `IdState` для классификации возвратов (`default(IdState) == Unknown`, не `Valid`), `ProcessorFault` для статуса исполнения.
 - **Бенчмарк**: 12 кейсов, MIPS, перцентили, CV, trimmed mean, JIT-impact. Формат отчёта — в [`Nantuc.Benchmarks/README.md`](Nantuc.Benchmarks/README.md).
 
 ## Статус и планы
@@ -341,7 +348,7 @@ host.Project.Optimizator.VMAstOptimizer.Add(new MyCustomRule());
 - Устройства: UART (sync/async/numeric), монитор (32×16), клавиатура.
 - Дизассемблер (текстовый и структурный, `Disassembler` теперь public).
 - Стандартные AST- и peephole-оптимизации.
-- Безопасный публичный API: `TryRegisterDevice`, `TryGetDeviceContext`, `Run`/`DebugRun` → `ProcessorFault`, `IdState`.
+- Безопасный публичный API: `TryRegisterDevice`, `TryGetDeviceContext`, `Run`/`DebugRun` → `ProcessorFault`, `IdState` (`default(IdState) == Unknown`, не `Valid`).
 - Публичный API (`VmHost`, `DeviceContext`, `VmHostProject`, `DeviceSpec`).
 - Примеры: Hello world, змейка, тест аллокатора.
 - Бенчмарк.
@@ -356,6 +363,7 @@ host.Project.Optimizator.VMAstOptimizer.Add(new MyCustomRule());
 а с учетом расширений которые создают новый массив байт из этой озу 
 и метода `CopyRamTo(Span<byte> destination, nuint start)` можно скопировать сразу в готовый буфер
 
+- **WASM/AOT-фиксы**: убрать `RegexOptions.Compiled` из `MiniCLanguageDefinition` (browser-wasm AOT-blocker) или заменить на `[GeneratedRegex]`; вынести синхронные `Run`/`DebugRun` в async-цикл / Web Worker для browser-WASM.
 - Sandbox для недоверенного кода (лимиты памяти/времени/стека, ограничение `OUT`).
 - Тесты: юнит на лексер/парсер/кодогенерацию, golden-тесты на исполнение, fuzz парсера.
 - CI (GitHub Actions): сборка, тесты, бенчмарк на Windows/Linux.
@@ -388,3 +396,14 @@ dotnet test -c Release
 - Спецификация байткода — `docs/bytecode.md` (в работе).
 - Примеры — [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md), [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.md).
 - Бенчмарк — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.md).
+
+---
+
+**Что изменено относительно предыдущей версии README (сводка):**
+
+1. **`IdState`** — обновлён bullet: `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4); добавлено явное предупреждение `default(IdState) == Unknown`, а не `Valid` (breaking change в `Kernel.Common`).
+2. **`IdState` в таблице модулей** — добавлено уточнение «`Unknown` = 0, default-safe».
+3. **«Требования» → WASM** — развёрнуто по модулям: `Compiler` содержит `RegexOptions.Compiled` (browser-wasm AOT-blocker); `Kernel` использует `unsafe` + `NativeMemory` (работает в WASM), но `Run`/`DebugRun` синхронные (блокируют UI) и большие `RamSize` рискуют OOM.
+4. **«Готово»** — добавлено «`default(IdState) == Unknown`, не `Valid`».
+5. **«В работе / планы»** — добавлен пункт «WASM/AOT-фиксы» (убрать `RegexOptions.Compiled`, async-цикл для `Run`/`DebugRun`).
+6. Комментарий разработчика про отладчик (raw stack access через `GetRegisterSnapshot()` и `NativeMemoryBuffer`/`CopyRamTo`) сохранён без изменений.
