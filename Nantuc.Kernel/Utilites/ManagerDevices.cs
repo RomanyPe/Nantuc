@@ -5,6 +5,20 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Nantuc.Kernel.Utilites;
 
+/// <summary>
+/// Реестр устройств эмулятора: выделяет секторы портов, присваивает идентификаторы,
+/// поддерживает переиспользование освобождённых слотов.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Ёмкость реестра ограничена <see cref="PortBus.SectorCount"/>: каждому устройству
+/// требуется собственный сектор портов. Идентификаторы выдаются монотонно и
+/// переиспользуются вместе со слотами (освобождённый слот хранит свой <c>Id</c>).
+/// </para>
+/// <para>
+/// Потокобезопасность не гарантируется; предполагается использование из одного потока-координатора.
+/// </para>
+/// </remarks>
 public class ManagerDevices(PortBus portBus) : IDisposable
 {
     private sealed class DeviceEntry
@@ -24,7 +38,12 @@ public class ManagerDevices(PortBus portBus) : IDisposable
     private bool _disposed;
     private readonly PortBus _portBus = portBus;
 
-    // Валидатор: считаем только живые записи.
+    /// <summary>
+    /// Количество живых (не освобождённых) устройств в реестре.
+    /// </summary>
+    /// <remarks>
+    /// Вычисляется перебором всех записей — O(n); не кэшируется.
+    /// </remarks>
     public int Count
     {
         get
@@ -58,6 +77,10 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Возвращает снимок информации обо всех живых устройствах.
+    /// </summary>
+    /// <returns>Новый список <see cref="DeviceInfo"/>; пустой, если устройств нет.</returns>
     public IReadOnlyList<DeviceInfo> GetAllDevices()
     {
         List<DeviceInfo> res = [];
@@ -71,8 +94,20 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return res;
     }
 
+    /// <summary>
+    /// Возвращает контроллер живого устройства по идентификатору.
+    /// </summary>
+    /// <param name="id">Идентификатор устройства.</param>
+    /// <returns>Контроллер или <see langword="null"/>, если устройство не найдено/освобождено.</returns>
     public IPortController? GetDevice(int id) => FindValid(id)?.Device;
 
+    /// <summary>
+    /// Пытается получить контроллер живого устройства, приведённый к типу <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">Ожидаемый тип контроллера.</typeparam>
+    /// <param name="id">Идентификатор устройства.</param>
+    /// <param name="device">Контроллер при успехе; иначе <see langword="null"/>.</param>
+    /// <returns><see langword="true"/>, если устройство найдено и имеет тип <typeparamref name="T"/>.</returns>
     public bool TryGetDevice<T>(int id, [NotNullWhen(true)] out T? device)
     where T : class, IPortController
     {
@@ -85,6 +120,24 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Пытается добавить устройство в реестр, закрепив за ним указанный сектор портов.
+    /// </summary>
+    /// <param name="device">Контроллер портов устройства.</param>
+    /// <param name="name">Необязательное имя для диагностики; может быть <see langword="null"/>.</param>
+    /// <param name="sector">Сектор портов, который нужно закрепить за устройством.</param>
+    /// <param name="id">
+    /// Присвоенный идентификатор при успехе; <c>-1…-4</c> при отказе
+    /// (см. <returns>). При отказе регистрации переданный <paramref name="device"/>
+    /// освобождается вызовом <c>Dispose()</c>.
+    /// </param>
+    /// <returns>
+    /// <see cref="IdState.Valid"/> при успехе; иначе:
+    /// <see cref="IdState.NotAssigned"/> — реестр заполнен;
+    /// <see cref="IdState.OutOfRange"/> — сектор занят или вне диапазона;
+    /// <see cref="IdState.NoFreeSlot"/> — нет свободного слота и исчерпаны идентификаторы;
+    /// <see cref="IdState.Rejected"/> — <see cref="PortBus"/> отказал в регистрации.
+    /// </returns>
     public IdState TryAddDevice(
         IPortController device,
         string? name,
@@ -96,10 +149,10 @@ public class ManagerDevices(PortBus portBus) : IDisposable
             return IdState.NotAssigned;
         }
 
-        if (!_portBus.IsFreeSector(sector)) 
+        if (!_portBus.IsFreeSector(sector))
         {
             id = -2;
-            return IdState.OutOfRange; 
+            return IdState.OutOfRange;
         }
 
         var slot = FindFreeSlot();
@@ -140,6 +193,12 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return IdState.Valid;
     }
 
+    /// <summary>
+    /// Снимает устройство с регистрации: освобождает его сектор портов,
+    /// освобождает контроллер и помечает слот как свободный (с сохранением <c>Id</c>).
+    /// </summary>
+    /// <param name="id">Идентификатор устройства.</param>
+    /// <returns><see langword="true"/>, если устройство было найдено и снято; иначе <see langword="false"/>.</returns>
     public bool RemoveDevice(int id)
     {
         var e = FindValid(id);
@@ -153,6 +212,19 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Переводит живое устройство на новый сектор портов.
+    /// </summary>
+    /// <param name="id">Идентификатор устройства.</param>
+    /// <param name="newSector">Новый сектор портов.</param>
+    /// <returns>
+    /// <see langword="true"/> при успехе; <see langword="false"/>, если устройство не найдено,
+    /// сектор вне диапазона или уже занят.
+    /// </returns>
+    /// <remarks>
+    /// Сначала регистрирует устройство на новом секторе, затем освобождает старый.
+    /// При отказе регистрации состояние не меняется.
+    /// </remarks>
     public bool ChangeSector(int id, uint newSector)
     {
         var e = FindValid(id);
@@ -166,6 +238,10 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Освобождает все зарегистрированные контроллеры и очищает реестр.
+    /// </summary>
+    /// <remarks>Повторный вызов безопасен.</remarks>
     public void Dispose()
     {
         if (_disposed) return;

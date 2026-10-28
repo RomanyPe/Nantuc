@@ -8,6 +8,24 @@ using static Nantuc.Kernel.Common.InstructionDecoder;
 
 namespace Nantuc.Kernel.ProcessorSystem;
 
+/// <summary>
+/// Процессор виртуальной машины Nantuc: исполняет инструкции <see cref="OpCode"/>,
+/// взаимодействует с ОЗУ через <see cref="MemoryBus"/> и с устройствами через <see cref="PortBus"/>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Состояние: 32 регистра по 64 бита (см. <see cref="RegType"/>), флаги в <see cref="RegType.rFL"/>,
+/// очереди внешних команд и статусов BIOS. Основной цикл исполнения — <see cref="Step"/>.
+/// </para>
+/// <para>
+/// <see cref="Step"/> и метод <see cref="LaunchProgramm"/> не являются потокобезопасными
+/// относительно друг друга; <see cref="EnqueueExternalCommand"/> и <see cref="EnqueueBiosStatus"/>
+/// можно вызывать из другого потока — они используют lock-free очередь и <c>Volatile</c>-запись флагов.
+/// </para>
+/// </remarks>
+/// <param name="ram">Шина ОЗУ.</param>
+/// <param name="portBus">Шина портов ввода-вывода.</param>
+/// <param name="processorFaultPolicy">Политика, определяющая, продолжать ли исполнение после сбоя.</param>
 public sealed class Processor(MemoryBus ram,
                               PortBus portBus,
                               IProcessorFaultPolicy processorFaultPolicy)
@@ -28,14 +46,25 @@ public sealed class Processor(MemoryBus ram,
     private readonly IProcessorFaultPolicy _processorFaultPolicy = processorFaultPolicy;
     private readonly MemoryBus _ram = ram;
     private readonly PortBus _portBus = portBus;
+    private readonly ProcessorReader _processorReader = new();
 
     private ulong _stackBase;
     private bool _isRunning = false;
     private bool _hasSimulationStatus = false;
     private bool _hasExternalCommand = false;
     private bool _isSleeping = false;
+
+    /// <summary>
+    /// Признак того, что процессор находится в спящем режиме (после <see cref="OpCode.HALT"/>)
+    /// и ждёт пробуждения.
+    /// </summary>
     public bool IsSleeping => _isSleeping;
+
+    /// <summary>
+    /// Признак того, что процессор исполняет программу.
+    /// </summary>
     public bool IsRunning => _isRunning;
+
     private bool _hasCommand = false;
     private ulong _lastFaultData = 0;
 
@@ -44,11 +73,26 @@ public sealed class Processor(MemoryBus ram,
     private bool NegativeFlagSet => (_registers[RegType.rFL.Int()] & 2UL) != 0UL;
 
     private ProcessorFault _faultData = new(BiosStatus.Success, 0, 0, OpCode.NOP);
+
+    /// <summary>
+    /// Возвращает диагностические данные о последнем сбое/остановке.
+    /// </summary>
+    /// <returns>Снимок <see cref="ProcessorFault"/>.</returns>
     public ProcessorFault GetDiagnosticData() => _faultData;
 
+    /// <summary>
+    /// Возвращает значение указанного регистра.
+    /// </summary>
+    /// <param name="reg">Регистр.</param>
+    /// <returns>Текущее 64-битное значение.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ulong GetRegValue(RegType reg) => _registers[reg.Int()];
 
+    /// <summary>
+    /// Ставит в очередь статус BIOS для обработки на следующем шаге.
+    /// </summary>
+    /// <param name="status">Статус.</param>
+    /// <remarks>Безопасно вызывать из другого потока.</remarks>
     public void EnqueueBiosStatus(BiosStatus status)
     {
         Volatile.Write(ref _hasCommand, true);
@@ -56,6 +100,11 @@ public sealed class Processor(MemoryBus ram,
         _statusFromSimulation.Enqueue(status);
     }
 
+    /// <summary>
+    /// Копирует текущие значения всех 32 регистров в указанный буфер.
+    /// </summary>
+    /// <param name="destination">Буфер не менее чем из 32 элементов.</param>
+    /// <exception cref="ArgumentException">Если <paramref name="destination"/> короче 32 элементов.</exception>
     public void CopyRegisters(Span<ulong> destination)
     {
         if (destination.Length < CountReg)
@@ -64,13 +113,17 @@ public sealed class Processor(MemoryBus ram,
             destination[i] = _registers[i];
     }
 
+    /// <summary>
+    /// Возвращает снимок всех 32 регистров.
+    /// </summary>
+    /// <returns>Новый массив <c>ulong[32]</c>.</returns>
     public ulong[] GetRegistersSnapshot()
     {
         var arr = new ulong[CountReg];
         CopyRegisters(arr);
         return arr;
     }
-   
+
 
     private ulong Get64IntData()
     {
@@ -82,6 +135,15 @@ public sealed class Processor(MemoryBus ram,
         return data;
     }
 
+    /// <summary>
+    /// Запускает исполнение программы с указанного адреса: сбрасывает <c>rFL</c>,
+    /// инициализирует <c>rIP</c> и <c>rSP</c>, снимает спящий режим и выставляет <see cref="IsRunning"/>.
+    /// </summary>
+    /// <param name="startAddress">Адрес первой инструкции.</param>
+    /// <remarks>
+    /// Вершина стека выравнивается вниз по границе 8 байт и устанавливается в <c>rSP</c>.
+    /// Повторный запуск не освобождает ранее занятые ресурсы (стек/куча) — вызывать осознанно.
+    /// </remarks>
     public void LaunchProgramm(ulong startAddress)
     {
         _isSleeping = false;
@@ -125,6 +187,16 @@ public sealed class Processor(MemoryBus ram,
     }
 
 
+    /// <summary>
+    /// Выполняет один шаг: при необходимости обрабатывает внешние команды/статусы,
+    /// затем читает и исполняет одну инструкцию по адресу <c>rIP</c>.
+    /// </summary>
+    /// <remarks>
+    /// Если процессор не запущен или спит, шаг ничего не делает. После чтения слова
+    /// инструкции <c>rIP</c> увеличивается на 4 до вызова обработчика — обработчик видит
+    /// уже следующее слово. 64-битные непосредственные операнды читаются отдельно
+    /// с выравниванием по 8 байт.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Step()
     {
@@ -142,7 +214,7 @@ public sealed class Processor(MemoryBus ram,
 
         if (!_isRunning | _isSleeping) return;
 
-        ulong ip = _registers[RegType.rIP.Int()];        
+        ulong ip = _registers[RegType.rIP.Int()];
 
         uint rawInst = _ram.ReadInt32LEUnSafe(ip);
         OpCode opCode = GetOpCode(rawInst);
@@ -153,10 +225,8 @@ public sealed class Processor(MemoryBus ram,
 
         BiosStatus dat = opCode switch
         {
-            // === 1. Системные команды ===
             OpCode.NOP => BiosStatus.Success,
             OpCode.END => EndProgramm(),
-            // === 2. Работа с памятью (Указатели и регистры) ===
             OpCode.MOV => InstructionMOV(GetReg1(rawInst), GetReg2(rawInst)),
 
             OpCode.LOAD => InstructionLOAD(GetDataSizeCode(rawInst), GetReg1(rawInst), Get64IntData()),
@@ -171,7 +241,6 @@ public sealed class Processor(MemoryBus ram,
 
             OpCode.LDI => InstructionLDI(GetReg1(rawInst), Get64IntData()),
 
-            // === 3. Арифметика и Логика (Тьюринг-базис) ===
             OpCode.ADD => InstructionADD(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.SUB => InstructionSUB(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.INC => InstructionINC(GetReg1(rawInst)),
@@ -182,26 +251,22 @@ public sealed class Processor(MemoryBus ram,
             OpCode.DIV => InstructionDIV(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.MOD => InstructionMOD(GetReg1(rawInst), GetReg2(rawInst)),
 
-            // === 4. Логика ===
             OpCode.AND => InstructionAND(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.OR => InstructionOR(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.XOR => InstructionXOR(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.NOT => InstructionNOT(GetReg1(rawInst)),
 
-            // === 5. Управление потоком ===
             OpCode.JMP => InstructionJMP(Get64IntData()),
             OpCode.JZ => InstructionJZ(Get64IntData()),
             OpCode.JNZ => InstructionJNZ(Get64IntData()),
             OpCode.JG => InstructionJG(Get64IntData()),
             OpCode.JL => InstructionJL(Get64IntData()),
 
-            // === 6. Работа со Стеком ===
             OpCode.PUSH => InstructionPUSH(GetReg1(rawInst)),
             OpCode.POP => InstructionPOP(GetReg1(rawInst)),
             OpCode.CALL => InstructionCALL(Get64IntData()),
             OpCode.RET => InstructionRET(),
 
-            // === 7. Ввод-вывод ===
             OpCode.IN => InstructionIN(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.OUT => InstructionOUT(GetReg1(rawInst), GetReg2(rawInst)),
             OpCode.CALL_IND => InstructionCALL_IND(GetReg1(rawInst)),
@@ -222,6 +287,8 @@ public sealed class Processor(MemoryBus ram,
         }
     }
 
+    // ... (приватные Instruction* без изменений — пропущены для краткости) ...
+
     private BiosStatus InstructionMOD(RegType reg1, RegType reg2)
     {
         ulong divisor = _registers[reg2.Int()];
@@ -240,7 +307,7 @@ public sealed class Processor(MemoryBus ram,
     private BiosStatus InstructionJMP_IND(RegType r)
     {
         var nextIp = _registers[r.Int()];
-        if (nextIp >= _ram.Length) 
+        if (nextIp >= _ram.Length)
         {
             _lastFaultData = nextIp;
             return BiosStatus.SegmentationFault;
@@ -423,7 +490,6 @@ public sealed class Processor(MemoryBus ram,
                 return BiosStatus.Success;
 
             default:
-                // Защита на случай передачи некорректного или нереализованного OpCodeSize
                 _lastFaultData = adress;
                 return BiosStatus.SegmentationFault;
         }
@@ -513,7 +579,7 @@ public sealed class Processor(MemoryBus ram,
 
             case OpCodeSize.S32:
                 var data32 = _ram.ReadInt32LEUnSafe(adress);
-                
+
                 _registers[reg.Int()] = data32;
 
                 return BiosStatus.Success;
@@ -658,25 +724,25 @@ public sealed class Processor(MemoryBus ram,
         return BiosStatus.Success;
     }
 
-    private BiosStatus InstructionJZ(ulong t) 
-    { 
-        if (ZeroFlagSet) _registers[RegType.rIP.Int()] = t; 
-        return BiosStatus.Success; 
+    private BiosStatus InstructionJZ(ulong t)
+    {
+        if (ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
+        return BiosStatus.Success;
     }
-    private BiosStatus InstructionJNZ(ulong t) 
-    { 
+    private BiosStatus InstructionJNZ(ulong t)
+    {
         if (!ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
-        return BiosStatus.Success; 
+        return BiosStatus.Success;
     }
-    private BiosStatus InstructionJL(ulong t) 
-    { 
+    private BiosStatus InstructionJL(ulong t)
+    {
         if (NegativeFlagSet) _registers[RegType.rIP.Int()] = t;
-        return BiosStatus.Success; 
+        return BiosStatus.Success;
     }
-    private BiosStatus InstructionJG(ulong t) 
-    { 
+    private BiosStatus InstructionJG(ulong t)
+    {
         if (!NegativeFlagSet & !ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
-        return BiosStatus.Success; 
+        return BiosStatus.Success;
     }
 
     private BiosStatus InstructionPUSH(RegType reg)
@@ -694,7 +760,7 @@ public sealed class Processor(MemoryBus ram,
             return status;
         }
 
-        if (_registers[RegType.rHP.Int()] >= sp)   // коллизия с стеком
+        if (_registers[RegType.rHP.Int()] >= sp)
         {
             _lastFaultData = sp;
             return BiosStatus.SegmentationFault;
@@ -735,7 +801,7 @@ public sealed class Processor(MemoryBus ram,
 
         ulong sp = oldSp - 8;
 
-        if (_registers[RegType.rHP.Int()] >= sp) // коллизия с heap
+        if (_registers[RegType.rHP.Int()] >= sp)
             return BiosStatus.SegmentationFault;
 
         _ram.WriteInt64LEUnSafe(sp, _registers[RegType.rIP.Int()]);
@@ -745,7 +811,7 @@ public sealed class Processor(MemoryBus ram,
 
         return BiosStatus.Success;
     }
-    
+
 
     private BiosStatus InstructionRET()
     {
@@ -790,18 +856,21 @@ public sealed class Processor(MemoryBus ram,
             _lastFaultData = portAddress;
             return status;
         }
-        // Флаги обычно не меняются при выводе, но можно обновить по желанию
         return BiosStatus.Success;
     }
 
+    /// <summary>
+    /// Сбрасывает процессор в исходное состояние: останавливает исполнение,
+    /// очищает регистры и очереди внешних команд/статусов.
+    /// </summary>
     public void Reset()
     {
         _lastFaultData = 0;
         _isRunning = false;
         _isSleeping = false;
         ClearRegs();
-        while (_externalCommands.TryDequeue(out _));
-        while (_statusFromSimulation.TryDequeue(out _));
+        while (_externalCommands.TryDequeue(out _)) ;
+        while (_statusFromSimulation.TryDequeue(out _)) ;
         _hasCommand = false;
         _hasExternalCommand = false;
         _hasSimulationStatus = false;
@@ -812,8 +881,18 @@ public sealed class Processor(MemoryBus ram,
         for (int i = 0; i < CountReg; i++) _registers[i] = 0UL;
     }
 
+    /// <summary>
+    /// Инициализирует регистр указателя кучи <c>rHP</c>.
+    /// </summary>
+    /// <param name="hpInit">Начальный адрес кучи.</param>
     public void InitRegHP(ulong hpInit) => _registers[RegType.rHP.Int()] = hpInit;
 
+    /// <summary>
+    /// Ставит в очередь внешнюю команду (сырое слово инструкции); будет обработана
+    /// на ближайшем шаге.
+    /// </summary>
+    /// <param name="instruction">Сырое 32-битное слово инструкции.</param>
+    /// <remarks>Безопасно вызывать из другого потока.</remarks>
     public void EnqueueExternalCommand(uint instruction)
     {
         _externalCommands.Enqueue(instruction);
@@ -835,7 +914,18 @@ public sealed class Processor(MemoryBus ram,
         }
     }
 
-    private readonly ProcessorReader _processorReader = new();
+
+    /// <summary>
+    /// Возвращает снимок состояния процессора для внешних наблюдателей.
+    /// </summary>
+    /// <returns>
+    /// Экземпляр <see cref="IProcessorReader"/>, содержащий <see cref="IsRunning"/>,
+    /// <see cref="IsSleeping"/> и копию регистров на момент вызова.
+    /// </returns>
+    /// <remarks>
+    /// Возвращаемый объект переиспользуется между вызовами — не сохраняйте его
+    /// дольше, чем до следующего вызова <see cref="GetCurrentProcessorReader"/>.
+    /// </remarks>
     public IProcessorReader GetCurrentProcessorReader()
     {
         _processorReader.Update(_isRunning, _isSleeping, _registers);
@@ -866,4 +956,3 @@ public sealed class Processor(MemoryBus ram,
         }
     }
 }
-
