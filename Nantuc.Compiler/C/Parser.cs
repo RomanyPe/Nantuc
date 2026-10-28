@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Nantuc.Compiler.C;
 
-public class Parser(List<Token> tokens)
+public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
 {
     private readonly List<Token> _tokens = tokens;
     private readonly HashSet<string> _structNames = new(StringComparer.Ordinal);
@@ -399,7 +399,7 @@ public class Parser(List<Token> tokens)
         return new DoWhileNode(body, cond);
     }
 
-    private static List<ASTNode> ParseStringToNodes(string raw)
+    private List<ASTNode> ParseStringToNodes(string raw)
     {
         string inner = raw[1..^1];
         var nodes = new List<ASTNode>(inner.Length + 1);
@@ -908,7 +908,7 @@ public class Parser(List<Token> tokens)
         return token;
     }
 
-    private static int ParseCharLiteral(string text)
+    private int ParseCharLiteral(string text)
     {
         if (string.IsNullOrEmpty(text))
             ThrowCompiler.Throw(ErrorCode.Parser_InvalidCharLiteral, text);

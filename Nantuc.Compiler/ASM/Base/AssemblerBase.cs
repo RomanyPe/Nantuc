@@ -1,8 +1,11 @@
-﻿namespace Nantuc.Compiler.ASM.Base;
+﻿using Nantuc.Kernel.Diagnostics;
 
-public abstract class AssemblerBase(ulong baseAddress)
+namespace Nantuc.Compiler.ASM.Base;
+
+public abstract class AssemblerBase(ulong baseAddress, ThrowCompiler throwCompiler)
 {
     protected readonly ulong _baseAddress = baseAddress;
+    public readonly ThrowCompiler ThrowCompiler = throwCompiler;
     public ulong BaseAddress => _baseAddress;
     public int CodeSectionSize { get; protected set; } = -1;
     public int DataSectionStart { get; protected set; } = -1;

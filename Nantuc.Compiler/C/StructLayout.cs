@@ -11,14 +11,14 @@ public class StructLayout
     private readonly List<FieldInfo> _fields = [];
 
     public StructLayout(string name, List<(string type, string fieldName)> fieldDecls,
-                        Dictionary<string, StructLayout> structTable)
+                        Dictionary<string, StructLayout> structTable, ThrowCompiler ThrowCompiler)
     {
         Name = name;
         int offset = 0;
         foreach (var (type, fieldName) in fieldDecls)
         {
             int align = CodeGenUtils.GetAlignment(type, structTable);
-            int size = CodeGenUtils.GetTypeSize(type, structTable);
+            int size = CodeGenUtils.GetTypeSize(type, structTable, ThrowCompiler);
             offset = (offset + align - 1) & ~(align - 1);
             _fields.Add(new FieldInfo(fieldName, type, offset, size));
             offset += size;
@@ -26,7 +26,7 @@ public class StructLayout
         Size = (offset + 7) & ~7;
     }
 
-    public static Dictionary<string, StructLayout> Resolve(List<StructDeclNode> decls)
+    public static Dictionary<string, StructLayout> Resolve(List<StructDeclNode> decls, ThrowCompiler ThrowCompiler)
     {
         var layouts = new Dictionary<string, StructLayout>();
         var remaining = new Queue<StructDeclNode>(decls);
@@ -50,7 +50,7 @@ public class StructLayout
                 }
                 if (canResolve)
                 {
-                    layouts[decl.Name] = new StructLayout(decl.Name, decl.Fields, layouts);
+                    layouts[decl.Name] = new StructLayout(decl.Name, decl.Fields, layouts, ThrowCompiler);
                     lastResolved++;
                 }
                 else

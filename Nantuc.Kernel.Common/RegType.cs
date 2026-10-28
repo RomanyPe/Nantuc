@@ -10,6 +10,21 @@ public enum RegType : byte
     r17, r18, r19, 
     r20, r21, r22,
     r23, r24, r25, 
-    r26, r27, rFL,
-    rSP, rHP, rIP,
+    r26, r27, 
+    /// <summary>
+    /// регистр флагов
+    /// </summary>
+    rFL,
+    /// <summary>
+    /// регистр указателя стека
+    /// </summary>
+    rSP, 
+    /// <summary>
+    /// регистр указателя кучи
+    /// </summary>
+    rHP, 
+    /// <summary>
+    /// регистр указателя инструкций
+    /// </summary>
+    rIP,
 }

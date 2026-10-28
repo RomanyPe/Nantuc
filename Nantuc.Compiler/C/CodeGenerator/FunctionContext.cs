@@ -1,5 +1,6 @@
 ﻿using Nantuc.Compiler.C;
 using Nantuc.Kernel.Common;
+using Nantuc.Kernel.Diagnostics;
 
 
 namespace Nantuc.Compiler.C.CodeGenerator;
@@ -18,14 +19,13 @@ public class FunctionContext
     public int ExpressionSaveDepth { get; set; } = 0;
 
 
-    public static FunctionContext Create(FunctionNode func, Dictionary<string, VariableNode> localVarNodes, Dictionary<string, StructLayout> structTable)
+    public static FunctionContext Create(FunctionNode func, Dictionary<string, VariableNode> localVarNodes, Dictionary<string, StructLayout> structTable, ThrowCompiler ThrowCompiler)
     {
         var ctx = new FunctionContext
         {
             FunctionName = func.Name,
             EpilogueLabel = $"__epilogue_{func.Name}"
         };
-
         var allVars = new List<(string name, string type, bool isArray, int arraySize, bool isPointer, string? pointedType)>();
         foreach (var param in func.Parameters)
             allVars.Add((param.Name, param.Type, false, 0, param.IsPointer, param.PointedType));
@@ -79,8 +79,8 @@ public class FunctionContext
             }
             else
             {
-                size = CodeGenUtils.GetSizeForType(type);
-                varSize = isArray ? CodeGenUtils.GetSizeInBytes(size) * arraySize : 8;
+                size = CodeGenUtils.GetSizeForType(type, ThrowCompiler);
+                varSize = isArray ? CodeGenUtils.GetSizeInBytes(size, ThrowCompiler) * arraySize : 8;
             }
 
             // Для массива структур пересчитываем размер
@@ -99,7 +99,7 @@ public class FunctionContext
                 {
                     IsRegister = true,
                     Register = reg.Value,
-                    TypeSize = CodeGenUtils.GetSizeForType(type),
+                    TypeSize = CodeGenUtils.GetSizeForType(type, ThrowCompiler),
                     IsArray = false,
                     ArraySize = 0,
                     IsPointer = isPointer,

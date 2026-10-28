@@ -4,11 +4,14 @@ using Nantuc.Compiler.C;
 using Nantuc.VmApplication.Extensions.Optimizators;
 using System.Text;
 using Nantuc.Kernel.Contracts;
+using System.Reflection.Metadata;
+using Nantuc.Kernel.Diagnostics;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.AstRules;
 
 public class FoldConstantsRule : IAstOptimizationRule
 {
+    private readonly ThrowCompiler throwCompiler = new(null);
     public OptimizationId Type => AstOptimizerExtension.ConstantFolded;
 
     public IReadOnlyLogOptimization Optimize(ProgramNode program)
@@ -18,7 +21,7 @@ public class FoldConstantsRule : IAstOptimizationRule
         return log;
     }
 
-    private static void FoldConstants(ProgramNode program, ILogOptimization log)
+    private void FoldConstants(ProgramNode program, ILogOptimization log)
     {
         foreach (var func in program.FunctionNodes)
         {
@@ -27,7 +30,7 @@ public class FoldConstantsRule : IAstOptimizationRule
         }
     }
 
-    private static void FoldConstantsInBlock(BlockNode block, ILogOptimization log)
+    private void FoldConstantsInBlock(BlockNode block, ILogOptimization log)
     {
         foreach (var stmt in block.Statements)
         {
@@ -67,7 +70,7 @@ public class FoldConstantsRule : IAstOptimizationRule
         }
     }
 
-    private static ASTNode? FoldConstantsInExpr(ASTNode? node, ILogOptimization log)
+    private ASTNode? FoldConstantsInExpr(ASTNode? node, ILogOptimization log)
     {
         if (node == null) return null;
 
@@ -84,7 +87,7 @@ public class FoldConstantsRule : IAstOptimizationRule
                 {
                     long oldLeft = left.Value;
                     long oldRight = right.Value;
-                    long result = ExpressionGenerator.ComputeConstant(left.Value, right.Value, binop.Operator);
+                    long result = ExpressionGenerator.ComputeConstant(left.Value, right.Value, binop.Operator, throwCompiler);
                     log.Append(0, $"Folded constant: {oldLeft} {binop.Operator} {oldRight} = {result}");
                     return new NumberNode(result);
                 }

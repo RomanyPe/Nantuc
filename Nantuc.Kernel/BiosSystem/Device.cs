@@ -128,8 +128,7 @@ public sealed class Device : IPortController
     }
 
 
-    public void BreakPointerLaunchDevice(ulong? start, 
-                            Action? titleAct)
+    public void BreakPointerLaunchDevice(ulong? start, Action? titleAct)
     {
         titleAct?.Invoke();
         stepCounter = 0;
@@ -174,8 +173,7 @@ public sealed class Device : IPortController
     {
         while (_processor.IsRunning)
         {
-            if (limit <= stepCounter) Stop();
-            
+            if (limit <= stepCounter) _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
             _processor.Step();
 
             if (_processor.IsSleeping)
@@ -194,6 +192,7 @@ public sealed class Device : IPortController
     {
         while (_processor.IsRunning)
         {
+            if (stepCounter >= stepLimit) _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
             _processor.Step();
 
             if (_processor.IsSleeping)
@@ -205,12 +204,7 @@ public sealed class Device : IPortController
             {
                 stepCounter++;
             }
-            if (stepCounter >= stepLimit)
-            {
-                _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
-                _processor.EnqueueExternalCommand((uint)OpCode.WAKE);
-                _wakeSignal.Set();
-            }
+            
             onStep?.Invoke(_processor.GetCurrentProcessorReader());
             if (useSleepMode) Thread.Sleep(delay);
         }

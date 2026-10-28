@@ -1,5 +1,4 @@
 ﻿using Nantuc.VmApplication.Project;
-using System.Linq;
 
 namespace Nantuc.VmApplication.Default;
 

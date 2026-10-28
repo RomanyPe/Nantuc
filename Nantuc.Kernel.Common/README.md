@@ -1,8 +1,8 @@
 ﻿# Nantuc.Kernel.Common — README
 
 > Общие типы, константы ISA и разделяемые примитивы платформы Nantuc.  
-> Фундамент, на который опираются ядро, контракты, компилятор и расширения.  
-> `[← Корень](../README.md) · [Contracts](../Nantuc.Kernel.Contracts/README.md) · [Diagnostics](../Nantuc.Kernel.Diagnostics/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
+> Фундамент, на который опираются ядро, компилятор и расширения.  
+> `[← Корень](../README.md)`
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -15,7 +15,7 @@
 
 ## Об этом модуле
 
-`Nantuc.Kernel.Common` — это слой разделяемых примитивов платформы. Здесь нет ни логики процессора, ни шин, ни устройств: только типы, которые нужны одновременно ядру (`Kernel`), публичным контрактам (`Kernel.Contracts`), компилятору MiniC, ассемблеру NANASM, дизассемблеру и расширениям. Это не BIOS и не драйверы, а словарь ISA и единицы измерения памяти и портов — то, что должно быть согласовано у всех участников платформы.
+`Nantuc.Kernel.Common` — это слой разделяемых примитивов платформы. Здесь нет ни логики процессора, ни шин, ни устройств: только типы, которые нужны одновременно ядру, компилятору MiniC, ассемблеру NANASM, дизассемблеру и расширениям. Это словарь ISA и единицы измерения памяти и портов — то, что должно быть согласовано у всех участников платформы.
 
 Модуль не содержит интерфейсов — только `enum`, `readonly struct`, `record struct` и `static class` с чистыми функциями. Это делает его безопасным для горячих путей процессора (нулевые аллокации) и удобным для сравнения и сериализации.
 
@@ -23,13 +23,12 @@
 - ISA байткода: `OpCode`, `OpCodeSize`, `RegType`, `DecodeInstructionResult`, `InstructionDecoder`.
 - Единицы измерения: `RamSize`, `PortSize`, `DevicePortSize` (лог2-структуры с фабриками).
 - Диагностика: `BiosStatus`, `ProcessorFault`.
-- Идентификация: `NameDeviceToken`.
-- Классификация возвратов: `IdState` (соответствует `-1..-4` из `ManagerDevices.AddDevice`).
+- Классификация возвратов: `IdState`.
 - Утилиты: `AlignmentExtensions` (выравнивание для generic-чисел).
 
-Проект — листовой по зависимостям: ни от чего внутри Nantuc не зависит. Любое изменение публичного типа здесь — потенциальный breaking change для всей платформы.
+Проект — листовой по зависимостям: `net10.0`, без `ProjectReference`. Любое изменение публичного типа здесь — потенциальный breaking change для всей платформы.
 
-> **XML-документация в работе.** Часть типов уже документирована (`PortSize`, `OptimizationId` в `Contracts`), часть — ещё нет (`OpCodeSize`, `RegType`, `IdState`, `NameDeviceToken`, методы `InstructionDecoder`). Это осознанно: приоритет — стабилизировать форму API, потом — наполнить `///`. В разделе [Что исправить](#что-исправить) — список того, что стоит задокументировать в первую очередь (по убыванию риска неправильного прочтения).
+> **XML-документация в работе.** Полностью документированы `PortSize`, `RamSize`, `InstructionDecoder`, `BiosStatus`. Частично — `DevicePortSize` (фабрики и структура — с `///`, операторы и `Equals`/`GetHashCode`/`CompareTo`/`ToString` — без), `DecodeInstructionResult` (структура и параметры конструктора — с `///`, публичные поля — без), `OpCode` (inline-комментарии на большинстве опкодов, без `///`), `RegType` (только `rFL`/`rSP`/`rHP`/`rIP`). Без `///` совсем — `IdState` (только inline-комментарии `// -1`), `AlignUpArithmetic` в `AlignmentExtensions`. В разделе [Что исправить](#что-исправить) — список того, что стоит задокументировать в первую очередь.
 
 ## Дерево локального проекта
 
@@ -44,7 +43,6 @@ Nantuc.Kernel.Common/
 ├── DevicePortSize.cs              # readonly struct
 ├── IdState.cs                     # enum IdState
 ├── InstructionDecoder.cs          # static class InstructionDecoder
-├── NameDeviceToken.cs             # readonly struct
 ├── OpCode.cs                      # enum OpCode : byte
 ├── OpCodeSize.cs                  # enum OpCodeSize
 ├── PortSize.cs                    # readonly struct PortSize
@@ -53,9 +51,9 @@ Nantuc.Kernel.Common/
 ```
 
 Замечания по организации:
-- `PortSize.cs` теперь называется по имени типа (было `SizePortOnDevice.cs`) — навигация исправлена.
 - `AlignmentExtensions.cs` вынесен из `InstructionDecoder.cs` — семантически разные классы больше не делят файл.
-- `LogLevel.cs` не был включён в эту партию файлов. Если тип ещё существует в проекте — добавьте его в следующую партию; если удалён — обновите дерево и таблицу API ниже.
+- `NameDeviceToken.cs` и `LogLevel.cs` **в эту партию файлов не входят**. Если типы ещё существуют в проекте — добавьте их в следующую партию; если удалены — обновите дерево.
+- `PortSize.cs` назван по имени типа (ранее — `SizePortOnDevice.cs`), навигация исправлена.
 
 ## API
 
@@ -74,35 +72,32 @@ Nantuc.Kernel.Common/
 | `RamSize` | `readonly struct` | Размер ОЗУ, лог2, 64 B … 2 GiB |
 | `PortSize` | `readonly struct` | Размер порт-пространства, лог2, 64 B … 512 KiB |
 | `DevicePortSize` | `readonly struct` | Размер блока портов устройства, лог2, 8 B … 256 B |
-| `NameDeviceToken` | `readonly struct` | Имя устройства (кэширует строку) |
 | `DecodeInstructionResult` | `readonly struct` | Результат декодирования сырой инструкции |
-| `InstructionDecoder` | `static class` | Разбор 32-битной инструкции |
+| `InstructionDecoder` | `static class` | Разбор 32-битной инструкции + таблица «требуется ли immediate» |
 | `AlignmentExtensions` | `static class` | `AlignUp`/`AlignDown`/`AlignUpArithmetic` для `IBinaryInteger<T>` |
 
 ### Перечисления
 
-**`OpCode : byte`** — около 60 значений, сгруппированных по назначению:
+**`OpCode : byte`** — около 60 значений, сгруппированных по назначению (inline-комментарии на большинстве):
 
 - Системные: `NOP`, `END`.
 - Память: `MOV`, `LOAD`, `STORE`, `LDI`, `LOAD_IND`, `STORE_IND`.
-- Арифметика: `ADD`, `SUB`, `MULT_INT`, `SHR`, `INC`, `DEC`, `DIV`.
+- Арифметика: `ADD`, `SUB`, `MULT_INT`, `SHR`, `SHL`, `INC`, `DEC`, `DIV`, `MOD`.
 - Логика: `AND`, `OR`, `XOR`, `NOT`.
-- Управление потоком: `JMP`, `JZ`, `JNZ`, `JG`, `JL`.
-- Стек: `PUSH`, `POP`, `CALL`, `RET`.
-- I/O: `IN`, `OUT`, `CALL_IND`, `JMP_IND`.
+- Управление потоком: `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `JMP_IND` (косвенный переход по адресу из регистра).
+- Стек: `PUSH`, `POP`, `CALL`, `RET`, `CALL_IND` (косвенный вызов по адресу из регистра).
+- I/O: `IN`, `OUT`.
 - Сон: `HALT`, `WAKE`, `WAKE_INT`.
-- Unsafe-варианты: `LOAD_UNSAFE`, `STORE_UNSAFE`, `STORE_IND_UNSAFE`, `LOAD_IND_UNSAFE`.
+- Unsafe-варианты: `LOAD_UNSAFE`, `STORE_UNSAFE`, `STORE_IND_UNSAFE`, `LOAD_IND_UNSAFE` (без inline-комментариев).
 - Сравнение: `CMP`, `TEST`.
-- Сдвиги: `SHL` (влево), `SHR` (вправо).
-- Остаток: `MOD`.
 
-**`OpCodeSize`** — `S8 = 0b00`, `S16 = 0b01`, `S32 = 0b10`, `S64 = 0b11`. Семантика «1/2/4/8 байт» подразумевается по именам, но явно не задокументирована в файле — маппинг в `Nantuc.Compiler/C/CodeGenerator/CodeGenUtils.GetSizeInBytes`.
+**`OpCodeSize`** — `S8 = 0b00` (8 бит = 1 байт), `S16 = 0b01` (16 бит), `S32 = 0b10` (32 бита), `S64 = 0b11` (64 бита). XML-документация присутствует на enum и на каждом члене.
 
-**`RegType : byte`** — 32 значения: `r0..r27` (общего назначения), `rFL` (флаги: бит 0 = Zero, бит 1 = Negative), `rSP` (stack pointer), `rHP` (heap pointer), `rIP` (instruction pointer). Ровно 32 = 5 бит, что совпадает с полями `Reg1`/`Reg2` в инструкции.
+**`RegType : byte`** — 32 значения: `r0..r27` (общего назначения, без `///`), `rFL` (регистр флагов), `rSP` (указатель стека), `rHP` (указатель кучи), `rIP` (указатель инструкций) — у четырёх последних есть `///`. Ровно 32 = 5 бит, что совпадает с полями `Reg1`/`Reg2` в инструкции.
 
-**`BiosStatus : byte`** — `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgramm`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`.
+**`BiosStatus : byte`** — `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgramm`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`. Все члены документированы `///`.
 
-**`IdState`** — `Valid`, `NotAssigned` (`-1`), `OutOfRange` (`-2`), `NoFreeSlot` (`-3`), `Rejected` (`-4`), `Unknown`. Соответствует кодам возврата `ManagerDevices.AddDevice` (`Nantuc.Kernel/Utilites/ManagerDevices.cs`). Живёт в `Common`, потому что `Kernel` (где `ManagerDevices`) не может зависеть от `VmApplication`, а `VmApplication` и `Extensions` зависят от `Common` — так `IdState` виден всем, кому нужен.
+**`IdState`** — `Valid`, `NotAssigned` (`-1`), `OutOfRange` (`-2`), `NoFreeSlot` (`-3`), `Rejected` (`-4`), `Unknown`. Соответствует кодам возврата `ManagerDevices.AddDevice`. Живёт в `Common`, потому что `Kernel` (где `ManagerDevices`) не может зависеть от слоёв уровнем выше, а `Common` — единственный слой, видимый и `Kernel`, и потребителям. **XML-документации нет** — только inline `// -1` и т.д. и `/// <summary>` на самом enum.
 
 ### `ProcessorFault` — `readonly record struct`
 
@@ -114,7 +109,7 @@ public readonly record struct ProcessorFault(
     OpCode OpCode);
 ```
 
-Возвращается из ядра как результат «мягкого падения». `in`-параметр в `IProcessorFaultPolicy.ShouldContinue` — без копирования.
+Возвращается из ядра как результат «мягкого падения». `in`-параметр в политиках обработки — без копирования. XML-документация на структуре и всех параметрах конструктора.
 
 ### Размеры: `RamSize`, `PortSize`, `DevicePortSize`
 
@@ -126,30 +121,17 @@ public readonly record struct ProcessorFault(
 | `PortSize` | 6 | 19 | 64 B … 512 KiB |
 | `DevicePortSize` | 3 | 8 | 8 B … 256 B |
 
-`default(T)` даёт `IsValid == false` — сигнал «не инициализировано». У всех трёх: `Bytes => 1UL << Log2`, операторы `==`/`!=`/`<`/`>`/`<=`/`>=`, `IEquatable<T>`, `IComparable<T>`, `ToString()`.
+`default(T)` даёт `IsValid == false` — сигнал «не инициализировано», но `Bytes` для `default` возвращает `1` (следствие `1UL << 0`). У всех трёх: `Bytes => 1UL << Log2`, операторы `==`/`!=`/`<`/`>`/`<=`/`>=`, `IEquatable<T>`, `IComparable<T>`, `ToString()`. Сравнение — по сырому `Log2`, поэтому невалидное значение по умолчанию меньше любого валидного.
 
 Фабрики:
 
 | Тип | Доступные фабрики |
 |---|---|
 | `RamSize` | `B64..B512`, `KB1, KB2, KB4, KB8, KB16, KB32, KB64, KB128, KB256, KB512`, `MB1..MB512`, `GB1, GB2` — полный набор |
-| `PortSize` | `B64..B512`, `KB1, KB4, KB8, KB16, KB64, KB128, KB256, KB512` — нет `KB2` и `KB32` |
+| `PortSize` | `B64..B512`, `KB1, KB4, KB8, KB16, KB64, KB128, KB256, KB512` — **нет `KB2` и `KB32`** (задокументировано в `<remarks>` как намеренное) |
 | `DevicePortSize` | `B8, B16, B32, B64, B128, B256` — полный набор от 8 B до 256 B |
 
-### `NameDeviceToken` — `readonly struct`
-
-```csharp
-public readonly struct NameDeviceToken : IEquatable<NameDeviceToken>
-{
-    public const string UnknownName = "Unknown Device";
-    public NameDeviceToken(ReadOnlySpan<char> name);
-    public bool   IsUnknown { get; }
-    public string Name { get; }
-    // Equals, GetHashCode, ==, !=, ToString
-}
-```
-
-Кэширует `string?`; пустое имя превращается в `null`, `Name` отдаёт `UnknownName`. Сравнение — `Ordinal`. Хорошо подходит как ключ в словарях устройств.
+Разница в XML-покрытии: `PortSize` и `RamSize` документированы полностью, `DevicePortSize` — фабрики и структура с `///`, а `Equals`/`GetHashCode`/`CompareTo`/`ToString` и операторы без `///`.
 
 ### `DecodeInstructionResult` — `readonly struct`
 
@@ -164,7 +146,7 @@ public readonly struct DecodeInstructionResult(
 }
 ```
 
-DTO без логики.
+DTO без логики. `///` есть на структуре и `<param>` конструктора, но **нет `///` на публичных полях** (`OpCode`, `Reg1`, `Reg2`, `DataSizeCode`). Не `record` — `Equals`/`GetHashCode`/`==` не сгенерированы; сравнение — вручную.
 
 ### `InstructionDecoder` — `static class`
 
@@ -174,12 +156,14 @@ DTO без логики.
 | `GetReg1(uint)` | | `RegType` | `(raw >> 8) & 0x1F` |
 | `GetReg2(uint)` | | `RegType` | `(raw >> 13) & 0x1F` |
 | `GetDataSizeCode(uint)` | | `OpCodeSize` | `(raw >> 18) & 0x3` |
-| `DecodeRawInstToEnums(uint)` | | `DecodeInstructionResult` | всё сразу |
+| `DecodeRawInstToEnums(uint)` | | `DecodeInstructionResult` | все поля за один проход |
 | `HasNeed64IntData(OpCode)` | опкод | `bool` | есть ли после инструкции 64-битный операнд; бросает `ArgumentOutOfRangeException`, если `opCode > OpCode.MOD` |
 
-`HasNeed64IntData` — таблица контракта. Сейчас в ней: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`. Метод **бросает**, если передан опкод вне диапазона (защита от `(OpCode)200`). `CreateNeedsUlongOperandTable` теперь `private` — деталь реализации скрыта.
+Плюс extension-метод `Int()` на `RegType` (приведение к `int`) — определён в том же `extension`-блоке.
 
-Все методы — `[MethodImpl(AggressiveInlining)]`, оптимизация под JIT.
+`HasNeed64IntData` — таблица контракта `CreateNeedsUlongOperandTable()`. Сейчас в ней отмечены: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`. Проверка диапазона — `(uint)opCode > (uint)OpCode.MOD` — устойчива к смене базового типа `OpCode` на знаковый. `CreateNeedsUlongOperandTable` — `private`, 256-элементный `ImmutableArray<bool>`, инициализируется один раз в static-поле `_has`.
+
+Все публичные методы `[MethodImpl(AggressiveInlining)]`, оптимизация под JIT.
 
 ### `AlignmentExtensions` — `static class`
 
@@ -191,7 +175,7 @@ DTO без логики.
 | `AlignDown(T)` | вниз до кратного | только `DEBUG`, требует степень двойки |
 | `AlignUpArithmetic(T)` | вверх через `%` | всегда, требует `> 0` (не обязательно степень двойки) |
 
-`AlignUp`/`AlignDown` в **Release** не проверяют `alignment` — невалидное значение даст тихий мусор. Для гарантированной проверки — `AlignUpArithmetic`.
+`AlignUp`/`AlignDown` в **Release** не проверяют `alignment` — невалидное значение даст тихий мусор. Для гарантированной проверки — `AlignUpArithmetic`. XML-документация на `AlignUp`/`AlignDown` есть, на `AlignUpArithmetic` — **нет**.
 
 ## Примеры для API
 
@@ -211,6 +195,7 @@ Console.WriteLine(ram.IsValid);      // true
 // ⚠ default — это «не инициализировано», а не «0 байт»:
 RamSize uninit = default;
 Console.WriteLine(uninit.IsValid);   // false
+Console.WriteLine(uninit.Bytes);     // 1 — не 0!
 ```
 
 **Декодирование инструкции:**
@@ -253,20 +238,6 @@ if (state != IdState.Valid)
 // raw — валидный ID
 ```
 
-**Идентификатор устройства:**
-
-```csharp
-var token = new NameDeviceToken("UART0".AsSpan());
-Console.WriteLine(token.Name);        // "UART0"
-Console.WriteLine(token.IsUnknown);   // false
-
-var unknown = new NameDeviceToken(ReadOnlySpan<char>.Empty);
-Console.WriteLine(unknown.Name);      // "Unknown Device"
-
-var devices = new Dictionary<NameDeviceToken, IDevice>();
-devices[token] = myUart;
-```
-
 **Диагностика:**
 
 ```csharp
@@ -299,7 +270,6 @@ int down    = addr.AlignDown(8);  // 8
 **Что стоит делать:**
 - Использовать фабрики `RamSize`/`PortSize`/`DevicePortSize` — не «магические» числа.
 - Для декодирования — только `InstructionDecoder`, без ручных сдвигов у себя.
-- Передавать `NameDeviceToken` вместо `string`, если имя — идентификатор.
 - Проверять `BiosStatus`/`ProcessorFault` вместо `bool`-флагов.
 - Использовать `IdState` вместо `raw switch { -1 => ..., -2 => ... }` в своём коде — единая классификация для `-1..-4`.
 
@@ -307,7 +277,7 @@ int down    = addr.AlignDown(8);  // 8
 - Добавлять интерфейсы или default-классы в этот модуль — для контрактов есть `Kernel.Contracts`.
 - Вводить сюда логику процессора или шин — это `Kernel`.
 - Менять значения `OpCode`/`OpCodeSize`/`RegType` без версии байткода: числа — это wire-format.
-- Полагаться на `default(RamSize)` как на «0» — это «невалидно».
+- Полагаться на `default(RamSize)` как на «0» — это «невалидно», и `Bytes` вернёт `1`.
 - Дублировать `IdState`-маппинг в своём коде — импортируйте `IdState` из `Common`.
 
 ## Особенная информация
@@ -334,37 +304,36 @@ int down    = addr.AlignDown(8);  // 8
 ### Регистровый файл
 
 - `r0`–`r27` — регистры общего назначения.
-- `rFL` — флаги: бит 0 — ZeroFlag, бит 1 — NegativeFlag. Остальные биты не используются — задел на Carry/Overflow/Parity.
+- `rFL` — регистр флагов (бит 0 — ZeroFlag, бит 1 — NegativeFlag; остальные — задел).
 - `rSP` — stack pointer (для `PUSH`/`POP`/`CALL`/`RET`).
 - `rHP` — heap pointer.
 - `rIP` — instruction pointer. Не пишите в него напрямую из пользовательского кода — для этого есть `JMP`/`CALL`/`RET`.
 
 Ширина регистров в этом модуле не зафиксирована — определяется процессором. Судя по `OpCodeSize.S64` и `ProcessorFault.FaultData: ulong`, регистры и адреса — 64-битные.
 
+### WASM / кроссплатформенность
+
+| Аспект | Статус | Комментарий |
+|---|---|---|
+| Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — managed. Собирается под `browser-wasm` без правок csproj. |
+| `NativeMemory` | ✅ | Не используется. `Bytes` — managed-сдвиг `1UL << Log2`. |
+| `stackalloc` / `InlineArray` | ✅ | Не используются. Таблица `InstructionDecoder._has` — `ImmutableArray<bool>`, создаётся в static-инициализации через `new bool[256]`. |
+| `Interlocked` / `Volatile` | ✅ | Не используются. Shared-состояние — единственное `static readonly ImmutableArray<bool> _has` в `InstructionDecoder.cs`, инициализируется один раз (CLR гарантирует единственность static-ctor). |
+| `IFileService` | n/a | В этой партии файлов интерфейса нет — оценивать нечего. При добавлении в другие слои WASM-реализацию придётся писать отдельно (виртуальная ФС). |
+| `Regex` / trimming | ✅ | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-совместимо из коробки. |
+| AOT | ✅ | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. Generic math (`IBinaryInteger<T>` в `AlignmentExtensions`) моноформируется под каждый используемый `T`. C# 14 `extension`-блоки — compile-time. |
+
+**Итог:** код полностью совместим с WASM (interpreter и AOT) и с trimming. Единственная неопределённость — отсутствующий в поставке `IFileService`.
+
 ### Endianness
 
-В `Nantuc.Kernel.Common` не определён. `Common` оперирует уже распакованными значениями, порядок байт в памяти — забота `MemoryBus` в `Kernel` (использует `BinaryPrimitives.ReadUInt*LittleEndian`). Для обмена байткодом между платформами — фиксируйте little-endian в `docs/bytecode.md`.
+В `Nantuc.Kernel.Common` не определён. `Common` оперирует уже распакованными значениями, порядок байт в памяти — забота слоя `Kernel`. Для обмена байткодом между платформами фиксируйте little-endian в `docs/bytecode.md`.
 
 ### `HasNeed64IntData` как контракт
 
-Таблица `CreateNeedsUlongOperandTable()` — единственный источник истины о том, у каких опкодов есть 8-байтный immediate. Сейчас покрывает: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`. Метод бросает `ArgumentOutOfRangeException`, если `opCode > OpCode.MOD` — это защита от `(OpCode)200`, но **не** от нового опкода, забытого в таблице: если добавите `OpCode.NEW_IMM` и забудете в таблице, `HasNeed64IntData` вернёт `false`, и процессор прочитает immediate как следующую инструкцию. Единственная защита — code review + тест на полноту таблицы (см. [Что исправить](#что-исправить)).
+Таблица `CreateNeedsUlongOperandTable()` — единственный источник истины о том, у каких опкодов есть 8-байтный immediate. Сейчас покрывает: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`. Метод бросает `ArgumentOutOfRangeException`, если `(uint)opCode > (uint)OpCode.MOD` — это защита и от `(OpCode)200`, и от отрицательных значений при смене базового типа на знаковый (в отличие от предыдущей версии, где проверка была только сверху — теперь исправлено). Но **не** от нового опкода, забытого в таблице.
 
-### `IdState` и `ManagerDevices`
-
-`IdState` описывает коды возврата `ManagerDevices.AddDevice` (`Nantuc.Kernel/Utilites/ManagerDevices.cs`):
-
-| Значение | `IdState` | Причина |
-|---|---|---|
-| `>= 0` | `Valid` | Успех, ID устройства |
-| `-1` | `NotAssigned` | Мест нет (`Count >= _count`) |
-| `-2` | `OutOfRange` | Сектор занят (`!_portBus.IsFreeSector(sector)`) |
-| `-3` | `NoFreeSlot` | Нет свободного слота и ID кончились |
-| `-4` | `Rejected` | `PortBus.RegisterDevice` вернул `false` (устройство **dispose'ится**) |
-| другое | `Unknown` | Не должно случаться |
-
-Важно: `IdState` живёт в `Common`, а не в `VmApplication`/`Extensions`, потому что `Kernel` (где `ManagerDevices`) не может зависеть от `VmApplication`. `Common` — единственный слой, видимый и `Kernel`, и `VmApplication`, и `Extensions`. Это осознанное решение, не случайное.
-
-Замечание: само преобразование `int → IdState` (extension-метод `ToIdState` или `TryGetIdState`) **не входит** в этот модуль — его стоит положить туда же, где `IdState`, то есть в `Common`, или в `Kernel` рядом с `ManagerDevices`. Сейчас его нет ни в этой партии файлов, ни в `VmApplication`/`Extensions` (по присланным ранее файлам). См. [Что исправить, п. 8](#что-исправить).
+Не отмечены `LOAD_IND`, `STORE_IND`, `CALL_IND`, `JMP_IND`, `LOAD_UNSAFE`, `STORE_UNSAFE`, `LOAD_IND_UNSAFE`, `STORE_IND_UNSAFE`. Если они принимают 64-битный операнд — таблица даёт неверный ответ. Единственная защита — code review + тест на полноту таблицы (см. [Что исправить](#что-исправить), п. 1).
 
 ### Ограничения платформ
 
@@ -380,98 +349,6 @@ int down    = addr.AlignDown(8);  // 8
 - Не содержит логики процессора, шин, устройств — это `Kernel`.
 - Не знает про компилятор MiniC и ассемблер NANASM — только предоставляет им `OpCode`/`RegType`/`OpCodeSize`.
 - Не сериализует байткод — формат `.bin`/`.nanas` определяется в `Kernel`/`Extensions`.
-- Не содержит `ToIdState`/`TryGetIdState` — только enum `IdState`.
+- Не содержит `ToIdState`/`TryGetIdState` — только enum `IdState` (см. [Что исправить](#что-исправить), п. 4).
 
 Правило «куда положить тип»: примитив без поведения → `Kernel.Common`; интерфейс/контракт → `Kernel.Contracts`; всё, что исполняет или хранит состояние → `Kernel`.
-
-## Что исправить
-
-По убыванию важности. Ссылки на файлы и члены. Пункты, помеченные **[XML]**, — это то, что стоит задокументировать в первую очередь (сейчас `///` отсутствует или неполный; вы отметили, что работа над XML идёт, поэтому это не «баги», а приоритеты).
-
-1. **`OpCode.CALL_IND`/`JMP_IND` — комментарии не соответствуют именам и реализации.**  
-   Файл: `OpCode.cs`, строки `CALL_IND, // программное прерывание` и `JMP_IND, // возврат из прерывания`.  
-   По имени `CALL_IND` — indirect call (вызов по адресу из регистра), `JMP_IND` — indirect jump. В `Nantuc.Kernel/ProcessorSystem/Processor.cs` (`InstructionCALL_IND`, `InstructionJMP_IND`) они реализованы именно так: `CALL`/`JMP` по адресу из регистра, без каких-либо прерываний. Комментарии описывают не то, что делает код, и дезориентируют читателя.  
-   Фикс: `CALL_IND, // Косвенный вызов: CALL по адресу из регистра` и `JMP_IND, // Косвенный переход: JMP по адресу из регистра`. Либо переименовать опкоды (breaking change для байткода).
-
-2. **`OpCodeSize` — семантика `S8`/`S16`/`S32`/`S64` не задокументирована. [XML]**  
-   Файл: `OpCodeSize.cs`. Значения `S8 = 0b00`, `S16 = 0b01`, `S32 = 0b10`, `S64 = 0b11` — это имена, а не «1/2/4/8 байт». Явного маппинга «`S8` = 1 байт» в типе нет; он есть только в `Nantuc.Compiler/C/CodeGenerator/CodeGenUtils.GetSizeInBytes`. Для wire-format это критично: если новый backend решит, что `S8` — это 8 бит (по аналогии с `i8` в Rust), байткод развалится.  
-   Фикс: `<summary>1-byte operand (8 bits).</summary>` на каждом члене — и так для всех четырёх. Это самый высокий приоритет среди XML-документации.
-
-3. **`OpCode.LOAD_UNSAFE`/`STORE_UNSAFE`/`LOAD_IND_UNSAFE`/`STORE_IND_UNSAFE` — нет комментариев. [XML]**  
-   Файл: `OpCode.cs`, четыре опкода в конце без `//`. По имени понятно, что это unsafe-варианты, но что именно они делают (пропускают проверки границ и выравнивания) — не описано. В `Nantuc.Kernel/ProcessorSystem/Processor.cs` это видно (`InstructionLOAD_UNSAFE` не вызывает `UpdateAndReadStatus`), но из `OpCode` — нет.  
-   Фикс: `/// <summary>Load without bounds/alignment checks; caller is responsible for safety.</summary>` (и аналогично для остальных трёх).
-
-4. **`BiosStatus` — часть значений без `///`. [XML]**  
-   Файл: `BiosStatus.cs`. `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgramm`, `NotImplementedOpCode` имеют `///`, а `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow` — без. Непонятно, почему часть документирована, часть нет.  
-   Фикс: добавить `///` на все члены. В частности, `NullDeviceInput`/`NullDeviceOutput` стоит явно описать как «порт не найден на шине» (это не ошибка, а сигнал), а `InfinityLoop` — как «превышен лимит шагов» (не «бесконечный цикл» в буквальном смысле).
-
-5. **`RegType` — `rFL`/`rSP`/`rHP`/`rIP` не задокументированы. [XML]**  
-   Файл: `RegType.cs`. `r0..r27` — регистры общего назначения, `rFL`, `rSP`, `rHP`, `rIP` — специальные. В коде это видно (`Nantuc.Compiler/C/CodeGenerator/RegisterAllocator.cs` резервирует их), но из `RegType` неочевидно.  
-   Фикс: `<summary>` на enum с `<remarks>`, или `///` на каждом специальном регистре.
-
-6. **`IdState` — нет XML-документации, `-1..-4` только в комментариях. [XML]**  
-   Файл: `IdState.cs`. Члены `NotAssigned // -1` и т.д. — это комментарии, а не `///`. Для публичного enum, который используется для интерпретации возврата `ManagerDevices.AddDevice`, это критично: читатель не поймёт, что `Valid = 0`, а `-1..-4` — конкретные коды.  
-   Фикс: `/// <summary>` на каждый член + `/// <remarks>` на enum с таблицей «код → значение → причина». Пример:
-
-   ```csharp
-   /// <summary>Classifies the return value of <c>ManagerDevices.AddDevice</c>.</summary>
-   /// <remarks>
-   /// Values: <c>&gt;= 0</c> — <see cref="Valid"/>; <c>-1</c> — <see cref="NotAssigned"/>;
-   /// <c>-2</c> — <see cref="OutOfRange"/>; <c>-3</c> — <see cref="NoFreeSlot"/>; <c>-4</c> — <see cref="Rejected"/>.
-   /// </remarks>
-   ```
-
-7. **`InstructionDecoder` — методы без XML-документации. [XML]**  
-   Файл: `InstructionDecoder.cs`. `GetOpCode`, `GetReg1`, `GetReg2`, `GetDataSizeCode`, `DecodeRawInstToEnums`, `HasNeed64IntData` — без `///`. Для публичного статического класса, который читают авторы расширений, это главный вход в ISA.  
-   Фикс: `///` на каждом методе с описанием битовой раскладки (можно сослаться на `docs/bytecode.md`).
-
-8. **`IdState` — нет `ToIdState`/`TryGetIdState` в этой партии файлов.**  
-   Файл: `IdState.cs` содержит только enum. Extension-метода, который превращает `int → IdState`, нет ни в этой партии, ни (по присланным ранее) в `VmApplication`/`Extensions`. Значит, `IdState` пока — «мёртвый» тип: его можно использовать в `switch` вручную, но автоматической конвертации нет.  
-   Рекомендация: положить `ToIdState` и `TryGetIdState` в `Nantuc.Kernel.Common` (рядом с enum) — это тот же слой, что и `IdState`, и его видит и `Kernel`, и `VmApplication`, и `Extensions`. Пример:
-
-   ```csharp
-   public static class IdStateExtensions
-   {
-       extension(int rawId)
-       {
-           public IdState ToIdState() => rawId switch
-           {
-               >= 0 => IdState.Valid,
-               -1   => IdState.NotAssigned,
-               -2   => IdState.OutOfRange,
-               -3   => IdState.NoFreeSlot,
-               -4   => IdState.Rejected,
-               _    => IdState.Unknown,
-           };
-
-           public bool TryGetIdState(out IdState state)
-           {
-               state = rawId.ToIdState();
-               return state == IdState.Valid;
-           }
-       }
-   }
-   ```
-
-9. **`PortSize` — неполный набор фабрик относительно `RamSize`.**  
-   Файл: `PortSize.cs` — фабрики `B64..B512`, `KB1`, `KB4`, `KB8`, `KB16`, `KB64`, `KB128`, `KB256`, `KB512`. Нет `KB2` и `KB32`, хотя `RamSize` их имеет. Либо это намеренное сужение (порт-пространство редко требует 2KB/32KB), либо забытые фабрики.  
-   Фикс: либо добавить `KB2 => new(11)` и `KB32 => new(15)`, либо задокументировать в `<remarks>` на enum/структуре, что набор намеренно разрежен.
-
-10. **`RamSize`/`PortSize`/`DevicePortSize` — нет `TryParse`, `ToString` не для парсинга. [XML]**  
-    Файлы: `RamSize.cs`, `PortSize.cs`, `DevicePortSize.cs`. `ToString()` возвращает `"67108864 B (2^26)"` или `"RamSize(invalid)"`. Это не парсится обратно.  
-    Рекомендация: либо задокументировать в `///` на `ToString`, что он только для отладки, либо добавить `TryParse` (не обязательно сейчас, но полезно для конфигов).
-
-11. **`InstructionDecoder.HasNeed64IntData` — нет проверки полноты таблицы.**  
-    Файл: `InstructionDecoder.cs`. Метод бросает, если `opCode > OpCode.MOD` (это защита от `(OpCode)200`), но не проверяет, что **все** опкоды из `OpCode` есть в таблице. Если новый опкод с immediate забыть в `CreateNeedsUlongOperandTable`, `HasNeed64IntData` вернёт `false`, и процессор прочитает immediate как следующую инструкцию.  
-    Рекомендация: добавить юнит-тест «все члены `OpCode`, для которых задуман immediate, отмечены в таблице» — или `Debug.Assert` в статическом конструкторе, что `CreateNeedsUlongOperandTable` покрывает ожидаемые члены. Защита от регрессии при добавлении опкодов.
-
-12. **`AlignmentExtensions` — `AlignUpArithmetic` без `///`. [XML]**  
-    Файл: `AlignmentExtensions.cs`. `AlignUp` и `AlignDown` имеют `///`, `AlignUpArithmetic` — нет. Плюс `IsOutOfRangeException` и `GenerateOutOfRangeException` — `private`, но с магической строкой на русском; для консистентности с остальным кодом стоит либо оставить (это `Common`, здесь русские комментарии), либо перевести на английский.  
-    Рекомендация: добавить `///` на `AlignUpArithmetic` с пояснением «works for non-power-of-two alignments, always validates `> 0`».
-
-13. **`LogLevel.cs` не был включён в эту партию файлов.**  
-    Тип был в предыдущей версии модуля (`enum LogLevel { Log, Warning, Error }`). Если он ещё существует — добавьте в следующую партию, чтобы README и дерево были актуальны. Если удалён — ничего делать не нужно, но стоит обновить `Nantuc.Kernel/README.md`, если он на него ссылается.
-
-14. **`NameDeviceToken` — нет XML-документации. [XML]**  
-    Файл: `NameDeviceToken.cs`. Публичный `readonly struct`, используемый как ключ в словарях устройств. Стоит задокументировать: `IsUnknown` для `default`/пустого имени, `Name` возвращает `UnknownName` в этом случае, `Equals`/`GetHashCode` — Ordinal.  
-    Рекомендация: `///` на `Name`, `IsUnknown`, `UnknownName`.

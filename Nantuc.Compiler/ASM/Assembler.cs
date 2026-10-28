@@ -15,7 +15,7 @@ public class Assembler : AssemblerBase
 
     private int _dataStart = -1;
 
-    public Assembler(ulong baseAddress = 0) : base(baseAddress)
+    public Assembler(ulong baseAddress, ThrowCompiler throwCompiler) : base(baseAddress, throwCompiler)
     {
         _stream = new MemoryStream();
         _writer = new BinaryWriter(_stream);
@@ -25,7 +25,7 @@ public class Assembler : AssemblerBase
     public override void MarkLabel(string name)
     {
         if (_labels.TryGetValue(name, out long existingPos))
-            ThrowCompiler.Throw(ErrorCode.Asm_DuplicateLabel,name, existingPos);
+            ThrowCompiler.Throw(ErrorCode.Asm_DuplicateLabel, name, existingPos);
         _labels[name] = _stream.Position;
     }
 

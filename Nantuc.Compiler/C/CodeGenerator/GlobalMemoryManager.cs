@@ -3,7 +3,7 @@
 // ============================================================
 // GlobalMemoryManager – управление глобальной памятью
 // ============================================================
-public class GlobalMemoryManager()
+public class GlobalMemoryManager
 {
     private readonly Dictionary<string, GlobalInfo> _globals = [];
 

@@ -51,7 +51,7 @@ Nantuc.Kernel/
 ├── RamSystem/
 │   ├── MemoryBus.cs                  # MemoryBus — typed read/write с диагностикой
 │   └── NativeMemoryBuffer.cs         # NativeMemoryBuffer (unsafe) + NativeReadOnlyView
-└── Utilites/                         # ⚠ опечатка в имени папки/namespace
+└── Utilites/                         # опечатка в имени папки/namespace
     ├── Emulator.cs                   # Emulator — фасад
     └── ManagerDevices.cs             # ManagerDevices — реестр, TryAddDevice → IdState
 ```

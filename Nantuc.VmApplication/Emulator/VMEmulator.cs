@@ -2,9 +2,7 @@
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Contracts;
 using Nantuc.Kernel.ControllersData;
-using Nantuc.VmApplication.Emulator;
 using System.Diagnostics.CodeAnalysis;
-using System.Xml.Linq;
 
 namespace Nantuc.VmApplication.Emulator;
 

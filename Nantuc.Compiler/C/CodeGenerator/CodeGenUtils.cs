@@ -15,7 +15,7 @@ public static class CodeGenUtils
 {
     public const RegType ADDR_SCRATCH_REG_EN = RegType.r27;
 
-    public static OpCodeSize GetSizeForType(string? type) => type switch
+    public static OpCodeSize GetSizeForType(string? type, ThrowCompiler ThrowCompiler) => type switch
     {
         "byte" => OpCodeSize.S8,
         "ushort" or "char" or "short" => OpCodeSize.S16,
@@ -24,7 +24,7 @@ public static class CodeGenUtils
         _ => ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownTypeSize, type!)
     };
 
-    public static int GetSizeInBytes(OpCodeSize size) => size switch
+    public static int GetSizeInBytes(OpCodeSize size, ThrowCompiler ThrowCompiler) => size switch
     {
         OpCodeSize.S8 => 1,
         OpCodeSize.S16 => 2,
@@ -65,22 +65,17 @@ public static class CodeGenUtils
     public static bool IsStructType(string type, Dictionary<string, StructLayout> structTable)
         => structTable.ContainsKey(type);
 
-    public static StructLayout GetStructLayout(string type, Dictionary<string, StructLayout> structTable)
-        => structTable.TryGetValue(type, out var layout) 
-        ? layout 
-        : ThrowCompiler.Throw<StructLayout>(ErrorCode.CodeGen_UnknownStructType, type);
-
     public static bool IsPrimitiveType(string type) => type switch
     {
         "int" or "char" or "void" or "byte" or "ushort" or "ulong" or "uint" or "long" or "short"=> true,
         _ => false
     };
 
-    public static int GetTypeSize(string type, Dictionary<string, StructLayout> structTable)
+    public static int GetTypeSize(string type, Dictionary<string, StructLayout> structTable, ThrowCompiler ThrowCompiler)
     {
         if (structTable.TryGetValue(type, out var layout))
             return layout.Size;
-        return GetSizeInBytes(GetSizeForType(type));
+        return GetSizeInBytes(GetSizeForType(type, ThrowCompiler), ThrowCompiler);
     }
 
     public static int GetAlignment(string type, Dictionary<string, StructLayout> structTable)

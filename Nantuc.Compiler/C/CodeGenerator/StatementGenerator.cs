@@ -92,10 +92,10 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
     private void GenerateLocalArrayInit(VariableNode var)
     {
         if (!_funcCtx.VarMap.TryGetValue(var.Name, out var loc) || loc.IsRegister)
-            ThrowCompiler.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, var.Name);
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, var.Name);
 
         OpCodeSize elemSize = loc.TypeSize;
-        int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize);
+        int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize, _asm.ThrowCompiler);
         int providedCount = Math.Min(var.ArrayInitializer!.Count, var.ArraySize);
 
         // 1. Явно заданные значения
@@ -317,22 +317,22 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         if (_funcCtx.VarMap.TryGetValue(arrayName, out var loc))
         {
             if (loc.IsArray) return loc.TypeSize;
-            if (loc.IsPointer) return CodeGenUtils.GetSizeForType(loc.PointedType!);
+            if (loc.IsPointer) return CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
         }
         else if (_globalMem.Contains(arrayName))
         {
             var gInfo = _globalMem.GetInfo(arrayName)!.Value;
-            if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type);
-            if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!);
+            if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+            if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ThrowCompiler);
         }
-        ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         return default;
     }
 
     private OpCodeSize GetFieldSize(MemberAccessNode node)
     {
         var (_, field, _) = ResolveFieldInfo(node);
-        return CodeGenUtils.GetSizeForType(field.Type);
+        return CodeGenUtils.GetSizeForType(field.Type, _asm.ThrowCompiler);
     }
 
     private (StructLayout layout, FieldInfo field, string fieldType) ResolveFieldInfo(MemberAccessNode node)
@@ -388,18 +388,18 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
             case BinaryOpNode bin when bin.Operator == "+" || bin.Operator == "-":
                 rootStructType = _exprGen.TryInferStructTypeFromPointerExpr(bin);
                 if (rootStructType == null)
-                    ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
+                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
                         "Cannot determine struct type from pointer arithmetic");
                 break;
             case DereferenceNode:
                 // (*pp) — разыменование указателя на указатель, для потомков
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
                     "Dereference member access not implemented yet");
                 break;
         }
 
         if (rootStructType == null)
-            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
 
         // 3. Проходим по цепочке, получая раскладку и поле на каждом уровне
         StructLayout? currentLayout = null;
@@ -409,10 +409,10 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         foreach (var fieldName in chain)
         {
             if (!_structTable.TryGetValue(currentType, out var layout))
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, currentType);
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, currentType);
             currentLayout = layout;
             currentField = layout.GetField(fieldName)
-                           ?? ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, fieldName, currentType);
+                           ?? _asm.ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, fieldName, currentType);
             currentType = currentField.Type;
         }
 
@@ -424,15 +424,15 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         if (expr is IdentifierNode id)
         {
             if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc) && loc.IsPointer)
-                return CodeGenUtils.GetSizeForType(loc.PointedType!);
+                return CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
             if (_globalMem.Contains(id.Name))
             {
                 var gInfo = _globalMem.GetInfo(id.Name)!.Value;
                 if (gInfo.IsPointer)
-                    return CodeGenUtils.GetSizeForType(gInfo.PointedType!);
+                    return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ThrowCompiler);
             }
         }
-        return ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownPointedType);
+        return _asm.ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownPointedType);
     }
     private void GenerateIf(IfNode ifNode)
     {
@@ -550,14 +550,14 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
     private void GenerateBreak()
     {
         if (_loopStack.Count == 0)
-            ThrowCompiler.Throw(ErrorCode.CodeGen_BreakOutsideLoop);
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_BreakOutsideLoop);
         _asm.EmitJmp(_loopStack.Peek().BreakLabel);
     }
 
     private void GenerateContinue()
     {
         if (_loopStack.Count == 0)
-            ThrowCompiler.Throw(ErrorCode.CodeGen_ContinueOutsideLoop);
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_ContinueOutsideLoop);
         _asm.EmitJmp(_loopStack.Peek().ContinueLabel);
     }
 

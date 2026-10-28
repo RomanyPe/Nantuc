@@ -4,13 +4,15 @@
 	<TargetFrameworks>net10.0</TargetFrameworks>
 	<ImplicitUsings>enable</ImplicitUsings>
 	<Nullable>enable</Nullable>
+	<IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Nantuc.Kernel.Common\Nantuc.Kernel.Common.csproj" />
-    <ProjectReference Include="..\Nantuc.Kernel.Contracts\Nantuc.Kernel.Contracts.csproj" />
-    <ProjectReference Include="..\Nantuc.Kernel.Diagnostics\Nantuc.Kernel.Diagnostics.csproj" />
+	<ProjectReference Include="..\Nantuc.Kernel.Common\Nantuc.Kernel.Common.csproj" />
+	<ProjectReference Include="..\Nantuc.Kernel.Contracts\Nantuc.Kernel.Contracts.csproj" />
+	<ProjectReference Include="..\Nantuc.Kernel.Diagnostics\Nantuc.Kernel.Diagnostics.csproj" />
   </ItemGroup>
   
 
 </Project>
+	

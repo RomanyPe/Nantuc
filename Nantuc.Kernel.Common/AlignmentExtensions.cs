@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace Nantuc.Kernel.Common;
 
+/// <summary>
+/// Класс ресширение для удобного выравнивания чисел
+/// </summary>
 public static class AlignmentExtensions
 {
     extension<T>(T value) where T : IBinaryInteger<T>

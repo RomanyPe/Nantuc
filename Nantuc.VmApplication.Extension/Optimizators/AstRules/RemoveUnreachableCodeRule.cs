@@ -43,7 +43,7 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
             {
                 for (int i = block.Statements.IndexOf(stmt); i < block.Statements.Count; i++)
                 {
-                    removedNodesLog.Append(0, $"Unreachable node removed: {block.Statements[i].GetType().Name}");
+                    removedNodesLog.Append(0, $"Unreachable node removed: {block.Statements[i].NameNode}");
                 }
                 break;
             }
@@ -99,17 +99,17 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
                 {
                     if (ifNode.ElseBlock != null)
                     {
-                        removedNodesLog.Append(0, $"IfNode removed (then-block discarded, else-block kept): {ifNode.GetType().Name}");
+                        removedNodesLog.Append(0, $"IfNode removed (then-block discarded, else-block kept): {ifNode.NameNode}");
                         simplified.AddRange(ifNode.ElseBlock.Statements);
                     }
                     else
                     {
-                        removedNodesLog.Append(0, $"IfNode removed (no else): {ifNode.GetType().Name}");
+                        removedNodesLog.Append(0, $"IfNode removed (no else): {ifNode.NameNode}");
                     }
                 }
                 else if (IsConstantTrue(ifNode.Condition))
                 {
-                    removedNodesLog.Append(0, $"IfNode removed (condition always true, else-block discarded): {ifNode.GetType().Name}");
+                    removedNodesLog.Append(0, $"IfNode removed (condition always true, else-block discarded): {ifNode.NameNode}");
                     simplified.AddRange(ifNode.ThenBlock.Statements);
                 }
                 else
@@ -119,11 +119,11 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
             }
             else if (stmt is WhileNode whileNode && IsConstantFalse(whileNode.Condition))
             {
-                removedNodesLog.Append(0, $"WhileNode removed (condition false): {whileNode.GetType().Name}");
+                removedNodesLog.Append(0, $"WhileNode removed (condition false): {whileNode.NameNode}");
             }
             else if (stmt is ForNode forNode && forNode.Condition != null && IsConstantFalse(forNode.Condition))
             {
-                removedNodesLog.Append(0, $"ForNode removed (condition false): {forNode.GetType().Name}");
+                removedNodesLog.Append(0, $"ForNode removed (condition false): {forNode.NameNode}");
             }
             else
             {

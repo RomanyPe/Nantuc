@@ -19,7 +19,7 @@ public static class ProjectBuilder
     /// </summary>
     public const int BaseAddressProgram = 0x00;
 
-    internal static IEnumerable<IReadOnlyLogOptimization> Build(IFileService fileService, IProjectFilesConfig paths, IEnumerable<SourceFile> files, bool optimize, AssemblerBase assembler, AstOptimizer astOptimizer)
+    internal static IEnumerable<IReadOnlyLogOptimization> Build(IFileService fileService, IProjectFilesConfig paths, IEnumerable<SourceFile> files, bool optimize, AssemblerBase assembler, AstOptimizer astOptimizer, ThrowCompiler throwCompiler)
     {
         var asmParser = new AssemblerParser();
         var cAsts = new List<ProgramNode>();
@@ -29,10 +29,10 @@ public static class ProjectBuilder
 
         foreach (var file in files.Where(file => file.Language == SourceLanguage.C))
         {
-            var ast = ParseCFile(file.Content);
+            var ast = ParseCFile(file.Content, throwCompiler);
             cAsts.Add(ast);
 
-            ResolveIncludesRecursive(ast.IncludesList, processedIncludes, cAsts, asmIncludes, fileService, paths);
+            ResolveIncludesRecursive(ast.IncludesList, processedIncludes, cAsts, asmIncludes, fileService, paths, throwCompiler);
         }
 
         var combinedAst = new ProgramNode();
@@ -47,7 +47,7 @@ public static class ProjectBuilder
             ? astOptimizer.Optimize(combinedAst)
             : [];
 
-        var structLayouts = StructLayout.Resolve(combinedAst.StructNodes);
+        var structLayouts = StructLayout.Resolve(combinedAst.StructNodes, throwCompiler);
 
         var mainFunc = combinedAst.FunctionNodes.FirstOrDefault(f => f.Name == "main");
         if (mainFunc != null)
@@ -63,7 +63,7 @@ public static class ProjectBuilder
 
         foreach (string inc in asmIncludes.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            string asmCode = ReadInclude(fileService, inc, paths);
+            string asmCode = ReadInclude(fileService, inc, paths, throwCompiler);
             asmParser.Assemble(asmCode, assembler);
         }
 
@@ -72,7 +72,7 @@ public static class ProjectBuilder
             asmParser.Assemble(file.Content, assembler);
         }
 
-        var funcGen = new FunctionGenerator(assembler, structLayouts);
+        var funcGen = new FunctionGenerator(assembler, structLayouts, throwCompiler);
         funcGen.Generate(combinedAst);
 
         assembler.EmitEnd();
@@ -80,21 +80,21 @@ public static class ProjectBuilder
         return resLog;
     }
 
-    private static void ResolveIncludesRecursive(IEnumerable<string> includes, HashSet<string> processed, List<ProgramNode> cAsts, List<string> asmIncludes, IFileService fileService, IProjectFilesConfig paths)
+    private static void ResolveIncludesRecursive(IEnumerable<string> includes, HashSet<string> processed, List<ProgramNode> cAsts, List<string> asmIncludes, IFileService fileService, IProjectFilesConfig paths, ThrowCompiler throwCompiler)
     {
         foreach (var inc in includes)
         {
             if (!processed.Add(inc)) continue; // Уже обработали
 
-            string code = ReadInclude(fileService, inc, paths);
+            string code = ReadInclude(fileService, inc, paths, throwCompiler);
             SourceLanguage lang = FindLang(paths, inc);
 
             switch (lang)
             {
                 case SourceLanguage.C:
-                    var ast = ParseCFile(code);
+                    var ast = ParseCFile(code, throwCompiler);
                     cAsts.Add(ast);
-                    ResolveIncludesRecursive(ast.IncludesList, processed, cAsts, asmIncludes, fileService, paths);
+                    ResolveIncludesRecursive(ast.IncludesList, processed, cAsts, asmIncludes, fileService, paths, throwCompiler);
                     break;
                     
                 case SourceLanguage.Asm: 
@@ -103,16 +103,16 @@ public static class ProjectBuilder
 
                 case SourceLanguage.None:
                 default:
-                    ThrowCompiler.Throw(ErrorCode.NotSupported, $"extension for include \"{inc}\""); 
+                    throwCompiler.Throw(ErrorCode.NotSupported, $"extension for include \"{inc}\""); 
                     break;
             }
         }
     }
 
-    private static ProgramNode ParseCFile(string content)
+    private static ProgramNode ParseCFile(string content, ThrowCompiler throwCompiler)
     {
-        var tokens = new Lexer(content).Tokenize();
-        return new Parser(tokens).Parse();
+        var tokens = new Lexer(content, throwCompiler).Tokenize();
+        return new Parser(tokens, throwCompiler).Parse();
     }
 
     /// <summary>
@@ -124,7 +124,7 @@ public static class ProjectBuilder
     /// <returns>Контент файла если был найден</returns>
     /// <exception cref="InvalidOperationException"></exception>
     /// <exception cref="FileNotFoundException"></exception>
-    public static string ReadInclude(IFileService service, string fileName, IProjectFilesConfig pathConfig)
+    public static string ReadInclude(IFileService service, string fileName, IProjectFilesConfig pathConfig, ThrowCompiler throwCompiler)
     {
         string projPath = pathConfig.ProjectPath;
         string includePath = pathConfig.IncludePath;
@@ -136,7 +136,7 @@ public static class ProjectBuilder
         bool incExist = service.Exist(fullPathInc);
 
         if (projExist && incExist)
-            ThrowCompiler.Throw(ErrorCode.Parser_IncludeAmbiguous, fileName, projPath, includePath);
+            throwCompiler.Throw(ErrorCode.Parser_IncludeAmbiguous, fileName, projPath, includePath);
 
 
         if (projExist)

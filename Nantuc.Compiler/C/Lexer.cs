@@ -23,7 +23,7 @@ public class Token(TokenType type, string value, int line, int column)
     public override string ToString() => $"{Type}: '{Value}' at {Line}:{Column}";
 }
 
-public class Lexer(string source)
+public class Lexer(string source, ThrowCompiler ThrowCompiler)
 {
     private readonly string _source = source;
     private int _position;

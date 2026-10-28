@@ -71,7 +71,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 GenerateSizeofExpr(se, RegType.r0);
                 break;
             default:
-                ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported expression: {expr.GetType()}");
+                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported expression: {expr.NameNode}");
                 break;
         }
     }
@@ -140,10 +140,10 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (node.IsPointer) size = 8;
         else if (_structTable.TryGetValue(node.TypeName, out var layout)) size = layout.Size;
         else if (CodeGenUtils.IsPrimitiveType(node.TypeName))
-            size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(node.TypeName));
+            size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(node.TypeName, _asm.ThrowCompiler), _asm.ThrowCompiler);
         else 
-        { 
-            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownTypeSize, node.TypeName);
+        {
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownTypeSize, node.TypeName);
             return;
         }
         _asm.EmitLdi(targetReg, (ulong)size);
@@ -161,8 +161,8 @@ public class ExpressionGenerator(AssemblerBase asm,
         ArrayAccessNode arr => GetIndexedElemSizeBytes(arr.ArrayName),
         MemberAccessNode mem => GetMemberTypeSize(mem),
         NumberNode => 4,   // int
-        _ => ThrowCompiler.Throw<long>(ErrorCode.NotSupported,
-                 $"sizeof of {expr.GetType().Name} not supported")
+        _ => _asm.ThrowCompiler.Throw<long>(ErrorCode.NotSupported,
+                 $"sizeof of {expr.NameNode} not supported")
     };
 
     private long GetVariableTypeSize(string name)
@@ -171,7 +171,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             long elem = loc.IsPointer ? 8
                       : loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l) ? l.Size
-                      : CodeGenUtils.GetSizeInBytes(loc.TypeSize);
+                      : CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
             return loc.IsArray ? elem * loc.ArraySize : elem;
         }
         if (_globalMem.Contains(name))
@@ -179,10 +179,10 @@ public class ExpressionGenerator(AssemblerBase asm,
             var g = _globalMem.GetInfo(name)!.Value;
             long elem = g.IsPointer ? 8
                       : _structTable.TryGetValue(g.Type, out var l) ? l.Size
-                      : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type));
+                      : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ThrowCompiler), _asm.ThrowCompiler);
             return g.IsArray ? elem * g.ArraySize : elem;
         }
-        ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, name);
+        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, name);
         return 0;
     }
 
@@ -198,7 +198,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
             }
         }
-        ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
+        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
         return 0;
     }
 
@@ -208,17 +208,17 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             if (loc.IsArray)
                 return loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l)
-                    ? l.Size : CodeGenUtils.GetSizeInBytes(loc.TypeSize);
+                    ? l.Size : CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
             if (loc.IsPointer && loc.PointedType != null) return GetTypeSizeBytes(loc.PointedType);
         }
         else if (_globalMem.Contains(arrayName))
         {
             var g = _globalMem.GetInfo(arrayName)!.Value;
             if (g.IsArray)
-                return _structTable.TryGetValue(g.Type, out var l) ? l.Size : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type));
+                return _structTable.TryGetValue(g.Type, out var l) ? l.Size : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ThrowCompiler), _asm.ThrowCompiler);
             if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
         }
-        ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         return 0;
     }
 
@@ -246,8 +246,8 @@ public class ExpressionGenerator(AssemblerBase asm,
                 GenerateIncrementMember(member, node.Delta, node.IsPrefix, targetReg);
                 break;
             default:
-                ThrowCompiler.Throw(ErrorCode.NotSupported,
-                                $"Increment target must be lvalue: {node.Target.GetType().Name}");
+                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+                                $"Increment target must be lvalue: {node.Target.NameNode}");
                 break;
         }
     }
@@ -264,15 +264,15 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (_funcCtx.VarMap.TryGetValue(name, out var loc))
         {
             if (loc.IsArray) return loc.TypeSize;                                 // size of element
-            if (loc.IsPointer) return CodeGenUtils.GetSizeForType(loc.PointedType!);
+            if (loc.IsPointer) return CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
         }
         else if (_globalMem.Contains(name))
         {
             var gInfo = _globalMem.GetInfo(name)!.Value;
-            if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type);
-            if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!);
+            if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+            if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ThrowCompiler);
         }
-        ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, name);
+        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, name);
         return default;
     }
 
@@ -287,7 +287,7 @@ public class ExpressionGenerator(AssemblerBase asm,
     private void GenerateIncrementMember(MemberAccessNode member, int delta, bool isPrefix, RegType targetReg)
     {
         var (_, field, _) = ResolveMemberAccessType(member);
-        OpCodeSize size = CodeGenUtils.GetSizeForType(field.Type);
+        OpCodeSize size = CodeGenUtils.GetSizeForType(field.Type, _asm.ThrowCompiler);
         GenerateIncrementIndirect(
             reg => GenerateMemberAddress(member, reg),
             size, delta, isPrefix, targetReg);
@@ -364,7 +364,7 @@ public class ExpressionGenerator(AssemblerBase asm,
     private long GetTypeSizeBytes(string type)
     {
         if (_structTable.TryGetValue(type, out var layout)) return layout.Size;
-        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(type));
+        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(type, _asm.ThrowCompiler), _asm.ThrowCompiler);
     }
 
     private void GenerateIncrementIndirect(
@@ -473,7 +473,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         // сворачивание констант
         if (binop.Left is NumberNode l && binop.Right is NumberNode r)
         {
-            long result = ComputeConstant(l.Value, r.Value, binop.Operator);
+            long result = ComputeConstant(l.Value, r.Value, binop.Operator, _asm.ThrowCompiler);
             _asm.EmitLdi(targetReg, (ulong)result);
             return;
         }
@@ -558,7 +558,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             {
                 if (loc.IsArray)
                 {
-                    size = CodeGenUtils.GetSizeInBytes(loc.TypeSize);
+                    size = CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
                     return true;
                 }
                 if (loc.IsPointer && loc.PointedType != null)
@@ -573,7 +573,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 var g = _globalMem.GetInfo(id.Name)!.Value;
                 if (g.IsArray)
                 {
-                    size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type));
+                    size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ThrowCompiler), _asm.ThrowCompiler);
                     return true;
                 }
                 if (g.IsPointer && g.PointedType != null)
@@ -617,7 +617,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 break;
 
             default:
-                ThrowCompiler.Throw(ErrorCode.NotSupported,
+                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
                     $"Unsupported unary operator: {unop.Operator}");
                 return;
         }
@@ -646,7 +646,7 @@ public class ExpressionGenerator(AssemblerBase asm,
 
             case DereferenceNode:
                 // (*ptr).field — пока не поддерживаем, но задел:
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
                     "Dereference member access not implemented yet");
                 return;
 
@@ -680,7 +680,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                             structType = loc.StructTypeName;
                         else if (loc.IsPointer && loc.PointedType != null && _structTable.ContainsKey(loc.PointedType))
                             structType = loc.PointedType; // ptr->field
-                        else ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        else _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     }
                     else if (_globalMem.Contains(id.Name))
                     {
@@ -689,10 +689,10 @@ public class ExpressionGenerator(AssemblerBase asm,
                             structType = gInfo.Type;
                         else if (gInfo.IsPointer && gInfo.PointedType != null && _structTable.ContainsKey(gInfo.PointedType))
                             structType = gInfo.PointedType;
-                        else ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        else _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     }
                     else
-                        ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, id.Name);
+                        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, id.Name);
                     break;
                 }
 
@@ -702,20 +702,20 @@ public class ExpressionGenerator(AssemblerBase asm,
                     GenerateMemberAddress(node, targetReg); // этот метод вычислит адрес поля
                                                             // Теперь r0 содержит адрес поля, загружаем значение
                     var (_, fieldMem, _) = ResolveMemberAccessType(node);
-                    OpCodeSize fieldSizeMem = CodeGenUtils.GetSizeForType(fieldMem.Type);
+                    OpCodeSize fieldSizeMem = CodeGenUtils.GetSizeForType(fieldMem.Type, _asm.ThrowCompiler);
                     _asm.EmitLoadInd(targetReg, targetReg, fieldSizeMem);
                     return;
                 }
 
             case DereferenceNode:
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference member access not implemented yet");
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference member access not implemented yet");
                 return;
             case ArrayAccessNode arrAcc:
                 {
                     string? arrStructType = ResolveArrayStructType(arrAcc.ArrayName);
                     var layoutstr = _structTable[arrStructType!];
                     var fieldstr = layoutstr.GetField(node.FieldName)
-                                ?? ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
+                                ?? _asm.ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
 
                     ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, targetReg);
 
@@ -725,7 +725,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                         _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
                     }
 
-                    OpCodeSize fieldSizestr = CodeGenUtils.GetSizeForType(fieldstr.Type);
+                    OpCodeSize fieldSizestr = CodeGenUtils.GetSizeForType(fieldstr.Type, _asm.ThrowCompiler);
                     _asm.EmitLoadInd(targetReg, targetReg, fieldSizestr);
                     return;
                 }
@@ -734,19 +734,19 @@ public class ExpressionGenerator(AssemblerBase asm,
                 {
                     GenerateMemberAddress(node, targetReg);
                     var (_, f, _) = ResolveMemberAccessType(node);
-                    OpCodeSize sz = CodeGenUtils.GetSizeForType(f.Type);
+                    OpCodeSize sz = CodeGenUtils.GetSizeForType(f.Type, _asm.ThrowCompiler);
                     _asm.EmitLoadInd(targetReg, targetReg, sz);
                     return;
                 }
-                ThrowCompiler.Throw(ErrorCode.NotSupported, "Unsupported object for member access");
+                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, "Unsupported object for member access");
                 break;
         }
 
         if (structType == null)
-            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
 
         var layout = _structTable[structType];
-        var field = layout.GetField(node.FieldName) ?? ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
+        var field = layout.GetField(node.FieldName) ?? _asm.ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
 
         if (node.IsArrow)
         {
@@ -760,7 +760,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             }
             else
             {
-                ThrowCompiler.Throw(ErrorCode.NotSupported, "Dot access only supported for simple variables currently");
+                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, "Dot access only supported for simple variables currently");
             }
         }
 
@@ -771,7 +771,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         }
 
         // 4. Загрузить значение поля
-        OpCodeSize fieldSize = CodeGenUtils.GetSizeForType(field.Type);
+        OpCodeSize fieldSize = CodeGenUtils.GetSizeForType(field.Type, _asm.ThrowCompiler);
         _asm.EmitLoadInd(targetReg, targetReg, fieldSize);
     }
 
@@ -804,7 +804,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                     }
 
                     if (structType == null)
-                        ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     break;
                 }
 
@@ -820,24 +820,24 @@ public class ExpressionGenerator(AssemblerBase asm,
                 structType = ResolveArrayStructType(arrAcc.ArrayName);
                 break;
             case DereferenceNode:
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported");
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported");
                 break;
             case BinaryOpNode bin when bin.Operator == "+" || bin.Operator == "-":
                 structType = TryInferStructTypeFromPointerExpr(bin);
                 if (structType == null)
-                    ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
+                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
                         "Cannot determine struct type from pointer arithmetic");
                 break;
         }
 
         if (structType == null)
-            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
 
         if (!_structTable.TryGetValue(structType, out var layout))
-            ThrowCompiler.Throw(ErrorCode.NotImplemented, structType);
+            _asm.ThrowCompiler.Throw(ErrorCode.NotImplemented, structType);
 
         var field = layout.GetField(node.FieldName)
-                    ?? ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
+                    ?? _asm.ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
 
         return (layout, field, field.Type);
     }
@@ -889,7 +889,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             if (_structTable.ContainsKey(gInfo.Type))
                 return gInfo.Type;
         }
-        ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         return null;
     }
 
@@ -902,7 +902,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (loc.IsPointer)
                 LoadPointerElementToR0(arrayName, loc, indexExpr, targetReg);
             else
-                ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else if (_globalMem.Contains(arrayName))
         {
@@ -912,10 +912,10 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (gInfo.IsPointer)
                 LoadPointerElementToR0(arrayName, null, indexExpr, targetReg);
             else
-                ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else
-            ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
     }
 
     public void StoreR0ToArrayElement(string arrayName, ASTNode indexExpr)
@@ -930,7 +930,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (loc.IsPointer)
                 StorePointerElement(arrayName, loc, indexExpr, slot);
             else
-                ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else if (_globalMem.Contains(arrayName))
         {
@@ -940,22 +940,22 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (gInfo.IsPointer)
                 StorePointerElement(arrayName, null, indexExpr, slot);
             else
-                ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else
-            ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
 
         ReleaseSaveSlot();
     }
     private void LoadArrayElementFromLocal(VarLocation loc, ASTNode indexExpr, RegType targetReg)
     {
         if (loc.IsArray && loc.StructTypeName != null)
-            ThrowCompiler.Throw(ErrorCode.NotSupported,
+            _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
                 $"Cannot load struct value from array element (use member access)");
         var typeSize = loc.TypeSize;
         GenerateExpression(indexExpr, targetReg);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize));
+            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
         _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, targetReg);
@@ -963,10 +963,10 @@ public class ExpressionGenerator(AssemblerBase asm,
     }
     private void LoadArrayElementFromGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, RegType targetReg)
     {
-        var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type);
+        var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
         GenerateExpression(indexExpr, targetReg);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize));
+            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
 
         // БЫЛО: _asm.EmitInstruction64(EncodeLDI(TMP_REG), gInfo.Address);
         string label = GlobalMemoryManager.GetLabel(arrayName);
@@ -978,11 +978,11 @@ public class ExpressionGenerator(AssemblerBase asm,
 
     private void StoreArrayElementToGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, int slot)
     {
-        var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type);
+        var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
 
         GenerateExpression(indexExpr, RegType.r0);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize));
+            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
 
         string label = GlobalMemoryManager.GetLabel(arrayName);
         _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, label);
@@ -999,16 +999,16 @@ public class ExpressionGenerator(AssemblerBase asm,
         // Получаем размер pointed типа
         OpCodeSize pointedSize;
         if (loc != null)
-            pointedSize = CodeGenUtils.GetSizeForType(loc.PointedType!);
+            pointedSize = CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
         else if (_globalMem.Contains(pointerName))
-            pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!);
-        else pointedSize = CodeGenUtils.GetSizeForType("expection type");
+            pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!, _asm.ThrowCompiler);
+        else pointedSize = CodeGenUtils.GetSizeForType("expection type", _asm.ThrowCompiler);
         // 1. Вычисляем индекс → r1
         RegType idxReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
         GenerateExpression(indexExpr, idxReg);
         _varAccessor.LoadToRegister(pointerName, targetReg);
         if (pointedSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(idxReg, CodeGenUtils.GetSizeInBytes(pointedSize));
+            _asm.EmitMultiplyByConstant(idxReg, CodeGenUtils.GetSizeInBytes(pointedSize, _asm.ThrowCompiler));
         _asm.EmitAdd(targetReg, idxReg);
         _asm.EmitLoadInd(targetReg, targetReg, pointedSize);
     }
@@ -1020,7 +1020,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         // 1) index → r1, масштаб, + базовый адрес → r27
         GenerateExpression(indexExpr, RegType.r0);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize));
+            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
         _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.r0);
@@ -1038,11 +1038,11 @@ public class ExpressionGenerator(AssemblerBase asm,
     {
         OpCodeSize pointedSize;
         if (loc != null)
-            pointedSize = CodeGenUtils.GetSizeForType(loc.PointedType!);
+            pointedSize = CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
         else if (_globalMem.Contains(pointerName))
-            pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!);
+            pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!, _asm.ThrowCompiler);
         else
-            pointedSize = CodeGenUtils.GetSizeForType("expection type");
+            pointedSize = CodeGenUtils.GetSizeForType("expection type", _asm.ThrowCompiler);
 
         // 1) index → r3
         GenerateExpression(indexExpr, RegType.r2);
@@ -1052,7 +1052,7 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         // 3) scale
         if (pointedSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r2, CodeGenUtils.GetSizeInBytes(pointedSize));
+            _asm.EmitMultiplyByConstant(RegType.r2, CodeGenUtils.GetSizeInBytes(pointedSize, _asm.ThrowCompiler));
 
         // 4) r1 = pointer + offset
         _asm.EmitAdd(RegType.r0, RegType.r2);
@@ -1198,18 +1198,18 @@ public class ExpressionGenerator(AssemblerBase asm,
             case "<<": _asm.EmitShl(dest, src); break;
             case ">>": _asm.EmitShr(dest, src); break;
             case "%": _asm.EmitMod(dest, src); break;
-            default: ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported operator in EmitBinaryOperation: {op}"); break;
+            default: _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported operator in EmitBinaryOperation: {op}"); break;
         }
     }
-    public static long ComputeConstant(long value1, long value2, string op)
+    public static long ComputeConstant(long value1, long value2, string op, ThrowCompiler ThrowCompiler)
     {
         long result = op switch
         {
             "+" => value1 + value2,
             "-" => value1 - value2,
             "*" => value1 * value2,
-            "/" => ComputeDiv(value1, value2),
-            "%" => ComputeMod(value1, value2),
+            "/" => ComputeDiv(value1, value2, ThrowCompiler),
+            "%" => ComputeMod(value1, value2, ThrowCompiler),
             "&" => value1 & value2,
             "|" => value1 | value2,
             "^" => value1 ^ value2,
@@ -1220,10 +1220,10 @@ public class ExpressionGenerator(AssemblerBase asm,
         return result;
     }
 
-    private static long ComputeDiv(long value1, long value2) => value2 != 0 ? value1 / value2
+    private static long ComputeDiv(long value1, long value2, ThrowCompiler ThrowCompiler) => value2 != 0 ? value1 / value2
             : ThrowCompiler.Throw<long>(ErrorCode.NotSupported, $"Div on zero");
 
-    private static long ComputeMod(long value1, long value2) => value2 != 0 ? value1 % value2
+    private static long ComputeMod(long value1, long value2, ThrowCompiler ThrowCompiler) => value2 != 0 ? value1 % value2
             : ThrowCompiler.Throw<long>(ErrorCode.NotSupported, $"Div on zero");
 
     /// <summary>
@@ -1284,7 +1284,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             return;
         }
 
-        ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
     }
 
     /// <summary>Возвращает регистр для индекса, гарантированно отличный от addrReg.</summary>
@@ -1299,12 +1299,12 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (!loc.IsArray)
         {
             if (loc.PointedType == null)
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
             return (int)GetTypeSizeBytes(loc.PointedType);
         }
         if (loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l))
             return l.Size;
-        return CodeGenUtils.GetSizeInBytes(loc.TypeSize);
+        return CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
     }
 
     private int GetArrayElemBytes(GlobalInfo gInfo)
@@ -1312,12 +1312,12 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (!gInfo.IsArray)
         {
             if (gInfo.PointedType == null)
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
             return (int)GetTypeSizeBytes(gInfo.PointedType);
         }
         if (_structTable.TryGetValue(gInfo.Type, out var l))
             return l.Size;
-        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(gInfo.Type));
+        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler), _asm.ThrowCompiler);
     }
     private void GenerateAddressOf(AddressOfNode addrOf, RegType targetReg)
     {
@@ -1327,7 +1327,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
             {
                 if (loc.IsRegister)
-                    ThrowCompiler.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
+                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
                 _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
                 _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
                 _asm.EmitMov(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
@@ -1338,10 +1338,10 @@ public class ExpressionGenerator(AssemblerBase asm,
                 _asm.EmitLdi(targetReg, label);
             }
             else
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
         }
         else
-            ThrowCompiler.Throw(ErrorCode.NotSupported, "Address-of only supports simple variables currently");
+            _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, "Address-of only supports simple variables currently");
     }
 
     private void GenerateDereference(DereferenceNode deref, RegType targetReg)
@@ -1355,24 +1355,24 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (expr is IdentifierNode id)
         {
             if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc) && loc.IsPointer)
-                return CodeGenUtils.GetSizeForType(loc.PointedType!);
+                return CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
             if (_globalMem.Contains(id.Name))
             {
                 var gInfo = _globalMem.GetInfo(id.Name)!.Value;
                 if (gInfo.IsPointer)
-                    return CodeGenUtils.GetSizeForType(gInfo.PointedType!);
+                    return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ThrowCompiler);
             }
         }
-        return CodeGenUtils.GetSizeForType($"Cannot determine pointed type for dereference of '{expr}'");
+        return CodeGenUtils.GetSizeForType($"Cannot determine pointed type for dereference of '{expr}'", _asm.ThrowCompiler);
 
     }
 
     private void GenerateFunctionCall(FunctionCallNode call)
     {
         if (!_functionTable.TryGetValue(call.Name, out var targetFunc))
-            ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownFunction, call.Name);
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownFunction, call.Name);
         if (call.Arguments.Count != targetFunc.Parameters.Count)
-            ThrowCompiler.Throw(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
 
         // 1) args 4+ → pseudo-globals (r0..r3 пусты, можно свободно)
         for (int i = 4; i < call.Arguments.Count; i++)
@@ -1380,7 +1380,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             GenerateExpression(call.Arguments[i]);         // → r0
             var param = targetFunc.Parameters[i];
             string globalName = $"__param_{targetFunc.Name}_{param.Name}";
-            OpCodeSize opSize = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type);
+            OpCodeSize opSize = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type, _asm.ThrowCompiler);
             string label = GlobalMemoryManager.GetLabel(globalName);
             _asm.EmitStore(RegType.r0, opSize, label);
         }
@@ -1393,7 +1393,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             var param = targetFunc.Parameters[i];
             if (_structTable.ContainsKey(param.Type))
-                ThrowCompiler.Throw(ErrorCode.NotSupported, "Struct parameters via registers not yet supported");
+                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, "Struct parameters via registers not yet supported");
             GenerateExpression(call.Arguments[i], (RegType)i);
             slots[i] = SaveRegToStack((RegType)i);   // ← сохраняем возвращаемый offset
         }

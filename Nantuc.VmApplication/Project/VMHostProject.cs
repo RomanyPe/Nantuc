@@ -2,21 +2,19 @@
 using Nantuc.Compiler.ASM.Base;
 using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.C;
+using Nantuc.Kernel.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace Nantuc.VmApplication.Project;
 
 /// <summary>
 /// Дочерний хоста - менеджер проекта
-/// Содержить <see cref="IProjectFilesConfig"/> и <see cref="IFileService"/>
+/// Содержить <see cref="IProjectFilesConfig"/>, <see cref="IFileService"/>, <see cref="VmCompilerOptimizator"/> и <see cref="ThrowCompiler"/>
 /// </summary>
-/// <param name="paths">Файловая конфигурация</param>
-/// <param name="fileService">Файловый сервис</param>
-public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileService, VmCompilerOptimizator optimizator)
+/// <param name="ctx"> контекст компилятора</param>
+public sealed class VmHostProject(CompilerContext ctx)
 {
-    private readonly IProjectFilesConfig _projectPaths = paths;
-    private readonly IFileService _fileService = fileService;
-    private readonly VmCompilerOptimizator _optimizator = optimizator;
+    private readonly CompilerContext _ctx = ctx;
 
     /// <summary><see cref="Regex"/> мнемоник NANASM </summary>
     public static Regex AsmMnemonics => AsmLanguageDefinition.GetMnemonicRegex();
@@ -26,18 +24,22 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
     public static Regex MiniCMnemonics => MiniCLanguageDefinition.GetKeywordRegex();
 
     /// <summary>Оптимизаторы</summary>
-    public VmCompilerOptimizator Optimizator => _optimizator;
+    public VmCompilerOptimizator Optimizator => _ctx.Optimizator;
     /// <summary>Файловая конфигурацяи зашитая в менеджер</summary>
-    public IProjectFilesConfig Paths => _projectPaths;
+    public IProjectFilesConfig Paths => _ctx.Paths;
     /// <summary>Файловый сервис зашитый в менеджер</summary>
-    public IFileService FileService => _fileService;
+    public IFileService FileService => _ctx.FileService;
+    /// <summary>
+    /// Политика исключений компилятора
+    /// </summary>
+    public ThrowCompiler ThrowCompilerPolicy => _ctx.ThrowCompiler;
     /// <summary>
     /// Получения исходных файлов проекта
     /// </summary>
     /// <returns>
     /// <see cref="IEnumerable{SourceFile}"/>
     /// </returns>
-    public IEnumerable<SourceFile> GetSourceFiles() => ProjectBuilder.GetSourceFiles(_fileService, Paths);
+    public IEnumerable<SourceFile> GetSourceFiles() => ProjectBuilder.GetSourceFiles(FileService, Paths);
     // Общий метод, инкапсулирующий всю логику
     private TResult CompileInternal<TAssembler, TResult>(
         ulong baseAddress,
@@ -52,7 +54,7 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
         try
         {
             TAssembler assembler = createAssembler(baseAddress);
-            var resLog = ProjectBuilder.Build(_fileService, _projectPaths,  files, optimize, assembler, _optimizator.AstOptimizer);
+            var resLog = ProjectBuilder.Build(FileService, Paths,  files, optimize, assembler, Optimizator.AstOptimizer, ThrowCompilerPolicy);
 
             if (optimize)
             {
@@ -87,7 +89,7 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
         OptimizationResultLog? resOpt = null;
         try
         {
-            var log = _optimizator.PeepholeOptimizer.Optimize(asm.GetItems(), peepholeOptimizationCount);
+            var log = Optimizator.PeepholeOptimizer.Optimize(asm.GetItems(), peepholeOptimizationCount);
             resOpt = res.OptimizationResultLog ?? new OptimizationResultLog();
             resOpt.AddRange(log);
 
@@ -112,7 +114,7 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
            baseAddress,
            optimize,
            files,
-           baseAddr => new ILAssembler(baseAddr),
+           baseAddr => new ILAssembler(baseAddr, ThrowCompilerPolicy),
            (assembler, log, errors) => new CompilationToILResult(assembler, log, errors)
        );
     }
@@ -130,7 +132,7 @@ public sealed class VmHostProject(IProjectFilesConfig paths, IFileService fileSe
             baseAddress,
             optimize,
             files,
-            baseAddr => new Assembler(baseAddr),
+            baseAddr => new Assembler(baseAddr, ThrowCompilerPolicy),
             static (assembler, log, errors) => 
             errors == null 
                 ? new CompilationResult(assembler, log) 

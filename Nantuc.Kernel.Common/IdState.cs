@@ -1,5 +1,8 @@
 ﻿namespace Nantuc.Kernel.Common;
 
+/// <summary>
+/// Статус Id присланного от системы
+/// </summary>
 public enum IdState
 {
     Valid,
