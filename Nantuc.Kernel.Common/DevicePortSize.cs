@@ -45,11 +45,11 @@ public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<
     public static DevicePortSize B16 => new(4);
     /// <summary>Размер порта 32 байт (2^5).</summary>
     public static DevicePortSize B32 => new(5);
-    /// <summary>Размер порта 64 байт (2^6).</summary
+    /// <summary>Размер порта 64 байт (2^6).</summary>
     public static DevicePortSize B64 => new(6);
-    /// <summary>Размер порта 128 байт (2^7).</summary
+    /// <summary>Размер порта 128 байт (2^7).</summary>
     public static DevicePortSize B128 => new(7);
-    /// <summary>Размер порта 256 байт (2^8).</summary
+    /// <summary>Размер порта 256 байт (2^8).</summary>
     public static DevicePortSize B256 => new(8);
 
     public bool Equals(DevicePortSize other) => Log2 == other.Log2;

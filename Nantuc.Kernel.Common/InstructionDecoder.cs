@@ -124,14 +124,6 @@ public static class InstructionDecoder
     /// <c>LDI</c>, <c>LOAD</c>, <c>STORE</c>, <c>CALL</c>,
     /// <c>JMP</c>, <c>JZ</c>, <c>JNZ</c>, <c>JG</c>, <c>JL</c>.
     /// </para>
-    /// <para>
-    /// <b>Важно:</b> проверяется только верхняя граница. Если базовый тип
-    /// <see cref="OpCode"/> знаковый (например, <see cref="int"/>),
-    /// отрицательное значение пройдёт проверку
-    /// <c>opCode &gt; OpCode.MOD</c> и приведёт к
-    /// <see cref="IndexOutOfRangeException"/> при индексации <c>_has</c>,
-    /// а не к <see cref="ArgumentOutOfRangeException"/>.
-    /// </para>
     /// </remarks>
     public static bool HasNeed64IntData(OpCode opCode)
     {

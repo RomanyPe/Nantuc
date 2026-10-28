@@ -3,6 +3,10 @@ using System.Collections.ObjectModel;
 
 namespace Nantuc.Kernel.Diagnostics;
 
+/// <summary>
+/// Стандартная политика исключений компилятора
+/// </summary>
+/// <param name="overrides">словарь код ошибки - текст ошибки</param>
 public class DefaultErrorMessageProvider(Dictionary<ErrorCode, string>? overrides = null) : IErrorMessageProvider
 {
     private static readonly FrozenDictionary<ErrorCode, string> templates = new Dictionary<ErrorCode, string>()
@@ -47,13 +51,23 @@ public class DefaultErrorMessageProvider(Dictionary<ErrorCode, string>? override
         { ErrorCode.Lexer_InvalidNumber, "Invalid number literal '{0}' at {1}:{2}" },
         { ErrorCode.Lexer_UnterminatedString, "Unterminated string starting at {0}:{1}" }
     }.ToFrozenDictionary();
+    /// <summary>
+    /// Стандартные <see cref="FrozenDictionary"/> шаблонов ошибок
+    /// </summary>
     public static FrozenDictionary<ErrorCode, string> DefaultTemplates => templates;
+    /// <summary>
+    /// Шаблоны текущей политики
+    /// </summary>
     public IReadOnlyDictionary<ErrorCode, string> Templates => _templates;
     private readonly ReadOnlyDictionary<ErrorCode, string> _templates =
         overrides != null
         ? overrides.AsReadOnly()
         : templates.AsReadOnly();
 
+    /// <summary>
+    /// Try- версия получения строки ошибки
+    /// </summary>
+    /// <param name="code">ключ</param>
     protected virtual string? TryGetTemplate(ErrorCode code)
     {
         return _templates.TryGetValue(code, out var v) ? v : null;

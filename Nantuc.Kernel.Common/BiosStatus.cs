@@ -1,52 +1,94 @@
 ﻿namespace Nantuc.Kernel.Common;
 
+/// <summary>
+/// Код статуса выполнения инструкции или операции ввода-вывода.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Возвращается из обработчиков инструкций процессора (<c>Processor.Instruction*</c>),
+/// из <c>MemoryBus</c>/<c>PortBus</c>, а также передаётся в <c>IProcessorFaultPolicy</c>
+/// при принятии решения о продолжении работы программы.
+/// </para>
+/// <para>
+/// Нулевое значение (<see cref="Success"/>) является безопасным значением по умолчанию:
+/// неинициализированный статус трактуется как успех.
+/// </para>
+/// <para>
+/// Внимание: <see cref="EndProgramm"/> и <see cref="InfinityLoop"/> не являются ошибками
+/// по смыслу, но, как и остальные ненулевые коды, проходят через путь обработки сбоя
+/// (заполнение <c>ProcessorFault</c>, опрос <c>IProcessorFaultPolicy.ShouldContinue</c>).
+/// Политика обязана различать «штатное завершение» и «настоящий сбой».
+/// </para>
+/// <para>
+/// Значение хранится в <see cref="byte"/>; диапазон — 0..255. Числовые значения зафиксированы
+/// порядком объявления и являются частью контракта — новые коды следует добавлять только в конец.
+/// </para>
+/// </remarks>
 public enum BiosStatus : byte
 {
-    /// <summary> Выполнено </summary>
+    /// <summary>
+    /// Операция выполнена успешно. Значение по умолчанию.
+    /// </summary>
     Success,
-    /// <summary> Выход за границы ОЗУ </summary>
+
+    /// <summary>
+    /// Обращение к памяти вышло за границы ОЗУ (например, адрес больше <c>MemoryBus.Length</c>).
+    /// </summary>
     SegmentationFault,
 
-    /// <summary> Попытка прочесть int по невыровненному адресу (например, 0x03) </summary>
+    /// <summary>
+    /// Попытка прочитать/записать значение по невыровненному адресу
+    /// (например, чтение <c>int64</c> по адресу <c>0x03</c>).
+    /// </summary>
     AlignmentFault,
 
-    /// <summary> Не ошибка, остановка программы </summary>
+    /// <summary>
+    /// Штатное завершение программы (инструкция <see cref="OpCode.END"/>).
+    /// Не является ошибкой, но передаётся через путь обработки сбоя — см. &lt;remarks&gt; типа.
+    /// </summary>
     EndProgramm,
 
-    /// <summary> Нереализованная команда OpCode </summary>
+    /// <summary>
+    /// Опкод распознан декодером, но соответствующий обработчик в процессоре отсутствует
+    /// (ветка <c>default</c> в <c>Processor.Step</c>).
+    /// </summary>
     NotImplementedOpCode,
 
-    /// <summary> Отсутсвует устройство для ввода </summary>
+    /// <summary>
+    /// Устройство ввода отсутствует или не ответило на запрос чтения из порта.
+    /// </summary>
     NullDeviceInput,
 
-    /// <summary> Отсутсвует устройство для вывода </summary>
+    /// <summary>
+    /// Устройство вывода отсутствует или не ответило на запрос записи в порт,
+    /// либо порт пробуждения (<see cref="OpCode.WAKE_INT"/>) не найден.
+    /// </summary>
     NullDeviceOutput,
 
-    /// <summary> Программа ушла в бесконечный цикл </summary>
+    /// <summary>
+    /// Обнаружен бесконечный цикл (политика/планировщик счёл, что программа не продвигается).
+    /// Не является ошибкой по смыслу, но передаётся через путь обработки сбоя.
+    /// </summary>
     InfinityLoop,
 
-    /// <summary> Деление на 0 </summary>
-    DivOnZero,
     /// <summary>
-    /// данный <see cref="OpCode"/> не поддерживается
+    /// Деление на ноль в инструкциях <see cref="OpCode.DIV"/> или <see cref="OpCode.MOD"/>.
+    /// </summary>
+    DivOnZero,
+
+    /// <summary>
+    /// Опкод известен перечислению <see cref="OpCode"/>, но не поддерживается
+    /// текущей реализацией процессора (например, зарезервирован на будущее).
+    /// Отличается от <see cref="NotImplementedOpCode"/> тем, что опкод распознан явно,
+    /// но помечен как неподдерживаемый.
     /// </summary>
     NotSupportedOpCode,
-    /// <summary>
-    /// Переполнение стека вниз
-    /// </summary>
-    StackUnderflow
-}
 
-/// <summary>
-/// Причина остановки устройства
-/// </summary>
-/// <param name="Status">последний статус системы</param>
-/// <param name="FaultData">данные полученные при падение</param>
-/// <param name="InstructionPointer">указатель на инструкцию</param>
-/// <param name="OpCode">код операции при которой это произошло (NOP - не инициализировано)</param>
-public readonly record struct ProcessorFault(
-    BiosStatus Status,
-    ulong FaultData,
-    ulong InstructionPointer,
-    OpCode OpCode);
+    /// <summary>
+    /// Переполнение стека вниз: <c>rSP</c> достиг области кучи (<c>rHP</c>) или вышел
+    /// за пределы допустимого диапазона (например, в <see cref="OpCode.CALL"/> / <see cref="OpCode.PUSH"/>).
+    /// Также может возвращаться при <see cref="OpCode.RET"/> на пустом стеке — см. <c>Processor.InstructionRET</c>.
+    /// </summary>
+    StackUnderflow,
+}
 
