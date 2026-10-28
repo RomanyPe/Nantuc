@@ -22,7 +22,7 @@ public class Emulator : IDisposable
         _manager = new ManagerDevices(_portBus);
     }
 
-    public IEnumerable<DeviceInfo> AllDeviceInfo => _manager.GetAllDevices();
+    public IReadOnlyList<DeviceInfo> AllDeviceInfo => _manager.GetAllDevices();
 
     public PortBus PortBus => _portBus;
 

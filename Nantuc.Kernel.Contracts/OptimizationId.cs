@@ -13,8 +13,7 @@ namespace Nantuc.Kernel.Contracts;
 /// <remarks>
 /// <para>
 /// The value is a lowercase, ASCII string of <c>[a-z0-9.-]</c>, at most
-/// <see cref="MaxLength"/> characters long, e.g. <c>"peephole"</c>,
-/// <c>"inline.func"</c>, <c>"node.removed.before-inline"</c>.
+/// <see cref="MaxLength"/> characters long, e.g.
 /// </para>
 /// <para>
 /// Well-known identifiers are guaranteed stable across library versions
@@ -79,16 +78,6 @@ public readonly struct OptimizationId : IEquatable<OptimizationId>, IComparable<
         }
         return true;
     }
-
-    // ---------------------------------------------------------------------
-    // Well-known ids (stable; never rename after release)
-    // ---------------------------------------------------------------------
-
-    public static readonly OptimizationId Peephole = new("peephole");
-
-    // ---------------------------------------------------------------------
-    // Equality / comparison / formatting
-    // ---------------------------------------------------------------------
 
     public bool Equals(OptimizationId other) =>
         string.Equals(Value, other.Value, StringComparison.Ordinal);

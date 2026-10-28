@@ -58,15 +58,17 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         return null;
     }
 
-    public IEnumerable<DeviceInfo> GetAllDevices()
+    public IReadOnlyList<DeviceInfo> GetAllDevices()
     {
+        List<DeviceInfo> res = [];
         for (int i = 0; i < _devices.Count; i++)
         {
             var e = _devices[i];
             if (!e.IsValid) continue;
 
-            yield return new(e.Id, e.Sector, e.Name);
+            res.Add(new(e.Id, e.Sector, e.Name));
         }
+        return res;
     }
 
     public IPortController? GetDevice(int id) => FindValid(id)?.Device;

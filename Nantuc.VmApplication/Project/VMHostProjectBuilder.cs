@@ -32,7 +32,6 @@ public class VmHostProjectBuilder
     /// Создать с готовыми оптимизаторами
     /// </summary>
     /// <param name="optimizator"></param>
-    /// <returns></returns>
     public VmHostProjectBuilder WithOptimizator(VmCompilerOptimizator? optimizator)
     {
         _compilerOptimizator = optimizator;

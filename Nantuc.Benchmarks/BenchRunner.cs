@@ -63,7 +63,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
         return true;
     }
 
-    private static void Metric(ISimulationResult res, List<double> elapsed, List<double> mips, List<long> steps)
+    private static void Metric(ITimerSimulationResult res, List<double> elapsed, List<double> mips, List<long> steps)
     {
         mips.Add(res.Steps / res.Elapsed.TotalSeconds / 1_000_000.0);
         elapsed.Add(res.Elapsed.TotalSeconds);

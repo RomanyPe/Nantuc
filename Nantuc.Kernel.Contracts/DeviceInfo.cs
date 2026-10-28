@@ -1,14 +1,9 @@
-﻿using Nantuc.Kernel.Common;
+﻿namespace Nantuc.Kernel.Contracts;
 
-namespace Nantuc.Kernel.Contracts;
-
+/// <summary>
+/// Структура информации о устройстве
+/// </summary>
+/// <param name="Id">Id в системе</param>
+/// <param name="Sector">Сектор где зарегестрирован</param>
+/// <param name="Name">Имя</param>
 public readonly record struct DeviceInfo(int Id, uint Sector, string? Name);
-
-public interface IPortBus
-{
-    ReadPortResult ReadPort(ulong address);
-    BiosStatus WritePort(ulong address, byte value);
-    bool WakeProcessor(ulong address);
-}
-
-public record struct ReadPortResult(byte Data, BiosStatus Status = BiosStatus.Success);

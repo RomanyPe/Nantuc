@@ -31,8 +31,8 @@ public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
     /// <summary>
     /// Снапшот всех устройств в системе, содержит <see cref="DeviceInfo"/>
     /// </summary>
-    public IReadOnlyCollection<DeviceInfo> GetAllDevices()
-        => [.. _emulator.AllDeviceInfo];
+    public IReadOnlyList<DeviceInfo> GetAllDevices()
+        => _emulator.AllDeviceInfo;
 
     /// <summary>
     /// Метод для регистрации устройства реализующего <see cref="IPortController"/>, не рекомендуется если регистрация происходит динамически, тоесть параметры не константны
