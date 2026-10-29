@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/Элементы решения/">
+    <File Path="CHANGELOG.md" />
     <File Path="README.md" />
   </Folder>
   <Project Path="Nantuc.Compiler/Nantuc.Compiler.csproj" Id="75871bb8-1afc-4dbd-a928-24eef852977b" />

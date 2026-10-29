@@ -157,7 +157,7 @@ int portFlush = 0x12;
 - `Data` (offset 0) → `0x10`, `Flush` (offset 2) → `0x12`.
 
 Если поменять `portsPerDevice` в `VmHostFactory.CreateDefault` (например, на `DevicePortSize.B32` = 32), база сектора 1 станет `0x20`, а `portWrite = 0x10` попадёт в **сектор 0** (VM самого себя), и вывод пропадёт или сломается. Это ограничение примера, не платформы.
-
+Вынесены в глобальные переменные чтобы иметь возможность менять адреса записи, полезно если системы находятся в разных секторах
 ### UTF-16 и `QueuedIOStream`
 
 `QueuedIOStream` с `PortCharEncoding.Utf16` собирает пары байт в `char`:
@@ -168,14 +168,6 @@ char c = (char)(pendingLowByte.Value | (b << 8));
 ```
 
 `print16` (в `print.minic`) пишет low byte первым (`write8(c)`), high — вторым (`write8(c >> 8)`). Порядок совпадает с UTF-16LE. `flush()` в конце пишет `1` в `Flush`-порт → `QueuedIOStream.Flush()` ждёт до 2 сек, пока `_pendingCount` не станет 0, и делает `_writer.Flush()`.
-
-### `RamFileService` и `Combine`
-
-`RamFileService.Combine(path1, path2)` реализован как `path1 + "\\" + path2` (жёсткий `\\`, а не `Path.Combine`). В этом примере это работает, потому что и запись (`SaveFileProject`/`SaveFileInclude`), и чтение (`GetNameFiles`/`ReadFile`/`ReadInclude`) идут через один и тот же `Combine` с одним и тем же `path1`. Если смешать `RamFileService` и `DefaultFileService` (например, сохранить через один, прочитать через другой), пути не совпадут. Это баг `[Nantuc.VmApplication](../Nantuc.VmApplication/README.md)` (см. п.1 там), не примера.
-
-### `print.minic` — обход бага кодогенератора
-
-`Librare.print_minic` держит `portWrite`/`portFlush` в **глобалах**, а не в локальных переменных, хотя они константы. Причина — тот же баг `FunctionGenerator.GenerateFunction` (`[Nantuc.Compiler](../Nantuc.Compiler/README.md)`, [Что исправить, п.1](../Nantuc.Compiler/README.md#что-исправить)): несимметричный push/pop регистров калечит callee-saved регистры при 3-4 локальных переменных. Пока баг не исправлен в компиляторе, пример работает только потому, что `print16`/`write16` держат мало переменных. Если будете расширять `print.minic` — держите состояние в глобалах.
 
 ### `void main()` vs `int main()`
 
@@ -195,56 +187,3 @@ char c = (char)(pendingLowByte.Value | (b << 8));
 - **`QueuedIOStream`** использует `Task.Run` + `Channel<byte>` — в WASM работает, но фоновый drain может не завершиться до конца синхронного `Main`. Для WASM-примера используйте `SynchronousIOStream`.
 - **`LoggingFaultPolicyMinimal`** пишет в `Console.Out` — в headless/CI работает, но без `Console.OutputEncoding = UTF8` кириллица в сообщениях о fault'ах может отображаться некорректно.
 - **`RamFileService`** не зависит от ОС (in-memory), но `Combine` с `\\` — не «нативный» путь. Для реальной ФС — `DefaultFileService` + `Path.Combine`.
-
-## Что исправить
-
-1. **`int deviceId = host.Emulator.RegisterDevice(...)` — нет проверки на отрицательный ID.**  
-   `Program.cs`, строка `int deviceId = host.Emulator.RegisterDevice(handle: handle, sector: 0);`.  
-   Если `RegisterDevice` вернёт `-1..-4` (нет места, сектор занят, `PortBus.RegisterDevice` fail), следующий `host.Emulator.GetDeviceContext(deviceId)!` вернёт `null`, `!` даст `NullReferenceException`.  
-   Фикс: `if (deviceId < 0) { Console.Error.WriteLine($"RegisterDevice failed: {deviceId}"); return; }`.
-
-2. **`host.Emulator.RegisterDevice(ioDevice: iostream, ...)` — нет проверки, `iostream` может протечь.**  
-   `Program.cs`, строка `host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);`.  
-   `ManagerDevices.AddDevice` для `-1/-2/-3` возвращает ошибку **без** `device.Dispose()` (dispose только для `-4`). `QueuedIOStream` содержит `Task` + `Channel` + `CancellationTokenSource` — без `Dispose` фоновый таск утечёт и не остановится.  
-   Фикс: `using var iostream = new QueuedIOStream(...)` (Dispose идемпотентен, `ManagerDevices` тоже вызовет — не страшно) **или** `int ioId = host.Emulator.RegisterDevice(iostream, ...); if (ioId < 0) { iostream.Dispose(); return; }`.
-
-3. **`iostream` не `using var` — Dispose зависит от `host.Dispose()`.**  
-   `Program.cs`, строка `var iostream = new QueuedIOStream(...)`.  
-   В нормальном сценарии `host.Dispose()` (через `using var host`) вызовет `ManagerDevices.Dispose`, который вызовет `iostream.Dispose()`. Но если `RegisterDevice` для iostream не выполнится (см. п.2), `iostream` не будет в `_devices` — и не будет освобождён.  
-   Фикс: `using var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf16);`. Порядок dispose: `iostream` (внутренний `using`) → `host` (внешний). `QueuedIOStream.Dispose` вызовется до `host.Dispose`, drain-таск завершится первым. Безопасно.
-
-4. **`Run()` — нет `OnEnd`, нет диагностики.**  
-   `Program.cs`, последняя строка `deviceCtx.Run();`.  
-   `Run()` использует `LaunchOptions.Default` (`StartAddress = 0`, `ShowTimer = false`, `OnEnd = null`). Если VM упадёт с fault'ом, `LoggingFaultPolicyMinimal` напишет `[FAULT] ...` в `Console.Out` (это хорошо), но не будет видно `steps`/`elapsed`.  
-   Фикс: `deviceCtx.Run(new LaunchOptions(ShowTimer: true, OnEnd: r => Console.WriteLine($"steps={r?.Steps} elapsed={r?.Elapsed}")));`.
-
-5. **`portWrite = 0x10`, `portFlush = 0x12` — жёстко зашито, ломается при смене `portsPerDevice`.**  
-   Это в `Librare.print_minic` (не в `Program.cs`, но пример использует его). База сектора 1 = `1 * PortsOnDevice`. При дефолтном `DevicePortSize.B16` = 16 = `0x10` — совпадает. Если поменять `portsPerDevice` в `CreateDefault` — сломается.  
-   Фикс: либо задокументировать в `Program.cs` (комментарий «требует DevicePortSize.B16, sector 1 → base 0x10»), либо вычислять порты в `Program.cs` и передавать в `print.minic` через глобалы/`extern` (сложнее), либо использовать `OutputPortLayout.Data`/`Flush` из `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` вместо магических чисел (но это C#, а `print.minic` — MiniC, так что нужен промежуточный слой).
-
-6. **`CompileToIL(baseAddress: 0, optimize: true)` — `optimize: true` инертен.**  
-   `Program.cs`, строка `var resCompile = host.Project.CompileToIL(baseAddress: 0, optimize: true).Build();`.  
-   `VmAstOptimizer` пустой, `AddStdRules()` не вызывается. AST-оптимизации не применяются. Peephole тоже не применяется (`CompileToIL` без `OptimizationIL`).  
-   Фикс: либо `host.Project.Optimizator.VMAstOptimizer.AddStdRules();` перед компиляцией, либо `optimize: false` с комментарием «оптимизации выключены для наглядности».
-
-7. **`Console.OutputEncoding` не выставлен — кириллица в `LoggingFaultPolicyMinimal` может отображаться некорректно.**  
-   `Program.cs`, начало файла. `LoggingFaultPolicyMinimal.ShouldContinue` пишет `"[FAULT] status=..., data=..., ip=..., op=..."` — латиница, но `LoggingFaultPolicyMinimal` определён в `ProjectExtension.cs` с русскими `Console.WriteLine` в других местах? Проверил — `LoggingFaultPolicyMinimal` пишет только `[FAULT] ...` (ASCII). Так что проблема только если вы добавите свои сообщения на русском.  
-   Фикс (профилактически): `Console.OutputEncoding = System.Text.Encoding.UTF8;` первой строкой.
-
-8. **`using var host = VmHostFactory.CreateDefault();` — без параметров.**  
-   `Program.cs`, строка 1. Дефолты: `RamFileService`, `PortSize.KB64`, `DevicePortSize.B16`. Это ок для примера, но если читатель захочет реальную ФС — ему нужно знать про `fileService: new DefaultFileService()`.  
-   Фикс: добавить комментарий `// RamFileService + PortSize.KB64 + DevicePortSize.B16` рядом с вызовом.
-
-9. **`Librare.io_nanasm` сохраняется явно, но `print.minic` его тоже инклюдит.**  
-   `Program.cs`, строка `host.Project.SaveFileInclude("io.nanasm", Librare.io_nanasm);`.  
-   Это **не** дублирование (без сохранения `io.nanasm` в `IncludePath` `ReadInclude` бросит `FileNotFoundException` при резолве `#include "io.nanasm"` из `print.minic`). Но читатель может подумать, что это лишнее.  
-   Фикс: комментарий `// print.minic делает #include "io.nanasm" — файл должен быть в IncludePath`.
-
-10. **`source1` использует `print16` (UTF-16), но MiniC `char` = 16-bit (см. `CodeGenUtils.GetSizeForType`).**  
-    `Program.cs`, `source1` + `Librare.print_minic`.  
-    `char str[] = "Hello world"` — 11 символов + `'\0'` = 12 `char` × 2 байта = 24 байта в data-секции. `print16` читает `str[i]` как `char` (16-bit), пишет low/high в порт. `QueuedIOStream(Utf16)` собирает обратно. Всё согласовано, но читателю неочевидно, что `char` в MiniC — 16-bit.  
-    Фикс: комментарий в `source1` `// char = 16-bit (UTF-16 code unit), print16 = 2 порта на символ`.
-
-11. **`void main()` — не идиоматично для C.**  
-    `Program.cs`, `source1`: `void main() { ... }`. Компилятор принимает (`isMain = func.Name == "main"`, тип возврата не проверяется), но в C `main` возвращает `int`.  
-    Фикс: `int main() { print16(str); return 0; }` — компилятор сгенерирует `RET`-эквивалент (`EmitEnd` в эпилоге `main`), но пример станет ближе к C-стилю.

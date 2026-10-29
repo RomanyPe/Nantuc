@@ -227,7 +227,6 @@ public sealed class Device : IPortController
     public void Stop()
     {
         _processor.EnqueueBiosStatus(BiosStatus.EndProgramm);
-        _processor.EnqueueExternalCommand((uint)OpCode.WAKE);
         _wakeSignal.Set();
     }
 
@@ -259,7 +258,11 @@ public sealed class Device : IPortController
     {
         while (_processor.IsRunning)
         {
-            if (limit <= stepCounter) _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+            if (stepCounter >= limit)
+            {
+                _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+            }
+
             _processor.Step();
 
             if (_processor.IsSleeping)
@@ -269,7 +272,8 @@ public sealed class Device : IPortController
             }
             else
             {
-                stepCounter++;
+                if (_processor.IsRunning)
+                    stepCounter++;
             }
         }
     }
@@ -278,7 +282,11 @@ public sealed class Device : IPortController
     {
         while (_processor.IsRunning)
         {
-            if (stepCounter >= stepLimit) _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+            if (stepCounter >= stepLimit)
+            {
+                _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+            }
+
             _processor.Step();
 
             if (_processor.IsSleeping)
@@ -288,7 +296,8 @@ public sealed class Device : IPortController
             }
             else
             {
-                stepCounter++;
+                if (_processor.IsRunning)
+                    stepCounter++;
             }
 
             onStep?.Invoke(_processor.GetCurrentProcessorReader());

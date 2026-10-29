@@ -3,7 +3,7 @@ using Nantuc.VmApplication.Project;
 
 namespace Nantuc.VmApplication.Extensions.LibraresIncludes;
 
-public static class Librare
+public static class Library
 {
     public const string heap_nanasm =
         """

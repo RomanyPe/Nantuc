@@ -62,8 +62,8 @@ using var host = VmHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);
 
 host.Project.SaveFileProject("main.minic", source1);
-host.Project.SaveFileInclude("heap.nanasm", Librare.heap_nanasm);
-host.Project.SaveFileInclude("alloc.minic", Librare.alloc_minic);
+host.Project.SaveFileInclude("heap.nanasm", Library.heap_nanasm);
+host.Project.SaveFileInclude("alloc.minic", Library.alloc_minic);
 
 var handle = DeviceSpec.Create(
     ramSize: RamSize.MB128,

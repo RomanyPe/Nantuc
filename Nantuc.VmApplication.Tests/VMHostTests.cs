@@ -161,6 +161,30 @@ public class VMHostTests
     }
 
     [Fact]
+    public void ReleaseRun_ShouldStopAfterStepLimit()
+    {
+        using var host = VmHostFactory.CreateDefault();
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
+        var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
+        var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
+
+        string program = """
+            LDI r1, 1
+            LDI r2, 2
+            LDI r3, 3
+            LDI r4, 4
+            END
+            """;
+        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
+        Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
+
+        var options = new LaunchOptions(StartAddress: 0, StepLimit: 2);
+        deviceCtx.Run(options);
+        Assert.Equal(2, deviceCtx.StepCount);
+    }
+
+    [Fact]
     public void Run_ShouldInvokeOnEnd()
     {
         using var host = VmHostFactory.CreateDefault();

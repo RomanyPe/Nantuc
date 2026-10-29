@@ -14,8 +14,8 @@ const string source =
 
 using var host = VmHostFactory.CreateDefault();
 host.Project.SaveFileProject("main.minic", source);
-host.Project.SaveFileInclude("io.nanasm", Librare.io_nanasm);
-host.Project.SaveFileInclude("print.minic", Librare.print_minic);
+host.Project.SaveFileInclude("io.nanasm", Library.io_nanasm);
+host.Project.SaveFileInclude("print.minic", Library.print_minic);
 
 // 1) Регистрация VM — через TryRegisterDevice, IdState вместо int < 0
 var vmState = host.Emulator.TryRegisterDevice(

@@ -38,14 +38,13 @@ public class HaltWakeTests
     public async Task HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_DebugRun()
     {
         using var host = VmHostFactory.CreateDefault();
-        var deviceId = host.Emulator.RegisterDevice(
-            DeviceSpec.Create(RamSize.MB16, name: "cpu"), sector: 0);
+        var deviceId = host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB16, name: "cpu"), 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
         string program = """
-        LDI  r1, 0x11
+        LDI  r0, 0x11
         HALT
-        LDI  r2, 0x22
+        LDI  r1, 0x22
         END
         """;
 
@@ -102,9 +101,9 @@ public class HaltWakeTests
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
         string program = """
-        LDI  r1, 0x11
+        LDI  r0, 0x11
         HALT
-        LDI  r2, 0x22
+        LDI  r1, 0x22
         END
         """;
 
