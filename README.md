@@ -239,9 +239,9 @@ start:
 
 - **.NET 10 SDK**. Все проекты таргетят `net10.0`.
 - **C# 14**: `extension`-блоки, `[InlineArray]`, `params ReadOnlySpan`, `field`-keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
-- **Windows / Linux / macOS**. В WASM есть ограничения по модулям:
+- **Windows / Linux / macOS / AoT**. В WASM есть ограничения по модулям:
   - `Kernel.Common` / `Kernel.Contracts` / `Kernel.Diagnostics` — полностью WASM-safe (managed, без `unsafe`, без `RegexOptions.Compiled`).
-  - `Nantuc.Compiler` — собирается, но `MiniCLanguageDefinition._keywordRegex` использует `RegexOptions.Compiled` — **browser-wasm AOT-blocker** (`PlatformNotSupportedException`). Без этой строки (или с заменой на `[GeneratedRegex]`) компилятор работает в AOT.
+  - `Nantuc.Compiler` — `Regex` генерируется через `[GeneratedRegex(KeywordPattern, RegexOptions.None)]` - полностью WASM-safe, в остальном мешать будут только аллокации, но их не так много
   - `Nantuc.Kernel` — `unsafe` и `NativeMemory.AllocZeroed`/`Free`/`Clear` поддерживаются WASM (линейная память emscripten), но:
     - `Device.Run`/`DebugRun` синхронные и блокируют текущий поток (`ManualResetEventSlim.Wait(15)` при `IsSleeping`, `Thread.Sleep(delay)` в `DebugRun`) — в single-threaded browser это блокировка UI; нужен Web Worker или async-цикл.
     - `NativeMemory.AllocZeroed` для больших `RamSize` (≥ `MB512`, тем более `GB1`/`GB2`) рискует `OutOfMemoryException` из-за лимита линейной памяти WASM (~4 GiB на процесс, с фрагментацией). Практический потолок в браузере — ~256 MiB.
@@ -261,7 +261,7 @@ dotnet build Nantuc.sln -c Release
 dotnet run --project Nantuc.Samples.Minimal -c Release
 ```
 
-**Запустить змейку** (заменив `Program.cs` на вызов `SnakeLauncher.LaunchSnake(period: 200)`):
+**Запустить змейку** (заменив `Program.cs` на вызов `SnakeGameOnNantuc.Run()` или в аргументы cmd вписать -snake period):
 
 ```bash
 dotnet run --project Nantuc.Samples.Scratch -c Release
@@ -398,12 +398,3 @@ dotnet test -c Release
 - Бенчмарк — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.md).
 
 ---
-
-**Что изменено относительно предыдущей версии README (сводка):**
-
-1. **`IdState`** — обновлён bullet: `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4); добавлено явное предупреждение `default(IdState) == Unknown`, а не `Valid` (breaking change в `Kernel.Common`).
-2. **`IdState` в таблице модулей** — добавлено уточнение «`Unknown` = 0, default-safe».
-3. **«Требования» → WASM** — развёрнуто по модулям: `Compiler` содержит `RegexOptions.Compiled` (browser-wasm AOT-blocker); `Kernel` использует `unsafe` + `NativeMemory` (работает в WASM), но `Run`/`DebugRun` синхронные (блокируют UI) и большие `RamSize` рискуют OOM.
-4. **«Готово»** — добавлено «`default(IdState) == Unknown`, не `Valid`».
-5. **«В работе / планы»** — добавлен пункт «WASM/AOT-фиксы» (убрать `RegexOptions.Compiled`, async-цикл для `Run`/`DebugRun`).
-6. Комментарий разработчика про отладчик (raw stack access через `GetRegisterSnapshot()` и `NativeMemoryBuffer`/`CopyRamTo`) сохранён без изменений.
