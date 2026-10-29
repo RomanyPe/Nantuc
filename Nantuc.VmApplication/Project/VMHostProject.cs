@@ -40,8 +40,9 @@ public sealed class VmHostProject(CompilerContext ctx)
     /// <see cref="IEnumerable{SourceFile}"/>
     /// </returns>
     public IEnumerable<SourceFile> GetSourceFiles() => ProjectBuilder.GetSourceFiles(FileService, Paths);
+
     // Общий метод, инкапсулирующий всю логику
-    private TResult CompileInternal<TAssembler, TResult>(
+    internal TResult CompileInternal<TAssembler, TResult>(
         ulong baseAddress,
         bool optimize,
         IEnumerable<SourceFile> files,

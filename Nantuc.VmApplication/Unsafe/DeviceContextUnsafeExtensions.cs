@@ -1,41 +1,42 @@
 ﻿using Nantuc.Kernel.BiosSystem;
-using Nantuc.Kernel.ControllersData;
 using Nantuc.VmApplication.Emulator;
 
 namespace Nantuc.VmApplication.Unsafe;
 
+/// <summary>
+/// Небезопасные расширения для <see cref="DeviceContext"/>.
+/// Позволяют получить доступ к внутреннему <see cref="Device"/> в обход штатной инкапсуляции.
+/// </summary>
+/// <remarks>
+/// Использование этого класса нарушает инкапсуляцию <see cref="DeviceContext"/>.
+/// Полученный <see cref="Device"/> практически не имеет ограничений, поэтому его некорректное
+/// использование может привести к повреждению состояния виртуальной машины, порче памяти
+/// или неопределённому поведению. Применяйте только в отладочных, диагностических
+/// или исследовательских сценариях.
+/// </remarks>
 public static class DeviceContextUnsafeExtensions
 {
+    /// <param name="context">
+    /// Контекст устройства, из которого извлекается «сырой» <see cref="Device"/>.
+    /// Не может быть <see langword="null"/>.
+    /// </param>
     extension(DeviceContext context)
     {
         /// <summary>
-        /// Получения класса <see cref="Device"/> из <see cref="DeviceContext"/> без рефлексии
-        /// Использовать <see cref="Device"/> на свой страх и риск, почти не имеет ограничений поэтому легче сломать
+        /// Возвращает внутренний экземпляр <see cref="Device"/> из <see cref="DeviceContext"/> без использования рефлексии.
         /// </summary>
-        /// <returns><see cref="Device"/></returns>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <returns>Внутренний экземпляр <see cref="Device"/>.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Если <paramref name="context"/> равен <see langword="null"/>.
+        /// </exception>
+        /// <remarks>
+        /// <see cref="Device"/> предоставляется «как есть» и почти не имеет ограничений.
+        /// Любые некорректные операции с ним могут сломать состояние эмулятора.
+        /// </remarks>
         public Device AsRawDevice()
         {
             ArgumentNullException.ThrowIfNull(context);
             return context.UnsafeGetDevice;
-        }
-    }
-}
-
-public static class VmEmulatorUnsafeExtension
-{
-    extension(VmEmulator vm)
-    {
-        /// <summary>
-        /// Получения класса <see cref="PortBus"/> из <see cref="VmEmulator"/> без рефлексии и привидений
-        /// Использовать <see cref="PortBus"/> на свой страх и риск, почти не имеет ограничений поэтому легче сломать
-        /// </summary>
-        /// <returns><see cref="PortBus"/></returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        public PortBus GetRawPortBus() 
-        {
-            ArgumentNullException.ThrowIfNull(vm);
-            return vm.AsPortBus;
         }
     }
 }

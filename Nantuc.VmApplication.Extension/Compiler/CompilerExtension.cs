@@ -4,7 +4,7 @@ namespace Nantuc.VmApplication.Extensions.Compiler;
 
 public static class CompilerExtension
 {
-    private static readonly ErrorCode[] _errorCodesValidateTable = Enum.GetValues<ErrorCode>();
+    private static readonly HashSet<ErrorCode> _errorCodesValidateTable = [.. Enum.GetValues<ErrorCode>()];
 
     extension(IReadOnlyDictionary<ErrorCode, string> templates)
     {

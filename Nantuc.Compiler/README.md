@@ -1,4 +1,4 @@
-﻿# Nantuc.Compiler — README
+﻿﻿# Nantuc.Compiler — README
 
 > Компилятор MiniC → байткод Nantuc: лексер, парсер, AST, кодогенератор с регистровой раскраской, ассемблер (два backend'а — прямой и IR) и инфраструктура оптимизаций.
 > `[← Корень](../README.md) · [Common](../Nantuc.Kernel.Common/README.md) · [Contracts](../Nantuc.Kernel.Contracts/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
@@ -10,6 +10,7 @@
 - [Примеры для API](#примеры-для-api)
 - [Приближенность модуля к пользователю](#приближенность-модуля-к-пользователю)
 - [Особенная информация](#особенная-информация)
+  - [Ассемблер NANASM: секции данных](#ассемблер-nanasm-секции-данных) **[NEW]**
 - [Что исправить](#что-исправить)
 
 ## Об этом модуле
@@ -22,6 +23,7 @@
 - Frontend: `Lexer`, `Parser`, `ASTNode`-иерархия (28 типов), `MiniCLanguageDefinition`.
 - Кодогенератор: `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator` (жадная раскраска интерференционного графа), `FunctionContext`, `VariableAccessor`.
 - Ассемблер: `AssemblerBase` (абстракция), `Assembler` (прямой), `ILAssembler` (IR), `AssemblerParser`, `InstructionEncoder`, `AsmExtensions`.
+  **`AssemblerParser` поддерживает секции `.data`/`.text` и директивы данных** (`.byte`, `.word`, `.dword`, `.quad`, `.ascii`, `.asciz`, `.zero`) — см. [Ассемблер NANASM: секции данных](#ассемблер-nanasm-секции-данных). **[NEW]**
 - Оптимизации: `AstOptimizer`, `PeepholeOptimizer` — каркас с интерфейсами `IAstOptimizationRule`/`IPeepholeRule`; **конкретных правил в этой партии нет**.
 - Раскладка структур: `StructLayout`, `FieldInfo` — выравнивание полей по 8 байт, `Resolve` с итеративным разрешением зависимостей.
 
@@ -63,6 +65,7 @@ Nantuc.Compiler/
     ├── Assembler.cs                    # прямая запись в MemoryStream
     ├── AssemblerParser.cs              # текстовый ассемблер → AssemblerBase
     │                                   # + AsmLanguageDefinition (Mnemonics/Registers)
+    │                                   # + поддержка .data / .text (буферизация, EmitData в конце) [NEW]
     │
     ├── Base/
     │   └── AssemblerBase.cs            # абстракция эмиттера
@@ -108,7 +111,7 @@ Nantuc.Compiler/
 | `OptimizationResult` | `C.Optimizators` | `class : ILogOptimization` | Простая реализация лога |
 | `AssemblerBase` | `ASM.Base` | `abstract class` | `EmitInstruction`/`EmitInstruction64`/`EmitJump`/`MarkLabel`/`EmitData`/`Build` |
 | `Assembler` | `ASM` | `class : AssemblerBase` | Прямая запись; `_patches` для меток |
-| `AssemblerParser` | `ASM` | `partial class` | Текст → байты; `Assemble(code, baseAddress, ThrowCompiler)` |
+| `AssemblerParser` | `ASM` | `partial class` | Текст → байты; `Assemble(code, baseAddress, ThrowCompiler)`; секции `.data`/`.text` **[UPD]** |
 | `AsmLanguageDefinition` | `ASM` | `static class` | `Mnemonics`/`Registers` (`FrozenSet`), `GetMnemonicRegex`/`GetRegisterRegex` |
 | `ILAssembler` | `ASM.IR` | `class : AssemblerBase` | IR-сборщик: `GetItems()`, двухпроходный `Build()` |
 | `AsmItem`/`AsmLabel`/`AsmData`/`AsmInstruction` | `ASM.IR` | `class` | IR-элементы; `AsmInstruction` разбирает `raw` через `InstructionDecoder` |
@@ -188,9 +191,17 @@ Nantuc.Compiler/
 - `EmitData` добавляет пустой `AsmData(alignment: 8)` (для выравнивания перед меткой) + `MarkLabel` + `AsmData(data, alignment: 1)`.
 - `Build()` — двухпроходный: сначала вычисляет адреса меток (`labelAddresses`), потом пишет байты, патча прыжки.
 
-**`AssemblerParser`** — текстовый ассемблер:
-- `ProcessLines` — split по `\n`/`;`, обработка меток `label:` и `label: instr`, комментарии `;`/`//`.
-- `ParseInstruction` — mnemonic, опциональный `.S8`/`.S16`/`.S32`/`.S64` через `GetRexExtensionAsm()` (`[GeneratedRegex(@"(\\w)\\s*\\.\\s*(\\w)")]` — нормализует `LOAD . S8` → `LOAD.S8`).
+**`AssemblerParser`** — текстовый ассемблер. **[UPD]**
+- Публичные точки входа:
+  - `byte[] Assemble(string code, ulong baseAddress, ThrowCompiler)`
+  - `byte[] Build(string code, AssemblerBase asm)`
+  - `void Assemble(string code, AssemblerBase asm, bool allowDataSection = false)`
+- `allowDataSection = false` по умолчанию — **`.data` запрещён** (используется из `StatementGenerator.GenerateInlineAsm`). Standalone-точки (`Assemble(code, baseAddress, …)`, `Build(code, asm)`) включают секции данных явно.
+- `ProcessLines` — split по `\n`/`;`, обработка меток `label:`, `label: instr`, `label: .quad …`, комментарии `;`/`//`.
+- Директивы секций: `.data`, `.bss`, `.section .data`, `.section .bss` → открыть; `.text`, `.code`, `.section .text`, `.section .code` → закрыть.
+- Директивы данных (только в `.data`): `.byte`/`db`, `.word`/`dw`, `.dword`/`dd`, `.quad`/`dq`, `.ascii`, `.asciz`/`.string`, `.zero`/`.space`.
+- **Буферизация**: данные копятся в `_pendingData` и сливаются в `_asm.EmitData(...)` в конце `Assemble(...)`. Это гарантирует, что `DataSectionStart`/`DataSectionSize` в `Build()` указывают на хвост потока — как если бы их вызвали из MiniC-кодогенератора.
+- `ParseInstruction` — mnemonic, опциональный `.S8`/`.S16`/`.S32`/`.S64` через `GetRexExtensionAsm()` (нормализует `LOAD . S8` → `LOAD.S8`).
 - Роутинг по `baseMnemonic` → `FormatR`/`FormatU`/`FormatLDI`/`FormatLOAD__STORE`/`FormateLOAD_IND__STORE_IND`/`FormatJumpType`.
 - `_opMap`/`_regMap` — `FrozenDictionary` для O(1)-lookup.
 
@@ -278,6 +289,64 @@ asm.EmitEnd();
 byte[] bytes = asm.Build();
 ```
 
+**NANASM с секцией данных — полный пример:** **[NEW]**
+
+```csharp
+var throwCompiler = new ThrowCompiler();
+var parser = new AssemblerParser();
+
+byte[] bytecode = parser.Assemble("""
+    .data
+    msg:        .asciz "Hello, NANASM!\n"
+    counter:    .quad 0
+    table:      .byte 1, 2, 3, 4, 5
+    big_buf:    .zero 64
+
+    .text
+    _start:
+        LDI r0, msg          ; адрес msg → r0
+        LOAD.S8 r1, msg      ; первый байт строки 'H' → r1
+        LDI r2, 42
+        STORE.S64 r2, counter ; записать 42 в counter
+        LOAD.S64 r3, counter  ; r3 = 42
+        ADD r3, r2            ; r3 = 84
+        END
+    """, baseAddress: 0x1000, throwCompiler);
+```
+
+**NANASM с `.data` через explicit `allowDataSection`:** **[NEW]**
+
+```csharp
+var asm = new Assembler(baseAddress: 0x0, throwCompiler);
+var parser = new AssemblerParser();
+
+// allowDataSection: true — .data разрешён
+parser.Assemble("""
+    .data
+    v:   .dword 0xDEADBEEF
+    .text
+    _start:
+        LOAD.S32 r0, v
+        END
+    """, asm, allowDataSection: true);
+
+byte[] bytes = asm.Build();
+```
+
+**Inline-asm в MiniC — `.data` запрещён (по умолчанию):** **[NEW]**
+
+```csharp
+// Внутри StatementGenerator.GenerateInlineAsm(...) вызывается:
+asmParser.Assemble(asm.AsmCode, _asm);   // allowDataSection = false
+
+// Значит, в MiniC нельзя:
+//   asm {
+//     .data
+//     msg: .asciz "x"
+//   }
+// → выбросит NotSupported. Используйте глобальную MiniC-переменную или .data в отдельном NANASM-файле.
+```
+
 ## Приближенность модуля к пользователю
 
 Средняя. Пользователь MiniC работает с компилятором через `VmApplication` (например, `VmApplication.Compile(source)`), а не напрямую с `Nantuc.Compiler`. Но автор языка/расширений работает именно здесь.
@@ -286,16 +355,19 @@ byte[] bytes = asm.Build();
 - Автор оптимизаций — `IAstOptimizationRule`/`IPeepholeRule`.
 - Автор нового backend'а — `AssemblerBase` (реализовать `Build`, `EmitInstruction64` и т.д.).
 - Автор нового target'а ISA — `InstructionEncoder` + `AsmExtensions`.
+- **Автор NANASM-скриптов** — `AssemblerParser` с секциями `.data`/`.text` и директивами данных (см. [Ассемблер NANASM: секции данных](#ассемблер-nanasm-секции-данных)).
 
 **Что стоит делать:**
 - Использовать `ILAssembler` для production-пайплайна (двухпроходный, поддерживает peephole), `Assembler` — только для тестов/отладки.
 - Пользовательские оптимизации — через `Add` в `AstOptimizer`/`PeepholeOptimizer`; правила должны быть идемпотентны (`Clear()` вызывается в начале каждого `Optimize`).
 - Для inline-asm использовать `AsmLanguageDefinition.Mnemonics`/`Registers` как источник истины.
+- Для статических данных в NANASM — `.data` + директивы (`.asciz`, `.zero`, `.quad`, …) вместо ручной генерации байтов через `.byte`.
 
 **Что не стоит делать:**
 - Полагаться на `FunctionNode.Body` у `extern`-функций — там `null!`, никто не проверяет.
 - Полагаться на `RegisterAllocator` для больших функций (>22 одновременно живых скаляров) — жадная раскраска даст стек.
 - Использовать `MiniCLanguageDefinition.GetKeywordRegex()` — dead code, может бросить на WASM AOT (см. [Что исправить](#что-исправить), п. 1).
+- Использовать `.data` в inline-asm (`asm { }` в MiniC) — запрещено, выбросит `NotSupported`.
 
 ## Особенная информация
 
@@ -358,12 +430,108 @@ AssemblerBase (Assembler | ILAssembler)
       byte[] (32-битные слова ISA)
 ```
 
+> **NANASM отдельным потоком:** `AssemblerParser.Assemble(...)` буферизует `.data`-секцию и вызывает `_asm.EmitData(...)` в конце — то есть данные всегда попадают в хвост потока, как и в MiniC-пайплайне. `Build()` в обоих backend'ах выставит корректные `DataSectionStart`/`DataSectionSize`. См. [Ассемблер NANASM: секции данных](#ассемблер-nanasm-секции-данных).
+
 ### Соглашения кодогенератора
 
 - **Регистры**: `r0` — return value / primary scratch; `r1`–`r4` — временные; `r5`–`r26` — переменные (по `RegisterAllocator`); `r27` — `ADDR_SCRATCH_REG_EN` (адресная арифметика); `rFL`/`rSP`/`rHP`/`rIP` — системные.
 - **Соглашение о вызовах**: аргументы 0–3 — в `r0`–`r3`; аргументы 4+ — в pseudo-globals `__param_{func}_{param}`; возвращаемое значение — в `r0` (неявно, через `GenerateReturn` — но обработки возврата в `FunctionNode` нет, вызывающий должен сам взять из `r0`).
 - **Стек**: `rSP` — указатель; save area сразу после local area: `[rSP, rSP + TotalLocalSize)` — локальные, `[rSP + TotalLocalSize, rSP + TotalLocalSize + SaveAreaSize)` — save slots. `SaveAreaSize = (ComputeMaxBinaryDepth + 1) * 8`.
 - **Указательная арифметика**: `ptr + int` масштабируется на `sizeof(*ptr)` (`EmitMultiplyByConstant`); `ptr - ptr` — разница в байтах (без деления, не реализовано).
+
+### Ассемблер NANASM: секции данных **[NEW]**
+
+`AssemblerParser` умеет разбирать секции `.data`/`.text` и директивы данных. Это нужно, чтобы NANASM-скрипты могли описывать статические данные (строки, массивы, буферы) без ручной генерации `.byte`.
+
+**Директивы секций**
+
+| Директива | Действие |
+|---|---|
+| `.data`, `.bss`, `.section .data`, `.section .bss` | открыть секцию данных |
+| `.text`, `.code`, `.section .text`, `.section .code` | закрыть секцию данных (дальше — обычный код) |
+
+**Директивы данных** (только внутри `.data`)
+
+| Директива | Алиас | Ширина | Пример | Результат |
+|---|---|---|---|---|
+| `.byte` | `db` | 1 | `.byte 1, 2, 3` | `[01 02 03]` |
+| `.byte` | — | 1 | `.byte "abc"` | `[61 62 63]` (без NUL) |
+| `.word` | `dw` | 2 | `.word 0x1234, 0x5678` | `[34 12 78 56]` |
+| `.dword` | `dd` | 4 | `.dword 0xDEADBEEF` | `[EF BE AD DE]` |
+| `.quad` | `dq` | 8 | `.quad 0x1122334455667788` | 8 байт little-endian |
+| `.ascii` | — | 1 (без NUL) | `.ascii "Hi"` | `[48 69]` |
+| `.asciz` | `.string` | 1 (+NUL) | `.asciz "Hi"` | `[48 69 00]` |
+| `.zero` | `.space` | N | `.zero 256` | 256 нулевых байт |
+
+**Паттерны с метками**
+
+```asm
+.data
+msg:        .asciz "Hello, NANASM!\n"   ; метка + директива на одной строке
+counter:    .quad 0
+table:      .byte 1, 2, 3, 4, 5
+big_buf:    .zero 64
+empty_str:  .ascii ""
+
+.text
+_start:
+    LDI r0, msg              ; адрес msg → r0 (патчится в Build())
+    LOAD.S8 r1, msg          ; первый байт строки
+    LOAD.S64 r2, counter     ; 0
+    STORE.S64 r3, counter    ; записать
+    END
+```
+
+Допускаются и метка на отдельной строке, и `label: value` на одной — обе формы корректны. Метка без данных перед следующей меткой/директивой — ошибка (`Label 'x' has no data`).
+
+**Как это работает под капотом**
+
+1. `ProcessLines` при встрече `.data` выставляет `_inDataSection = true` и запрещает директивы кода.
+2. Каждая директива данных кодирует байты и складывается в `_pendingData` как `(label, bytes)`.
+3. `FlushPendingData()` в конце `Assemble(...)` вызывает `_asm.EmitData(label, bytes)` для каждой записи.
+4. `Assembler.EmitData` делает `Align8()` → `MarkLabel` → запись; `ILAssembler.EmitData` — `AsmData(align:8) + AsmLabel + AsmData(data)`. Оба backend'а корректно выставляют `DataSectionStart`/`DataSectionSize` в `Build()`.
+5. Патчи в `Build()` (`Assembler._patches`, `ILAssembler.labelAddresses`) разрешают метки из `.data` — `LDI r0, msg`, `STORE.S64 r2, counter` работают как обычно.
+
+**Порядок сброса данных**
+
+Парсер **всегда** сначала обрабатывает весь вход (буферизуя `.data`), затем сбрасывает буфер. Поэтому `.data` может стоять в любом месте файла — до, после или в середине `.text`. Физически данные всё равно окажутся в хвосте потока. Это совпадает с поведением `FunctionGenerator`, который вызывает `EmitData` в самом конце.
+
+**Ограничения**
+
+| Ограничение | Причина | Что делать |
+|---|---|---|
+| `.data` запрещён в inline-asm MiniC (`asm { }`) | `allowDataSection: false` по умолчанию | Используйте глобальную MiniC-переменную или вынесите `.data` в отдельный NANASM-файл |
+| `.quad <label>` не поддерживается | Патч-механизм `EmitData` не умеет метки-операнды | Оставьте `.quad 0` и инициализируйте указатель кодом (`__global_init` в MiniC делает именно так) |
+| `.align N` не поддержан | `EmitData` всегда выравнивает на 8 | Полагайтесь на авто-выравнивание 8 (для `.byte`/`.word` это over-padding, но корректно) |
+| `;` внутри строки обрезается | Существующий `Split(['\n', ';'])` | Не используйте `;` в `.ascii`/`.asciz`; при необходимости — расширьте `TryAddStringData` hex-escape'ом |
+| Пока только little-endian | Платформа Nantuc | — |
+
+**Полный пример: MiniC → NANASM с общей `.data`**
+
+В MiniC `.data` генерирует сам `FunctionGenerator` (через `EmitData` для глобалов и pseudo-globals). Отдельный NANASM-скрипт с `.data` нужен, когда вы пишете ассемблерный старт-ап или интегрируете Nantuc в чужой проект:
+
+```asm
+.data
+stack_top:  .quad 0
+vtable:     .quad 0, 0, 0, 0
+banner:     .asciz "Nantuc // ready\n"
+version:    .dword 0x00010000
+
+.text
+__start:
+    LDI rSP, stack_top
+    LDI r0, banner
+    LOAD.S32 r1, version
+    JZ r1, no_banner
+    ; ... вывод
+no_banner:
+    END
+```
+
+```csharp
+byte[] rom = new AssemblerParser().Assemble(source, baseAddress: 0x0, throwCompiler);
+// rom[DataSectionStart .. DataSectionStart + DataSectionSize] — banner, vtable, version
+```
 
 ### `Assembler` vs `ILAssembler`
 
@@ -375,6 +543,7 @@ AssemblerBase (Assembler | ILAssembler)
 | Проверка `HasNeed64IntData` | ❌ | ✅ (`EmitInstruction64` бросает) |
 | Валидация дублей меток | ✅ (`MarkLabel` бросает) | ✅ (`MarkLabel` бросает) |
 | Двухпроходный Build | ❌ (один проход + patch) | ✅ |
+| `.data` через `AssemblerParser` **[UPD]** | ✅ `EmitData` пишет в хвост потока | ✅ `EmitData` → `AsmData` + `AsmLabel` |
 
 ### `PeepholeOptimizer` — порядок применения
 
@@ -440,44 +609,76 @@ for pass in 0..maxPasses-1:
    Файл: `ExpressionGenerator.cs`: `GenerateLogicalAndOr(binop); if (targetReg != r0) EmitMov(targetReg, r0);`. Результат всегда в `r0`, потом копируется. Для `a && b && c` — цепочка `Mov` между `r0` и `targetReg`. Не критично, но лишние инструкции.  
    Фикс: `GenerateLogicalAndOr(binop, targetReg)` — параметризовать целевой регистр.
 
+10. **[API] `AssemblerParser.TryAddIntegerData` — `.quad <label>` пока не поддержан.** **[NEW]**  
+    Файл: `AssemblerParser.cs`. Директивы `.byte/.word/.dword/.quad` принимают только числовые литералы (`TryParseLong`). Указатель на другую метку в `.data` (`ptr: .quad msg`) не поддержан.  
+    Фикс: добавить в `AsmData`/`EmitData` механизм патча по метке (аналогично `_patches` для инструкций), либо принимать строковые аргументы и резолвить их в `Build()`.
+
+11. **[API] `AssemblerParser.TryAddStringData` — `;` внутри строки обрезается.** **[NEW]**  
+    Файл: `AssemblerParser.cs`. `ProcessLines` использует `Split(['\n', ';'])`, и `;` внутри `.asciz "a;b"` обрежет строку до `a`.  
+    Фикс: вынести разбор строк из общего `Split` или добавить hex-escape (`\x3B`).
+
 ### Дом
 
-10. **[Дом] `Nantuc.Compiler.C.Optimizators` — namespace с опечаткой.**  
+12. **[Дом] `Nantuc.Compiler.C.Optimizators` — namespace с опечаткой.**  
     Файлы: `AstOptimizer.cs`, `IAstOptimizationRule.cs`, `ILogOptimization.cs` — `namespace Nantuc.Compiler.C.Optimizators`. Должно быть `Optimizers` (либо `Optimizations`). Публичная поверхность (в `using`).  
     Фикс: переименовать (breaking change) или оставить с `<remarks>` «legacy spelling».
 
-11. **[Дом] `AsmLanguageDefinition` и `MiniCLanguageDefinition` — параллельные словари.**  
+13. **[Дом] `AsmLanguageDefinition` и `MiniCLanguageDefinition` — параллельные словари.**  
     Оба содержат `Registers`/`Mnemonics` (ASM) и `Keywords`/`Operators`/`Punctuation` (C), плюс regex-хелперы. Regex-хелперы в `MiniCLanguageDefinition` — dead code. В `AsmLanguageDefinition` — возможно, тоже.  
     Фикс: вынести общее в один `LanguageDefinition`-модуль, dead code убрать.
 
-12. **[Дом] `FieldInfo` — `record` с `Name`/`Type`/`Offset`/`Size`.**  
+14. **[Дом] `FieldInfo` — `record` с `Name`/`Type`/`Offset`/`Size`.**  
     Файл: `StructLayout.cs`. Хорошо, но `GetField` использует `List.Find` — O(n) на каждый доступ; при большом количестве полей структуры это заметно.  
     Фикс: `Dictionary<string, FieldInfo>` в `StructLayout` (breaking change — `Fields` остаётся `IReadOnlyList`).
 
 ### XML
 
-13. **[XML] AST-иерархия — без `///`.**  
-    Файл: `ASTNode.cs`. 28 типов, только inline `//`-комментарии в шапке файла (`// ============ БАЗОВЫЙ КЛАСС ============`). Публичные свойства (`Name`, `ReturnType`, `Parameters`, `Body`, `Value`, `Condition`, ...) без документации. Для авторов оптимизаций/расширений это критично — непонятно, что гарантированно не-null, а что — nullable.  
+15. **[XML] AST-иерархия — без `///`.**  
+    Файл: `ASTNode.cs`. 28 типов, только inline `//`-комментарии в шапке файла. Публичные свойства (`Name`, `ReturnType`, `Parameters`, `Body`, `Value`, `Condition`, ...) без документации. Для авторов оптимизаций/расширений это критично — непонятно, что гарантированно не-null, а что — nullable.  
     Фикс: `///` на `ASTNode` и ключевые узлы (`FunctionNode`, `VariableNode`, `AssignmentNode`, `BinaryOpNode`); отметить nullable-поля (`Initializer`, `ElseBlock`, `Init`/`Condition`/`Increment` в `ForNode`, `Value` в `ReturnNode`).
 
-14. **[XML] `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator` — без `///`.**  
+16. **[XML] `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator` — без `///`.**  
     Файлы в `CodeGenerator/`. Публичные методы (`GenerateExpression`, `GenerateBlock`, `Generate`, `SaveRegToStack`/`RestoreRegFromStack`/`ReleaseSaveSlot`, `EmitBinaryOperation`, `ComputeConstant`, `GenerateMemberAddress`, `GenerateCondition`, `ComputeArrayElementAddress`, `ResolveArrayStructType`, `TryInferStructTypeFromPointerExpr`) — без документации.  
     Фикс: минимум — `<summary>` на публичных методах; `<param>`/`<returns>` для `ComputeConstant`/`GenerateCondition`/`ComputeArrayElementAddress`.
 
-15. **[XML] `CodeGenUtils` — без `///`.**  
+17. **[XML] `CodeGenUtils` — без `///`.**  
     Файл: `CodeGenUtils.cs`. `GetSizeForType`, `GetSizeInBytes`, `GetAlignment` (две перегрузки), `IsStructType`, `IsPrimitiveType`, `GetTypeSize`, `EmitMultiplyByConstant` — без документации. `GetAlignment(type, structTable)` для структур возвращает жёстко `8` — не описано.  
     Фикс: `///` на каждый; отметить, что `GetAlignment(type, structTable)` для структур — 8 (максимум по полям, но не вычисляется точно).
 
-16. **[XML] `AssemblerParser.Assemble` — без `///` на публичных методах.**  
-    Файл: `AssemblerParser.cs`. Шапка класса — `///`-комментарий со списком инструкций, но `Assemble(string, ulong, ThrowCompiler)`, `Build(string, AssemblerBase)`, `Assemble(string, AssemblerBase)` — без.  
-    Фикс: `///` на три публичных метода.
+18. **[XML] `AssemblerParser.Assemble` — без `///` на публичных методах.**  
+    Файл: `AssemblerParser.cs`. Шапка класса — `///`-комментарий со списком инструкций, но `Assemble(string, ulong, ThrowCompiler)`, `Build(string, AssemblerBase)`, `Assemble(string, AssemblerBase, bool)` — без.  
+    Фикс: `///` на три публичных метода, явно отметить `allowDataSection` и список поддерживаемых директив данных.
+
+19. **[XML] `AssemblerParser` — шапка класса не перечисляет `.data`.** **[NEW]**  
+    Файл: `AssemblerParser.cs`, `/// <summary>` у класса упоминает только инструкции (`NOP, END, RET, MOV, ...`). Директивы `.data`/`.text`/`.byte`/`.word`/`.dword`/`.quad`/`.ascii`/`.asciz`/`.zero` не указаны.  
+    Фикс: расширить `<summary>`/`<remarks>`, перечислить директивы секций и данных, объяснить буферизацию (`_pendingData` → `FlushPendingData` в конце `Assemble`).
 
 ### Что уже сделано (для истории)
 
 - `InstructionEncoder` — extension-блоки на `OpCode`/`RegType`/`OpCodeSize` + `AsmExtensions` на `AssemblerBase` — единый API эмиссии, кодогенератор не знает, какой backend используется.
 - `ILAssembler` — двухпроходный `Build()` с предварительным вычислением `labelAddresses`, поддержка peephole.
 - `AssemblerParser.GetRexExtensionAsm()` — `[GeneratedRegex]` (AOT-safe), нормализация `LOAD . S8` → `LOAD.S8`.
+- **`AssemblerParser` — секции `.data`/`.text` + директивы данных** (`.byte`/`db`, `.word`/`dw`, `.dword`/`dd`, `.quad`/`dq`, `.ascii`, `.asciz`/`.string`, `.zero`/`.space`). Данные буферизуются в `_pendingData` и сливаются через `EmitData` в конце `Assemble(...)` — `DataSectionStart`/`DataSectionSize` корректны для обоих backend'ов. Inline-asm защищён `allowDataSection: false` по умолчанию. **[NEW]**
 - `RegisterAllocator` — жадная раскраска по Welsh-Powell (степень вершины), с `CollectVarEvents` для live-диапазонов.
 - `FunctionContext.ComputeMaxBinaryDepth` — рекурсивная оценка save area (`SaveAreaSize = (depth + 1) * 8`).
 - `PeepholeOptimizer.Optimize` — до неподвижной точки с `maxPasses`.
 - `StructLayout.Resolve` — итеративное разрешение зависимостей (queue + `lastResolved`), бросает `Parser_StructNotDefined` для неразрешимых.
+```
+
+---
+
+## Краткая шпаргалка по NANASM `.data` (что стоит запомнить из изменений)
+
+| Что | Как |
+|---|---|
+| Открыть данные | `.data` (или `.bss`, `.section .data`) |
+| Вернуться в код | `.text` (или `.code`, `.section .text`) |
+| Байт / слово / dword / quad | `.byte`/`.word`/`.dword`/`.quad` (алиасы `db`/`dw`/`dd`/`dq`) |
+| Строка без NUL / с NUL | `.ascii "…"` / `.asciz "…"` (`string`) |
+| Нулевой буфер | `.zero N` (`.space N`) |
+| Метка + данные | `label: .asciz "…"` |
+| Адрес метки из `.data` | `LDI r0, label` / `STORE.S64 r2, label` (патчится в `Build()`) |
+| Порядок директив | любой: `.data` может быть до/после `.text` — данные всегда попадут в хвост |
+| Inline-asm | `.data` запрещён (по умолчанию `allowDataSection: false`) |
+| `.quad label` | не поддержан (только числа); для глобальных указателей используйте код в `__global_init` |
+| `.align N` | не поддержан (авто-выравнивание на 8) |

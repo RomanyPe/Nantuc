@@ -53,8 +53,8 @@ if (args.Length >= 2 && args[0] == "-snake")
         ? res
         : 200;
 
-    var game = new SnakeLauncher(period);
-    game.LaunchSnake();
+    var game = new SnakeGameOnNantuc(period);
+    game.Run();
     return;
 }
 

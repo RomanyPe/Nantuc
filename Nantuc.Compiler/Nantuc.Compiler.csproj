@@ -6,9 +6,18 @@
 	<Nullable>enable</Nullable>
 	<IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
-
+<PropertyGroup>
+	<!-- Укажите единую версию для всех пакетов на этом этапе -->
+	<Version>1.0.0-alpha.1</Version>
+	<Authors>RomanyPe</Authors>
+	<RepositoryUrl>https://github.com/RomanyPe/Nantuc.git</RepositoryUrl>
+	<PackageId>$(AssemblyName)</PackageId>
+	<!-- Имя пакета будет совпадать с именем сборки -->
+	<Description>
+		Frontend и Backend компилятора платформы Nantuc. Frontend принимает исходник на MiniC (подмножество C: целочисленные типы, `struct`, указатели, массивы, `sizeof`, `asm`-блоки), строит AST и генерирует байткод через двухступенчатую схему: кодогенератор → ассемблер → 32-битные слова ISA. Backend — двухуровневый: либо прямая запись в `MemoryStream` (`Assembler`), либо построение списка IR-инструкций (`ILAssembler`) с возможностью peephole-оптимизаций.
+	</Description>
+</PropertyGroup>
   <ItemGroup>
-	<ProjectReference Include="..\Nantuc.Kernel.Common\Nantuc.Kernel.Common.csproj" />
 	<ProjectReference Include="..\Nantuc.Kernel.Contracts\Nantuc.Kernel.Contracts.csproj" />
 	<ProjectReference Include="..\Nantuc.Kernel.Diagnostics\Nantuc.Kernel.Diagnostics.csproj" />
   </ItemGroup>

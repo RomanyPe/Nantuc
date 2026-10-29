@@ -8,7 +8,7 @@ using Nantuc.VmApplication.Extensions.LibraresIncludes;
 const string source =
     """
     #include "print.minic"
-    char str[] = "Hello world";
+    char str[] = "Hello world. Привет мир";
     void main() { print16(str); }
     """;
 

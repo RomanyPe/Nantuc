@@ -12,8 +12,6 @@ public static partial class MiniCLanguageDefinition
     public static readonly FrozenSet<char> Operators;
     public static readonly FrozenSet<char> Punctuation;
 
-    private static readonly Regex _keywordRegex;
-
     static MiniCLanguageDefinition()
     {
         // Ключевые слова (регистрозависимы, как в C)
@@ -25,10 +23,7 @@ public static partial class MiniCLanguageDefinition
 
         // Знаки пунктуации
         Punctuation = ['(', ')', '{', '}', '[', ']', ';', ',', '.', ':'];
-        
-        // Построение регулярных выражений после инициализации коллекций
-        _keywordRegex = new(GetKeywordPattern(), RegexOptions.Compiled);
-    }
+            }
 
     /// <summary>
     /// Паттерн для поиска ключевых слов.
@@ -54,5 +49,8 @@ public static partial class MiniCLanguageDefinition
         return $"[{escapedChars}]";
     }
 
-    public static Regex GetKeywordRegex() => _keywordRegex;
+    private const string KeywordPattern = @"\b(int|char|void|if|else|do|while|for|return|break|struct|byte|ushort|ulong|new|asm|extern|continue|short|long|uint|sizeof)\b";
+
+    [GeneratedRegex(KeywordPattern, RegexOptions.None)]
+    public static partial Regex GetKeywordRegex();
 }

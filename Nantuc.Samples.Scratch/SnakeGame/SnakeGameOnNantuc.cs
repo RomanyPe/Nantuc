@@ -8,11 +8,11 @@ using System.Text;
 
 namespace Nantuc.Samples.Scratch.SnakeGame;
 
-public class SnakeLauncher(int period = 200)
+public class SnakeGameOnNantuc(int period = 200)
 {
     private readonly StringBuilder sb = new();
     private readonly int _period = period;
-    public void LaunchSnake()
+    public void Run()
     {
         using var host = VmHostFactory.CreateDefault();
 

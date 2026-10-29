@@ -124,7 +124,7 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
     private void GenerateInlineAsm(InlineAsmNode asm)
     {
         var asmParser = new AssemblerParser();
-        asmParser.Assemble(asm.AsmCode, _asm);
+        asmParser.Assemble(asm.AsmCode, _asm, allowDataSection: false);
     }
 
     private void GenerateAssignment(AssignmentNode assign)

@@ -103,7 +103,13 @@ public partial class AssemblerParser
         { "CMP", OpCode.CMP},
         { "TEST", OpCode.TEST},
     };
+    private sealed record PendingData(string? Label, byte[] Data);
 
+    private readonly List<PendingData> _pendingData = [];
+    private bool _inDataSection = false;
+    private string? _pendingLabel = null;
+    private bool _allowDataSection = false;
+    private string _currentLine = string.Empty;
     private AssemblerBase _asm = null!;
     private static readonly FrozenDictionary<string, RegType> _regMap = _regMapLex.ToFrozenDictionary();
     private static readonly FrozenDictionary<string, OpCode> _opMap = _opMapLex.ToFrozenDictionary();
@@ -111,20 +117,26 @@ public partial class AssemblerParser
     public byte[] Assemble(string code, ulong baseAddress, ThrowCompiler throwCompiler)
     {
         var asm = new Assembler(baseAddress, throwCompiler);
-        Assemble(code, asm);
+        Assemble(code, asm, allowDataSection: true);
         return asm.Build();
     }
 
     public byte[] Build(string code, AssemblerBase asm)
     {
-        Assemble(code, asm);
+        Assemble(code, asm, allowDataSection: true);
         return asm.Build();
     }
 
-    public void Assemble(string code, AssemblerBase asm)
+    public void Assemble(string code, AssemblerBase asm, bool allowDataSection = false)
     {
         _asm = asm;
+        _allowDataSection = allowDataSection;
+        _pendingData.Clear();
+        _inDataSection = false;
+        _pendingLabel = null;
+
         ProcessLines(code);
+        FlushPendingData();
     }
 
     private void ProcessLines(string code)
@@ -142,7 +154,68 @@ public partial class AssemblerParser
                 line = line[..commentIdx].Trim();
             if (string.IsNullOrEmpty(line)) continue;
 
-            // Обработка меток
+            // --- директивы секций ---
+            if (line.StartsWith('.'))
+            {
+                string? section = GetSectionDirective(line);
+                if (section == "data")
+                {
+                    if (!_allowDataSection)
+                        _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+                            ".data section is not allowed in this context (inline asm)");
+                    _inDataSection = true;
+                    continue;
+                }
+                if (section == "text")
+                {
+                    _inDataSection = false;
+                    continue;
+                }
+                string? err = null;
+                // Директива данных — только внутри .data
+                if (_inDataSection && TryProcessDataDirective(line, out err))
+                    continue;
+                if (err != null)
+                    _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, err);
+            }
+
+            // --- секция данных: label + данные ---
+            if (_inDataSection)
+            {
+                if (line.EndsWith(':'))
+                {
+                    if (_pendingLabel != null)
+                        _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction,
+                            $"Label '{_pendingLabel}' has no data before next label");
+                    _pendingLabel = line[..^1].Trim();
+                    continue;
+                }
+                if (line.Contains(':'))
+                {
+                    var parts = line.Split([':'], 2);
+                    string label = parts[0].Trim();
+                    string rest = parts[1].Trim();
+                    if (_pendingLabel != null)
+                        _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction,
+                            $"Label '{_pendingLabel}' has no data");
+                    _pendingLabel = label;
+                    if (!string.IsNullOrEmpty(rest))
+                    {
+                        if (!TryProcessDataDirective(rest, out var e2))
+                            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, rest);
+                        if (e2 != null)
+                            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, e2);
+                    }
+                    continue;
+                }
+
+                if (TryProcessDataDirective(line, out _))
+                    continue;
+                _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, line);
+                continue;
+            }
+
+            // --- секция кода (существующая логика) ---
             if (line.EndsWith(':'))
             {
                 string label = line[..^1].Trim();
@@ -151,10 +224,9 @@ public partial class AssemblerParser
             }
             if (line.Contains(':'))
             {
-                string[] parts = line.Split([':'], 2);
-                string label = parts[0].Trim();
+                var parts = line.Split([':'], 2);
+                _asm.MarkLabel(parts[0].Trim());
                 string rest = parts[1].Trim();
-                _asm.MarkLabel(label);
                 if (!string.IsNullOrEmpty(rest))
                     ParseInstruction(rest);
                 continue;
@@ -162,12 +234,171 @@ public partial class AssemblerParser
 
             ParseInstruction(line);
         }
+
+        if (_pendingLabel != null)
+            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction,
+                $"Label '{_pendingLabel}' has no data");
     }
-    private string _currentLine = string.Empty;
+
+    // Стало: нормализуем "LOAD . S8" → "LOAD.S8" без аллокаций
+    // (работаем по ReadOnlySpan, аллоцируем только если реально нашли " . ")
+    private static string NormalizeSizeExtension(string instruction)
+    {
+        // Быстрая проверка: если в строке нет ".", делать нечего
+        int dot = instruction.IndexOf('.');
+        if (dot < 0) return instruction;
+
+        // Проверяем, есть ли пробелы вокруг точки (единственный случай, который чинит regex)
+        bool hasSpaceBefore = dot > 0 && char.IsWhiteSpace(instruction[dot - 1]);
+        bool hasSpaceAfter = dot + 1 < instruction.Length && char.IsWhiteSpace(instruction[dot + 1]);
+        if (!hasSpaceBefore && !hasSpaceAfter) return instruction;
+
+        // Медленный путь — только для строк с " . "
+        return GetRexExtensionAsm().Replace(instruction, "$1.$2");
+    }
+
+    private void FlushPendingData()
+    {
+        if (_pendingData.Count == 0) return;
+        foreach (var item in _pendingData)
+            _asm.EmitData(item.Label ?? "", item.Data);
+        _pendingData.Clear();
+    }
+
+    private static string? GetSectionDirective(string line)
+    {
+        string lower = line.Trim().ToLowerInvariant();
+        if (lower is ".data" or ".bss" or ".section .data" or ".section .bss")
+            return "data";
+        if (lower is ".text" or ".code" or ".section .text" or ".section .code")
+            return "text";
+        return null;
+    }
+
+    private bool TryProcessDataDirective(string line, out string? errorMsg)
+    {
+        errorMsg = null;
+
+        int spaceIdx = line.IndexOfAny([' ', '\t']);
+        string directive = spaceIdx < 0 ? line : line[..spaceIdx];
+        string args = spaceIdx < 0 ? "" : line[(spaceIdx + 1)..].Trim();
+        string dir = directive.ToLowerInvariant();
+
+        switch (dir)
+        {
+            case ".byte":
+            case "db":
+                // строка тоже допустима: .byte "abc"
+                if (args.Length >= 2 && (args[0] == '"' || args[0] == '\''))
+                    return TryAddStringData(args, nullTerminated: false, out errorMsg);
+                return TryAddIntegerData(args, 1, out errorMsg);
+            case ".word":
+            case "dw":
+                return TryAddIntegerData(args, 2, out errorMsg);
+            case ".dword":
+            case "dd":
+                return TryAddIntegerData(args, 4, out errorMsg);
+            case ".quad":
+            case "dq":
+                return TryAddIntegerData(args, 8, out errorMsg);
+            case ".ascii":
+                return TryAddStringData(args, nullTerminated: false, out errorMsg);
+            case ".asciz":
+            case ".string":
+                return TryAddStringData(args, nullTerminated: true, out errorMsg);
+            case ".zero":
+            case ".space":
+                {
+                    if (string.IsNullOrWhiteSpace(args))
+                    { errorMsg = $"{directive} requires a count"; return true; }
+                    if (!long.TryParse(args, out long cnt) || cnt < 0)
+                    { errorMsg = $"{directive} count must be a non-negative integer"; return true; }
+                    AddPendingData(new byte[cnt]);
+                    return true;
+                }
+        }
+
+        return false; // не директива данных
+    }
+
+    private bool TryAddIntegerData(string args, int width, out string? errorMsg)
+    {
+        errorMsg = null;
+        if (string.IsNullOrWhiteSpace(args))
+        { errorMsg = "missing data values"; return true; }
+
+        var parts = args.Split([',', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+        var bytes = new byte[parts.Length * width];
+
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (!TryParseLong(parts[i], out long value))
+            { errorMsg = $"invalid numeric value: {parts[i]}"; return true; }
+
+            for (int b = 0; b < width; b++)
+                bytes[i * width + b] = (byte)((ulong)value >> (b * 8));
+        }
+
+        AddPendingData(bytes);
+        return true;
+    }
+
+    private bool TryAddStringData(string args, bool nullTerminated, out string? errorMsg)
+    {
+        errorMsg = null;
+        args = args.Trim();
+        if (args.Length < 2 || (args[0] != '"' && args[0] != '\'') || args[^1] != args[0])
+        { errorMsg = "string literal expected"; return true; }
+
+        string inner = args[1..^1];
+        var bytes = new List<byte>(inner.Length + 1);
+
+        for (int i = 0; i < inner.Length; i++)
+        {
+            char c = inner[i];
+            if (c == '\\' && i + 1 < inner.Length)
+            {
+                i++;
+                bytes.Add(inner[i] switch
+                {
+                    'n' => (byte)'\n',
+                    't' => (byte)'\t',
+                    'r' => (byte)'\r',
+                    '0' => 0,
+                    '\\' => (byte)'\\',
+                    '"' => (byte)'"',
+                    '\'' => (byte)'\'',
+                    _ => (byte)inner[i],
+                });
+            }
+            else
+            {
+                bytes.Add((byte)c);
+            }
+        }
+
+        if (nullTerminated) bytes.Add(0);
+        AddPendingData([.. bytes]);
+        return true;
+    }
+
+    private static bool TryParseLong(string s, out long value)
+    {
+        s = s.Trim();
+        if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return long.TryParse(s[2..], System.Globalization.NumberStyles.HexNumber, null, out value);
+        return long.TryParse(s, out value);
+    }
+
+    private void AddPendingData(byte[] bytes)
+    {
+        _pendingData.Add(new PendingData(_pendingLabel, bytes));
+        _pendingLabel = null;
+    }
     private void ParseInstruction(string instruction)
     {
         _currentLine = instruction;
-        instruction = GetRexExtensionAsm().Replace(instruction, "$1.$2");
+        instruction = NormalizeSizeExtension(instruction);
 
         var tokens = instruction.Split([' ', '\t', ','], StringSplitOptions.RemoveEmptyEntries);
         if (tokens.Length == 0) return;
