@@ -177,7 +177,7 @@ public class DeviceContext
     /// </summary>
     public void ResetMemoryRam()
     {
-        ThrowIfRunning();
+        ThrowIfRunning("Cannot clear RAM while device is running. Call Stop() first.");
         _device.ResetMemoryRam();
     }
     /// <summary>

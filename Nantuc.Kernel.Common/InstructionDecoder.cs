@@ -154,6 +154,8 @@ public static class InstructionDecoder
         table[(int)OpCode.JNZ] = true;      // адрес перехода
         table[(int)OpCode.JG] = true;       // адрес перехода
         table[(int)OpCode.JL] = true;       // адрес перехода
+        table[(int)OpCode.LOAD_UNSAFE] = true;
+        table[(int)OpCode.STORE_UNSAFE] = true;
 
         return [.. table];
     }

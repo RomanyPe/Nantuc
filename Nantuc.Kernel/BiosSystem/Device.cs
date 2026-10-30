@@ -226,7 +226,7 @@ public sealed class Device : IPortController
     /// <remarks>Безопасно вызывать из другого потока.</remarks>
     public void Stop()
     {
-        _processor.EnqueueBiosStatus(BiosStatus.EndProgramm);
+        _processor.EnqueueBiosStatus(BiosStatus.HostStopped);
         _wakeSignal.Set();
     }
 

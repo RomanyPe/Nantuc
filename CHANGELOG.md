@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.1] - 2026-10-30
+
+### Добавлено:
+- `IdStateExtension` класс расширения который может конвертировать `int` в `IdState` 
+- Добавлен новый элемент `HostStopped` в `BiosStatus`, отправляется процессору при вызове `Stop()` у `Device` или `DeviceContext`
+- Добавлена более подробная XML документация к `AlignmentExtensions`
+
+### Изменения:
+- Изменена документация в корневом README.md, определение "песочница" скорректрировано, частичная реализация политики песочница на хосте, Nantuc VM из коробки работает только в полностью изолированной песочнице, может только отправлять данные и получать их по запросу `IN` и `OUT`
+- `ResetMemoryRam` вызывает `ThrowIfRunning()` с дефолтным `"Cannot launch program while device is running..."` — при попытке очистить RAM сообщение говорит «launch». `ResetMemoryRam` -> `ThrowIfRunning("Cannot clear RAM while device is running. Call Stop() first.")`.
+
+### Исправления:
+- `InstructionDecode.HasNeed64IntData(Opcode opcode)` ранее игнорировал `LOAD_UNSAFE` и `STORE_UNSAFE`, теперь они занесены в таблицу
+- Исправлена и дополнена XML документация для класса `VmHostProject`
+
+
 ## [0.7.0] - 2026-10-29
 
 ### Добавлено:
@@ -15,3 +31,5 @@
 
 ### Исправления:
 - `HaltWakeTests` для `DebugRun_ShouldStopAfterStepLimit` и `ReleaseRun_ShouldStopAfterStepLimit`- ранее была ошибка при которой свойство возвращало `StepCount` больше на 1 чем должно, исправлено
+
+> Файл изменений начался вестись только 2026-10-29, до этого момента история только коммитами

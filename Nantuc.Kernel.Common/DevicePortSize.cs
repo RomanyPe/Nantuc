@@ -52,16 +52,129 @@ public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<
     /// <summary>Размер порта 256 байт (2^8).</summary>
     public static DevicePortSize B256 => new(8);
 
+    /// <summary>
+    /// Определяет равенство двух <see cref="DevicePortSize"/> по полю <see cref="Log2"/>.
+    /// </summary>
+    /// <param name="other">Значение для сравнения.</param>
+    /// <returns>
+    /// <see langword="true"/>, если <see cref="Log2"/> обоих значений совпадают;
+    /// иначе <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// Сравниваются сырые значения <see cref="Log2"/>, а не результаты
+    /// <see cref="IsValid"/>. Два невалидных значения с одинаковым
+    /// <see cref="Log2"/> (например, два <c>default</c>) считаются равными.
+    /// </remarks>
     public bool Equals(DevicePortSize other) => Log2 == other.Log2;
+
+    /// <summary>
+    /// Определяет равенство текущего значения с произвольным объектом.
+    /// </summary>
+    /// <param name="obj">Объект для сравнения.</param>
+    /// <returns>
+    /// <see langword="true"/>, если <paramref name="obj"/> является
+    /// <see cref="DevicePortSize"/> с тем же <see cref="Log2"/>;
+    /// иначе <see langword="false"/>.
+    /// </returns>
     public override bool Equals(object? obj) => obj is DevicePortSize p && Equals(p);
+
+    /// <summary>
+    /// Возвращает хеш-код, построенный по значению <see cref="Log2"/>.
+    /// </summary>
+    /// <returns>Значение <see cref="Log2"/> в виде <see cref="int"/>.</returns>
     public override int GetHashCode() => Log2;
+
+    /// <summary>
+    /// Сравнивает текущее значение с другим по полю <see cref="Log2"/>.
+    /// </summary>
+    /// <param name="other">Значение для сравнения.</param>
+    /// <returns>
+    /// Отрицательное число, если <see cref="Log2"/> текущего значения меньше;
+    /// ноль, если равны; положительное число, если больше.
+    /// </returns>
+    /// <remarks>
+    /// Сравнение идёт по сырому <see cref="Log2"/>, поэтому невалидное
+    /// значение по умолчанию (<see cref="Log2"/> = 0) меньше любого валидного
+    /// (у которого <see cref="Log2"/> ≥ <see cref="MinLog2"/>).
+    /// </remarks>
     public int CompareTo(DevicePortSize other) => Log2.CompareTo(other.Log2);
+
+    /// <summary>
+    /// Возвращает строковое представление размера порта.
+    /// </summary>
+    /// <returns>
+    /// Для валидного значения — строка вида <c>"128 B (2^7)"</c>;
+    /// для невалидного — <c>"DevicePortSize(invalid)"</c>.
+    /// </returns>
     public override string ToString() => IsValid ? $"{Bytes} B (2^{Log2})" : "DevicePortSize(invalid)";
 
+    /// <summary>
+    /// Определяет равенство двух <see cref="DevicePortSize"/>.
+    /// </summary>
+    /// <param name="a">Левое значение.</param>
+    /// <param name="b">Правое значение.</param>
+    /// <returns>
+    /// <see langword="true"/>, если <see cref="Log2"/> значений совпадают;
+    /// иначе <see langword="false"/>.
+    /// </returns>
     public static bool operator ==(DevicePortSize a, DevicePortSize b) => a.Equals(b);
+
+    /// <summary>
+    /// Определяет неравенство двух <see cref="DevicePortSize"/>.
+    /// </summary>
+    /// <param name="a">Левое значение.</param>
+    /// <param name="b">Правое значение.</param>
+    /// <returns>
+    /// <see langword="true"/>, если <see cref="Log2"/> значений различаются;
+    /// иначе <see langword="false"/>.
+    /// </returns>
     public static bool operator !=(DevicePortSize a, DevicePortSize b) => !a.Equals(b);
+
+    /// <summary>
+    /// Оператор «меньше»: сравнивает <see cref="Log2"/> левого и правого значений.
+    /// </summary>
+    /// <param name="a">Левое значение.</param>
+    /// <param name="b">Правое значение.</param>
+    /// <returns>
+    /// <see langword="true"/>, если <c>a.Log2 &lt; b.Log2</c>;
+    /// иначе <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// Сравниваются сырые <see cref="Log2"/>, поэтому невалидное значение
+    /// по умолчанию (<see cref="Log2"/> = 0) меньше любого валидного.
+    /// </remarks>
     public static bool operator <(DevicePortSize a, DevicePortSize b) => a.Log2 < b.Log2;
+
+    /// <summary>
+    /// Оператор «больше»: сравнивает <see cref="Log2"/> левого и правого значений.
+    /// </summary>
+    /// <param name="a">Левое значение.</param>
+    /// <param name="b">Правое значение.</param>
+    /// <returns>
+    /// <see langword="true"/>, если <c>a.Log2 &gt; b.Log2</c>;
+    /// иначе <see langword="false"/>.
+    /// </returns>
     public static bool operator >(DevicePortSize a, DevicePortSize b) => a.Log2 > b.Log2;
+
+    /// <summary>
+    /// Оператор «меньше или равно»: сравнивает <see cref="Log2"/> левого и правого значений.
+    /// </summary>
+    /// <param name="a">Левое значение.</param>
+    /// <param name="b">Правое значение.</param>
+    /// <returns>
+    /// <see langword="true"/>, если <c>a.Log2 &lt;= b.Log2</c>;
+    /// иначе <see langword="false"/>.
+    /// </returns>
     public static bool operator <=(DevicePortSize a, DevicePortSize b) => a.Log2 <= b.Log2;
+
+    /// <summary>
+    /// Оператор «больше или равно»: сравнивает <see cref="Log2"/> левого и правого значений.
+    /// </summary>
+    /// <param name="a">Левое значение.</param>
+    /// <param name="b">Правое значение.</param>
+    /// <returns>
+    /// <see langword="true"/>, если <c>a.Log2 &gt;= b.Log2</c>;
+    /// иначе <see langword="false"/>.
+    /// </returns>
     public static bool operator >=(DevicePortSize a, DevicePortSize b) => a.Log2 >= b.Log2;
 }

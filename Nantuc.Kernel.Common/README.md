@@ -344,13 +344,13 @@ int down    = addr.AlignDown(8);  // 8
 
 | Аспект | Статус | Комментарий |
 |---|---|---|
-| Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — managed. Собирается под `browser-wasm` без правок csproj. |
-| `NativeMemory` | ✅ | Не используется. `Bytes` — managed-сдвиг `1UL << Log2`. |
-| `stackalloc` / `InlineArray` | ✅ | `stackalloc` не используется. `[InlineArray(32)]` упоминается в `<remarks>` `RegType` — это compile-time атрибут, AOT-friendly, WASM-safe. |
-| `Interlocked` / `Volatile` | ✅ | Не используются. Shared-состояние — единственное `static readonly ImmutableArray<bool> _has` в `InstructionDecoder.cs`, инициализируется один раз (CLR гарантирует единственность static-ctor). |
+| Сборка в WASM | - | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — managed. Собирается под `browser-wasm` без правок csproj. |
+| `NativeMemory` | - | Не используется. `Bytes` — managed-сдвиг `1UL << Log2`. |
+| `stackalloc` / `InlineArray` | - | `stackalloc` не используется. `[InlineArray(32)]` упоминается в `<remarks>` `RegType` — это compile-time атрибут, AOT-friendly, WASM-safe. |
+| `Interlocked` / `Volatile` | - | Не используются. Shared-состояние — единственное `static readonly ImmutableArray<bool> _has` в `InstructionDecoder.cs`, инициализируется один раз (CLR гарантирует единственность static-ctor). |
 | `IFileService` | n/a | В этой партии файлов интерфейса нет. |
-| `Regex` / trimming | ✅ | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-совместимо. |
-| AOT | ✅ | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. Generic math (`IBinaryInteger<T>`) моноформируется под каждый `T`. C# 14 `extension`-блоки — compile-time. |
+| `Regex` / trimming | - | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-совместимо. |
+| AOT | - | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. Generic math (`IBinaryInteger<T>`) моноформируется под каждый `T`. C# 14 `extension`-блоки — compile-time. |
 
 **Итог:** код полностью совместим с WASM (interpreter и AOT) и trimming.
 
@@ -377,57 +377,3 @@ int down    = addr.AlignDown(8);  // 8
 - Не содержит `ToIdState`/`TryGetIdState` — только enum `IdState` (см. [Что исправить](#что-исправить), п. 6).
 
 Правило «куда положить тип»: примитив без поведения → `Kernel.Common`; интерфейс/контракт → `Kernel.Contracts`; всё, что исполняет или хранит состояние → `Kernel`.
-
-## Что исправить
-
-По убыванию важности. **[Дефект]** — некорректный XML или несоответствие кода и документации; **[API]** — кандидаты на изменение публичной поверхности; **[XML]** — оставшиеся пробелы.
-
-### API
-
-3. **[API] `DecodeInstructionResult` — breaking change, но в правильную сторону.**  
-   Файл: `DecodeInstructionResult.cs`. Был `readonly struct` с публичными полями; стал `readonly record struct` с позиционными параметрами. Поля → get-only свойства, сгенерированы `Equals`/`GetHashCode`/`==`/`Deconstruct`. Потребители, которые использовали `ref`/`out` на полях или `Marshal.SizeOf`, могут сломаться.  
-   Рекомендация: обновить всех потребителей (это внутренний API, breaking change в пределах платформы — допустимо); явно указать в релиз-нотах.
-
-4. **[API] `InstructionDecoder.HasNeed64IntData` — неполная таблица для `LOAD_UNSAFE`/`STORE_UNSAFE`.**  
-   Файл: `InstructionDecoder.cs`, `CreateNeedsUlongOperandTable()`. `LOAD_UNSAFE R1, [addr]` и `STORE_UNSAFE [addr], R2` по синтаксису в `OpCode` принимают абсолютный адрес — это immediate, но в таблице их нет. `LOAD_IND_UNSAFE`/`STORE_IND_UNSAFE` — indirect через регистр, отсутствие корректно.  
-   Фикс: добавить `table[(int)OpCode.LOAD_UNSAFE] = true;` и `table[(int)OpCode.STORE_UNSAFE] = true;`. Плюс юнит-тест «все члены `OpCode`, задуманные с immediate, отмечены в таблице».
-
-5. **[API] `IdState` — breaking change (Valid: 0 → 1).**  
-   Файл: `IdState.cs`. Раньше `Valid` был первым членом (= 0), теперь `Unknown = 0`, `Valid = 1`. Это **намеренно** (см. `<remarks>`: «неинициализированный статус не должен восприниматься как успешный»), но ломает код, который проверял `IdState.Valid == default` или использовал `IdState` в `switch` без явного маппинга.  
-   Рекомендация: обновить потребителей, добавить `ToIdState`/`TryGetIdState` рядом с enum (см. п. 6), обновить релиз-ноты.
-
-6. **[API/XML] `IdState` — нет `ToIdState`/`TryGetIdState`.**  
-   Файл: `IdState.cs`. Enum теперь полностью задокументирован (все значения явные, `<remarks>` с таблицей), но `int → IdState` расширения нет.  
-   Фикс: добавить `ToIdState`/`TryGetIdState` в `Nantuc.Kernel.Common` рядом с enum — это тот же слой, и его видит и `Kernel`, и потребители.
-
-### XML (оставшиеся пробелы)
-
-7. **[XML] `AlignmentExtensions.AlignUpArithmetic` — без `///`; опечатка в `<summary>` класса.**  
-   Файл: `AlignmentExtensions.cs`. `AlignUp`/`AlignDown` имеют `///`, `AlignUpArithmetic` — нет. `<summary>` класса: «ресширение» (опечатка, должно быть «расширение»).  
-   Фикс: добавить `///` на `AlignUpArithmetic` с пояснением «works for non-power-of-two alignments, always validates `> 0`»; исправить опечатку.
-
-8. **[XML] `DevicePortSize` — часть методов и операторы без `///`.**  
-   Файл: `DevicePortSize.cs`. Структура и фабрики — с `///`; `Equals`/`GetHashCode`/`CompareTo`/`ToString` и все операторы — без (в отличие от `PortSize`/`RamSize`).  
-   Фикс: либо добавить, либо отметить в `<remarks>`, что XML на операторах необязательна (тогда и у `PortSize`/`RamSize` её стоит убрать для консистентности).
-
-### Семантика `Bytes` (оставшиеся риски)
-
-9. **[API] `RamSize`/`PortSize`/`DevicePortSize.Bytes` — для `default` возвращает `1`, а не `0`.**  
-   Задокументировано в `<remarks>` у всех трёх, но легко забыть в потребительском коде.  
-   Фикс: либо возвращать `0` при `!IsValid`, либо оставить и явно указывать в README (сделано выше).
-
-10. **[API] `RamSize`/`PortSize`/`DevicePortSize.Bytes` — при `Log2 >= 64` маскируется по модулю 64.**  
-    Задокументировано в `<remarks>` `PortSize.Bytes` и `RamSize.Bytes`. Сейчас `MaxLog2` = 19/31/8, не воспроизводится, но при повышении `MaxLog2` станет источником багов.  
-    Фикс: либо проверять `Log2 < 64` в `Bytes`, либо запретить `MaxLog2 >= 64` на уровне типа.
-
-### Что уже исправлено (для истории)
-
-- `OpCodeSize.cs` — закрывающие теги исправлены, добавлен `<remarks>` о битовой кодировке.
-- `PortSize.cs` — добавлены `KB2`/`KB32`, `<remarks>` про «намеренно отсутствуют» удалён, набор фабрик совпадает с `RamSize`.
-- `ProcessorFault` — вынесен в отдельный файл, добавлен полный XML с `<remarks>` о соглашении `NOP`-как-сентинел.
-- `RegType` — все `r0..r27` получили `///`, добавлен `<remarks>` про `[InlineArray(32)]`, отсутствие zero-регистра, порядок 0..31.
-- `IdState` — все члены с `///`, явные числовые значения, `Unknown = 0` (default-safe).
-- `DecodeInstructionResult` — переведён в `readonly record struct` (генерирует `Equals`/`GetHashCode`/`==`), полный XML.
-- `BiosStatus` — все 11 членов с `///`, `<remarks>` про «не-ошибки по смыслу».
-- `OpCodeSize` — полностью документирован.
-- `OpCode` — `<remarks>` про 8-байтовое выравнивание immediate, про обновление флагов только `CMP`/`TEST`.
