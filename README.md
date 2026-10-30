@@ -240,7 +240,7 @@ start:
 
 - **.NET 10 SDK**. Все проекты таргетят `net10.0`.
 - **C# 14**: `extension`-блоки, `[InlineArray]`, `params ReadOnlySpan`, `field`-keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
-- **Windows / Linux / macOS / AoT**. В WASM есть ограничения по модулям:
+- **Windows / Linux / macOS / AoT** /ARM . В WASM есть ограничения по модулям:
   - `Kernel.Common` / `Kernel.Contracts` / `Kernel.Diagnostics` — полностью WASM-safe (managed, без `unsafe`, без `RegexOptions.Compiled`).
   - `Nantuc.Compiler` — `Regex` генерируется через `[GeneratedRegex(KeywordPattern, RegexOptions.None)]` - полностью WASM-safe, в остальном мешать будут только аллокации, но их не так много
   - `Nantuc.Kernel` — `unsafe` и `NativeMemory.AllocZeroed`/`Free`/`Clear` поддерживаются WASM (линейная память emscripten), но:
@@ -386,7 +386,6 @@ host.Project.Optimizator.VMAstOptimizer.Add(new MyCustomRule());
 а с учетом расширений которые создают новый массив байт из этой озу 
 и метода `CopyRamTo(Span<byte> destination, nuint start)` можно скопировать сразу в готовый буфер
 
-- CI (GitHub Actions): сборка, тесты, бенчмарк на Windows/Linux.
 - NuGet-пакеты для `Kernel.Common`, `Kernel.Contracts`, `Kernel.Diagnostics`, `Compiler`, `VmApplication`.
 - Публикация бенчмарков в BenchmarkDotNet-совместимом формате.
 
