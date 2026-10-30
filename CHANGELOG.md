@@ -1,26 +1,27 @@
 # Changelog
+
 ## [0.7.2] - 2026-10-30
 
-### Добавлено:
-- Компилятор распознает `const`. Значение хранится обычным образом, но любая попытка присвоить/инкрементить диагностируется на этапе кодогенерации.
-- Новые `ErrorCode`:
-	- `CodeGen_AssignmentToConst = 1316`
-	- `CodeGen_IncrementOfConst = 1317`
-- Добавлен класс `TokenTypeExtension` чтобы без рефлексии получать названия `TokenType`, с `extension` свойством `AsText`
-- Новая структура в `Kernel.Common` - `DiagnosticData`, содержащая свойство `string Text`, а также `implicit operator` и статичные конструкторы
-- Добавлены новые поля к `VariableNode`, `ParameterNode`, `GlobalInfo`, `VarLocation`
-- Добавлены тесты на `const`
-- Добавлена тесты отрицательной ветки компиляции - тоесть проверка что компиляция упадет, позже будут добавлены подобные проверки при надобности
+### Добавлено
+- Компилятор распознаёт `const` (см. раздел «Константность» в README компилятора).
+- Новые `ErrorCode`: `CodeGen_AssignmentToConst = 1316`, `CodeGen_IncrementOfConst = 1317`.
+- `TokenTypeExtension.AsText` — без рефлексии (AOT-safe).
+- `DiagnosticData` (`Nantuc.Kernel.Diagnostics`) — типизированный аргумент диагностики.
+- Новые поля в `VariableNode`, `ParameterNode`, `GlobalInfo`, `VarLocation` (`IsConst`/`IsPointedConst`).
+- Тесты на `const` (позитив + негатив — `RunCompile_ConstViolation`).
 
-### Изменения:
-- все `AST` узлы перенесены в отдельную папку и разделены на отдельные файлы
-- Поправлен `DefaultErrorMessageProvider`, в конструкторе он мержит 2 словаря в 1, также добавлены соответсвующие новые `ErrorCode`
-- Изменена сигнатура `IErrorMessageProvider.GetMessage`, а также`ThrowCompiler.Throw`, теперь вместо `ReadOnlySpan<object> args` он имеет `ReadOnlySpan<DiagnosticData> args`
-- Более AoT - frendly 
-- `RegisterAllocationResult` вынесен в отдельный файл
+### Изменения
+- **BREAKING:** `ThrowCompiler` — instance-класс (было `static`).
+- **BREAKING:** `IErrorMessageProvider.GetMessage` и `ThrowCompiler.Throw` принимают `ReadOnlySpan<DiagnosticData>` (было `object`).
+- **BREAKING:** `ValidateAllCodesCovered` / `TryValidateAllCodesCovered` удалены.
+- `DefaultErrorMessageProvider` мержит `overrides` поверх стандартных шаблонов (было — замена).
+- AST-узлы разнесены по отдельным файлам в `C/AST/`.
+- `RegisterAllocationResult` вынесен в отдельный файл.
+- Более AOT-friendly: `Enum.ToString()` убран из диагностики, `DiagnosticData` без боксинга.
 
-
-## [0.7.1] - 2026-10-30
+### Документация
+- **Compiler README:** новые разделы «Константность (`const`)» и «Диагностика: `DiagnosticData`»; обновлены дерево, API-таблица, пайплайн, «Что исправить», «Что сделано».
+- **Kernel.Diagnostics README:** новый раздел про `DiagnosticData` и AOT; `ThrowCompiler` описан как instance; обновлены `ErrorCode`, `DefaultErrorMessageProvider`, примеры.## [0.7.1] - 2026-10-30
 
 ### Добавлено:
 - `IdStateExtension` класс расширения который может конвертировать `int` в `IdState` 
