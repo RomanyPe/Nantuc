@@ -1,7 +1,6 @@
-﻿using Nantuc.Compiler.ASM;
-using Nantuc.Compiler.ASM.Base;
-using Nantuc.Compiler.ASM.IR;
+﻿using Nantuc.Compiler.ASM.Base;
 using Nantuc.Compiler.ASM.Utils;
+using Nantuc.Compiler.C.AST;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
 
@@ -25,9 +24,11 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
 
         foreach (var global in program.GlobalVarNodes)
         {
-            _globalMem.Allocate(global.Name, global.Type, global.IsArray, global.IsPointer, global.PointedType, global.ArraySize);
+            _globalMem.Allocate(global.Name, global.Type,
+                                global.IsArray, global.IsPointer, global.PointedType,
+                                global.ArraySize,
+                                global.IsConst, global.IsPointedConst);
         }
-
 
         _functionTable.Clear();
         foreach (var func in program.FunctionNodes)

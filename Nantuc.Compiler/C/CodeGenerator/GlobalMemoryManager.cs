@@ -1,4 +1,6 @@
-﻿namespace Nantuc.Compiler.C.CodeGenerator;
+﻿using Nantuc.Compiler.C.AST;
+
+namespace Nantuc.Compiler.C.CodeGenerator;
 
 // ============================================================
 // GlobalMemoryManager – управление глобальной памятью
@@ -7,12 +9,14 @@ public class GlobalMemoryManager
 {
     private readonly Dictionary<string, GlobalInfo> _globals = [];
 
-    public void Allocate(string name, string type, bool isArray = false, bool isPointer = false,
-                         string? pointedType = null, int arraySize = 0)
+    public void Allocate(string name, string type,
+                         bool isArray = false, bool isPointer = false,
+                         string? pointedType = null, int arraySize = 0,
+                         bool isConst = false, bool isPointedConst = false)
     {
-        _globals[name] = new GlobalInfo(0, type, isArray, isPointer, pointedType, arraySize);
+        _globals[name] = new GlobalInfo(0, type, isArray, isPointer,
+                                        pointedType, arraySize, isConst, isPointedConst);
     }
-
     public void AllocatePseudoGlobals(FunctionNode func)
     {
         foreach (var param in func.Parameters)

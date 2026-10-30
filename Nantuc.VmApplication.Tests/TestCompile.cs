@@ -617,6 +617,43 @@ int main() {
     return arr[1].x;
 }
 """, 42)]
+
+    // ═══════════════════════════════════════════════════════════════
+    // CONST — позитивные: компилируются и возвращают ожидаемое значение
+    // ═══════════════════════════════════════════════════════════════
+
+    // базовый const-скаляр: чтение работает как у обычной переменной
+    [InlineData("const int x = 5; int main() { return x; }", 5)]
+    [InlineData("const int G = 42; int main() { return G; }", 42)]
+    [InlineData("int main() { const int x = 7; return x * 3; }", 21)]
+
+    // const-массив: элементы read-only, но читаются нормально
+    [InlineData("int main() { const int arr[3] = { 10, 20, 30 }; return arr[0] + arr[1] + arr[2]; }", 60)]
+
+    // int * const p — p нельзя переприсвоить, *p можно менять
+    [InlineData("int main() { int a = 5; int * const p = &a; *p = 10; return a; }", 10)]
+    [InlineData("int main() { int a = 5; int * const p = &a; (*p)++; return a; }", 6)]
+    [InlineData("int main() { int a = 5; int * const p = &a; *p += 3; return a; }", 8)]
+
+    // const int *p — *p нельзя менять, но p можно переприсваивать
+    [InlineData("int main() { int a = 5; const int *p = &a; return *p; }", 5)]
+    [InlineData("int main() { int a[3] = { 10, 20, 30 }; const int *p = a; p = p + 1; return *p; }", 20)]
+    [InlineData("int main() { int a[3] = { 10, 20, 30 }; const int *p = a; p++; return *p; }", 20)]
+
+    // const int * const p — ни то, ни другое, но читать можно
+    [InlineData("int main() { int a = 5; const int * const p = &a; return *p; }", 5)]
+
+    // параметры функции
+    [InlineData("int f(const int x) { return x + 1; } int main() { return f(10); }", 11)]
+    [InlineData("int f(const int *p) { return *p * 2; } int main() { int a = 21; return f(&a); }", 42)]
+
+    // sizeof от const — const не влияет на размер
+    [InlineData("int main() { const int x = 5; return sizeof(x); }", 4)]
+    [InlineData("int main() { return sizeof(const int); }", 4)]
+    [InlineData("int main() { return sizeof(const int*); }", 8)]
+
+    // передача const в не-const параметр по значению — допустимо (copy)
+    [InlineData("int f(int x) { x = 100; return x; } const int a = 5; int main() { return f(a); }", 100)]
     public void RunCompile(string program, ulong res)
     {
         using var host = VmHostFactory.CreateDefault();
@@ -648,5 +685,68 @@ int main() {
         }
 
         Assert.True(v);
+    }
+    // ═══════════════════════════════════════════════════════════════
+    // CONST — негативные: компиляция ОБЯЗАНА упасть
+    // ═══════════════════════════════════════════════════════════════
+
+    [Theory]
+    // базовый const-скаляр
+    [InlineData("const int x = 5; int main() { x = 6; return x; }")]
+    [InlineData("int main() { const int x = 5; x = 6; return x; }")]
+    [InlineData("const int G = 5; int main() { G = 10; return G; }")]
+    [InlineData("const int x = 5; int main() { x++; return x; }")]
+    [InlineData("const int x = 5; int main() { --x; return x; }")]
+    [InlineData("const int x = 5; int main() { x += 1; return x; }")]
+    [InlineData("const int x = 5; int main() { x *= 2; return x; }")]
+
+    // массив const — элементы read-only
+    [InlineData("int main() { const int arr[3] = { 1, 2, 3 }; arr[0] = 5; return 0; }")]
+    [InlineData("int main() { const int arr[3] = { 1, 2, 3 }; arr[1]++; return 0; }")]
+    [InlineData("int main() { const int arr[3] = { 1, 2, 3 }; arr[2] += 1; return 0; }")]
+
+    // int * const p — нельзя переприсвоить сам указатель
+    [InlineData("int main() { int a = 5; int * const p = &a; p = &a; return 0; }")]
+    [InlineData("int main() { int a = 5; int * const p = &a; p++; return 0; }")]
+    [InlineData("int main() { int a = 5; int * const p = &a; --p; return 0; }")]
+
+    // const int *p — нельзя писать через указатель
+    [InlineData("int main() { int a = 5; const int *p = &a; *p = 10; return 0; }")]
+    [InlineData("int main() { int a = 5; const int *p = &a; (*p)++; return 0; }")]
+    [InlineData("int main() { int a = 5; const int *p = &a; *p += 1; return 0; }")]
+    [InlineData("int main() { int a = 5; const int *p = &a; p[0] = 10; return 0; }")]
+    [InlineData("int main() { int a = 5; const int *p = &a; p[0]++; return 0; }")]
+
+    // const int * const p — ни то, ни другое
+    [InlineData("int main() { int a = 5; const int * const p = &a; *p = 10; return 0; }")]
+    [InlineData("int main() { int a = 5; const int * const p = &a; p = &a; return 0; }")]
+    [InlineData("int main() { int a = 5; const int * const p = &a; p++; return 0; }")]
+
+    // параметры
+    [InlineData("int f(const int x) { x = 5; return x; } int main() { return f(10); }")]
+    [InlineData("int f(const int x) { x++; return x; } int main() { return f(10); }")]
+    [InlineData("int f(const int *p) { *p = 10; return 0; } int main() { int a = 5; return f(&a); }")]
+    [InlineData("int f(const int *p) { (*p)++; return 0; } int main() { int a = 5; return f(&a); }")]
+    public void RunCompile_ConstViolation(string program)
+    {
+        using var host = VmHostFactory.CreateDefault();
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
+        var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
+        var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
+
+        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.C).Build();
+
+        if (comp.Success)
+        {
+            _outPut.WriteLine("Expected compilation to FAIL, but it succeeded:");
+            _outPut.WriteLine(program);
+            _outPut.WriteLine("--- NANASM ---");
+            _outPut.WriteLine(comp.DisassembleToString());
+        }
+
+        Assert.False(comp.Success,
+            "Compilation unexpectedly succeeded — const violation not caught");
+        Assert.NotNull(comp.Errors);
+        Assert.NotEmpty(comp.Errors!);
     }
 }

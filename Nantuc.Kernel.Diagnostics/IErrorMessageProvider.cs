@@ -14,5 +14,5 @@ public interface IErrorMessageProvider
     /// </summary>
     /// <param name="code">код ошибки</param>
     /// <param name="args">аргументы</param>
-    string GetMessage(ErrorCode code, params ReadOnlySpan<object> args);
+    string GetMessage(ErrorCode code, params ReadOnlySpan<DiagnosticData> args);
 }

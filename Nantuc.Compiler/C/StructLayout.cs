@@ -1,4 +1,5 @@
-﻿using Nantuc.Compiler.C.CodeGenerator;
+﻿using Nantuc.Compiler.C.AST;
+using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Kernel.Diagnostics;
 
 namespace Nantuc.Compiler.C;

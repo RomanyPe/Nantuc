@@ -2,6 +2,7 @@
 using Nantuc.Compiler.ASM.Base;
 using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.ASM.Utils;
+using Nantuc.Compiler.C.AST;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
 
@@ -129,7 +130,8 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
 
     private void GenerateAssignment(AssignmentNode assign)
     {
-        // В начале метода, перед существующими ветками:
+        CheckConstTarget(assign);
+
         if (assign.CompoundOp != null && assign.CompoundOp != "=")
         {
             GenerateCompoundAssignment(assign);
@@ -206,6 +208,33 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         // 6) Общий случай: x (в стеке/глобале) = value
         _exprGen.GenerateExpression(assign.Value);
         _varAccessor.StoreFromRegister(assign.Name, RegType.r0);
+    }
+
+    private void CheckConstTarget(AssignmentNode assign)
+    {
+        // arr[i] = ...   → проверяем элементы массива/указателя
+        if (assign.IndexExpr != null)
+        {
+            if (_varAccessor.IsPointedConst(assign.Name))
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_AssignmentToConst, assign.Name);
+            return;
+        }
+
+        // *p = ...
+        if (assign.LValue is DereferenceNode deref && deref.Operand is IdentifierNode ptrId)
+        {
+            if (_varAccessor.IsPointedConst(ptrId.Name))
+                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_AssignmentToConst, ptrId.Name);
+            return;
+        }
+
+        // obj.field = ...   (TODO: const на поле структуры — отдельно)
+        if (assign.LValue is MemberAccessNode)
+            return;
+
+        // простое имя
+        if (_varAccessor.IsConst(assign.Name))
+            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_AssignmentToConst, assign.Name);
     }
 
     private void GenerateCompoundAssignment(AssignmentNode assign)

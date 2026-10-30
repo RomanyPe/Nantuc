@@ -44,7 +44,7 @@ public class ILAssembler(ulong baseAddress, ThrowCompiler throwCompiler) : Assem
         var op = InstructionDecoder.GetOpCode(instruction);
         if (!InstructionDecoder.HasNeed64IntData(op))
         {
-            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, op);
+            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, op.OpName());
         }
         _items.Add(new AsmInstruction(instruction, data));
     }

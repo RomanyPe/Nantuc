@@ -1,7 +1,5 @@
-﻿using Nantuc.Compiler.C.Optimizators;
-using Nantuc.Compiler.C;
-using Nantuc.VmApplication.Extensions.Optimizators;
-using System.Text;
+﻿using Nantuc.Compiler.C.AST;
+using Nantuc.Compiler.C.Optimizators;
 using Nantuc.Kernel.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.AstRules;

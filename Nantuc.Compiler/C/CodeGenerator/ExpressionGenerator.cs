@@ -1,5 +1,6 @@
 ﻿using Nantuc.Compiler.ASM.Base;
 using Nantuc.Compiler.ASM.Utils;
+using Nantuc.Compiler.C.AST;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
 
@@ -230,6 +231,21 @@ public class ExpressionGenerator(AssemblerBase asm,
 
     internal void GenerateIncrement(IncrementNode node, RegType targetReg)
     {
+        switch (node.Target)
+        {
+            case IdentifierNode id:
+                if (_varAccessor.IsConst(id.Name))
+                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_IncrementOfConst, id.Name);
+                break;
+            case ArrayAccessNode arr:
+                if (_varAccessor.IsPointedConst(arr.ArrayName))
+                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_IncrementOfConst, arr.ArrayName);
+                break;
+            case DereferenceNode dr when dr.Operand is IdentifierNode p:
+                if (_varAccessor.IsPointedConst(p.Name))
+                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_IncrementOfConst, p.Name);
+                break;
+        }
         // dispatch по типу target
         switch (node.Target)
         {

@@ -1,10 +1,7 @@
-﻿using Nantuc.Compiler.C.CodeGenerator;
+﻿using Nantuc.Compiler.C.AST;
+using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizators;
-using Nantuc.Compiler.C;
-using Nantuc.VmApplication.Extensions.Optimizators;
-using System.Text;
 using Nantuc.Kernel.Contracts;
-using System.Reflection.Metadata;
 using Nantuc.Kernel.Diagnostics;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.AstRules;

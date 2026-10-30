@@ -55,7 +55,7 @@ public class ThrowCompiler(IErrorMessageProvider? provider)
     /// </exception>
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    public void Throw(ErrorCode code, params ReadOnlySpan<object> args)
+    public void Throw(ErrorCode code, params ReadOnlySpan<DiagnosticData> args)
     {
         var message = ErrorMessageProvider.GetMessage(code, args);
         throw new CodeException(code, message);
@@ -81,7 +81,7 @@ public class ThrowCompiler(IErrorMessageProvider? provider)
     /// </exception>
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    public T Throw<T>(ErrorCode code, params ReadOnlySpan<object> args)
+    public T Throw<T>(ErrorCode code, params ReadOnlySpan<DiagnosticData> args)
     {
         var message = ErrorMessageProvider.GetMessage(code, args);
         throw new CodeException(code, message);

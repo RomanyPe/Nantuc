@@ -43,6 +43,24 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
     }
 
+    public bool IsConst(string name)
+    {
+        if (_funcCtx.VarMap != null && _funcCtx.VarMap.TryGetValue(name, out var loc))
+            return loc.IsConst;
+        if (_globalMem.Contains(name))
+            return _globalMem.GetInfo(name)!.Value.IsConst;
+        return false;
+    }
+
+    public bool IsPointedConst(string name)
+    {
+        if (_funcCtx.VarMap != null && _funcCtx.VarMap.TryGetValue(name, out var loc))
+            return loc.IsPointedConst;
+        if (_globalMem.Contains(name))
+            return _globalMem.GetInfo(name)!.Value.IsPointedConst;
+        return false;
+    }
+
     public void StoreFromRegister(string varName, RegType sourceReg)
     {
         if (TryGetRegister(varName, out var locReg))

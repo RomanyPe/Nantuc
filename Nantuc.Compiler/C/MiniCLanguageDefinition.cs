@@ -17,7 +17,7 @@ public static partial class MiniCLanguageDefinition
         // Ключевые слова (регистрозависимы, как в C)
         Keywords = ["int", "char", "void", "if", "else", "do", "while", "for", "return",
             "break", "struct", "byte", "ushort", "ulong", "new", "asm", "extern", "continue",
-            "short", "long", "uint", "sizeof"];
+            "short", "long", "uint", "sizeof", "const"];
         // Операторы (одиночные символы)
         Operators = ['+', '-', '*', '/', '%', '=', '!', '<', '>', '&', '|', '^', '~', '#'];
 
@@ -49,7 +49,7 @@ public static partial class MiniCLanguageDefinition
         return $"[{escapedChars}]";
     }
 
-    private const string KeywordPattern = @"\b(int|char|void|if|else|do|while|for|return|break|struct|byte|ushort|ulong|new|asm|extern|continue|short|long|uint|sizeof)\b";
+    private const string KeywordPattern = @"\b(int|char|void|if|else|do|while|for|return|break|struct|byte|ushort|ulong|new|asm|extern|continue|short|long|uint|sizeof|const)\b";
 
     [GeneratedRegex(KeywordPattern, RegexOptions.None)]
     public static partial Regex GetKeywordRegex();

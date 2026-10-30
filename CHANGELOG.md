@@ -1,4 +1,24 @@
 # Changelog
+## [0.7.2] - 2026-10-30
+
+### Добавлено:
+- Компилятор распознает `const`. Значение хранится обычным образом, но любая попытка присвоить/инкрементить диагностируется на этапе кодогенерации.
+- Новые `ErrorCode`:
+	- `CodeGen_AssignmentToConst = 1316`
+	- `CodeGen_IncrementOfConst = 1317`
+- Добавлен класс `TokenTypeExtension` чтобы без рефлексии получать названия `TokenType`, с `extension` свойством `AsText`
+- Новая структура в `Kernel.Common` - `DiagnosticData`, содержащая свойство `string Text`, а также `implicit operator` и статичные конструкторы
+- Добавлены новые поля к `VariableNode`, `ParameterNode`, `GlobalInfo`, `VarLocation`
+- Добавлены тесты на `const`
+- Добавлена тесты отрицательной ветки компиляции - тоесть проверка что компиляция упадет, позже будут добавлены подобные проверки при надобности
+
+### Изменения:
+- все `AST` узлы перенесены в отдельную папку и разделены на отдельные файлы
+- Поправлен `DefaultErrorMessageProvider`, в конструкторе он мержит 2 словаря в 1, также добавлены соответсвующие новые `ErrorCode`
+- Изменена сигнатура `IErrorMessageProvider.GetMessage`, а также`ThrowCompiler.Throw`, теперь вместо `ReadOnlySpan<object> args` он имеет `ReadOnlySpan<DiagnosticData> args`
+- Более AoT - frendly 
+- `RegisterAllocationResult` вынесен в отдельный файл
+
 
 ## [0.7.1] - 2026-10-30
 

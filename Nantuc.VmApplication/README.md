@@ -629,14 +629,6 @@ using var host = VmHostFactory.CreateDefault(optimizator: optimizator);
 По убыванию важности. Ссылки на файлы и методы.
 
 
-10. **`VmEmulator` — `using System.Xml.Linq;` (неиспользуемый).**  
-    Файл: `Emulator/VmEmulator.cs`. Не используется.  
-    Фикс: удалить `using`.
-
-11. **`DeviceContext.ThrowIfRunning` — сообщение «launch program» в `LoadProgram`.**  
-    Файл: `Emulator/DeviceContext.cs`, `LoadProgram` вызывает `ThrowIfRunning("Cannot load program while device is running. Call Stop() first.")` — здесь сообщение переопределено правильно. Но `ResetMemoryRam` вызывает `ThrowIfRunning()` с дефолтным `"Cannot launch program while device is running..."` — при попытке очистить RAM сообщение говорит «launch».  
-    Фикс: `ResetMemoryRam` → `ThrowIfRunning("Cannot clear RAM while device is running. Call Stop() first.")`.
-
 12. **`VmHostProject.AsmMnemonics` / `AsmRegisters` / `MiniCMnemonics` — XML-doc обрывается.**  
     Файл: `Project/VmHostProject.cs`. Комментарии: `/// <summary><see cref="Regex"/> регистров NANASM </summary` — незакрытый `</summary>`.  
     Фикс: `</summary>` вместо `</summary` (без `>`).

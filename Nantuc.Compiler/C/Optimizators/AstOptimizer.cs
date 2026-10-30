@@ -1,4 +1,5 @@
-﻿using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Compiler.C.AST;
+using Nantuc.Kernel.Contracts;
 
 namespace Nantuc.Compiler.C.Optimizators;
 

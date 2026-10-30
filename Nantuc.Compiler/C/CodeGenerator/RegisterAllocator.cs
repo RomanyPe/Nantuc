@@ -1,4 +1,4 @@
-﻿using Nantuc.Compiler.C;
+﻿using Nantuc.Compiler.C.AST;
 using Nantuc.Kernel.Common;
 
 namespace Nantuc.Compiler.C.CodeGenerator;
@@ -43,19 +43,21 @@ public static class RegisterAllocator
         Dictionary<string, VariableNode> localVars,
         Dictionary<string, StructLayout> structTable)
     {
-        // 1. Отбираем переменные-кандидаты: скаляры, не массивы и не структуры.
         var candidates = new Dictionary<string, VariableNode>();
         foreach (var kv in localVars)
         {
             var name = kv.Key;
             var varNode = kv.Value;
-            // Пропускаем массивы, структуры и указатели на структуры (для простоты)
             if (varNode.IsArray || structTable.ContainsKey(varNode.Type))
                 continue;
             candidates[name] = varNode;
         }
 
-        // 2. Получаем доступные регистры (например r4..r23).
+        // 1.5. Исключаем переменные, чей адрес берётся (&x) — они обязаны жить в памяти.
+        foreach (var addrTaken in CollectAddressTakenVars(func.Body))
+            candidates.Remove(addrTaken);
+
+        // 2. Получаем доступные регистры.
         var availableRegs = GetAvailableRegisters();
 
         // 3. Строим граф интерференции (упрощённо: пересечение диапазонов жизни).
@@ -80,6 +82,70 @@ public static class RegisterAllocator
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// Собирает имена переменных, к которым применяется унарный &amp;.
+    /// Такие переменные не могут жить в регистре.
+    /// </summary>
+    private static HashSet<string> CollectAddressTakenVars(BlockNode body)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        Walk(body);
+        return result;
+
+        void Walk(ASTNode? node)
+        {
+            switch (node)
+            {
+                case null: return;
+                case AddressOfNode { Operand: IdentifierNode id }:
+                    result.Add(id.Name);
+                    return;
+                case AddressOfNode ao: Walk(ao.Operand); return;
+
+                case BinaryOpNode b: Walk(b.Left); Walk(b.Right); return;
+                case UnaryOpNode u: Walk(u.Operand); return;
+
+                case AssignmentNode a:
+                    if (a.LValue is not null) Walk(a.LValue);
+                    if (a.IndexExpr is not null) Walk(a.IndexExpr);
+                    Walk(a.Value);
+                    return;
+
+                case IfNode i:
+                    Walk(i.Condition); Walk(i.ThenBlock); Walk(i.ElseBlock);
+                    return;
+                case WhileNode w: Walk(w.Condition); Walk(w.Body); return;
+                case ForNode f:
+                    Walk(f.Init); Walk(f.Condition); Walk(f.Increment); Walk(f.Body);
+                    return;
+                case ReturnNode r: Walk(r.Value); return;
+
+                case FunctionCallNode c:
+                    foreach (var arg in c.Arguments) Walk(arg);
+                    return;
+
+                case ArrayAccessNode aa: Walk(aa.Index); return;
+                case MemberAccessNode ma: Walk(ma.Object); return;
+                case DereferenceNode d: Walk(d.Operand); return;
+
+                case BlockNode b:
+                    foreach (var s in b.Statements) Walk(s);
+                    return;
+                case DoWhileNode dw: Walk(dw.Body); Walk(dw.Condition); return;
+                case IncrementNode inc: Walk(inc.Target); return;
+
+                case VariableNode v:
+                    Walk(v.Initializer);
+                    if (v.ArrayInitializer is not null)
+                        foreach (var x in v.ArrayInitializer) Walk(x);
+                    return;
+
+                // Листья и прочее — нечего обходить
+                default: return;
+            }
+        }
     }
 
     // ------------------------------------------------------------

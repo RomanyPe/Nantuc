@@ -20,7 +20,7 @@ public class Token(TokenType type, string value, int line, int column)
     public int Line { get; } = line;
     public int Column { get; } = column;
 
-    public override string ToString() => $"{Type}: '{Value}' at {Line}:{Column}";
+    public override string ToString() => $"{Type.AsText}: '{Value}' at {Line}:{Column}";
 }
 
 public class Lexer(string source, ThrowCompiler ThrowCompiler)

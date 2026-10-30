@@ -1,4 +1,4 @@
-﻿using Nantuc.Compiler.C;
+﻿using Nantuc.Compiler.C.AST;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Diagnostics;
 
@@ -26,17 +26,21 @@ public class FunctionContext
             FunctionName = func.Name,
             EpilogueLabel = $"__epilogue_{func.Name}"
         };
-        var allVars = new List<(string name, string type, bool isArray, int arraySize, bool isPointer, string? pointedType)>();
+        var allVars = new List<(string name, string type, bool isArray, int arraySize,
+                                bool isPointer, string? pointedType,
+                                bool isConst, bool isPointedConst)>();
+
         foreach (var param in func.Parameters)
-            allVars.Add((param.Name, param.Type, false, 0, param.IsPointer, param.PointedType));
+            allVars.Add((param.Name, param.Type, false, 0, param.IsPointer, param.PointedType,
+                         param.IsConst, param.IsPointedConst));
 
         foreach (var kv in localVarNodes)
         {
-            var varDecl = kv.Value;
-            if (!allVars.Any(v => v.name == kv.Key))
-                allVars.Add((kv.Key, varDecl.Type, varDecl.IsArray, varDecl.ArraySize, varDecl.IsPointer, varDecl.PointedType));
-        }
-        // Создаём словарь всех переменных функции (параметры + локальные)
+            var v = kv.Value;
+            if (!allVars.Any(x => x.name == kv.Key))
+                allVars.Add((kv.Key, v.Type, v.IsArray, v.ArraySize,
+                             v.IsPointer, v.PointedType, v.IsConst, v.IsPointedConst));
+        }        // Создаём словарь всех переменных функции (параметры + локальные)
         var allVarNodes = new Dictionary<string, VariableNode>();
 
         foreach (var param in func.Parameters)
@@ -60,7 +64,7 @@ public class FunctionContext
         var varMap = new Dictionary<string, VarLocation>();
         int stackOffset = 0;
 
-        foreach (var (name, type, isArray, arraySize, isPointer, pointedType) in allVars)
+        foreach (var (name, type, isArray, arraySize, isPointer, pointedType, isConst, isPointedConst) in allVars)
         {
             StructLayout? layout = null;
             bool isStruct = !isPointer && structTable.TryGetValue(type, out layout);
@@ -103,7 +107,9 @@ public class FunctionContext
                     IsArray = false,
                     ArraySize = 0,
                     IsPointer = isPointer,
-                    PointedType = pointedType
+                    PointedType = pointedType,
+                    IsConst = isConst,
+                    IsPointedConst = isPointedConst,
                 };
             }
             else
@@ -117,7 +123,9 @@ public class FunctionContext
                     IsArray = isArray,
                     ArraySize = arraySize,
                     IsPointer = isPointer,
-                    PointedType = pointedType
+                    PointedType = pointedType,
+                    IsConst = isConst,
+                    IsPointedConst = isPointedConst,
                 };
                 stackOffset += varSize;
             }

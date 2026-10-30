@@ -2,6 +2,7 @@
 using Nantuc.Compiler.ASM.Base;
 using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Compiler.C;
+using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizators;
 using Nantuc.Kernel.Contracts;

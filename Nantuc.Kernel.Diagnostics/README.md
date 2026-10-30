@@ -324,14 +324,6 @@ var p2 = new DefaultErrorMessageProvider(merged);
 - Шаблоны в `DefaultErrorMessageProvider.templates` — тоже контракт (порядок аргументов). Если меняете шаблон — либо сохраняйте порядок аргументов, либо документируйте как breaking.
 - Диапазоны по подсистемам — соглашение, а не инвариант: `1000` — общие, `1100` — Lexer, `1200` — Parser, `1300` — CodeGen, `1400` — Asm. Свободные номера внутри диапазона можно занимать; переходить на чужой диапазон — нет.
 
-### Глобальное состояние `ThrowCompiler.ErrorMessageProvider`
-
-Это mutable static — единственная точка на весь процесс. Следствия:
-
-- Не потокобезопасно при смене. Если один поток читает `ErrorMessageProvider`, а другой пишет — data race. Устанавливайте провайдер до запуска потоков (на старте приложения).
-- Влияет на все компиляторы в процессе. Если у вас в одном процессе и MiniC, и NANASM, и сторонний плагин — все они получат один провайдер. Для мультиязычного хостинга (например, IDE с переключением языка) это ограничение.
-- Тесты могут «протекать». Если один тест установил свой провайдер, а другой ожидает `Default` — второй упадёт. В тестах либо восстанавливайте провайдер в `finally`/`IDisposable`, либо запускайте в отдельном `AssemblyLoadContext`/процессе.
-
 ### `IErrorMessageProvider.Default` — почему `static` на интерфейсе
 
 ```csharp
@@ -346,17 +338,6 @@ static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider(
 - Для `object` (reference type): нулевой набор аргументов → `ReadOnlySpan<object>.Empty`, без аллокаций. Один и более → аллокация `object[]`. Для пути ошибки это ок.
 - Boxing value-types: `ThrowCompiler.Throw(code, 42, line)` упакует `42` и `line` в `object` — две аллокации. Для ошибки неважно, но если модуль когда-нибудь начнут использовать для «горячих» warning'ов — учитывайте.
 - Если у вызывающего уже есть `ReadOnlySpan<object>` — он может передать его напрямую, без обёртки.
-
-### `field`-keyword в `ThrowCompiler.ErrorMessageProvider`
-
-```csharp
-public static IErrorMessageProvider ErrorMessageProvider
-{
-    get; set => field = value ?? throw new ArgumentNullException(nameof(value)); 
-} = IErrorMessageProvider.Default;
-```
-
-`field` — C# 14. Может требовать `<LangVersion>preview</LangVersion>` в зависимости от версии SDK. Если у вас собирается без него — ок. Если нет — либо добавьте `preview`, либо используйте явное поле (см. [Что исправить, п. 5](#что-исправить)).
 
 ### Ограничения платформ
 

@@ -4,10 +4,14 @@ using System.Collections.ObjectModel;
 namespace Nantuc.Kernel.Diagnostics;
 
 /// <summary>
-/// Стандартная политика исключений компилятора
+/// Стандартная политика исключений компилятора.
+/// <para>
+/// Переданные <paramref name="overrides"/> накладываются поверх стандартных шаблонов:
+/// совпадающие коды перезаписываются, остальные наследуются из дефолтного набора.
+/// </para>
 /// </summary>
-/// <param name="overrides">словарь код ошибки - текст ошибки</param>
-public class DefaultErrorMessageProvider(Dictionary<ErrorCode, string>? overrides = null) : IErrorMessageProvider
+/// <param name="overrides">словарь код ошибки - текст ошибки (мерж поверх дефолтов)</param>
+public class DefaultErrorMessageProvider(FrozenDictionary<ErrorCode, string>? overrides = null) : IErrorMessageProvider
 {
     private static readonly FrozenDictionary<ErrorCode, string> templates = new Dictionary<ErrorCode, string>()
     {
@@ -43,6 +47,10 @@ public class DefaultErrorMessageProvider(Dictionary<ErrorCode, string>? override
         { ErrorCode.CodeGen_BreakOutsideLoop, "Operator \"break\" outside loop" },
         { ErrorCode.CodeGen_ContinueOutsideLoop, "Operator \"continue\" outside loop" },
 
+        // ── const-correctness ─────────────────────────────────────
+        { ErrorCode.CodeGen_AssignmentToConst,   "Cannot assign to const '{0}'" },
+        { ErrorCode.CodeGen_IncrementOfConst,    "Cannot increment/decrement const '{0}'" },
+
         { ErrorCode.Asm_UndefinedLabel, "Undefined label '{0}' at position '{1}'" },
         { ErrorCode.Asm_DuplicateLabel, "Label '{0}' already defined at position {1}" },
         { ErrorCode.Asm_InvalidInstruction, "Invalid instruction syntax: {0}" },
@@ -51,31 +59,59 @@ public class DefaultErrorMessageProvider(Dictionary<ErrorCode, string>? override
         { ErrorCode.Lexer_InvalidNumber, "Invalid number literal '{0}' at {1}:{2}" },
         { ErrorCode.Lexer_UnterminatedString, "Unterminated string starting at {0}:{1}" }
     }.ToFrozenDictionary();
-    /// <summary>
-    /// Стандартные <see cref="FrozenDictionary"/> шаблонов ошибок
-    /// </summary>
-    public static FrozenDictionary<ErrorCode, string> DefaultTemplates => templates;
-    /// <summary>
-    /// Шаблоны текущей политики
-    /// </summary>
-    public IReadOnlyDictionary<ErrorCode, string> Templates => _templates;
-    private readonly ReadOnlyDictionary<ErrorCode, string> _templates =
-        overrides != null
-        ? overrides.AsReadOnly()
-        : templates.AsReadOnly();
 
     /// <summary>
-    /// Try- версия получения строки ошибки
+    /// Стандартные <see cref="FrozenDictionary"/> шаблонов ошибок.
     /// </summary>
-    /// <param name="code">ключ</param>
+    public static FrozenDictionary<ErrorCode, string> DefaultTemplates => templates;
+
+    /// <summary>
+    /// Шаблоны текущей политики (стандартные + <paramref name="overrides"/>).
+    /// </summary>
+    public IReadOnlyDictionary<ErrorCode, string> Templates => _templates;
+
+    private readonly ReadOnlyDictionary<ErrorCode, string> _templates =
+        overrides is { Count: > 0 }
+            ? MergeTemplates(templates, overrides)
+            : templates.AsReadOnly();
+
+    /// <summary>
+    /// Возвращает новый read-only словарь: сначала все базовые шаблоны, затем <paramref name="overrides"/>
+    /// (перезаписывают совпадающие ключи).
+    /// </summary>
+    private static ReadOnlyDictionary<ErrorCode, string> MergeTemplates(
+        FrozenDictionary<ErrorCode, string> baseTemplates,
+        FrozenDictionary<ErrorCode, string> overrides)
+    {
+        var merged = new Dictionary<ErrorCode, string>(baseTemplates.Count + overrides.Count);
+        foreach (var kv in baseTemplates)
+            merged[kv.Key] = kv.Value;
+        foreach (var kv in overrides)
+            merged[kv.Key] = kv.Value;
+        return merged.AsReadOnly();
+    }
+
+    /// <summary>
+    /// Try-версия получения строки ошибки.
+    /// </summary>
     protected virtual string? TryGetTemplate(ErrorCode code)
     {
         return _templates.TryGetValue(code, out var v) ? v : null;
     }
-    public string GetMessage(ErrorCode code, params ReadOnlySpan<object> args)
+
+    public string GetMessage(ErrorCode code, params ReadOnlySpan<DiagnosticData> args)
     {
         var template = TryGetTemplate(code)
             ?? throw new InvalidOperationException($"No message template for error code {code}");
-        return string.Format(template, args);
+        if (args.IsEmpty)
+            return template;
+
+        // string[] ковариантен object[] — string.Format получит тот же массив без копии.
+        // Боксинг отсутствует: элементы уже строки.
+        string[] parts = new string[args.Length];
+        for (int i = 0; i < args.Length; i++)
+            parts[i] = args[i].Text;
+
+        return string.Format(template, parts);
     }
 }
