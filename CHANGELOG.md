@@ -22,6 +22,8 @@
 ### Документация
 - **Compiler README:** новые разделы «Константность (`const`)» и «Диагностика: `DiagnosticData`»; обновлены дерево, API-таблица, пайплайн, «Что исправить», «Что сделано».
 - **Kernel.Diagnostics README:** новый раздел про `DiagnosticData` и AOT; `ThrowCompiler` описан как instance; обновлены `ErrorCode`, `DefaultErrorMessageProvider`, примеры.## [0.7.1] - 2026-10-30
+- **Корневой README:** изменеы метрики кода на соотсветсвующие.
+
 
 ### Добавлено:
 - `IdStateExtension` класс расширения который может конвертировать `int` в `IdState` 
