@@ -23,7 +23,7 @@
 - ОЗУ: `MemoryBus` (проверяемые/непроверяемые типизированные операции), `NativeMemoryBuffer` (сам нативный буфер), `NativeReadOnlyView` (read-only представление с проверками).
 - Процессор: `Processor` — `Step()`, декодирование через `InstructionDecoder` из `Common`, регистры `[InlineArray(32)]`, флаги `rFL`, очереди внешних команд/статусов. `ProcessorReader` — снимок состояния для внешних наблюдателей.
 - Шина и устройства: `PortBus`, `ManagerDevices`, `Device`, `Emulator`.
-- Интеграция: реализует `IPortBus`, `IPortController`, `INativeReadOnlyBuffer`, `IProcessorReader` из `Contracts`.
+- Интеграция: реализует `IPortBus`, `IPortController`, `INativeReadOnlyBuffer`, `ProcessorReader` из `Contracts`.
 
 Модуль зависит от `Common` (типы ISA) и `Contracts` (интерфейсы). Не зависит от `VmApplication`/`Extensions` — стрелка зависимостей всегда внутрь.
 
@@ -72,7 +72,7 @@ Nantuc.Kernel/
 | `NativeMemoryBuffer` | `RamSystem` | `unsafe sealed class : IDisposable` | `NativeMemory.AllocZeroed`, `ReadUInt*`/`WriteUInt*`, индексатор, `Clear`, `LoadProgram`, `IsDisposed` |
 | `NativeReadOnlyView` | `RamSystem` | `class : INativeReadOnlyBuffer` | Проверки `ObjectDisposedException` + `ArgumentOutOfRangeException` при индексации |
 | `Processor` | `ProcessorSystem` | `sealed class` | `Step()`, `LaunchProgramm`, `Reset`, очереди `EnqueueBiosStatus`/`EnqueueExternalCommand`, `GetDiagnosticData`, `GetRegistersSnapshot`, `CopyRegisters`, `GetCurrentProcessorReader` |
-| `ProcessorReader` | `ProcessorSystem` | `class : IProcessorReader` | Снимок состояния: `IsRunning`, `IsSleeping`, копия 32 регистров, `GetRegister(RegType)` |
+| `ProcessorReader` | `ProcessorSystem` | `readonly struct : ProcessorReader` | Снимок состояния: `IsRunning`, `IsSleeping`, копия 32 регистров, `GetRegister(RegType)` |
 | `PortBus` | `ControllersData` | `sealed class : IPortBus` | Секторная шина: `RegisterDevice`, `ReadPort`, `WritePort`, `WakeProcessor`, `IsFreeSector` |
 | `Device` | `BiosSystem` | `sealed class : IPortController` | `Run`, `DebugRun`, `NextStepProcessor*`, `LoadProgram`, `TryLoadProgram`, `Stop`, `WakeProcessor`, `EnqueueExternalCommand`, `GetLastFault` |
 | `Emulator` | `Utilites` | `class : IDisposable` | `CreateDevice`, `RegisterDevice`, `GetDevice`, `TryGetDevice`, `UnregisterDevice`, `ChangeDeviceSector`, `AllDeviceInfo` |

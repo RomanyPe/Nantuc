@@ -154,7 +154,7 @@ if (fault.Status != BiosStatus.EndProgramm)
               │                                │
 ┌──────────────────────────────────────────────────────────────────────┐
 │  Nantuc.Kernel.Contracts                                             │
-│  (IPortBus, IPortUse, IPortController, IProcessorReader, ...)        │
+│  (IPortBus, IPortUse, IPortController, ...)                          │
 └──────────────────────────────────────────────────────────────────────┘
               │                                │
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -191,7 +191,7 @@ Nantuc/
 | Модуль | Назначение | Кому |
 |---|---|---|
 | [`Nantuc.Kernel.Common`](Nantuc.Kernel.Common/README.md) | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState` (`Unknown` = 0, default-safe), декодер инструкций | Авторы компилятора, расширений, дизассемблера |
-| [`Nantuc.Kernel.Contracts`](Nantuc.Kernel.Contracts/README.md) | `IPortBus`, `IPortUse`, `IPortController`, `IProcessorReader`, `IProcessorFaultPolicy`, `OptimizationId` | Авторы устройств и расширений |
+| [`Nantuc.Kernel.Contracts`](Nantuc.Kernel.Contracts/README.md) | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorReader`, `IProcessorFaultPolicy`, `OptimizationId` | Авторы устройств и расширений |
 | [`Nantuc.Kernel.Diagnostics`](Nantuc.Kernel.Diagnostics/README.md) | `ErrorCode`, `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | Авторы компилятора, IDE, CI |
 | [`Nantuc.Kernel`](Nantuc.Kernel/README.md) | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | Встраивающий код, автор отладчика |
 | [`Nantuc.Compiler`](Nantuc.Compiler/README.md) | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer` | Автор IDE, автор правил оптимизации |
@@ -362,16 +362,17 @@ host.Project.Optimizator.VMAstOptimizer.Add(new MyCustomRule());
 - Полная спецификация байткода [docs/bytecode.md](docs/bytecode.md).
 
 **В работе / планы:**
-- Отладчик поверх `IProcessorReader` (точки останова, шаг, инспекция стека).
+- Отладчик (точки останова, шаг, инспекция стека).
 > Коментарий от разработчика: \
 Готовой реализации нет, но имеется возможность получать информацию об стеке из более сырых данных, 
 а именно `DeviceContext.GetRegisterSnapshot()` и `DeviceContext.NativeMemoryBuffer`, 
 последний позволяет полностью прочитать всю ОЗУ, 
 а с учетом расширений которые создают новый массив байт из этой озу 
-и метода `CopyRamTo(Span<byte> destination, nuint start)` можно скопировать сразу в готовый буфер
+и метода `CopyRamTo(Span<byte> destination, nuint start)` можно скопировать сразу в готовый буфер. С учетом что отладчик будет скорее всего в `VmApplication.Extensions` реализацию можете писать свою уже
 
 - NuGet-пакеты для `Kernel.Common`, `Kernel.Contracts`, `Kernel.Diagnostics`, `Compiler`, `VmApplication`.
 - Публикация бенчмарков в BenchmarkDotNet-совместимом формате.
+- Написание JIT компилятора на `C` и `C++`, но это будет отдельный проект
 
 ## Вклад
 
