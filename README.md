@@ -392,13 +392,13 @@ dotnet test -c Release
 
 ## Лицензия
 
-См. файл `LICENSE` в корне репозитория.
+См. файл [`LICENSE`](LICENSE) в корне репозитория.
 
 ## Ссылки
 
 - GitHub: [RomanyPe/Nantuc](https://github.com/RomanyPe/Nantuc)
 - Документация по модулям — README в каждой папке (ссылки в разделе [Модули](#модули)).
-- Спецификация байткода — `docs/bytecode.md` (в работе).
+- Спецификация байткода — [`docs/bytecode.md`](docs/bytecode.md).
 - Примеры — [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md), [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.md).
 - Бенчмарк — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.md).
 
