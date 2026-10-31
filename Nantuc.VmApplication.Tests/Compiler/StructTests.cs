@@ -1,4 +1,6 @@
-﻿namespace Nantuc.Tests.Compiler;
+﻿using Xunit.Abstractions;
+
+namespace Nantuc.Tests.Compiler;
 
 public class StructTests(ITestOutputHelper outPut) : CompileTestBase(outPut)
 {
