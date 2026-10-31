@@ -36,7 +36,9 @@ public class ExpressionGenerator(AssemblerBase asm,
                 GenerateUnaryOp(unop, RegType.r0);   // было GenerateUnaryOp(unop)
                 break;
             case IdentifierNode id:
-                if (IsArrayIdentifier(id.Name))
+                if (_functionTable.ContainsKey(id.Name))
+                    _asm.EmitLdi(RegType.r0, $"func_{id.Name}");          // ← NEW
+                else if (IsArrayIdentifier(id.Name))
                     _varAccessor.LoadAddressToRegister(id.Name, RegType.r0);
                 else
                     _varAccessor.LoadToRegister(id.Name, RegType.r0);
@@ -71,6 +73,9 @@ public class ExpressionGenerator(AssemblerBase asm,
             case SizeofExprNode se:
                 GenerateSizeofExpr(se, RegType.r0);
                 break;
+            case IndirectCallNode ic:
+                GenerateIndirectCall(ic, RegType.r0);
+                break;
             default:
                 _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported expression: {expr.NameNode}");
                 break;
@@ -91,8 +96,11 @@ public class ExpressionGenerator(AssemblerBase asm,
             case NumberNode num:
                 _asm.EmitLdi(targetReg, (ulong)num.Value);
                 break;
+            // в GenerateExpression(expr) и GenerateExpression(expr, targetReg)
             case IdentifierNode id:
-                if (IsArrayIdentifier(id.Name))
+                if (_functionTable.ContainsKey(id.Name))
+                    _asm.EmitLdi(targetReg, $"func_{id.Name}");      // адрес функции
+                else if (IsArrayIdentifier(id.Name))
                     _varAccessor.LoadAddressToRegister(id.Name, targetReg);
                 else
                     _varAccessor.LoadToRegister(id.Name, targetReg);
@@ -126,6 +134,9 @@ public class ExpressionGenerator(AssemblerBase asm,
                 break;
             case SizeofExprNode se:
                 GenerateSizeofExpr(se, targetReg);
+                break;
+            case IndirectCallNode ic:
+                GenerateIndirectCall(ic, targetReg);
                 break;
             default:
                 GenerateExpression(expr);
@@ -979,8 +990,9 @@ public class ExpressionGenerator(AssemblerBase asm,
     }
     private void LoadArrayElementFromGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, RegType targetReg)
     {
-        var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
-        GenerateExpression(indexExpr, targetReg);
+        var typeSize = gInfo.IsPointer
+            ? OpCodeSize.S64
+            : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler); GenerateExpression(indexExpr, targetReg);
         if (typeSize != OpCodeSize.S8)
             _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
 
@@ -994,7 +1006,9 @@ public class ExpressionGenerator(AssemblerBase asm,
 
     private void StoreArrayElementToGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, int slot)
     {
-        var typeSize = CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+        var typeSize = gInfo.IsPointer
+            ? OpCodeSize.S64
+            : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
 
         GenerateExpression(indexExpr, RegType.r0);
         if (typeSize != OpCodeSize.S8)
@@ -1320,6 +1334,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         }
         if (loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l))
             return l.Size;
+
         return CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
     }
 
@@ -1333,10 +1348,18 @@ public class ExpressionGenerator(AssemblerBase asm,
         }
         if (_structTable.TryGetValue(gInfo.Type, out var l))
             return l.Size;
-        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler), _asm.ThrowCompiler);
+        var typeSize = gInfo.IsPointer
+            ? OpCodeSize.S64
+            : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+        return CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler);
     }
     private void GenerateAddressOf(AddressOfNode addrOf, RegType targetReg)
     {
+        if (addrOf.Operand is IdentifierNode fid && _functionTable.ContainsKey(fid.Name))
+        {
+            _asm.EmitLdi(targetReg, $"func_{fid.Name}");
+            return;
+        }
         if (addrOf.Operand is IdentifierNode id)
         {
             string varName = id.Name;
@@ -1382,11 +1405,94 @@ public class ExpressionGenerator(AssemblerBase asm,
         return CodeGenUtils.GetSizeForType($"Cannot determine pointed type for dereference of '{expr}'", _asm.ThrowCompiler);
 
     }
+    /// <summary>
+    /// Косвенный вызов, где callee — произвольное выражение
+    /// (arr[i], p->fp, другой косвенный вызов и т.п.).
+    ///
+    /// Соглашение: args 0..3 → r0..r3, extras 4+ не поддерживаются
+    /// (у direct FunctionCall они идут через __param_<callee>_<name>,
+    /// а при косвенном вызове имя callee неизвестно).
+    /// Возврат кладётся в r0, затем перекладывается в targetReg при необходимости.
+    /// </summary>
+    private void GenerateIndirectCall(IndirectCallNode ic, RegType targetReg)
+    {
+        if (ic.Arguments.Count > 4)
+            _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+                $"Indirect call with >4 args (calling convention limitation): {ic.Callee.NameNode}");
+
+        int regCount = ic.Arguments.Count;
+        var argSlots = new int[regCount];
+
+        // 1) Аргументы → r0..r3, каждый сразу сохраняем на стек.
+        //    После этого r0..r3 можно свободно затирать при вычислении callee.
+        for (int i = 0; i < regCount; i++)
+        {
+            GenerateExpression(ic.Arguments[i], (RegType)i);
+            argSlots[i] = SaveRegToStack((RegType)i);
+        }
+
+        // 2) Callee → r0. НЕ в r4 напрямую: если callee — сложное выражение,
+        //    GenerateBinaryOp использует r4 как addrReg и затрёт его.
+        //    r0..r3 сейчас безопасны — args уже на стеке.
+        GenerateExpression(ic.Callee, RegType.r0);
+        int calleeSlot = SaveRegToStack(RegType.r0);
+
+        // 3) LIFO: callee сохранялся последним → восстанавливаем первым.
+        //    callee → r4 (после CALL_IND r4 больше не нужен — caller-saved).
+        RestoreRegFromStack(calleeSlot, RegType.r4);
+
+        // 4) Аргументы обратно в r0..r3.
+        for (int i = 0; i < regCount; i++)
+            RestoreRegFromStack(argSlots[i], (RegType)i);
+
+        // 5) Косвенный вызов: callee вернёт результат в r0 (по конвенции).
+        _asm.EmitInstU(OpCode.CALL_IND, RegType.r4);
+
+        // 6) Если результат нужен не в r0 — перекладываем.
+        if (targetReg != RegType.r0)
+            _asm.EmitMov(targetReg, RegType.r0);
+    }
+
+
+    private void GenerateIndirectCall(FunctionCallNode call)
+    {
+        if (call.Arguments.Count > 4)
+            _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+                $"Indirect call with >4 args (calling convention limitation): {call.Name}");
+
+        int regCount = call.Arguments.Count;
+        var slots = new int[regCount];
+
+        // 1. Аргументы → r0..r3, сразу сохраняем
+        for (int i = 0; i < regCount; i++)
+        {
+            GenerateExpression(call.Arguments[i], (RegType)i);
+            slots[i] = SaveRegToStack((RegType)i);
+        }
+
+        // 2. Адрес функции → r4 (LoadToRegister не трогает r0..r3, scratch = r27)
+        _varAccessor.LoadToRegister(call.Name, RegType.r4);
+
+        // 3. Восстанавливаем аргументы (r27 как scratch — r4 не пострадает)
+        for (int i = 0; i < regCount; i++)
+            RestoreRegFromStack(slots[i], (RegType)i);
+
+        // 4. CALL_IND r4
+        _asm.EmitInstU(OpCode.CALL_IND, RegType.r4);
+    }
 
     private void GenerateFunctionCall(FunctionCallNode call)
     {
         if (!_functionTable.TryGetValue(call.Name, out var targetFunc))
+        {
+            // Может, это указатель на функцию?
+            if (_funcCtx.VarMap.TryGetValue(call.Name, out _) || _globalMem.Contains(call.Name))
+            {
+                GenerateIndirectCall(call);
+                return;
+            }
             _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownFunction, call.Name);
+        }
         if (call.Arguments.Count != targetFunc.Parameters.Count)
             _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
 

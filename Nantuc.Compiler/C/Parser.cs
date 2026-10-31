@@ -942,7 +942,22 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
             }
             break;
         }
-
+        while (Current.Type == TokenType.Punctuation && Current.Value == "(")
+        {
+            Advance();
+            var args = new List<ASTNode>();
+            if (Current.Value != ")")
+            {
+                while (true)
+                {
+                    args.Add(ParseAssignment());
+                    if (Current.Value != ",") break;
+                    Advance();
+                }
+            }
+            Expect(TokenType.Punctuation, ")");
+            expr = new IndirectCallNode(expr, args);
+        }
         return expr;
     }
     private Token Expect(TokenType type, string? value = null)

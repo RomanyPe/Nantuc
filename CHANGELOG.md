@@ -6,7 +6,7 @@
 - Методы `Pause()` и `Resume()` для `DeviceContext`, просто заставляют процессор уснуть
 - Добавлен файл `docs/bytecode.md` - файл спецификации байт кода
 - Добавлен файл `docs/METRICS.md` - метрики кода
-
+- Компилятор различает получение указателя на функцию и ее вызов, поправлены массивы указателей
 
 ### Изменения
 - **BREAKING:** `ProcessorReader` — `readonly struct` (было `IProcessorReader` - `interface`).

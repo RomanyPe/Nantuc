@@ -654,6 +654,161 @@ int main() {
 
     // передача const в не-const параметр по значению — допустимо (copy)
     [InlineData("int f(int x) { x = 100; return x; } const int a = 5; int main() { return f(a); }", 100)]
+    // ═══════════════════════════════════════════════════════════════
+    // FUNCTION POINTERS — MVP
+    // void *f = foo; f();
+    // Все указатели — 8 байт, типизация условная (как в железе).
+    // ═══════════════════════════════════════════════════════════════
+
+    // базовый сценарий: присваивание и косвенный вызов
+    [InlineData("""
+int foo() { return 42; }
+int main() { void *f = foo; return f(); }
+""", 42)]
+
+    // через унарный &
+    [InlineData("""
+int foo() { return 42; }
+int main() { void *f = &foo; return f(); }
+""", 42)]
+
+    // без инициализатора: присваивание и вызов
+    [InlineData("""
+int foo() { return 7; }
+int main() { void *f; f = foo; return f(); }
+""", 7)]
+
+    // с двумя аргументами
+    [InlineData("""
+int add(int a, int b) { return a + b; }
+int main() { void *f = add; return f(3, 4); }
+""", 7)]
+
+    // 4 аргумента — верхняя граница MVP
+    // (5+ не поддерживается: extras идут через __param_<callee>_<name>,
+    //  а при косвенном вызове имя callee неизвестно)
+    [InlineData("""
+int s4(int a, int b, int c, int d) { return a + b + c + d; }
+int main() { void *f = s4; return f(1, 2, 3, 4); }
+""", 10)]
+
+    // compound-аргументы (r0..r3 сохраняются на стек)
+    [InlineData("""
+int add(int a, int b) { return a + b; }
+int main() { int x = 3; void *f = add; return f(x * 2, x + 1); }
+""", 10)]
+
+    // два указателя одновременно
+    [InlineData("""
+int a() { return 10; }
+int b() { return 20; }
+int main() { void *f = a; void *g = b; return f() + g(); }
+""", 30)]
+
+    // глобальная переменная-указатель (инициализируется в __global_init)
+    [InlineData("""
+int foo() { return 99; }
+void *gfp = foo;
+int main() { return gfp(); }
+""", 99)]
+
+    // динамический выбор функции в рантайме
+    [InlineData("""
+int add(int a, int b) { return a + b; }
+int sub(int a, int b) { return a - b; }
+int main() {
+    void *f = add;
+    int r1 = f(10, 3);   // 13
+    f = sub;
+    int r2 = f(10, 3);   // 7
+    return r1 + r2;      // 20
+}
+""", 20)]
+
+    // передача указателя на функцию как аргумента
+    [InlineData("""
+int foo() { return 7; }
+int call(void *f) { return f(); }
+int main() { return call(foo); }
+""", 7)]
+
+    // указатель на функцию как возвращаемое значение (через void*)
+    [InlineData("""
+int foo() { return 55; }
+void *get() { return foo; }
+int main() { void *f = get(); return f(); }
+""", 55)]
+
+    // вызов-как-statement (результат отбрасывается)
+    [InlineData("""
+int counter = 0;
+void bump() { counter = counter + 1; }
+int main() { void *f = bump; f(); f(); f(); return counter; }
+""", 3)]
+
+    // callee принимает обычный указатель (совместимость типов через void*)
+    [InlineData("""
+int deref(int *p) { return *p; }
+int main() { int a = 88; void *f = deref; return f(&a); }
+""", 88)]
+
+    // рекурсивный вызов через указатель
+    [InlineData("""
+int countdown(int n) {
+    if (n <= 0) return 0;
+    return 1 + countdown(n - 1);
+}
+int main() { void *f = countdown; return f(5); }
+""", 5)]
+
+    // два указателя на одну функцию
+    [InlineData("""
+int foo() { return 42; }
+int main() { void *a = foo; void *b = foo; return a() + b(); }
+""", 84)]
+
+    // переприсваивание параметра внутри callee не влияет на caller
+    [InlineData("""
+int a() { return 1; }
+int b() { return 2; }
+int pick(void *f) { f = b; return f(); }
+int main() { void *g = a; return pick(g); }
+""", 2)]
+
+    // указатель как условие (ненулевой адрес → truthy)
+    [InlineData("""
+int foo() { return 1; }
+int main() { void *f = foo; if (f) return 7; return 0; }
+""", 7)]
+
+    // копирование указателя через переменную
+    [InlineData("""
+int foo() { return 123; }
+int main() { void *f = foo; void *g = f; return g(); }
+""", 123)]
+    // копирование указателя через переменную
+    [InlineData("""
+int foo() { return 7; }
+int bar() { return 13; }
+int add(int a, int b) { return a + b; }
+
+int main() {
+    void *arr[3] = { foo, bar, add };
+
+    int x = arr[0]();                    // 7
+    int y = arr[1]();                    // 13
+    int z = arr[2](x, y);                // 20
+    return x + y + z;                    // 40
+}
+""", 40)]
+
+    //// внешняя функция как значение (IsExternal — только адрес, вызов → линкер)
+    //// ⚠️ раскомментируй и добавь соответствующую extern-декларацию,
+    ////    если у хоста есть такая функция
+    //[InlineData("""
+    // extern int abs(int x);
+    // int main() { void *f = abs; return f(-7); }
+    // """, 7)]
     public void RunCompile(string program, ulong res)
     {
         using var host = VmHostFactory.CreateDefault();

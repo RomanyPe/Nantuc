@@ -142,6 +142,10 @@ public static class RegisterAllocator
                         foreach (var x in v.ArrayInitializer) Walk(x);
                     return;
 
+                case IndirectCallNode ic:
+                    Walk(ic.Callee);
+                    foreach (var arg in ic.Arguments) Walk(arg);
+                    return;
                 // Листья и прочее — нечего обходить
                 default: return;
             }
@@ -328,6 +332,12 @@ CollectVarEvents(BlockNode body)
                 case SizeofTypeNode:
                 case SizeofExprNode:
                     break;
+
+                case IndirectCallNode ic:
+                    Walk(ic.Callee);
+                    foreach (var arg in ic.Arguments) Walk(arg);
+                    break;
+
                 default:
                     // Пропускаем неизвестные узлы
                     break;

@@ -34,7 +34,10 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         if (_globalMem.Contains(varName))
         {
             var gInfo = _globalMem.GetInfo(varName)!.Value;
-            var size = CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+            // NEW: указатель всегда 8 байт, независимо от Type ("void", "int", …)
+            var size = gInfo.IsPointer
+                ? OpCodeSize.S64
+                : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
             string label = GlobalMemoryManager.GetLabel(varName);
             _asm.EmitLoad(targetReg, size, label);
             return;
@@ -42,7 +45,6 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
 
         _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
     }
-
     public bool IsConst(string name)
     {
         if (_funcCtx.VarMap != null && _funcCtx.VarMap.TryGetValue(name, out var loc))
@@ -81,7 +83,10 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         if (_globalMem.Contains(varName))
         {
             var gInfo = _globalMem.GetInfo(varName)!.Value;
-            var size = CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+            // NEW: указатель всегда 8 байт
+            var size = gInfo.IsPointer
+                ? OpCodeSize.S64
+                : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
             string label = GlobalMemoryManager.GetLabel(varName);
             _asm.EmitStore(sourceReg, size, label);
             return;
@@ -89,7 +94,6 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
 
         _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
     }
-
     public void LoadAddressToRegister(string varName, RegType targetReg)
     {
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
@@ -118,10 +122,15 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
             return loc.TypeSize;
         if (_globalMem.Contains(varName))
-            return CodeGenUtils.GetSizeForType(_globalMem.GetInfo(varName)!.Value.Type, _asm.ThrowCompiler);
+        {
+            var g = _globalMem.GetInfo(varName)!.Value;
+            // NEW: указатель всегда 8 байт
+            return g.IsPointer
+                ? OpCodeSize.S64
+                : CodeGenUtils.GetSizeForType(g.Type, _asm.ThrowCompiler);
+        }
         return _asm.ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UndefinedVariable, varName);
     }
-
     public bool TryGetRegister(string varName, out RegType reg)
     {
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc) && loc.IsRegister)

@@ -71,8 +71,13 @@ public class FunctionContext
             OpCodeSize size = OpCodeSize.S64;
             int varSize;
 
-            // Определяем размер переменной (для стекового размещения)
-            if (isPointer)
+            if (isArray && isPointer)
+            {
+                // массив указателей: N * 8 байт; TypeSize = S64 — это размер элемента
+                varSize = 8 * arraySize;
+                size = OpCodeSize.S64;
+            }
+            else if (isPointer)
             {
                 varSize = 8;
                 size = OpCodeSize.S64;
@@ -87,11 +92,8 @@ public class FunctionContext
                 varSize = isArray ? CodeGenUtils.GetSizeInBytes(size, ThrowCompiler) * arraySize : 8;
             }
 
-            // Для массива структур пересчитываем размер
             if (isArray && isStruct)
-            {
                 varSize = layout!.Size * arraySize;
-            }
             varSize = (varSize + 7) & ~7; // выравнивание на 8
 
             // Может ли переменная находиться в регистре?
@@ -203,6 +205,13 @@ public class FunctionContext
                 ComputeMaxBinaryDepth(d.Body),
                 1 + ComputeMaxBinaryDepth(d.Condition)),
             IncrementNode inc => 1 + ComputeMaxBinaryDepth(inc.Target),
+            IndirectCallNode ic => Math.Min(ic.Arguments.Count, 4)
+                       + 1                                            // callee slot
+                       + Math.Max(
+                           ic.Arguments.Count > 0
+                               ? ic.Arguments.Max(ComputeMaxBinaryDepth)
+                               : 0,
+                           ComputeMaxBinaryDepth(ic.Callee)),
             _ => 0,
         };
     }

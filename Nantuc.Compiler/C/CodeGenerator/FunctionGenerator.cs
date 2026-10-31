@@ -55,9 +55,9 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
              
             byte[] data = new byte[(size + 7) & ~7];
 
-            if (global.ArrayInitializer != null)
+            if (global.ArrayInitializer != null && !global.IsPointer)
                 FillArrayInitializerData(data, global, _structTable);
-
+            // else — нули, реальные значения в __global_init
             _asm.EmitData(GlobalMemoryManager.GetLabel(global.Name), data);
         }
 
@@ -150,6 +150,20 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
 
         foreach (var global in program.GlobalVarNodes)
         {
+            if (global.ArrayInitializer != null && global.IsPointer)
+            {
+                OpCodeSize elemSize = OpCodeSize.S64;
+                int elemBytes = 8;
+                for (int i = 0; i < global.ArrayInitializer.Count; i++)
+                {
+                    exprGen.GenerateExpression(global.ArrayInitializer[i]);   // → r0
+                    _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN,
+                                 GlobalMemoryManager.GetLabel(global.Name));
+                    _asm.EmitLdi(RegType.r1, (ulong)(i * elemBytes));
+                    _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.r1);
+                    _asm.EmitStoreInd(RegType.r0, CodeGenUtils.ADDR_SCRATCH_REG_EN, elemSize);
+                }
+            }
             if (global.Initializer != null)
             {
                 // Пропускаем структуры – их инициализация пока не поддерживается

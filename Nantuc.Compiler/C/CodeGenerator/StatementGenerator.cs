@@ -351,7 +351,9 @@ public class StatementGenerator(AssemblerBase asm, ExpressionGenerator exprGen, 
         else if (_globalMem.Contains(arrayName))
         {
             var gInfo = _globalMem.GetInfo(arrayName)!.Value;
-            if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+            if (gInfo.IsArray) return gInfo.IsPointer
+                                        ? OpCodeSize.S64
+                                        : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
             if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ThrowCompiler);
         }
         _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
