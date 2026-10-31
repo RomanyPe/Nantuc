@@ -95,5 +95,6 @@ public enum BiosStatus : byte
     /// Также может возвращаться при <see cref="OpCode.RET"/> на пустом стеке — см. <c>Processor.InstructionRET</c>.
     /// </summary>
     StackUnderflow,
+    PauseSystem,
 }
 

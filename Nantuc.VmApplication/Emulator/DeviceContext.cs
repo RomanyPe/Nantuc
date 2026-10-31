@@ -1,4 +1,5 @@
-﻿using Nantuc.Kernel.BiosSystem;
+﻿using Nantuc.Compiler.ASM.Utils;
+using Nantuc.Kernel.BiosSystem;
 using Nantuc.Kernel.Common;
 using Nantuc.Kernel.Contracts;
 using Nantuc.VmApplication.Project;
@@ -7,42 +8,80 @@ using System.Diagnostics.CodeAnalysis;
 namespace Nantuc.VmApplication.Emulator;
 
 /// <summary>
-/// Безопасный контекст устройства
+/// Безопасный контекст устройства, предоставляющий управляемый доступ к устройству эмулятора.
 /// </summary>
+/// <remarks>
+/// Контекст гарантирует, что над устройством не выполняются одновременно несовместимые операции,
+/// и предоставляет методы для загрузки программ, запуска, пошагового выполнения и чтения состояния.
+/// </remarks>
 public class DeviceContext
 {
+    /// <summary>
+    /// Режим работы контекста устройства.
+    /// </summary>
     private enum Mode
     {
+        /// <summary>
+        /// Пошаговый режим выполнения.
+        /// </summary>
         Step,
-        Continuous, 
+
+        /// <summary>
+        /// Непрерывный режим выполнения.
+        /// </summary>
+        Continuous,
+
+        /// <summary>
+        /// Режим не установлен (устройство свободно).
+        /// </summary>
         None
     }
+
+    /// <summary>
+    /// Ссылка на устройство эмулятора.
+    /// </summary>
     private readonly Device _device;
+
+    /// <summary>
+    /// Текущий режим работы контекста.
+    /// </summary>
     private volatile Mode _mode = Mode.None;
 
+    /// <summary>
+    /// Небезопасный доступ к внутреннему устройству.
+    /// </summary>
+    /// <remarks>Использовать только внутри сборки и только при полной уверенности в отсутствии гонок.</remarks>
     internal Device UnsafeGetDevice => _device;
+
+    /// <summary>
+    /// Инициализирует новый экземпляр <see cref="DeviceContext"/> для указанного устройства.
+    /// </summary>
+    /// <param name="device">Устройство эмулятора.</param>
     internal DeviceContext(Device device) => _device = device;
 
     /// <summary>
-    /// Запущено ли устройство
+    /// Запущено ли устройство.
     /// </summary>
     public bool IsRunning => _device.IsRunning;
 
     /// <summary>
-    /// Количество шагов устройство
+    /// Количество выполненных шагов устройства.
     /// </summary>
     public long StepCount => _device.StepCount;
+
     /// <summary>
-    /// Размер озу
+    /// Размер ОЗУ устройства.
     /// </summary>
     public ulong RamSize => _device.MaxRamSize;
+
     /// <summary>
-    /// Безопасная обертка над нативным буфером, позволяет читать озу устройства, возвращает объект <see cref="INativeReadOnlyBuffer"/>
+    /// Безопасная обёртка над нативным буфером, позволяет читать ОЗУ устройства.
     /// </summary>
+    /// <returns>Объект <see cref="INativeReadOnlyBuffer"/>, предоставляющий доступ только для чтения.</returns>
     public INativeReadOnlyBuffer NativeReadOnlyBuffer => _device.NativeReadOnlyBuffer;
 
     /// <summary>
-    /// Останавливет устройство
+    /// Останавливает устройство и сбрасывает режим контекста.
     /// </summary>
     public void Stop()
     {
@@ -51,11 +90,11 @@ public class DeviceContext
     }
 
     /// <summary>
-    /// Загрузка программы в озу устройства
+    /// Загружает программу в ОЗУ устройства.
     /// </summary>
-    /// <param name="program">программа</param>
-    /// <param name="loadAddress">с какого адреса загрузить</param>
-    /// <exception cref="InvalidOperationException"></exception>
+    /// <param name="program">Программа для загрузки.</param>
+    /// <param name="loadAddress">Адрес, начиная с которого загружается программа.</param>
+    /// <exception cref="InvalidOperationException">Устройство запущено; перед загрузкой необходимо вызвать <see cref="Stop"/>.</exception>
     public void LoadProgram(ReadOnlySpan<byte> program, ulong loadAddress = ProjectBuilder.BaseAddressProgram)
     {
         ThrowIfRunning("Cannot load program while device is running. Call Stop() first.");
@@ -63,13 +102,13 @@ public class DeviceContext
     }
 
     /// <summary>
-    /// Try- форма загрузки устройства
+    /// Пытается загрузить программу в ОЗУ устройства (безопасная форма загрузки).
     /// </summary>
-    /// <param name="program">программа</param>
-    /// <param name="loadAddress">с какого адреса загрузить</param>
-    /// <param name="error">строк ошибки</param>
-    /// <returns>успешность загрузки</returns>
-    public bool TryLoadProgram(ReadOnlySpan<byte> program, ulong loadAddress,[NotNullWhen(false)] out string? error)
+    /// <param name="program">Программа для загрузки.</param>
+    /// <param name="loadAddress">Адрес, начиная с которого загружается программа.</param>
+    /// <param name="error">Строка с описанием ошибки, если загрузка не удалась; иначе <see langword="null"/>.</param>
+    /// <returns><see langword="true"/>, если программа успешно загружена; иначе <see langword="false"/>.</returns>
+    public bool TryLoadProgram(ReadOnlySpan<byte> program, ulong loadAddress, [NotNullWhen(false)] out string? error)
     {
         if (IsRunning)
         {
@@ -87,10 +126,11 @@ public class DeviceContext
     }
 
     /// <summary>
-    /// Запуска цикла устройства, метод расчитанный на скорость выполнения, Release
+    /// Запускает цикл устройства в непрерывном режиме; метод оптимизирован для скорости выполнения (Release).
     /// </summary>
-    /// <param name="opt">настройки запуска</param>
-    /// <returns><see cref="ProcessorFault"/> результат работы устройства, приичина остановки</returns>
+    /// <param name="opt">Настройки запуска; при <see langword="null"/> используются <see cref="LaunchOptions.Default"/>.</param>
+    /// <returns>Результат работы устройства — причина остановки <see cref="ProcessorFault"/>.</returns>
+    /// <exception cref="InvalidOperationException">Устройство уже запущено или установлен другой режим работы.</exception>
     public ProcessorFault Run(LaunchOptions? opt = null)
     {
         ThrowIfRunning();
@@ -108,11 +148,11 @@ public class DeviceContext
     }
 
     /// <summary>
-    /// Запуска цикла устройства, метод расчитанный на отладку, Debug
+    /// Запускает цикл устройства в отладочном режиме; метод рассчитан на отладку (Debug).
     /// </summary>
-    /// <param name="opt">настройки запуска</param>
-    /// <returns><see cref="ProcessorFault"/> результат работы устройства, приичина остановки</returns>
-
+    /// <param name="opt">Настройки отладочного запуска; при <see langword="null"/> используются <see cref="LaunchOptionsDebug.Default"/>.</param>
+    /// <returns>Результат работы устройства — причина остановки <see cref="ProcessorFault"/>.</returns>
+    /// <exception cref="InvalidOperationException">Устройство уже запущено или установлен другой режим работы.</exception>
     public ProcessorFault DebugRun(LaunchOptionsDebug? opt = null)
     {
         ThrowIfRunning();
@@ -128,12 +168,12 @@ public class DeviceContext
         return fault;
     }
 
-
     /// <summary>
-    /// Запуск устройства в пошаговом режиме
+    /// Запускает устройство в пошаговом режиме.
     /// </summary>
-    /// <param name="startAddress">адрес с которого запускается устройство</param>
-    /// <param name="onLaunch">колбэк функция при запуске</param>
+    /// <param name="startAddress">Адрес, с которого запускается устройство.</param>
+    /// <param name="onLaunch">Колбэк-функция, вызываемая при запуске.</param>
+    /// <exception cref="InvalidOperationException">Устройство уже запущено или установлен другой режим работы.</exception>
     public void RunStepMode(ulong startAddress = ProjectBuilder.BaseAddressProgram,
         Action? onLaunch = null)
     {
@@ -141,29 +181,34 @@ public class DeviceContext
         ThrowByMode(Mode.Step);
         _device.BreakPointerLaunchDevice(startAddress, onLaunch);
     }
+
     /// <summary>
-    /// Единичный шаг устройства
+    /// Выполняет один шаг устройства.
     /// </summary>
-    /// <param name="onStep">колбэк для анализа состояния процесса</param>
-    public void SingleStep(Action<IProcessorReader>? onStep = null)
+    /// <param name="onStep">Колбэк для анализа состояния процесса.</param>
+    /// <exception cref="InvalidOperationException">Контекст не находится в пошаговом режиме.</exception>
+    public void SingleStep(Action<ProcessorReader>? onStep = null)
     {
         ThrowIfNotStepMode();
         _device.NextStepProcessor(onStep);
     }
+
     /// <summary>
-    /// Множественный шаг устройства
+    /// Выполняет несколько шагов устройства подряд.
     /// </summary>
-    /// <param name="count">количество шагов</param>
-    /// <param name="onStep">колбэк для анализа состояния процесса</param>
-    public void MultiStep(int count = 5, Action<IProcessorReader>? onStep = null)
+    /// <param name="count">Количество шагов; по умолчанию 5.</param>
+    /// <param name="onStep">Колбэк для анализа состояния процесса после каждого шага.</param>
+    /// <exception cref="InvalidOperationException">Контекст не находится в пошаговом режиме.</exception>
+    public void MultiStep(int count = 5, Action<ProcessorReader>? onStep = null)
     {
         ThrowIfNotStepMode();
         _device.NextStepProcessorCount(count, onStep);
     }
-    
+
     /// <summary>
-    /// Окончание работы устройства из пошагового режима
+    /// Завершает работу устройства из пошагового режима и сбрасывает режим контекста.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Контекст не находится в пошаговом режиме.</exception>
     public void EndStepMode()
     {
         ThrowIfNotStepMode();
@@ -173,41 +218,65 @@ public class DeviceContext
     }
 
     /// <summary>
-    /// Полная очистка ОЗУ устройства
+    /// Полностью очищает ОЗУ устройства.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Устройство запущено; перед очисткой необходимо вызвать <see cref="Stop"/>.</exception>
     public void ResetMemoryRam()
     {
         ThrowIfRunning("Cannot clear RAM while device is running. Call Stop() first.");
         _device.ResetMemoryRam();
     }
+
     /// <summary>
-    /// Метод чтобы прочитать порты этого устройства (читается только его IO буфер)
+    /// Читает значение из порта ввода-вывода этого устройства (читается только его IO-буфер).
     /// </summary>
-    /// <param name="offset">смещение</param>
-    /// <returns>байт данных</returns>
+    /// <param name="offset">Смещение порта.</param>
+    /// <returns>Байт данных, прочитанный из порта.</returns>
     public byte ReadPort(ulong offset) => _device.ReadPort(offset);
 
     /// <summary>
-    /// Копирование значений регистров в <see cref="Span{T}"/>
+    /// Копирует значения регистров в предоставленный буфер.
     /// </summary>
-    /// <param name="destination"><see cref="Span{T}"/> буфера в который будут скопированы регистры</param>
+    /// <param name="destination">Буфер <see cref="Span{T}"/>, в который будут скопированы регистры.</param>
     public void CopyRegisters(Span<ulong> destination) => _device.CopyRegisters(destination);
 
     /// <summary>
-    /// Получение готового объекта <see cref="SnapshotRegisters"/>, 
+    /// Возвращает снимок значений регистров устройства.
     /// </summary>
-    /// <returns>структура для удобного получения регистров</returns>
+    /// <returns>Структура <see cref="SnapshotRegisters"/> для удобного получения регистров.</returns>
     public SnapshotRegisters GetRegistersSnapshot()
     {
         Span<ulong> destination = stackalloc ulong[32];
         _device.CopyRegisters(destination);
         return new(destination);
     }
+
     /// <summary>
-    /// Получить информацию о причине падения устройства, если устройство работает и не останавливалось будет иметь такие параметры: BiosStatus.Success, 0, 0, OpCode.NOP.
-    /// Не обновляется каждую итерацию ради оптимизаций
+    /// Возвращает информацию о последней причине падения устройства.
     /// </summary>
+    /// <remarks>
+    /// Если устройство работает и не останавливалось, возвращаются значения:
+    /// <c>BiosStatus.Success</c>, 0, 0, <c>OpCode.NOP</c>.
+    /// Значение не обновляется на каждой итерации ради оптимизации.
+    /// </remarks>
+    /// <returns>Структура <see cref="ProcessorFault"/> с информацией о последней ошибке.</returns>
     public ProcessorFault GetLastFault() => _device.GetLastFault();
+
+    /// <summary>
+    /// Приостанавливает выполнение устройства (ставит в очередь команду <c>HALT</c>).
+    /// </summary>
+    public void Pause() => _device.EnqueueExternalCommand(OpCode.HALT.ToUint());
+
+    /// <summary>
+    /// Возобновляет выполнение устройства после паузы (ставит в очередь команду <c>WAKE</c>).
+    /// </summary>
+    public void Resume() => _device.EnqueueExternalCommand(OpCode.WAKE.ToUint());
+
+    /// <summary>
+    /// Выбрасывает исключение, если устройство в данный момент запущено.
+    /// </summary>
+    /// <param name="msg">Сообщение исключения.</param>
+    /// <exception cref="InvalidOperationException">Устройство запущено.</exception>
     private void ThrowIfRunning(
         string msg = "Cannot launch program while device is running. Call Stop() first.")
     {
@@ -215,6 +284,12 @@ public class DeviceContext
             throw new InvalidOperationException(msg);
     }
 
+    /// <summary>
+    /// Устанавливает указанный режим работы, если контекст свободен.
+    /// </summary>
+    /// <param name="mode">Устанавливаемый режим.</param>
+    /// <param name="msg">Сообщение исключения.</param>
+    /// <exception cref="InvalidOperationException">Контекст уже находится в каком-либо режиме.</exception>
     private void ThrowByMode(Mode mode,
         string msg = "The device operating mode is already set. Stop the device or wait for the current operation to complete.")
     {
@@ -223,12 +298,20 @@ public class DeviceContext
         _mode = mode;
     }
 
+    /// <summary>
+    /// Выбрасывает исключение, если контекст не находится в пошаговом режиме.
+    /// </summary>
+    /// <param name="msg">Сообщение исключения.</param>
+    /// <exception cref="InvalidOperationException">Контекст не в пошаговом режиме.</exception>
     private void ThrowIfNotStepMode(
         string msg = "The device operating mode is not set to 'Step'.")
     {
         if (_mode != Mode.Step)
             throw new InvalidOperationException(msg);
     }
-    private void SetNoneMode() => _mode = Mode.None;
 
+    /// <summary>
+    /// Сбрасывает режим контекста в <see cref="Mode.None"/>.
+    /// </summary>
+    private void SetNoneMode() => _mode = Mode.None;
 }

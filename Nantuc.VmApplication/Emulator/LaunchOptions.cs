@@ -36,7 +36,7 @@ public record class LaunchOptionsDebug(ulong StartAddress = ProjectBuilder.BaseA
                              int DelayMs = 0,
                              long StepLimit = long.MaxValue,
                              Action? OnLaunch = null,
-                             Action<IProcessorReader>? OnStep = null,
+                             Action<ProcessorReader>? OnStep = null,
                              Action? OnEnd = null)
 { 
     /// <summary>

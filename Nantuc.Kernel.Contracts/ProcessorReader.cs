@@ -1,23 +1,35 @@
 ﻿using Nantuc.Kernel.Common;
+using System.Runtime.CompilerServices;
 
 namespace Nantuc.Kernel.Contracts;
 
 /// <summary>
 /// Интерфейс чтения состояния процессора
 /// </summary>
-public interface IProcessorReader
+public readonly struct ProcessorReader(Span<ulong> span, bool isRun, bool isSleep)
 {
+    [InlineArray(32)]
+    private struct Arr { public ulong _el0; }
+    private readonly Arr _arr = GetArr(span);
     /// <summary>
     /// Проверка находится ли процессора в режиме: работы
     /// </summary>
-    bool IsRunning { get; }
+    public bool IsRunning { get; } = isRun;
     /// <summary>
     /// Проверка находится ли процессора в режиме: сна
     /// </summary>
-    bool IsSleeping { get; }
+    public bool IsSleeping { get; } = isSleep;
     /// <summary>
     /// Получение данных регистра
     /// </summary>
     /// <param name="regType">регистр</param>
-    ulong GetRegister(RegType regType);
+    public ulong GetRegister(RegType regType) => _arr[(int)regType];
+
+    private static Arr GetArr(Span<ulong> span)
+    {
+        var arr = new Arr();
+        for (int i = 0; i < span.Length; i++)
+            arr[i] = span[i];
+        return arr;
+    }
 }

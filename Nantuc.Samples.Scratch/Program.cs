@@ -65,6 +65,17 @@ host.Project.SaveFileProject("main.minic", source1);
 host.Project.SaveFileInclude("heap.nanasm", Library.heap_nanasm);
 host.Project.SaveFileInclude("alloc.minic", Library.alloc_minic);
 
+var resCompile = host.Project.CompileToIL(
+    baseAddress: 0,
+    optimize: true).Build();
+
+if (!resCompile.Success)
+{
+    foreach (var err in resCompile.Errors!)
+        Console.WriteLine(err);
+    return;
+}
+
 var handle = DeviceSpec.Create(
     ramSize: RamSize.MB128,
     processorFaultPolicy: lfPolicy,
@@ -77,18 +88,6 @@ int deviceId = host.Emulator.RegisterDevice(spec: handle, sector: 0);
 host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
 
 var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
-
-var resCompile = host.Project.CompileToIL(
-    baseAddress: 0,
-    optimize: true).Build();
-
-if (!resCompile.Success)
-{
-    foreach (var err in resCompile.Errors!)
-        Console.WriteLine(err);
-    return;
-}
-
 if (!deviceCtx.TryLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
 {
     Console.WriteLine(error);

@@ -188,7 +188,7 @@ public sealed class Device : IPortController
                         long stepLimit,
                         int delay,
                         Action? onLaunch,
-                        Action<IProcessorReader>? onStep,
+                        Action<ProcessorReader>? onStep,
                         Action? onEnd)
     {
         bool useSleepMode = delay != 0;
@@ -196,6 +196,7 @@ public sealed class Device : IPortController
         onLaunch?.Invoke();
         stepCounter = 0;
 
+        _processor.Reset();
         _processor.LaunchProgramm(start);
         RunSimulationLoopDebug(delay, useSleepMode, stepLimit, onStep);
 
@@ -278,7 +279,7 @@ public sealed class Device : IPortController
         }
     }
 
-    private void RunSimulationLoopDebug(int delay, bool useSleepMode, long stepLimit, Action<IProcessorReader>? onStep)
+    private void RunSimulationLoopDebug(int delay, bool useSleepMode, long stepLimit, Action<ProcessorReader>? onStep)
     {
         while (_processor.IsRunning)
         {
@@ -357,7 +358,7 @@ public sealed class Device : IPortController
     /// </summary>
     /// <param name="OnStep">Необязательный колбэк, получающий снимок после шага.</param>
     /// <remarks>Если процессор не запущен, метод ничего не делает.</remarks>
-    public void NextStepProcessor(Action<IProcessorReader>? OnStep)
+    public void NextStepProcessor(Action<ProcessorReader>? OnStep)
     {
         if (!_processor.IsRunning) return;
 
@@ -375,7 +376,7 @@ public sealed class Device : IPortController
     /// <param name="count">Количество шагов.</param>
     /// <param name="OnStep">Необязательный колбэк, получающий снимок после каждого шага.</param>
     /// <remarks>Если процессор не запущен, метод ничего не делает.</remarks>
-    public void NextStepProcessorCount(int count, Action<IProcessorReader>? OnStep)
+    public void NextStepProcessorCount(int count, Action<ProcessorReader>? OnStep)
     {
         if (!_processor.IsRunning) return;
         bool needLog = OnStep != null;

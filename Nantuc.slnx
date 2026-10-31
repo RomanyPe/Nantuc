@@ -12,6 +12,10 @@
   <Project Path="Nantuc.Kernel.Contracts/Nantuc.Kernel.Contracts.csproj" Id="3b7898ca-010b-4d99-9da1-81a6b1740138" />
   <Project Path="Nantuc.Kernel.Diagnostics/Nantuc.Kernel.Diagnostics.csproj" Id="8264dd1b-6611-4669-88a4-252350fdc541" />
   <Project Path="Nantuc.Kernel/Nantuc.Kernel.csproj" Id="9d1173c7-0c5f-402c-a10c-a5f7752b4b31" />
+  <Folder Name="/Элементы решения/docs/">
+    <File Path="docs/bytecode.md" />
+    <File Path="docs/METRICS.md" />
+  </Folder>
   <Project Path="Nantuc.Benchmarks/Nantuc.Benchmarks.csproj" Id="ca2eb761-5c06-4622-8663-b639d3da1812" />
   <Project Path="Nantuc.VmApplication.Tests/Nantuc.Tests.csproj" Id="fa42793f-01b9-4025-87d5-a624d0a0e1f8" />
   <Project Path="Nantuc.VmApplication/Nantuc.VmApplication.csproj" />

@@ -21,14 +21,14 @@
 
 Ключевые роли модуля:
 - Шина портов: `IPortBus`, `IPortUse`, `IPortController`, `ReadPortResult`.
-- Процессор: `IProcessorReader`, `IProcessorFaultPolicy` (с `Default`).
+- Процессор: `ProcessorReader`, `IProcessorFaultPolicy` (с `Default`).
 - Оптимизации: `OptimizationId`, `OptimizationLogEntry`, `IReadOnlyLogOptimization`.
 - Результаты замеров: `ITimerSimulationResult`.
 - Устройства: `DeviceInfo`, `INativeReadOnlyBuffer`.
 
 Проект — листовой по зависимостям (только `Common`), не содержит `unsafe`, `NativeMemory`, `Regex` и рефлексии.
 
-> **XML-документация почти полная.** Документированы `ITimerSimulationResult`, `OptimizationId`, `INativeReadOnlyBuffer`, `IPortBus`, `IPortUse`, `IPortController`, `IProcessorReader`, `IReadOnlyLogOptimization`, `IProcessorFaultPolicy`. Все тривиальные DTO (`OptimizationLogEntry`, `ReadPortResult`, `DeviceInfo`) теперь тоже имеют `///` на структуре и `<param>` на параметрах. Оставшиеся пробелы — семантика (поведение при ошибках, порядок `Dispose`, валидные значения `RegType`) и одно фактическое обещание в XML `OptimizationId`, не подкреплённое кодом. Подробности — в разделе [Что исправить](#что-исправить).
+> **XML-документация почти полная.** Документированы `ITimerSimulationResult`, `OptimizationId`, `INativeReadOnlyBuffer`, `IPortBus`, `IPortUse`, `IPortController`, `ProcessorReader`, `IReadOnlyLogOptimization`, `IProcessorFaultPolicy`. Все тривиальные DTO (`OptimizationLogEntry`, `ReadPortResult`, `DeviceInfo`) теперь тоже имеют `///` на структуре и `<param>` на параметрах. Оставшиеся пробелы — семантика (поведение при ошибках, порядок `Dispose`, валидные значения `RegType`) и одно фактическое обещание в XML `OptimizationId`, не подкреплённое кодом. Подробности — в разделе [Что исправить](#что-исправить).
 
 ## Дерево локального проекта
 
@@ -43,7 +43,7 @@ Nantuc.Kernel.Contracts/
 ├── IPortController.cs                # interface IPortController : IPortUse, IDisposable
 ├── IPortUse.cs                       # interface IPortUse
 ├── IProcessorFaultPolicy.cs          # interface IProcessorFaultPolicy + nested DefaultProcessorFaultPolicy
-├── IProcessorReader.cs               # interface IProcessorReader
+├── ProcessorReader.cs                # readonly struct ProcessorReader
 ├── IReadOnlyLogOptimization.cs       # interface IReadOnlyLogOptimization
 ├── ITimerSimulationResult.cs         # interface ITimerSimulationResult
 ├── OptimizationLogEntry.cs           # readonly record struct OptimizationLogEntry
@@ -69,7 +69,7 @@ Nantuc.Kernel.Contracts/
 | `IPortUse` | `interface` | `ReadPort(ulong)`, `WritePort(ulong, byte)`, `WakeProcessor()` |
 | `IPortController` | `interface : IPortUse, IDisposable` | Композиция «устройство на шине + освобождение» |
 | `ReadPortResult` | `readonly record struct` | `(byte Data, BiosStatus Status = Success)` |
-| `IProcessorReader` | `interface` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)` |
+| `ProcessorReader` | `readonly struct` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)` |
 | `IProcessorFaultPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)` |
 | `IReadOnlyLogOptimization` | `interface` | `Id`, `GetLogs()` |
 | `OptimizationId` | `readonly struct` | Валидированный идентификатор `[a-z0-9.-]{1,128}` |
@@ -89,7 +89,7 @@ Nantuc.Kernel.Contracts/
 
 ### Процессор
 
-**`IProcessorReader`** — только чтение состояния: `IsRunning`, `IsSleeping`, `GetRegister(RegType)`. Записи нет — она в `Kernel`. Поведение `GetRegister` для невалидного `RegType` (`(RegType)200`) не задокументировано.
+**`ProcessorReader`** — только чтение состояния: `IsRunning`, `IsSleeping`, `GetRegister(RegType)`. Записи нет — она в `Kernel`. Поведение `GetRegister` для невалидного `RegType` (`(RegType)200`) не задокументировано.
 
 **`IProcessorFaultPolicy`** — политика остановки процессора при `ProcessorFault`:
 
@@ -227,7 +227,7 @@ foreach (OptimizationLogEntry e in entries)
 Средняя. Контракты — это то, что видит автор расширений и пользователь `VmApplication`, но не то, что пишет автор программы на MiniC.
 
 - Автор расширений (кастомное устройство, дизассемблер, отладчик) реализует `IPortUse`/`IPortController`/`INativeReadOnlyBuffer` — и это его основной вход в платформу.
-- Пользователь `VmApplication`, который хочет читать состояние процессора, использует `IProcessorReader` и `IProcessorFaultPolicy`.
+- Пользователь `VmApplication`, который хочет читать состояние процессора, использует `ProcessorReader` и `IProcessorFaultPolicy`.
 - Автор компилятора оптимизаций работает с `OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`.
 - Автор программы на MiniC/NANASM этот модуль не импортирует — он работает через `VmApplication`.
 
@@ -335,8 +335,8 @@ foreach (OptimizationLogEntry e in entries)
     Файл: `INativeReadOnlyBuffer.cs`. Имя намекает на `NativeMemory`, но интерфейс этого не требует — любая реализация (включая managed `byte[]`) подойдёт. В WASM это нормально, но имя сбивает с толку.  
     Фикс: либо переименовать (`IReadOnlyBuffer`/`IByteReadOnlyBuffer`), либо добавить `<remarks>` с явным «the name is historical; implementations may be fully managed».
 
-11. **[XML] `IProcessorReader.GetRegister` — не зафиксировано поведение для невалидного `RegType`.**  
-    Файл: `IProcessorReader.cs`. `ulong GetRegister(RegType regType)` — что при `(RegType)200`? Бросает, возвращает `0`, что-то ещё? Не сказано.  
+11. **[XML] `ProcessorReader.GetRegister` — не зафиксировано поведение для невалидного `RegType`.**  
+    Файл: `ProcessorReader.cs`. `ulong GetRegister(RegType regType)` — что при `(RegType)200`? Бросает, возвращает `0`, что-то ещё? Не сказано.  
     Фикс: `<exception>` или `<remarks>` с явным «throws `ArgumentOutOfRangeException` for invalid register» либо «returns 0».
 
 12. **[XML] `IPortController` — порядок `Dispose` не зафиксирован.**  

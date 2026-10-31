@@ -46,7 +46,6 @@ public sealed class Processor(MemoryBus ram,
     private readonly IProcessorFaultPolicy _processorFaultPolicy = processorFaultPolicy;
     private readonly MemoryBus _ram = ram;
     private readonly PortBus _portBus = portBus;
-    private readonly ProcessorReader _processorReader = new();
 
     private ulong _stackBase;
     private bool _isRunning = false;
@@ -919,40 +918,13 @@ public sealed class Processor(MemoryBus ram,
     /// Возвращает снимок состояния процессора для внешних наблюдателей.
     /// </summary>
     /// <returns>
-    /// Экземпляр <see cref="IProcessorReader"/>, содержащий <see cref="IsRunning"/>,
+    /// Экземпляр <see cref="ProcessorReader"/>, содержащий <see cref="IsRunning"/>,
     /// <see cref="IsSleeping"/> и копию регистров на момент вызова.
     /// </returns>
-    /// <remarks>
-    /// Возвращаемый объект переиспользуется между вызовами — не сохраняйте его
-    /// дольше, чем до следующего вызова <see cref="GetCurrentProcessorReader"/>.
-    /// </remarks>
-    public IProcessorReader GetCurrentProcessorReader()
+    public ProcessorReader GetCurrentProcessorReader()
     {
-        _processorReader.Update(_isRunning, _isSleeping, _registers);
-        return _processorReader;
-    }
-
-    private sealed class ProcessorReader : IProcessorReader
-    {
-        private bool _isRunning;
-        private bool _isSleeping;
-        private ArrayRegisters _registers;
-
-        public bool IsRunning => _isRunning;
-        public bool IsSleeping => _isSleeping;
-
-        public void Update(bool running, bool sleeping, ArrayRegisters regs)
-        {
-            _isRunning = running;
-            _isSleeping = sleeping;
-            _registers = regs;
-        }
-
-        public ulong GetRegister(RegType regType)
-        {
-            if ((uint)regType >= CountReg)
-                throw new ArgumentOutOfRangeException(nameof(regType));
-            return _registers[regType.Int()];
-        }
+        Span<ulong> arr = stackalloc ulong[32];
+        CopyRegisters(arr);
+        return new(arr, IsRunning, IsSleeping);
     }
 }
