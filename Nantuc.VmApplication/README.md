@@ -721,24 +721,3 @@ var project = new VmHostProjectBuilder()
 18. **`LoadProgram`** — в README было примечание «для больших программ — `TryLoadProgram`, а не `LoadProgram` (посимвольно)» → на самом деле `LoadProgram(ReadOnlySpan<byte>)` вызывает `_device.LoadProgram` (нативная копия), а не посимвольную запись; `TryLoadProgram` просто даёт безопасную форму без исключений.
 19. **«Что исправлено в этой версии»** — было «`VmHostProject` — конструктор с обязательным `VmCompilerOptimizator`» → стало «конструктор принимает `CompilerContext`».
 20. **`ITimerSimulationResult` в примере** — в README использовался `r?.Steps`/`r?.Elapsed`, но в сигнатуре `OnEnd` стоял `ISimulationResult?` → выровнено на `ITimerSimulationResult?`.
-
-## Что именно изменилось
-
-| # | Где | Было | Стало |
-|---|---|---|---|
-| 1 | `VmHostFactory.CreateDefault` | без `provider` | `IErrorMessageProvider? provider = null` |
-| 2 | `VmHostProject` конструктор | 3 аргумента | `CompilerContext ctx` |
-| 3 | `CompilerContext` | нет в README | новая запись + описание |
-| 4 | `VmHostProject.ThrowCompilerPolicy` | нет | добавлено свойство |
-| 5 | `VmHostProjectBuilder.WithThrowProvider` | нет | добавлен |
-| 6 | `WithOptimizator` | non-nullable | `VmCompilerOptimizator?` |
-| 7-8 | `SingleStep`/`MultiStep` | `Action<IProcessorReader>?` | `Action<ProcessorReader>?` |
-| 9 | `Pause`/`Resume` | нет в API | добавлены |
-| 10 | `LaunchOptions.OnEnd` | `ISimulationResult?` | `ITimerSimulationResult?` |
-| 11 | `LaunchOptionsDebug.OnStep` | `IProcessorReader` | `ProcessorReader` |
-| 12 | `SnapshotRegisters.Count` | `static ulong` | `const int` |
-| 13 | `GetAllDevices` | `IReadOnlyCollection` | `IReadOnlyList` |
-| 14-17 | `Unsafe/` и `Project/` | 1 файл | 4 файла + `CompilerContext.cs` |
-| 18 | `LoadProgram` примечание | «посимвольно» | нативная копия через `ReadOnlySpan<byte>` |
-| 19 | «Что исправлено» п.12 | `VmCompilerOptimizator` | `CompilerContext` |
-| 20 | пример `OnEnd` | `ISimulationResult` | `ITimerSimulationResult` |

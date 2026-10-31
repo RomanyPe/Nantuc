@@ -21,14 +21,14 @@
 
 Ключевые роли модуля:
 - Шина портов: `IPortBus`, `IPortUse`, `IPortController`, `ReadPortResult`.
-- Процессор: `ProcessorReader`, `IProcessorFaultPolicy` (с `Default`).
+- Процессор: `ProcessorReader`, `IProcessorFaultPolicy` (с кэшированным `Default`).
 - Оптимизации: `OptimizationId`, `OptimizationLogEntry`, `IReadOnlyLogOptimization`.
 - Результаты замеров: `ITimerSimulationResult`.
 - Устройства: `DeviceInfo`, `INativeReadOnlyBuffer`.
 
 Проект — листовой по зависимостям (только `Common`), не содержит `unsafe`, `NativeMemory`, `Regex` и рефлексии.
 
-> **XML-документация почти полная.** Документированы `ITimerSimulationResult`, `OptimizationId`, `INativeReadOnlyBuffer`, `IPortBus`, `IPortUse`, `IPortController`, `ProcessorReader`, `IReadOnlyLogOptimization`, `IProcessorFaultPolicy`. Все тривиальные DTO (`OptimizationLogEntry`, `ReadPortResult`, `DeviceInfo`) теперь тоже имеют `///` на структуре и `<param>` на параметрах. Оставшиеся пробелы — семантика (поведение при ошибках, порядок `Dispose`, валидные значения `RegType`) и одно фактическое обещание в XML `OptimizationId`, не подкреплённое кодом. Подробности — в разделе [Что исправить](#что-исправить).
+> **XML-документация почти полная.** Документированы `ITimerSimulationResult`, `OptimizationId`, `INativeReadOnlyBuffer`, `IPortBus`, `IPortUse`, `IPortController`, `ProcessorReader`, `IReadOnlyLogOptimization`, `IProcessorFaultPolicy`. Все тривиальные DTO (`OptimizationLogEntry`, `ReadPortResult`, `DeviceInfo`) тоже имеют `///` на структуре и `<param>` на параметрах. Оставшиеся пробелы — семантика (поведение при ошибках, порядок `Dispose`, валидные значения `RegType`) и одно фактическое обещание в XML `OptimizationId`, не подкреплённое кодом. Подробности — в разделе [Что исправить](#что-исправить).
 
 ## Дерево локального проекта
 
@@ -43,24 +43,25 @@ Nantuc.Kernel.Contracts/
 ├── IPortController.cs                # interface IPortController : IPortUse, IDisposable
 ├── IPortUse.cs                       # interface IPortUse
 ├── IProcessorFaultPolicy.cs          # interface IProcessorFaultPolicy + nested DefaultProcessorFaultPolicy
-├── ProcessorReader.cs                # readonly struct ProcessorReader
+├── ProcessorReader.cs                # readonly struct ProcessorReader, [InlineArray(32)]
 ├── IReadOnlyLogOptimization.cs       # interface IReadOnlyLogOptimization
 ├── ITimerSimulationResult.cs         # interface ITimerSimulationResult
+├── OptimizationId.cs                 # readonly struct OptimizationId
 ├── OptimizationLogEntry.cs           # readonly record struct OptimizationLogEntry
-├── ReadPortResult.cs                 # readonly record struct ReadPortResult
-└── TypeOptimization.cs               # readonly struct OptimizationId (имя файла ≠ имя типа!)
+└── ReadPortResult.cs                 # readonly record struct ReadPortResult
 ```
 
 Замечания по организации:
-- Файл `TypeOptimization.cs` содержит тип `OptimizationId`. Имя файла не соответствует имени типа — навигация страдает (см. [Что исправить](#что-исправить), п. 1).
-- `IPortController.cs` — однострочный, но теперь с `///` и `<see>`-ссылками на `IPortUse`/`IDisposable`.
+- Файлы `OptimizationId.cs` и `OptimizationLogEntry.cs` — имя файла соответствует имени типа (ранее было `TypeOptimization.cs` с типом `OptimizationId` — теперь переименовано).
+- `IPortController.cs` — однострочный, но с `///` и `<see>`-ссылками на `IPortUse`/`IDisposable`.
 - `IProcessorFaultPolicy` содержит `private class DefaultProcessorFaultPolicy` — реализация политики живёт внутри интерфейса. Это нестандартно для контрактов, но осознанно: «политика по умолчанию» — часть контракта.
+- `ProcessorReader` — `readonly struct` с `[InlineArray(32)]` для хранения копии регистров; конструктор принимает `Span<ulong>`, `bool isRun`, `bool isSleep`.
 
 ## API
 
 ### Общая картина
 
-В модуле — 11 `interface` и 4 `struct`/`record struct`. Публичная поверхность:
+В модуле — 7 `interface` и 5 `struct`/`record struct`. Публичная поверхность:
 
 | Тип | Вид | Назначение |
 |---|---|---|
@@ -69,8 +70,8 @@ Nantuc.Kernel.Contracts/
 | `IPortUse` | `interface` | `ReadPort(ulong)`, `WritePort(ulong, byte)`, `WakeProcessor()` |
 | `IPortController` | `interface : IPortUse, IDisposable` | Композиция «устройство на шине + освобождение» |
 | `ReadPortResult` | `readonly record struct` | `(byte Data, BiosStatus Status = Success)` |
-| `ProcessorReader` | `readonly struct` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)` |
-| `IProcessorFaultPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)` |
+| `ProcessorReader` | `readonly struct` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)`; `[InlineArray(32)]`-хранилище |
+| `IProcessorFaultPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)`; `Default` — кэшированный singleton |
 | `IReadOnlyLogOptimization` | `interface` | `Id`, `GetLogs()` |
 | `OptimizationId` | `readonly struct` | Валидированный идентификатор `[a-z0-9.-]{1,128}` |
 | `OptimizationLogEntry` | `readonly record struct` | `(int Pass, string Message)` |
@@ -85,18 +86,18 @@ Nantuc.Kernel.Contracts/
 
 **`IPortController`** — композиция `IPortUse + IDisposable`, маркер «устройство с ресурсами». XML есть, но порядок `Dispose` относительно `WakeProcessor`/операций шины не зафиксирован.
 
-**`ReadPortResult`** — `readonly record struct (byte Data, BiosStatus Status = Success)`. Дефолт `Status = Success` означает: `new ReadPortResult(data)` даст «успех», даже если данные пришли из ошибки. XML на `<param>` есть, но предупреждения о дефолте нет (см. [Что исправить](#что-исправить), п. 6).
+**`ReadPortResult`** — `readonly record struct (byte Data, BiosStatus Status = Success)`. Дефолт `Status = Success` означает: `new ReadPortResult(data)` даст «успех», даже если данные пришли из ошибки. XML на `<param>` есть, но предупреждения о дефолте нет (см. [Что исправить](#что-исправить), п. 4).
 
 ### Процессор
 
-**`ProcessorReader`** — только чтение состояния: `IsRunning`, `IsSleeping`, `GetRegister(RegType)`. Записи нет — она в `Kernel`. Поведение `GetRegister` для невалидного `RegType` (`(RegType)200`) не задокументировано.
+**`ProcessorReader`** — `readonly struct` с `[InlineArray(32)]`-хранилищем регистров. Конструктор `(Span<ulong> span, bool isRun, bool isSleep)` копирует до 32 элементов из `span` в `Arr` (при `span.Length > 32` — `IndexOutOfRangeException`; при `span.Length < 32` — оставшиеся регистры остаются нулевыми). Свойства: `IsRunning`, `IsSleeping`; метод `GetRegister(RegType)`. Записи нет — она в `Kernel`. Поведение `GetRegister` для невалидного `RegType` (`(RegType)200`) не задокументировано.
 
 **`IProcessorFaultPolicy`** — политика остановки процессора при `ProcessorFault`:
 
 ```csharp
 public interface IProcessorFaultPolicy
 {
-    public static IProcessorFaultPolicy Default => new DefaultProcessorFaultPolicy();
+    public static IProcessorFaultPolicy Default { get; } = new DefaultProcessorFaultPolicy();
 
     private class DefaultProcessorFaultPolicy : IProcessorFaultPolicy
     {
@@ -112,19 +113,19 @@ public interface IProcessorFaultPolicy
 }
 ```
 
-Семантика `Default`: продолжать при `Success` и `NullDeviceOutput`, останавливаться на любом другом статусе. `NullDeviceInput` не входит в «продолжать» — асимметрично (см. [Что исправить](#что-исправить), п. 4). `Default` создаёт **новый экземпляр** на каждое чтение — не кэширован (см. [Что исправить](#что-исправить), п. 3).
+Семантика `Default`: продолжать при `Success` и `NullDeviceOutput`, останавливаться на любом другом статусе. `NullDeviceInput` не входит в «продолжать» — асимметрично (см. [Что исправить](#что-исправить), п. 2). `Default` — **статическое свойство с кэшированным экземпляром** (static initializer, создаётся один раз при первом обращении к типу интерфейса).
 
 ### Оптимизации
 
 **`OptimizationId`** — `readonly struct` с валидацией. Принимает только `[a-z0-9.-]`, длина 1..128. Конструктор бросает на невалидном входе, `TryParse` — не бросает (для парсинга пользовательского ввода). `default(OptimizationId)` — единственное невалидное значение (`IsValid == false`, `Value == null`). Сравнение — `StringComparison.Ordinal` (`Equals`, `CompareTo` через `String.CompareOrdinal`). Культура не влияет — WASM-safe.
 
-**`OptimizationLogEntry`** — `readonly record struct (int Pass, string Message)`. XML на структуре и `<param>` на `Pass`/`Message` есть. Формулировка summary («Оптимизационный лог с защитой от перезаписи новыми логами») описывает мотивацию, а не сам тип (см. [Что исправить](#что-исправить), п. 8).
+**`OptimizationLogEntry`** — `readonly record struct (int Pass, string Message)`. XML на структуре и `<param>` на `Pass`/`Message` есть. Формулировка summary («Оптимизационный лог с защитой от перезаписи новыми логами») описывает мотивацию, а не сам тип (см. [Что исправить](#что-исправить), п. 6).
 
-**`IReadOnlyLogOptimization`** — `Id: OptimizationId`, `GetLogs(): IReadOnlyList<OptimizationLogEntry>`. Комментарий «снимок» остался inline (`// снимок`), не в `///` (см. [Что исправить](#что-исправить), п. 5).
+**`IReadOnlyLogOptimization`** — `Id: OptimizationId`, `GetLogs(): IReadOnlyList<OptimizationLogEntry>`. Комментарий «снимок» остался inline (`// снимок`), не в `///` (см. [Что исправить](#что-исправить), п. 3).
 
 ### Устройства и результаты
 
-**`DeviceInfo`** — `readonly record struct (int Id, uint Sector, string? Name)`. XML на структуре и `<param>` есть. `Name` — `string?`; в `Common` есть `NameDeviceToken` (кэш строки, `IsUnknown`, Ordinal-сравнение) — выбор `string?` не задокументирован (см. [Что исправить](#что-исправить), п. 9).
+**`DeviceInfo`** — `readonly record struct (int Id, uint Sector, string? Name)`. XML на структуре и `<param>` есть. `Name` — `string?`; в `Common` есть `NameDeviceToken` (кэш строки, `IsUnknown`, Ordinal-сравнение) — выбор `string?` не задокументирован (см. [Что исправить](#что-исправить), п. 7).
 
 **`INativeReadOnlyBuffer`** — read-only буфер: `Length: nuint`, `this[nuint]: byte`. Несмотря на «Native» в имени, сам интерфейс — managed. Реализация может быть над `NativeMemory`, но это забота реализующего слоя (см. [WASM](#wasm--кроссплатформенность)).
 
@@ -236,13 +237,14 @@ foreach (OptimizationLogEntry e in entries)
 - Читать `ReadPortResult.Status` первым делом, `Data` — только если `Success`.
 - Использовать `OptimizationId.TryParse` для пользовательского ввода и конструктор — для заведомо валидных констант.
 - Возвращать `in ProcessorFault` из ядра и принимать его `in` в `ShouldContinue` — без копирования.
-- `IProcessorFaultPolicy.Default` — только для быстрого прототипа; для production — своя реализация (см. [Что исправить](#что-исправить), п. 3).
+- `IProcessorFaultPolicy.Default` — кэшированный singleton (static initializer); для production с особыми требованиями к политике — своя реализация.
 
 **Что не стоит делать:**
 - Возвращать `new ReadPortResult(data)` без явного `Status` — дефолт `Success` замаскирует ошибку.
 - Реализовывать `IPortBus` в своём коде без реальной регистрации устройств — это не «устройство», а «шина».
-- Полагаться на `Default`-политику в production: она продолжает на `NullDeviceOutput`, но не на `NullDeviceInput`.
+- Полагаться на `Default`-политику в production без понимания асимметрии `NullDeviceOutput` vs `NullDeviceInput`.
 - Кэшировать `IReadOnlyLogOptimization.GetLogs()` — это снимок по контракту (см. `<remarks>` в реализации, не в интерфейсе).
+- Считать `Default` «новым экземпляром на каждый вызов» — это кэшированный singleton.
 
 ## Особенная информация
 
@@ -252,13 +254,13 @@ foreach (OptimizationLogEntry e in entries)
 |---|---|---|
 | Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — `interface`/`readonly struct`. Собирается под `browser-wasm` без правок csproj. |
 | `NativeMemory` | n/a | В этом проекте не используется. `INativeReadOnlyBuffer` — managed-интерфейс; риск появится только в реализации (в другом слое). |
-| `stackalloc` / `InlineArray` | ✅ | Не используются. |
-| `Interlocked` / `Volatile` | ✅ | Не используются. `IProcessorFaultPolicy.Default` — `static`-свойство, но не кэширует экземпляр (см. п. 3 ниже). |
+| `stackalloc` / `InlineArray` | ✅ | `ProcessorReader` использует `[InlineArray(32)]` — compile-time, AOT-friendly. `stackalloc` в `GetCurrentProcessorReader` (в `Kernel`) — 32 × 8 байт. |
+| `Interlocked` / `Volatile` | ✅ | Не используются. `IProcessorFaultPolicy.Default` — `static`-свойство с кэшированным экземпляром (static initializer). |
 | Реализация `IFileService` | n/a | Интерфейса в этой партии нет. Если появится в другом слое — WASM-реализация будет отдельной. |
 | `Regex` / trimming | ✅ | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` валидирует строку посимвольно (`foreach (char c in value)`), без `Regex`. Trimming-совместимо. |
 | AOT | ✅ | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |
 
-**Итог:** контракты полностью совместимы с WASM (interpreter и AOT) и trimming. Единственная зона риска — `IProcessorFaultPolicy.Default` аллоцирует новый экземпляр на каждое чтение (не WASM-специфично, но лишний GC-pressure).
+**Итог:** контракты полностью совместимы с WASM (interpreter и AOT) и trimming.
 
 ### Формат `OptimizationId`
 
@@ -266,12 +268,12 @@ foreach (OptimizationLogEntry e in entries)
 - Длина: 1..`MaxLength = 128`.
 - `default(OptimizationId)` — единственное невалидное значение; конструктор `new OptimizationId(...)` всегда даёт валидный экземпляр (или бросает).
 - Сравнение — `StringComparison.Ordinal` / `String.CompareOrdinal`; culture-independent.
-- Персистентность: XML-документация утверждает, что well-known id стабильны и их можно писать в логи/кэши/конфиги. В коде **статических полей с well-known id нет** — только сам механизм (см. [Что исправить](#что-исправить), п. 2).
+- Персистентность: XML-документация утверждает, что well-known id стабильны и их можно писать в логи/кэши/конфиги. В коде **статических полей с well-known id нет** — только сам механизм (см. [Что исправить](#что-исправить), п. 1).
 
 ### `IProcessorFaultPolicy` как контракт
 
-- `Default` возвращает `new DefaultProcessorFaultPolicy()` — новый экземпляр на каждое обращение. Это не singleton, но `DefaultProcessorFaultPolicy` — `private class` без состояния, поэтому «работает». Для production — либо кэшировать, либо реализовывать свою политику.
-- `DefaultProcessorFaultPolicy.ShouldContinue` возвращает `true` для `Success` и `NullDeviceOutput`. `NullDeviceInput` — `false`. Если `NullDeviceInput` семантически «нет устройства ввода, но это не падение», поведение `Default` расходится с ожиданиями (см. [Что исправить](#что-исправить), п. 4).
+- `Default` — статическое свойство с **кэшированным экземпляром** `DefaultProcessorFaultPolicy` (static initializer). Создаётся один раз при первом обращении к типу `IProcessorFaultPolicy`; повторные чтения `Default` возвращают тот же экземпляр.
+- `DefaultProcessorFaultPolicy.ShouldContinue` возвращает `true` для `Success` и `NullDeviceOutput`. `NullDeviceInput` — `false`. Если `NullDeviceInput` семантически «нет устройства ввода, но это не падение», поведение `Default` расходится с ожиданиями (см. [Что исправить](#что-исправить), п. 2).
 - Приватный вложенный класс — нестандартное для контрактов решение, но допустимое: «политика по умолчанию» — часть контракта, а не отдельная реализация в `Kernel`.
 
 ### `IPortBus` vs `IPortUse`
@@ -306,39 +308,46 @@ foreach (OptimizationLogEntry e in entries)
 
 По убыванию важности. Пункты с **[API]** — кандидаты на изменение публичной поверхности; **[XML]** — приоритеты документации; **[Дом]** — вопросы организации кода.
 
+1. **[API/XML] `OptimizationId` — well-known id не выставлены как статические поля.**  
+   Файл: `OptimizationId.cs`, `<remarks>`. XML утверждает: «Well-known identifiers are exposed as static fields», но в коде **нет ни одного** `public static readonly OptimizationId` — только конструктор и `TryParse`. Обещание в документации не подкреплено.  
+   Фикс: либо добавить статические поля для well-known id (и зафиксировать их в XML как стабильные), либо переписать `<remarks>`: «Well-known identifiers are not exposed as fields; create them via constructor or `TryParse`».
 
-4. **[API] `DefaultProcessorFaultPolicy` — асимметрия `NullDeviceOutput` vs `NullDeviceInput`.**  
+2. **[API] `DefaultProcessorFaultPolicy` — асимметрия `NullDeviceOutput` vs `NullDeviceInput`.**  
    Файл: `IProcessorFaultPolicy.cs`. `ShouldContinue` возвращает `true` для `NullDeviceOutput`, но `false` для `NullDeviceInput`. Семантически «нет устройства вывода» и «нет устройства ввода» — симметричные ситуации; текущая политика молча останавливает VM при отсутствии ввода, но продолжает при отсутствии вывода.  
    Фикс: либо добавить `BiosStatus.NullDeviceInput => true`, либо явно задокументировать в `<remarks>` на `DefaultProcessorFaultPolicy.ShouldContinue`, что это намеренное решение.
 
-5. **[XML] `IReadOnlyLogOptimization.GetLogs` — «снимок» только в inline-комментарии.**  
+3. **[XML] `IReadOnlyLogOptimization.GetLogs` — «снимок» только в inline-комментарии.**  
    Файл: `IReadOnlyLogOptimization.cs`, `IReadOnlyList<OptimizationLogEntry> GetLogs();  // снимок`. Inline-комментарий есть, `/// <remarks>` о том, что возвращается копия (и что `IReadOnlyList` — это именно снимок, а не live view) — нет. Плюс: аллокация на каждый вызов не задокументирована.  
    Фикс: `/// <remarks>Returns a snapshot; the returned list is a new allocation on each call and is not updated as new entries are appended.</remarks>`.
 
-6. **[API] `ReadPortResult` — дефолт `Status = Success` замаскирует ошибку.**  
+4. **[API] `ReadPortResult` — дефолт `Status = Success` замаскирует ошибку.**  
    Файл: `ReadPortResult.cs`. `new ReadPortResult(data)` даёт `Status = Success`. XML на `<param>` есть, но предупреждения о дефолте нет. Если реализация `IPortBus.ReadPort` забыла проставить статус — ошибка уйдёт в прод молча.  
    Фикс: либо убрать дефолт (`Status` обязателен в конструкторе), либо добавить фабрики `ReadPortResult.Ok(byte)` / `ReadPortResult.Fail(BiosStatus)` и использовать их в реализации; либо `<remarks>` с явным предупреждением.
 
-7. **[API/XML] `IPortUse.ReadPort`/`IPortUse.WritePort` — не зафиксировано поведение при ошибке.**  
+5. **[API/XML] `IPortUse.ReadPort`/`IPortUse.WritePort` — не зафиксировано поведение при ошибке.**  
    Файл: `IPortUse.cs`. `byte ReadPort(ulong offset)` — что при ошибке (бросить, вернуть `0`, вернуть `0xFF`)? Не сказано. `void WritePort(ulong, byte)` — глотает ошибку или бросает? Контракт не фиксирует. `IPortBus.ReadPort`/`WritePort` возвращают статус — снова асимметрия.  
    Фикс: либо добавить `TryReadPort(ulong, out byte, out BiosStatus)` / `BiosStatus WritePort(...)`, либо задокументировать в `<remarks>`, что реализация бросает `InvalidOperationException` при ошибке (и зафиксировать это как контракт).
 
-8. **[XML] `OptimizationLogEntry` — summary описывает мотивацию, не тип.**  
+6. **[XML] `OptimizationLogEntry` — summary описывает мотивацию, не тип.**  
    Файл: `OptimizationLogEntry.cs`, summary: «Оптимизационный лог с защитой от перезаписи новыми логами». «Защита от перезаписи» — это следствие `readonly record struct` (иммутабельность), а не отдельная функциональность. Читатель может решить, что тип содержит логику версионирования.  
    Фикс: переписать в терминах типа: «Запись журнала оптимизатора: номер прохода и сообщение. Иммутабельна; после создания не изменяется».
 
-9. **[API] `DeviceInfo.Name: string?` — вместо `NameDeviceToken`.**  
+7. **[API] `DeviceInfo.Name: string?` — вместо `NameDeviceToken`.**  
    Файл: `DeviceInfo.cs`. В `Common` есть `NameDeviceToken` (кэширует строку, `IsUnknown`, сравнение Ordinal). `DeviceInfo` использует `string?` — для ключа словаря или сравнения это менее удобно и создаёт аллокации.  
    Фикс: заменить `string? Name` на `NameDeviceToken Name` (breaking change для потребителей `DeviceInfo`) — либо явно оставить `string?` и задокументировать в `<remarks>`, почему не `NameDeviceToken`.
 
-10. **[API/XML] `INativeReadOnlyBuffer` — имя «Native», но контракт этого не требует.**  
-    Файл: `INativeReadOnlyBuffer.cs`. Имя намекает на `NativeMemory`, но интерфейс этого не требует — любая реализация (включая managed `byte[]`) подойдёт. В WASM это нормально, но имя сбивает с толку.  
-    Фикс: либо переименовать (`IReadOnlyBuffer`/`IByteReadOnlyBuffer`), либо добавить `<remarks>` с явным «the name is historical; implementations may be fully managed».
+8. **[API/XML] `INativeReadOnlyBuffer` — имя «Native», но контракт этого не требует.**  
+   Файл: `INativeReadOnlyBuffer.cs`. Имя намекает на `NativeMemory`, но интерфейс этого не требует — любая реализация (включая managed `byte[]`) подойдёт. В WASM это нормально, но имя сбивает с толку.  
+   Фикс: либо переименовать (`IReadOnlyBuffer`/`IByteReadOnlyBuffer`), либо добавить `<remarks>` с явным «the name is historical; implementations may be fully managed».
 
-11. **[XML] `ProcessorReader.GetRegister` — не зафиксировано поведение для невалидного `RegType`.**  
-    Файл: `ProcessorReader.cs`. `ulong GetRegister(RegType regType)` — что при `(RegType)200`? Бросает, возвращает `0`, что-то ещё? Не сказано.  
-    Фикс: `<exception>` или `<remarks>` с явным «throws `ArgumentOutOfRangeException` for invalid register» либо «returns 0».
+9. **[XML] `ProcessorReader.GetRegister` — не зафиксировано поведение для невалидного `RegType`.**  
+   Файл: `ProcessorReader.cs`. `ulong GetRegister(RegType regType)` — что при `(RegType)200`? Бросает, возвращает `0`, что-то ещё? Не сказано.  
+   Фикс: `<exception>` или `<remarks>` с явным «throws `ArgumentOutOfRangeException` for invalid register» либо «returns 0».
 
-12. **[XML] `IPortController` — порядок `Dispose` не зафиксирован.**  
+10. **[XML] `IPortController` — порядок `Dispose` не зафиксирован.**  
     Файл: `IPortController.cs`. XML есть, но кто вызывает `Dispose`, когда и как это соотносится с операциями шины (`ReadPort`/`WritePort`/`WakeProcessor`), не сказано.  
     Фикс: `<remarks>` с порядком вызовов (например, «dispose is called by the bus owner; the device must not be used after dispose»).
+
+11. **[XML] `ProcessorReader` — не зафиксировано поведение при `span.Length ≠ 32`.**  
+    Файл: `ProcessorReader.cs`, конструктор и `GetArr`. При `span.Length > 32` — `IndexOutOfRangeException`; при `span.Length < 32` — оставшиеся регистры нулевые. Не задокументировано.  
+    Фикс: `<exception cref="ArgumentException">` для `span.Length < 32` и/или `<remarks>` с явным описанием поведения.

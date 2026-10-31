@@ -3,6 +3,7 @@ using Nantuc.Kernel.Contracts;
 using Nantuc.Kernel.ControllersData;
 using Nantuc.Kernel.RamSystem;
 using System.Collections.Concurrent;
+using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
 using static Nantuc.Kernel.Common.InstructionDecoder;
 
@@ -292,11 +293,8 @@ public sealed class Processor(MemoryBus ram,
     {
         ulong divisor = _registers[reg2.Int()];
         if (divisor == 0)
-        {
-            ulong ip = _registers[RegType.rIP.Int()];
-            _lastFaultData = ip;
-            return BiosStatus.DivOnZero;
-        }
+            return RecordFaultContext(BiosStatus.DivOnZero, _registers[RegType.rIP.Int()]);
+
         ulong dividend = _registers[reg1.Int()];
         ulong res = dividend % divisor;
         _registers[reg1.Int()] = res;
@@ -307,10 +305,8 @@ public sealed class Processor(MemoryBus ram,
     {
         var nextIp = _registers[r.Int()];
         if (nextIp >= _ram.Length)
-        {
-            _lastFaultData = nextIp;
-            return BiosStatus.SegmentationFault;
-        }
+            return RecordFaultContext(BiosStatus.SegmentationFault, nextIp);
+
         _registers[RegType.rIP.Int()] = nextIp;
         return BiosStatus.Success;
     }
@@ -319,10 +315,8 @@ public sealed class Processor(MemoryBus ram,
     {
         var nextIp = _registers[r.Int()];
         if (nextIp >= _ram.Length)
-        {
-            _lastFaultData = nextIp;
-            return BiosStatus.SegmentationFault;
-        }
+            return RecordFaultContext(BiosStatus.SegmentationFault, nextIp);
+        
         return InstructionCALL(nextIp);
     }
 
@@ -375,9 +369,7 @@ public sealed class Processor(MemoryBus ram,
         ulong regV = _registers[reg1.Int()];
         if (!_portBus.WakeProcessor(regV))
         {
-            ulong ip = _registers[RegType.rIP.Int()];
-            _lastFaultData = ip;
-            return BiosStatus.NullDeviceOutput;
+            return RecordFaultContext(BiosStatus.NullDeviceOutput, _registers[RegType.rIP.Int()]);
         }
 
         return BiosStatus.Success;
@@ -387,11 +379,8 @@ public sealed class Processor(MemoryBus ram,
     {
         ulong divisor = _registers[reg2.Int()];
         if (divisor == 0)
-        {
-            ulong ip = _registers[RegType.rIP.Int()];
-            _lastFaultData = ip;
-            return BiosStatus.DivOnZero;
-        }
+            return RecordFaultContext(BiosStatus.DivOnZero, _registers[RegType.rIP.Int()]);
+
         ulong dividend = _registers[reg1.Int()];
         ulong res = dividend / divisor;
         _registers[reg1.Int()] = res;
@@ -446,10 +435,8 @@ public sealed class Processor(MemoryBus ram,
                 var data8 = _ram.ReadInt8LE(adress);
                 status = _ram.UpdateAndReadStatus();
                 if (status != BiosStatus.Success)
-                {
-                    _lastFaultData = _ram.FaultData;
-                    return status;
-                }
+                    return RecordFaultContext(status, _ram.FaultData);
+
                 _registers[reg.Int()] = data8;
                 return status;
 
@@ -458,10 +445,8 @@ public sealed class Processor(MemoryBus ram,
                 var data16 = _ram.ReadInt16LE(adress);
                 status = _ram.UpdateAndReadStatus();
                 if (status != BiosStatus.Success)
-                {
-                    _lastFaultData = _ram.FaultData;
-                    return status;
-                }
+                    return RecordFaultContext(status, _ram.FaultData);
+
                 _registers[reg.Int()] = data16;
 
                 return BiosStatus.Success;
@@ -470,10 +455,8 @@ public sealed class Processor(MemoryBus ram,
                 var data32 = _ram.ReadInt32LE(adress);
                 status = _ram.UpdateAndReadStatus();
                 if (status != BiosStatus.Success)
-                {
-                    _lastFaultData = _ram.FaultData;
-                    return status;
-                }
+                    return RecordFaultContext(status, _ram.FaultData);
+
                 _registers[reg.Int()] = data32;
                 return BiosStatus.Success;
 
@@ -481,10 +464,8 @@ public sealed class Processor(MemoryBus ram,
                 var data64 = _ram.ReadInt64LE(adress);
                 status = _ram.UpdateAndReadStatus();
                 if (status != BiosStatus.Success)
-                {
-                    _lastFaultData = _ram.FaultData;
-                    return status;
-                }
+                    return RecordFaultContext(status, _ram.FaultData);
+
                 _registers[reg.Int()] = data64;
                 return BiosStatus.Success;
 
@@ -505,20 +486,16 @@ public sealed class Processor(MemoryBus ram,
                 _ram.WriteInt8LE(adress, (byte)_registers[reg.Int()]);
                 status = _ram.UpdateAndReadStatus();
                 if (status != BiosStatus.Success)
-                {
-                    _lastFaultData = _ram.FaultData;
-                    return status;
-                }
+                    return RecordFaultContext(status, _ram.FaultData);
+
                 return status;
 
             case OpCodeSize.S16:
                 _ram.WriteInt16LE(adress, (ushort)_registers[reg.Int()]);
                 status = _ram.UpdateAndReadStatus();
                 if (status != BiosStatus.Success)
-                {
-                    _lastFaultData = _ram.FaultData;
-                    return status;
-                }
+                    return RecordFaultContext(status, _ram.FaultData);
+
                 return status;
 
 
@@ -526,10 +503,8 @@ public sealed class Processor(MemoryBus ram,
                 _ram.WriteInt32LE(adress, (uint)_registers[reg.Int()]);
                 status = _ram.UpdateAndReadStatus();
                 if (status != BiosStatus.Success)
-                {
-                    _lastFaultData = _ram.FaultData;
-                    return status;
-                }
+                    return RecordFaultContext(status, _ram.FaultData);
+
                 return status;
 
 
@@ -537,10 +512,8 @@ public sealed class Processor(MemoryBus ram,
                 _ram.WriteInt64LE(adress, _registers[reg.Int()]);
                 status = _ram.UpdateAndReadStatus();
                 if (status != BiosStatus.Success)
-                {
-                    _lastFaultData = _ram.FaultData;
-                    return status;
-                }
+                    return RecordFaultContext(status, _ram.FaultData);
+
                 return status;
 
 
@@ -751,19 +724,14 @@ public sealed class Processor(MemoryBus ram,
 
         sp -= 8;
 
+        if (_registers[RegType.rHP.Int()] >= sp)
+            return RecordFaultContext(BiosStatus.SegmentationFault, sp);
+        
+
         _ram.WriteInt64LE(sp, value);
         var status = _ram.UpdateAndReadStatus();
         if (status != BiosStatus.Success)
-        {
-            _lastFaultData = _ram.FaultData;
-            return status;
-        }
-
-        if (_registers[RegType.rHP.Int()] >= sp)
-        {
-            _lastFaultData = sp;
-            return BiosStatus.SegmentationFault;
-        }
+            return RecordFaultContext(status, _ram.FaultData);
 
         _registers[RegType.rSP.Int()] = sp;
         return BiosStatus.Success;
@@ -777,10 +745,7 @@ public sealed class Processor(MemoryBus ram,
 
         var status = _ram.UpdateAndReadStatus();
         if (status != BiosStatus.Success)
-        {
-            _lastFaultData = _ram.FaultData;
-            return status;
-        }
+            return RecordFaultContext(status, _ram.FaultData);
 
         sp += 8;
 
@@ -796,12 +761,12 @@ public sealed class Processor(MemoryBus ram,
         ulong oldSp = _registers[RegType.rSP.Int()];
 
         if (oldSp < 8)
-            return BiosStatus.SegmentationFault;
+            return RecordFaultContext(BiosStatus.SegmentationFault, oldSp);
 
         ulong sp = oldSp - 8;
 
         if (_registers[RegType.rHP.Int()] >= sp)
-            return BiosStatus.SegmentationFault;
+            return RecordFaultContext(BiosStatus.SegmentationFault, sp);
 
         _ram.WriteInt64LEUnSafe(sp, _registers[RegType.rIP.Int()]);
 
@@ -817,10 +782,7 @@ public sealed class Processor(MemoryBus ram,
         ulong sp = _registers[RegType.rSP.Int()];
 
         if (sp >= _stackBase)
-        {
-            _lastFaultData = _registers[RegType.rIP.Int()];
-            return BiosStatus.StackUnderflow;
-        }
+            return RecordFaultContext(BiosStatus.StackUnderflow, _registers[RegType.rIP.Int()]);
 
         ulong returnAddress = _ram.ReadInt64LEUnSafe(sp);
 
@@ -835,12 +797,10 @@ public sealed class Processor(MemoryBus ram,
     {
         ulong portAddress = _registers[regPort.Int()];
         var result = _portBus.ReadPort(portAddress);
-        if (result.Status != BiosStatus.Success)
-        {
-            _lastFaultData = portAddress;
-            return result.Status;
-        }
 
+        if (result.Status != BiosStatus.Success)
+            return RecordFaultContext(result.Status, portAddress);
+        
         _registers[regDest.Int()] = result.Data;
         return BiosStatus.Success;
     }
@@ -851,10 +811,8 @@ public sealed class Processor(MemoryBus ram,
         byte value = (byte)(_registers[regSrc.Int()] & 0xFF);
         var status = _portBus.WritePort(portAddress, value);
         if (status != BiosStatus.Success)
-        {
-            _lastFaultData = portAddress;
-            return status;
-        }
+            return RecordFaultContext(status, portAddress);
+        
         return BiosStatus.Success;
     }
 
@@ -875,6 +833,11 @@ public sealed class Processor(MemoryBus ram,
         _hasSimulationStatus = false;
     }
 
+    private BiosStatus RecordFaultContext(BiosStatus s, ulong data)
+    {
+        _lastFaultData = data;
+        return s;
+    }
     private void ClearRegs()
     {
         for (int i = 0; i < CountReg; i++) _registers[i] = 0UL;
@@ -921,10 +884,13 @@ public sealed class Processor(MemoryBus ram,
     /// Экземпляр <see cref="ProcessorReader"/>, содержащий <see cref="IsRunning"/>,
     /// <see cref="IsSleeping"/> и копию регистров на момент вызова.
     /// </returns>
-    public ProcessorReader GetCurrentProcessorReader()
+    public ProcessorReader CurrentProcessorReader
     {
-        Span<ulong> arr = stackalloc ulong[32];
-        CopyRegisters(arr);
-        return new(arr, IsRunning, IsSleeping);
+        get
+        {
+            Span<ulong> arr = stackalloc ulong[32];
+            CopyRegisters(arr);
+            return new(arr, IsRunning, IsSleeping);
+        }
     }
 }
