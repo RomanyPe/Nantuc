@@ -34,6 +34,7 @@
 - Получение `ProcessorSnapshot` из `Processor`, изменено внутреннее получение в соответствии с новыми свойствами (`RawInstruction` читается из `rIP`, `OpCode`/`FirstRegister`/`SecondRegister`/`DataSizeCode` — через `InstructionDecoder.DecodeRawInstToEnums`, `DataByInstruction` — из `_lastFaultData`/immediate, `DataFault` — только при `CurrentBiosStatus != Success`)
 - Кеширование и пометка `IsDirty` для `ManagerDevices`, значение `Count` кешируется, если произошли изменения то система пересчитывает все снова
 
+
 ### Исправлено
 - закрыты все TODO в README модулей:
 	- `Kernel.Common` — сломанные `</summary` в `DevicePortSize.B64/B128/B256`, устаревший `<remarks>` на `InstructionDecoder.HasNeed64IntData`
@@ -42,6 +43,10 @@
 	- `Kernel` — `Device.Dispose` освобождает `_wakeSignal` (было — утечка)
 - `Device.Dispose` теперь освобождает `_wakeSignal`
 - рассинхронизация в README файлах
+
+### Удалено
+- класс `BenchmarkOptimizer` из модуля `Nantuc.Benchmarks`
+
 
 ## [0.7.3] - 2026-10-31
 
