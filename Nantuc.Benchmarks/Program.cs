@@ -284,8 +284,6 @@ internal class Program
 
     private static void Main()
     {
-        BenchmarkOptimizer.OptimizeCurrentProcess();
-
         using var host = VmHostFactory.CreateDefault();
 
         DeviceSpec deviceHandle = DeviceSpec.Create(ramSize: RamSize.MB64, name: "ConsoleVM");
@@ -422,7 +420,6 @@ internal class Program
                                         Stopwatch? totalSw = null)
     {
         if (Console.IsOutputRedirected) return;
-        //try { Console.Title = $"[{index}/{total}] {name}"; } catch { /* ignore */ }
 
         string elapsed = totalSw is null ? "" : $" elapsed {FormatTime(totalSw.Elapsed)}";
         Console.WriteLine();

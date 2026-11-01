@@ -17,11 +17,10 @@
 
 `Nantuc.Benchmarks` is not a library but a **console application** (`<OutputType>Exe</OutputType>`) that:
 
-1. Raises the process priority and binds it to a single CPU core (`BenchmarkOptimizer`).
+1. Prints a progress bar (`PrintProgress`) and writes a full log to `logs/result_Benchmark_Logs_YYYY-MM-DD_HH-mm-ss.txt`.
 2. Creates a `VmHost` via `VmHostFactory.CreateDefault`, registers one `Device` (RAM 64 MiB) on `sector 0`.
 3. Runs 12 fixed NANASM programs (text constants `text1`…`text8` in `Program.cs`), each `WarmupRuns=5` + `Runs=20` times.
 4. Collects MIPS, elapsed, steps per run, computes statistics (`Stats`/`StatsResult`): mean, median, trimmed mean, percentiles, CV, skewness, JIT-impact.
-5. Prints a progress bar (`PrintProgress`) and writes a full log to `logs/result_Benchmark_Logs_YYYY-MM-DD_HH-mm-ss.txt`.
 
 The module is an example of **how to use `VmApplication` for measurements**: it does not touch `Kernel` directly, only through `VmHost`/`DeviceContext`, and shows that the public API is sufficient for a benchmark without hacks.
 
@@ -30,7 +29,6 @@ Key roles:
 - **`BenchRunner`** — runner for a single `BenchCase`: preparation (`TryPrepare`), warmup, `RunOnce`, log accumulation, and computation of `PeakMips`/`StepsOnce`/`StepsVariance`.
 - **`BenchCase`** — `record` with name, program text, run counts, and (unused) `ExpectedInstructions`.
 - **`Stats`** / **`StatsResult`** — statistics: mean, median, percentiles, IQR, CV, trimmed mean, geometric mean, skewness, half-means.
-- **`BenchmarkOptimizer`** — process tuning: `ProcessPriorityClass.High` + binding to the last CPU core (`ProcessorAffinity` on Windows, `sched_setaffinity` on Linux, `thread_policy_set` on macOS).
 
 ## Local project tree
 
@@ -43,8 +41,7 @@ Nantuc.Benchmarks/
 ├── BenchRunner.cs                      # BenchRunner + ListExtensions.ComputeVariance
 ├── BenchCase.cs                        # record BenchCase(Name, ProgramText, Runs, WarmupRuns, ExpectedInstructions?)
 ├── Stats.cs                            # static class Stats
-├── StatsResult.cs                      # record struct StatsResult + From(...)
-└── BenchmarkOptimizer.cs               # priority + CPU affinity; P/Invoke in LinuxNative
+└── StatsResult.cs                      # record struct StatsResult + From(...)
 ```
 
 Organization notes:
@@ -59,12 +56,11 @@ The project is an `Exe`; there is no public API. Below is the internal structure
 
 `Program.Main()` (private static):
 
-1. `BenchmarkOptimizer.OptimizeCurrentProcess()` — priority + affinity.
-2. `VmHostFactory.CreateDefault()` → `host`.
-3. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` → `deviceId`.
-4. `BenchCase[]` array (12 cases).
-5. For each case: `new BenchRunner(host, deviceId, case)`, `TryPrepare()`, warmup, runs, statistics collection.
-6. `File.WriteAllText` to `logs/`, `Console.WriteLine`, `Console.ReadLine()`.
+1. `VmHostFactory.CreateDefault()` → `host`.
+2. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` → `deviceId`.
+3. `BenchCase[]` array (12 cases).
+4. For each case: `new BenchRunner(host, deviceId, case)`, `TryPrepare()`, warmup, runs, statistics collection.
+5. `File.WriteAllText` to `logs/`, `Console.WriteLine`, `Console.ReadLine()`.
 
 Test programs (`const string` in `Program.cs`):
 
@@ -157,33 +153,6 @@ public record struct StatsResult(
 - `GeometricMean` — ignores `x <= 0` (protection against `log(0) = -inf`).
 - `Skewness` — sample skewness with correction `n / ((n-1)(n-2))`.
 - `FirstHalfMean`/`SecondHalfMean` — for JIT-impact: the difference between the first and second half of the runs.
-
-### `BenchmarkOptimizer`
-
-```csharp
-public static partial class BenchmarkOptimizer
-{
-    public static void OptimizeCurrentProcess();   // priority + affinity
-
-    private static partial class LinuxNative
-    {
-        [LibraryImport("libc", EntryPoint = "sched_setaffinity", SetLastError = true)]
-        public static partial int sched_setaffinity(int pid, IntPtr cpusetsize, ref long mask);
-
-        [LibraryImport("libc", EntryPoint = "pthread_self")]
-        public static partial int pthread_self();
-
-        [LibraryImport("libc", EntryPoint = "thread_policy_set")]
-        public static partial int thread_policy_set(int thread, int policy, IntPtr flavor, int count);
-    }
-}
-```
-
-- **Windows**: `Process.PriorityClass = High`, `ProcessorAffinity = 1L << (ProcessorCount - 1)`.
-- **Linux**: `sched_setaffinity(pid, sizeof(long), &mask)` — binding to the last core. Requires root for `PriorityClass.High`; affinity is available without root within your own cores.
-- **macOS**: `thread_policy_set(thread, THREAD_AFFINITY_POLICY, &tag, 1)` — an affinity tag, not classic binding.
-
-All errors are caught and printed as `[Warning]` / `[Error]`; the benchmark continues without binding.
 
 ## API examples
 
@@ -295,10 +264,6 @@ The comment in `text4u` (`// <-- replacement for ALLOC r7`) is historical: there
 
 Expected difference: `MemoryUnsafe` should be 20-40% faster because it skips `AlignmentFault` checks and `_ram.UpdateAndReadStatus()`. If the difference is < 10%, then either `Processor` is not on the hot path, or JIT does not inline `_ram.ReadInt32LEUnsafe` (see `[Nantuc.Kernel](../Nantuc.Kernel/README.md)`, `[MethodImpl(AggressiveOptimization)]` on `Step`).
 
-### `BenchmarkOptimizer` — why the last core
-
-`targetCore = ProcessorCount - 1` — to get away from system noise on cores 0/1 (kernel threads, interrupts, GC threads usually live there). This is not a guarantee: the scheduler can still migrate the thread if affinity is not set, but on Windows `ProcessorAffinity` is hard binding, and on Linux `sched_setaffinity` is too.
-
 ### `Stats` — why several metrics
 
 - `Mean` — sensitive to outliers (GC pauses, thermal throttling).
@@ -307,19 +272,6 @@ Expected difference: `MemoryUnsafe` should be 20-40% faster because it skips `Al
 - `CV` — coefficient of variation; `CV < 5%` — stable, `CV > 15%` — noisy.
 - `Skewness > 0` — right tail (outliers are "slow runs"); `< 0` — left tail.
 - `FirstHalfMean`/`SecondHalfMean` — JIT/warmup: if `firstHalf > secondHalf` by 20%+, JIT has not warmed up by the end of warmup; increase `WarmupRuns`.
-
-### JIT/warmup and tiered compilation
-
-`BenchmarkOptimizer` does not disable tiered compilation. This means: the first runs go in Tier0 (fast JIT, slow code), after ~30 calls the method is promoted to Tier1 (optimized). `WarmupRuns=5` is **not enough** for Tier1 — ~30 method calls are needed. `FirstHalfMean` vs `SecondHalfMean` will show this in the report. If JIT-impact is large, add to `.csproj`:
-
-```xml
-<PropertyGroup>
-  <TieredCompilation>false</TieredCompilation>
-  <TieredPGO>false</TieredPGO>
-</PropertyGroup>
-```
-
-or set the environment variable `DOTNET_TieredCompilation=0` before running. This will remove "cold" runs and make MIPS more stable, but less realistic (in real operation tiered compilation is enabled).
 
 ### Output and log format
 
@@ -332,10 +284,7 @@ Log file: `logs/result_Benchmark_Logs_{yyyy-MM-dd_HH-mm-ss}.txt` in `AppDomain.C
 
 ### Platform limitations
 
-- **`net10.0`**, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — but there is no `unsafe` code. Either for transitive dependencies (unlikely — `AllowUnsafeBlocks` is not inherited through `ProjectReference`), or it was forgotten.
-- **`BenchmarkOptimizer`** — `sched_setaffinity`/`thread_policy_set` — Linux/macOS only; on Windows `ProcessorAffinity` is used. In WASM, `Process`/P/Invoke do not work — the benchmark will not build for `browser-wasm` (and should not).
 - **`Console.ReadLine()`** at the end of `Main` — blocks. In CI/headless the process will hang. See [What to fix, item 3](#what-to-fix).
-- **`1L << targetCore`** in `BenchmarkOptimizer.TryBindToLastCpuCore` — on a 64-core machine `targetCore = 63`, `1L << 63` = `long.MinValue` (sign overflow). On 128 cores — UB. See [What to fix, item 1](#what-to-fix).
 
 ### What this module does not do
 
@@ -348,16 +297,6 @@ Log file: `logs/result_Benchmark_Logs_{yyyy-MM-dd_HH-mm-ss}.txt` in `AppDomain.C
 ## What to fix
 
 In descending order of severity. References to files/methods.
-
-1. **`BenchmarkOptimizer.TryBindToLastCpuCore` — `1L << targetCore` overflows on ≥64 cores.**  
-   File: `BenchmarkOptimizer.cs`, method `TryBindToLastCpuCore`: `long affinityMask = 1L << targetCore;`.  
-   On a machine with 64+ cores, `targetCore >= 63` → shift into the sign bit / undefined behavior; the affinity mask becomes negative or zero, and `ProcessorAffinity`/`sched_setaffinity` will bind to the wrong place (or nowhere).  
-   Fix: check `targetCore < 63` (for a 64-bit mask), or use `ulong`, or an `IntPtr.Size`-aware mask (on 32-bit systems — 31 cores max), or `1UL << targetCore` with a check. For 128-core systems, Linux `cpu_set_t` requires an array of several `long`s.
-
-2. **`BenchmarkOptimizer.LinuxNative.pthread_self` — `int` instead of `IntPtr`.**  
-   File: `BenchmarkOptimizer.cs`, `private static partial class LinuxNative`, `public static partial int pthread_self();`.  
-   On 64-bit macOS, `pthread_t` is a pointer (`_opaque_pthread_t*`). `int` will truncate the upper 32 bits, and `thread_policy_set` will get a garbage handle.  
-   Fix: `public static partial IntPtr pthread_self();`. Similarly, `thread_policy_set(int thread, ...)` — the first parameter should be `IntPtr`.
 
 3. **`Program.Main` — `Console.ReadLine()` at the end blocks CI/headless.**  
    File: `Program.cs`, end of `Main` (`Console.WriteLine($"Results file..."); Console.ReadLine();`).  

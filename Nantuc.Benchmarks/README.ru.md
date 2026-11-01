@@ -17,11 +17,10 @@
 
 `Nantuc.Benchmarks` — это не библиотека, а **консольное приложение** (`<OutputType>Exe</OutputType>`), которое:
 
-1. Повышает приоритет процесса и привязывает его к одному CPU-ядру (`BenchmarkOptimizer`).
+1. Печатает прогресс-бар (`PrintProgress`) и пишет полный лог в `logs/result_Benchmark_Logs_YYYY-MM-DD_HH-mm-ss.txt`.
 2. Создаёт `VmHost` через `VmHostFactory.CreateDefault`, регистрирует одну `Device` (RAM 64 MiB) на `sector 0`.
 3. Гоняет 12 фиксированных программ на NANASM (текстовые константы `text1`…`text8` в `Program.cs`), каждая — `WarmupRuns=5` + `Runs=20` раз.
 4. Собирает MIPS, elapsed, steps по каждому прогону, считает статистику (`Stats`/`StatsResult`): mean, median, trimmed mean, перцентили, CV, skewness, JIT-impact.
-5. Печатает прогресс-бар (`PrintProgress`) и пишет полный лог в `logs/result_Benchmark_Logs_YYYY-MM-DD_HH-mm-ss.txt`.
 
 Модуль — образец того, **как использовать `VmApplication` для измерений**: он не трогает `Kernel` напрямую, только через `VmHost`/`DeviceContext`, и показывает, что публичного API хватает для бенчмарка без хаков.
 
@@ -30,7 +29,6 @@
 - **`BenchRunner`** — раннер на один `BenchCase`: подготовка (`TryPrepare`), warmup, `RunOnce`, накопление логов и вычисление `PeakMips`/`StepsOnce`/`StepsVariance`.
 - **`BenchCase`** — `record` с именем, текстом программы, числом прогонов и (неиспользуемым) `ExpectedInstructions`.
 - **`Stats`** / **`StatsResult`** — статистика: mean, median, перцентили, IQR, CV, trimmed mean, geometric mean, skewness, half-means.
-- **`BenchmarkOptimizer`** — процессный тюнинг: `ProcessPriorityClass.High` + привязка к последнему CPU-ядру (`ProcessorAffinity` на Windows, `sched_setaffinity` на Linux, `thread_policy_set` на macOS).
 
 ## Дерево локального проекта
 
@@ -43,8 +41,7 @@ Nantuc.Benchmarks/
 ├── BenchRunner.cs                      # BenchRunner + ListExtensions.ComputeVariance
 ├── BenchCase.cs                        # record BenchCase(Name, ProgramText, Runs, WarmupRuns, ExpectedInstructions?)
 ├── Stats.cs                            # static class Stats
-├── StatsResult.cs                      # record struct StatsResult + From(...)
-└── BenchmarkOptimizer.cs               # priority + CPU affinity; P/Invoke в LinuxNative
+└── StatsResult.cs                      # record struct StatsResult + From(...)
 ```
 
 Замечания по организации:
@@ -59,12 +56,11 @@ Nantuc.Benchmarks/
 
 `Program.Main()` (private static):
 
-1. `BenchmarkOptimizer.OptimizeCurrentProcess()` — priority + affinity.
-2. `VmHostFactory.CreateDefault()` → `host`.
-3. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` → `deviceId`.
-4. Массив `BenchCase[]` (12 кейсов).
-5. Для каждого кейса: `new BenchRunner(host, deviceId, case)`, `TryPrepare()`, warmup, runs, сбор статистики.
-6. `File.WriteAllText` в `logs/`, `Console.WriteLine`, `Console.ReadLine()`.
+1. `VmHostFactory.CreateDefault()` → `host`.
+2. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` → `deviceId`.
+3. Массив `BenchCase[]` (12 кейсов).
+4. Для каждого кейса: `new BenchRunner(host, deviceId, case)`, `TryPrepare()`, warmup, runs, сбор статистики.
+5. `File.WriteAllText` в `logs/`, `Console.WriteLine`, `Console.ReadLine()`.
 
 Тестовые программы (`const string` в `Program.cs`):
 
@@ -157,33 +153,6 @@ public record struct StatsResult(
 - `GeometricMean` — игнорирует `x <= 0` (защита от `log(0) = -inf`).
 - `Skewness` — sample skewness с поправкой `n / ((n-1)(n-2))`.
 - `FirstHalfMean`/`SecondHalfMean` — для JIT-impact: разница между первой и второй половиной прогонов.
-
-### `BenchmarkOptimizer`
-
-```csharp
-public static partial class BenchmarkOptimizer
-{
-    public static void OptimizeCurrentProcess();   // priority + affinity
-
-    private static partial class LinuxNative
-    {
-        [LibraryImport("libc", EntryPoint = "sched_setaffinity", SetLastError = true)]
-        public static partial int sched_setaffinity(int pid, IntPtr cpusetsize, ref long mask);
-
-        [LibraryImport("libc", EntryPoint = "pthread_self")]
-        public static partial int pthread_self();
-
-        [LibraryImport("libc", EntryPoint = "thread_policy_set")]
-        public static partial int thread_policy_set(int thread, int policy, IntPtr flavor, int count);
-    }
-}
-```
-
-- **Windows**: `Process.PriorityClass = High`, `ProcessorAffinity = 1L << (ProcessorCount - 1)`.
-- **Linux**: `sched_setaffinity(pid, sizeof(long), &mask)` — привязка к последнему ядру. Требует прав root для `PriorityClass.High`, affinity доступна без root в пределах своих ядер.
-- **macOS**: `thread_policy_set(thread, THREAD_AFFINITY_POLICY, &tag, 1)` — affinity tag, не классическая привязка.
-
-Все ошибки ловятся и печатаются как `[Предупреждение]` / `[Ошибка]`, бенчмарк продолжается без привязки.
 
 ## Примеры для API
 
@@ -295,10 +264,6 @@ var comp = il.Build();
 
 Ожидаемая разница: `MemoryUnsafe` должен быть на 20-40% быстрее, потому что пропускает `AlignmentFault`-проверки и `_ram.UpdateAndReadStatus()`. Если разница < 10% — значит, `Processor` не в горячем пути, или JIT не инлайнит `_ram.ReadInt32LEUnsafe` (см. `[Nantuc.Kernel](../Nantuc.Kernel/README.ru.md)`, `[MethodImpl(AggressiveOptimization)]` на `Step`).
 
-### `BenchmarkOptimizer` — почему последнее ядро
-
-`targetCore = ProcessorCount - 1` — чтобы уйти от системного шума на ядрах 0/1 (обычно там живут kernel threads, прерывания, GC-потоки). Это не гарантия: планировщик всё равно может мигрировать поток, если affinity не задана, но на Windows `ProcessorAffinity` — жёсткая привязка, на Linux `sched_setaffinity` — тоже.
-
 ### `Stats` — почему несколько метрик
 
 - `Mean` — чувствителен к выбросам (GC-паузы, thermal throttling).
@@ -307,19 +272,6 @@ var comp = il.Build();
 - `CV` — коэффициент вариации; `CV < 5%` — стабильно, `CV > 15%` — шумно.
 - `Skewness > 0` — хвост вправо (выбросы «медленные прогоны»); `< 0` — хвост влево.
 - `FirstHalfMean`/`SecondHalfMean` — JIT/warmup: если `firstHalf > secondHalf` на 20%+, JIT ещё не прогрелся к концу warmup'а, стоит увеличить `WarmupRuns`.
-
-### JIT/warmup и tiered compilation
-
-`BenchmarkOptimizer` не выключает tiered compilation. Это значит: первые прогоны идут в Tier0 (быстрый JIT, медленный код), через ~30 вызовов метод промоутится в Tier1 (оптимизированный). `WarmupRuns=5` **недостаточно** для Tier1 — нужно ~30 вызовов метода. `FirstHalfMean` vs `SecondHalfMean` покажет это в отчёте. Если JIT-impact большой, добавьте в `.csproj`:
-
-```xml
-<PropertyGroup>
-  <TieredCompilation>false</TieredCompilation>
-  <TieredPGO>false</TieredPGO>
-</PropertyGroup>
-```
-
-или установите переменную окружения `DOTNET_TieredCompilation=0` перед запуском. Это уберёт «холодные» прогоны и сделает MIPS стабильнее, но менее реалистичным (в реальной эксплуатации tiered compilation включён).
 
 ### Вывод и формат лога
 
@@ -332,10 +284,7 @@ var comp = il.Build();
 
 ### Ограничения платформ
 
-- **`net10.0`**, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — но `unsafe`-кода нет. Либо для транзитивных зависимостей (маловероятно — `AllowUnsafeBlocks` не наследуется через `ProjectReference`), либо забыто.
-- **`BenchmarkOptimizer`** — `sched_setaffinity`/`thread_policy_set` — только Linux/macOS, на Windows используется `ProcessorAffinity`. В WASM `Process`/P/Invoke не работают — бенчмарк не соберётся под `browser-wasm` (и не должен).
 - **`Console.ReadLine()`** в конце `Main` — блокирует. В CI/headless процесс зависнет. См. [Что исправить, п.3](#что-исправить).
-- **`1L << targetCore`** в `BenchmarkOptimizer.TryBindToLastCpuCore` — на 64-ядерной машине `targetCore = 63`, `1L << 63` = `long.MinValue` (переполнение знака). На 128-ядерной — UB. См. [Что исправить, п.1](#что-исправить).
 
 ### Что этот модуль не делает
 
@@ -349,15 +298,6 @@ var comp = il.Build();
 
 По убыванию серьёзности. Ссылки на файлы/методы.
 
-1. **`BenchmarkOptimizer.TryBindToLastCpuCore` — `1L << targetCore` переполняется на ≥64 ядрах.**  
-   Файл: `BenchmarkOptimizer.cs`, метод `TryBindToLastCpuCore`: `long affinityMask = 1L << targetCore;`.  
-   На машине с 64+ ядрами `targetCore >= 63` → сдвиг в знаковый бит / undefined behavior; affinity-маска получается отрицательной или нулевой, `ProcessorAffinity`/`sched_setaffinity` привяжут не туда (или никуда).  
-   Фикс: проверять `targetCore < 63` (для 64-битной маски), либо использовать `ulong`, либо `IntPtr.Size`-aware маску (на 32-битных системах — 31 ядро max), либо `1UL << targetCore` с проверкой. Для 128-ядерных систем — `cpu_set_t` в Linux требует массив из нескольких `long`.
-
-2. **`BenchmarkOptimizer.LinuxNative.pthread_self` — `int` вместо `IntPtr`.**  
-   Файл: `BenchmarkOptimizer.cs`, `private static partial class LinuxNative`, `public static partial int pthread_self();`.  
-   На 64-битных macOS `pthread_t` — это указатель (`_opaque_pthread_t*`). `int` обрежет старшие 32 бита, `thread_policy_set` получит мусорный handle.  
-   Фикс: `public static partial IntPtr pthread_self();`. Аналогично `thread_policy_set(int thread, ...)` — первый параметр должен быть `IntPtr`.
 
 3. **`Program.Main` — `Console.ReadLine()` в конце блокирует CI/headless.**  
    Файл: `Program.cs`, конец `Main` (`Console.WriteLine($"Файл результатов..."); Console.ReadLine();`).  
