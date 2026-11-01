@@ -482,5 +482,6 @@ $RECYCLE.BIN/
 *.swp
 
 
-
+Generate-Metrics.ps1
 git-commit-changelog.sh
+/get-metrics.bat

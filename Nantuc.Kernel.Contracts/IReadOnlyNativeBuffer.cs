@@ -3,7 +3,7 @@
 /// <summary>
 /// Интерфейс для чтение нативного буфера
 /// </summary>
-public interface INativeReadOnlyBuffer
+public interface IReadOnlyNativeBuffer
 {
     /// <summary>
     /// Длина буфера

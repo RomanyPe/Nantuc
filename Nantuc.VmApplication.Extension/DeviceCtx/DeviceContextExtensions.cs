@@ -11,7 +11,7 @@ public static class DeviceContextExtensions
         {
             ctx.ThrowIfRunning("Cannot read the RAM of a running device");
 
-            INativeReadOnlyBuffer innerBuffer = ctx.NativeReadOnlyBuffer;
+            IReadOnlyNativeBuffer innerBuffer = ctx.NativeReadOnlyBuffer;
             nuint bufferLength = innerBuffer.Length;
 
             ArgumentOutOfRangeException.ThrowIfGreaterThan(start, bufferLength, nameof(start));
@@ -29,7 +29,7 @@ public static class DeviceContextExtensions
         {
             ctx.ThrowIfRunning("Cannot read the RAM of a running device");
 
-            INativeReadOnlyBuffer innerBuffer = ctx.NativeReadOnlyBuffer;
+            IReadOnlyNativeBuffer innerBuffer = ctx.NativeReadOnlyBuffer;
             nuint bufferLength = innerBuffer.Length;
             nuint length = (nuint)destination.Length;
 

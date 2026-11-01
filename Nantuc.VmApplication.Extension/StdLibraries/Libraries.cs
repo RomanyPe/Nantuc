@@ -1,9 +1,6 @@
-﻿using Nantuc.VmApplication.Extensions.Host;
-using Nantuc.VmApplication.Project;
+﻿namespace Nantuc.VmApplication.Extensions.StdLibraries;
 
-namespace Nantuc.VmApplication.Extensions.LibraresIncludes;
-
-public static class Library
+public static class Libraries
 {
     public const string heap_nanasm =
         """

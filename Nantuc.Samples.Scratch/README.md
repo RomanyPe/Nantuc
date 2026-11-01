@@ -1,73 +1,128 @@
-﻿# Nantuc.Samples.Scratch — README
+# Nantuc.Samples.Scratch — README
 
-> Песочница для экспериментов на платформе Nantuc: тест аллокатора (`Program.cs`), игра «Змейка» с монохромным монитором и клавиатурой (`SnakeGame/`), готовые библиотеки `monitor.nanasm` / `input.nanasm` / `halt.nanasm` / `snake.minic`.  
-> Зависит от `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).  
-> `[← Корень](../README.md) · [VmApplication](../Nantuc.VmApplication/README.md) · [Extensions](../Nantuc.VmApplication.Extensions/README.md) · [Compiler](../Nantuc.Compiler/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
+> A sandbox for experiments on the Nantuc platform: an allocator test (`Program.cs`), a "Snake" game with a monochrome monitor and keyboard (`SnakeGame/`), and ready-made libraries `monitor.nanasm` / `input.nanasm` / `halt.nanasm` / `snake.minic`.
+> Depends on `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
+> `[← Root](../README.md) · [VmApplication](../Nantuc.VmApplication/README.md) · [Extensions](../Nantuc.VmApplication.Extensions/README.md) · [Compiler](../Nantuc.Compiler/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
 
-## Содержание
-- [Об этом модуле](#об-этом-модуле)
-- [Дерево локального проекта](#дерево-локального-проекта)
+## Table of contents
+- [About this module](#about-this-module)
+- [Local project tree](#local-project-tree)
 - [API](#api)
-- [Примеры для API](#примеры-для-api)
-- [Приближенность модуля к пользователю](#приближенность-модуля-к-пользователю)
-- [Особенная информация](#особенная-информация)
-- [Что исправить](#что-исправить)
+- [API examples](#api-examples)
+- [How close the module is to the user](#how-close-the-module-is-to-the-user)
+- [Special information](#special-information)
+- [What to fix](#what-to-fix)
 
-## Об этом модуле
+## About this module
 
-`Nantuc.Samples.Scratch` — это **набор экспериментов** (scratchpad), а не один пример. Сейчас в проекте живут два независимых сценария:
+`Nantuc.Samples.Scratch` is a **collection of experiments** (a scratchpad), not a single example. The project contains two independent scenarios, switched by a command-line argument:
 
-1. **`Program.cs`** — тест аллокатора. Компилирует MiniC-программу, которая делает `alloc`/`free`/`alloc` через `Librare.alloc_minic`, проверяет возврат кода (`return 1..7` для разных провалов, `return 10` для успеха), запускает VM, снимает регистры, дизассемблирует RAM через `StringDisassembler`.
-2. **`SnakeGame/`** — игра «Змейка». `SnakeLauncher.LaunchSnake(period)` создаёт `VmHost`, регистрирует `MonochromeMonitor` (32×16) на `sector 1`, VM на `sector 0`, компилирует `LibCode.snake_minic` (включает `monitor.nanasm`, `input.nanasm`, `halt.nanasm`), запускает VM. Игра крутится в бесконечном цикле `while (1) { Halt(); tickGame(); drawGame(); }`, тикер `Timer` каждые `period` мс будит процессор (`portBus.WakeProcessor(0)`), клавиатура читается в фоновом потоке и пишется в `portBus.WritePort(0, code)`.
+1. **The "Snake" game** — launched with the flag `-snake <period>` (e.g., `dotnet run -- -snake 150`). The class `SnakeGameOnNantuc` creates a `VmHost`, registers a `MonochromeMonitor` (32×16) on `sector 1`, the VM on `sector 0`, compiles `LibCode.snake_minic` (includes `monitor.nanasm`, `input.nanasm`, `halt.nanasm`), and starts the VM. The game runs in an infinite loop `while (1) { Halt(); tick(); render(); }`; a `Timer` wakes the processor every `period` ms (`portBus.WakeProcessor(0)`), and the keyboard is read on a background thread and written to `portBus.WritePort(0, code)`.
+2. **The allocator test** — launched by default (without arguments). It compiles a MiniC program that does `alloc`/`free`/`alloc` via `Libraries.alloc_minic`, checks the return code (`return 1..7` for various failures, `return 10` for success), starts the VM, takes registers, and disassembles RAM via `StringDisassembler`.
 
-**Важно:** `Program.cs` **не** вызывает `SnakeLauncher.LaunchSnake()`. Сейчас `using Nantuc.Samples.Scratch.SnakeGame;` импортирован, но не используется — это задел/переключатель. Чтобы запустить змейку, нужно либо заменить тело `Main`, либо раскомментировать вызов `SnakeLauncher.LaunchSnake()` в `Program.cs`. См. [Что исправить, п.2](#что-исправить).
+**How to run:**
 
-Проект показывает, как из `VmApplication` + `Extensions` собирается **настоящая игра**: несколько устройств на port-шине, фоновый ввод, таймер-тикер, ANSI-рендер в консоль, HALT/WAKE для энергоэффективного game loop.
+```bash
+# Game (150 ms per tick)
+dotnet run -- -snake 150
 
-## Дерево локального проекта
+# Allocator test
+dotnet run
+```
 
-Namespace `Nantuc.Samples.Scratch` (корень) + `Nantuc.Samples.Scratch.SnakeGame` (вложенная папка):
+There is also a `Game` profile in `launchSettings.json` (`-snake 150`), so from the IDE it is enough to select it — `dotnet run --launch-profile Game`.
+
+The project shows how `VmApplication` + `Extensions` can be used to assemble a **real game**: multiple devices on the port bus, background input, a timer ticker, ANSI rendering to the console, and HALT/WAKE for an energy-efficient game loop.
+
+## Local project tree
+
+Namespace `Nantuc.Samples.Scratch` (root) + `Nantuc.Samples.Scratch.SnakeGame` (nested folder):
 
 ```
 Nantuc.Samples.Scratch/
 ├── Nantuc.Samples.Scratch.csproj   # net10.0, Exe, ref → VmApplication.Extensions
-├── Program.cs                       # top-level: тест аллокатора + дамп регистров + дизасм
+├── Program.cs                       # top-level: -snake dispatch + allocator test
+├── launchSettings.json              # profiles Default / Game (-snake 150) / WSL
 └── SnakeGame/
-    ├── KeyboardDevice.cs            # IPortController: 2 порта (REG_KEY, REG_HAS_NEW)
+    ├── KeyboardDevice.cs            # IPortController: 2 ports (REG_KEY, REG_HAS_NEW)
     ├── LibCode.cs                   # const string: monitor_nanasm, input_nanasm, halt_nanasm, snake_minic
-    ├── MonochromeMonitor.cs         # IPortController: 32×16 framebuffer, 7 портов
-    └── SnakeLauncher.cs             # LaunchSnake(period) — запуск змейки
+    ├── MonochromeMonitor.cs         # IPortController: 32×16 framebuffer, 7 ports
+    └── SnakeGameOnNantuc.cs         # SnakeGameOnNantuc(period).Run() — launches the snake
 ```
 
-Замечания по организации:
-- `Program.cs` — top-level statements без класса, без namespace. Для проекта-песочницы это ок, но при росте экспериментов стоит вынести каждый в отдельный `Sample*.cs` с явным `public static void Run()`.
-- `KeyboardDevice.cs` в текущей версии **не используется** `SnakeLauncher` — ввод идёт через `portBus.WritePort(0, code)` (loopback в собственное IO-окно `Device`). См. [Что исправить, п.6](#что-исправить).
+Organization notes:
+- `Program.cs` — top-level statements with CLI dispatch: `-snake <period>` → `SnakeGameOnNantuc`, otherwise — the allocator test. For a sandbox project this is fine, but as experiments grow it is worth moving each one into a separate `Sample*.cs` with an explicit `public static void Run()`.
+- `KeyboardDevice.cs` is **not used** by `SnakeGameOnNantuc` in the current version — input goes through `portBus.WritePort(0, code)` (loopback into the `Device`'s own IO window). See [What to fix, item 6](#what-to-fix).
 
 ## API
 
-Публичного API нет — это `Exe`. Ниже — состав экспериментов.
+There is no public API — it is an `Exe`. Below is the composition of the experiments.
 
-### `Program.cs` — тест аллокатора
+### `Program.cs` — CLI dispatch and allocator test
 
-Top-level statements, последовательность:
+Top-level statements. The first block is the dispatch:
 
-| Шаг | Что делает |
+```csharp
+if (args.Length >= 2 && args[0] == "-snake")
+{
+    int period = int.TryParse(args[1], out int res) && res > 0 ? res : 200;
+    var game = new SnakeGameOnNantuc(period);
+    game.Run();
+    return;
+}
+```
+
+If `-snake` is not passed (or there is only one argument), the allocator test runs:
+
+| Step | What it does |
 |---|---|
-| `source1` | MiniC: `#include "alloc.minic"`, `int main()` с 5 сценариями alloc/free, `return s` (10 при успехе) |
-| `using var host = VmHostFactory.CreateDefault();` | `RamFileService` + дефолтные порты |
-| `host.Project.SaveFileProject("main.minic", source1)` | Исходник в `ProjectPath` |
-| `SaveFileInclude("heap.nanasm", Librare.heap_nanasm)` | asm-lib (bump + free-list) |
-| `SaveFileInclude("alloc.minic", Librare.alloc_minic)` | C-lib (first-fit аллокатор) |
-| `DeviceSpec.Create(RamSize.MB128, lfPolicy, "ConsoleVM")` | VM + `LoggingFaultPolicyMinimal` |
-| `QueuedIOStream(Console.Out, PortCharEncoding.Utf8)` | I/O на `sector 1` (не используется в `source1`) |
-| `CompileToIL(0, optimize: true).Build()` | Компиляция всех файлов |
-| `TryFastLoadProgram` → `Run()` | Загрузка и запуск |
-| `GetRegistersSnapshot()` | Дамп `r0..r5`, `rSP`, `rHP` |
-| `GetRamAsNewArray(0, hpPrt)` + `StringDisassembler.Disassemble(ramSnap, resCompile.CodeSize)` | Дизасм RAM до текущего `rHP` |
+| `source1` | MiniC: `#include "alloc.minic"`, `int main()` with 5 alloc/free scenarios, `return s` (10 on success) |
+| `using var host = VmHostFactory.CreateDefault();` | `RamFileService` + default ports |
+| `host.Project.SaveFileProject("main.minic", source1)` | Source in `ProjectPath` |
+| `SaveFileInclude("heap.nanasm", Libraries.heap_nanasm)` | asm-lib (bump + free-list) |
+| `SaveFileInclude("alloc.minic", Libraries.alloc_minic)` | C-lib (first-fit allocator) |
+| `var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);` | Policy that logs `[FAULT]` on failure and stops the simulation |
+| `DeviceSpec.Create(ramSize: RamSize.MB128, processorFaultPolicy: lfPolicy, name: "ConsoleVM")` | VM + fault policy |
+| `QueuedIOStream(Console.Out, PortCharEncoding.Utf8)` | I/O on `sector 1` (not used in `source1`) |
+| `CompileToIL(baseAddress: 0, optimize: true).Build()` | Compiles all files |
+| `RegisterDevice(spec, sector: 0)` / `RegisterDevice(ioDevice, "console", sector: 1)` | Registers the VM and the I/O |
+| `GetDeviceContext(deviceId)!` | `DeviceContext` for the VM |
+| `TryLoadProgram(program, loadAddress: 0, out error)` → `Run()` | Load and run |
+| `GetRegistersSnapshot()` | Dump of `r0..r5`, `rSP`, `rHP` |
+| `GetRamAsNewArray(0, hpPrt)` + `StringDisassembler.Disassemble(ramSnap, resCompile.CodeSize)` | RAM disassembly up to the current `rHP` |
 
-`source1` возвращает `int`, но `deviceCtx.Run()` возвращает `void` — фактический код возврата лежит в `r0` после `Run()`. `Program.cs` печатает `r0`, но **не проверяет**, что он равен 10. См. [Что исправить, п.3](#что-исправить).
+`source1` returns an `int` (`return s;` — 10 on success), but `Run()` returns a `ProcessorFault`, and the return code is in `r0`. `Program.cs` prints `r0` in the register dump but **does not check** that it equals 10. See [What to fix, item 3](#what-to-fix).
 
-### `SnakeGame/MonochromeMonitor` — монохромный дисплей 32×16
+### `SnakeGame/SnakeGameOnNantuc` — launching the snake
+
+```csharp
+public class SnakeGameOnNantuc(int period = 200)
+{
+    private readonly StringBuilder sb = new();
+    private readonly int _period = period;
+
+    public void Run();
+    private void RenderToConsole(byte[] fb, int w, int h);
+}
+```
+
+The sequence in `Run()`:
+
+1. `VmHostFactory.CreateDefault()`.
+2. `SaveFileProject("snake.minic", …)` / `SaveFileInclude` for `monitor.nanasm`, `halt.nanasm`, `input.nanasm`.
+3. `MonochromeMonitor(32, 16, RenderToConsole)`.
+4. `DeviceSpec.Create(ramSize: RamSize.MB16, name: "SnakeVM")` → `RegisterDevice(handle, sector: 0)`.
+5. `RegisterDevice(monitor, name: "monitor", sector: 1)`.
+6. `GetDeviceContext(deviceId)!`.
+7. `CompileToIL(0, optimize: false).Build()`, `TryLoadProgram`.
+8. `inputThread` (background): `Console.ReadKey(intercept: true)` → arrows into `1..4`, `Q`/`Escape` → `running = false; ctx.Stop()`. Writes `portBus.WritePort(0, code)`.
+9. `Timer(..., null, 200, _period)` — `portBus.WakeProcessor(0)` every `_period` ms.
+10. `ctx.Run()` (blocks until `Stop`).
+11. `finally` — `running = false`, cursor visible, ANSI reset, cursor to line 18.
+
+**Difference from the allocator test:** the snake does **not** pass a `faultPolicy` to `DeviceSpec.Create`. Faults simply lead to the VM stopping, but are not logged.
+
+### `SnakeGame/MonochromeMonitor` — monochrome 32×16 display
 
 ```csharp
 public sealed class MonochromeMonitor : PortControlBase
@@ -96,15 +151,15 @@ public sealed class MonochromeMonitor : PortControlBase
 }
 ```
 
-- `width`/`height` — 1..255, иначе `ArgumentOutOfRangeException`.
-- Внутри — `byte[] _fb` (`width * height`), курсор `_cx`/`_cy`, `_pixel`, `_frame` (инкрементится на `CMD_FLUSH`).
-- `WritePort(REG_PIXEL, value)` пишет `value` в `_fb[_cy * Width + _cx]` и запоминает `_pixel`.
-- `WritePort(REG_COMMAND, CMD_FLUSH)` вызывает `_renderer(_fb, Width, Height)` — колбэк получает **ссылку на живой буфер** (не копию). Если рендерер долго работает, а VM пишет — data race.
-- `ReadPort(REG_FRAME)` — для синхронизации рендера с VM (номер кадра).
+- `width`/`height` — 1..255, otherwise `ArgumentOutOfRangeException`.
+- Inside — `byte[] _fb` (`width * height`), cursor `_cx`/`_cy`, `_pixel`, `_frame`.
+- `WritePort(REG_PIXEL, value)` writes `value` to `_fb[_cy * Width + _cx]` and remembers `_pixel`.
+- `WritePort(REG_COMMAND, CMD_FLUSH)` calls `_renderer(_fb, Width, Height)` — the callback receives a **reference to the live buffer** (not a copy). If the renderer runs long while the VM writes — data race.
+- `ReadPort(REG_FRAME)` — for synchronizing the render with the VM (frame number).
 
-`SnakeLauncher.RenderToConsole` — рендерер, который рисует `fb` через ANSI (`\x1b[H` + `██`/`  `), плюс подсказку `Arrows=move Q=quit`.
+`SnakeGameOnNantuc.RenderToConsole` — the renderer that draws `fb` via ANSI (`\x1b[H` + `██`/`  `), plus the hint `Arrows=move Q=quit`.
 
-### `SnakeGame/KeyboardDevice` — клавиатура (не используется)
+### `SnakeGame/KeyboardDevice` — keyboard (not used)
 
 ```csharp
 public sealed class KeyboardDevice : PortControlBase
@@ -119,98 +174,80 @@ public sealed class KeyboardDevice : PortControlBase
     public const byte KEY_RIGHT = 4;
 
     public void Press(byte key);
-
     public override byte ReadPort(ulong offset);
     public override void WritePort(ulong offset, byte value);
     public override void WakeProcessor();
 }
 ```
 
-- `Press(key)` — записывает `_key = key; _hasNew = true`.
-- `ReadPort(REG_KEY)` → `_key`. `ReadPort(REG_HAS_NEW)` → `1` если новое нажатие, `0` иначе (consume-on-read).
-- `WritePort(REG_KEY, 0)` — сброс `_key = 0`.
-- В текущем `SnakeLauncher` **не регистрируется**: ввод идёт напрямую через `portBus.WritePort(0, code)` в loopback-окно `Device`. См. [Особенная информация](#особенная-информация).
+- `Press(key)` — writes `_key = key; _hasNew = true`.
+- `ReadPort(REG_KEY)` → `_key`. `ReadPort(REG_HAS_NEW)` → `1` if there is a new press, `0` otherwise (consume-on-read).
+- `WritePort(REG_KEY, 0)` — resets `_key = 0`.
+- In the current `SnakeGameOnNantuc` it is **not registered**: input goes directly through `portBus.WritePort(0, code)` into the `Device`'s loopback window. See [Special information](#special-information).
 
-### `SnakeGame/LibCode` — исходники
+### `SnakeGame/LibCode` — sources
 
 ```csharp
 public static class LibCode
 {
     public const string monitor_nanasm;   // func_MonClear, func_MonFlush, func_MonPlot
-    public const string input_nanasm;     // func_ReadKey (читает порт 0, сбрасывает в 0)
+    public const string input_nanasm;     // func_ReadKey (reads port 0, resets to 0)
     public const string halt_nanasm;      // func_Halt (HALT; RET)
-    public const string snake_minic;      // #include monitor/input/halt + сама игра
+    public const string snake_minic;      // #include monitor/input/halt + the game itself
 }
 ```
 
-`monitor_nanasm` (порты монитора через `0x10..0x13`):
-- `MonClear` — `OUT 1` в порт `0x13` (`CMD_CLEAR`), затем `OUT 4` (`CMD_HOME`).
-- `MonFlush` — `OUT 3` в `0x13` (`CMD_FLUSH`).
+`monitor_nanasm` (monitor ports via `0x10..0x13`):
+- `MonClear` — `OUT 1` to port `0x13` (`CMD_CLEAR`), then `OUT 4` (`CMD_HOME`).
+- `MonFlush` — `OUT 3` to `0x13` (`CMD_FLUSH`).
 - `MonPlot(r0=x, r1=y, r2=v)` — `OUT r0, 0x10` (`REG_CURSOR_X`), `OUT r1, 0x11` (`REG_CURSOR_Y`), `OUT r2, 0x12` (`REG_PIXEL`).
 
 `input_nanasm` (`func_ReadKey`):
 ```
-IN r0, r1;          // читаем порт 0x00
-CMP r0, r3;         // r3 = 0
+LDI r1, 0x00;
+IN  r0, r1;          // read port 0x00
+LDI r3, 0x00;
+CMP r0, r3;
 JZ  no_key;
-MOV r3, r0;         // сохранили код
-OUT r0, r1;         // записали 0 в порт 0 (сброс)
-MOV r0, r3;         // вернули код
-no_key: RET;
+MOV r3, r0;          // saved the code
+LDI r0, 0x00;
+LDI r1, 0x00;
+OUT r0, r1;          // wrote 0 to port 0 (reset)
+MOV r0, r3;          // returned the code
+no_key:
+RET;
 ```
 
-`snake_minic` — игра:
-- Состояние (`sx[256]`, `sy[256]`, `slen`, `dir`, `fx`, `fy`, `rngState`) — в **глобалах**, не в локалах. Это обход бага кодогенератора (см. [Особенная информация](#особенная-информация)).
-- `rng()` — LCG `rngState * 1103515245 + 12345`, возвращает `(rngState >> 16) & 0x7FFF`.
-- `spawnFood` — пытается `rng() % 32`, `rng() % 16`, пока не попадёт в свободную клетку (не в змейку).
-- `initGame` — старт: `slen = 3`, `dir = 4` (вправо), `sx[0..2] = 16,15,14`, `sy = 8`, `rngState = 12345`.
-- `drawGame` — `MonClear`, рисует еду, рисует змейку, `MonFlush`.
-- `tickGame` — читает клавишу (`ReadKey`), меняет `dir` (с защитой от разворота на 180°), сдвигает голову, wrap по краям (32×16 тороид), проверяет столкновение с собой (`th = 1`) → `initGame`, иначе сдвиг хвоста (`te = slen - 1`, сдвиг с конца), `slen++` если съел еду.
-- `main` — `initGame(); drawGame(); while (1) { Halt(); tickGame(); drawGame(); }`.
+`snake_minic` — the game:
+- State (`sx[256]`, `sy[256]`, `slen`, `dir`, `foodX`, `foodY`, `rngState`) — in **globals**, not locals. This is legacy from a codegen bug (see [Special information](#special-information)); the bug is fixed, migration to locals is a task for the next iteration.
+- `rng()` — LCG `rngState * 1103515245 + 12345`, returns `(rngState >> 16) & 0x7FFF`.
+- `spawnFood` — tries `rng() % 32`, `rng() % 16` until it hits a free cell.
+- `resetGame` — `slen = 3`, `dir = 4` (right), `sx[0..2] = 16,15,14`, `sy = 8`, `rngState = 12345`.
+- `render` — `MonClear`, draws food, draws the snake, `MonFlush`.
+- `tick` — `ReadKey`, changes `dir` (with protection against a 180° reversal), moves the head, wraps at the edges (32×16 toroid), checks collision with itself → `resetGame`, otherwise shifts the tail, `slen++` if food was eaten.
+- `main` — `resetGame(); render(); while (1) { Halt(); tick(); render(); }`.
 
-`Halt()` — `HALT; RET`. Процессор уходит в сон, тикер будит его через `portBus.WakeProcessor(0)`.
+`Halt()` — `HALT; RET`. The processor goes to sleep, the ticker wakes it via `portBus.WakeProcessor(0)`.
 
-### `SnakeGame/SnakeLauncher` — запуск
+## API examples
 
-```csharp
-public class SnakeLauncher
-{
-    public static void LaunchSnake(int period = 200);
-    private static void RenderToConsole(byte[] fb, int w, int h);
-}
+**Launch the snake via CLI:**
+
+```bash
+dotnet run -- -snake 150       # 150 ms per tick
+dotnet run -- -snake 100       # 100 ms per tick (10 FPS, harder)
+dotnet run -- -snake 50        # 50 ms per tick (20 FPS, even harder)
 ```
 
-Последовательность:
-1. `VmHostFactory.CreateDefault()`.
-2. `SaveFileProject`/`SaveFileInclude` для `snake.minic`, `monitor.nanasm`, `halt.nanasm`, `input.nanasm`.
-3. `MonochromeMonitor(32, 16, RenderToConsole)`.
-4. `DeviceSpec.Create(RamSize.MB16, name: "SnakeVM")` → `sector 0`.
-5. `monitor` → `sector 1`.
-6. `ctx = GetDeviceContext(deviceId)!`.
-7. `CompileToIL(0, optimize: false).Build()`, `TryFastLoadProgram`.
-8. `inputThread` (background): читает `Console.ReadKey(intercept: true)`, конвертирует стрелки в `1..4`, `Q`/`Escape` → `running = false; ctx.Stop()`. Пишет `portBus.WritePort(0, code)`.
-9. `Timer(..., null, 200, period)` — `portBus.WakeProcessor(0)` каждые `period` мс.
-10. `ctx.Run()` (блокируется до `Stop`).
-11. `finally` — `running = false`, курсор видим, ANSI-reset, курсор на строку 18.
-
-## Примеры для API
-
-**Запустить змейку (заменить `Program.cs`):**
+**Launch the snake from code:**
 
 ```csharp
 using Nantuc.Samples.Scratch.SnakeGame;
 
-SnakeLauncher.LaunchSnake(period: 200);
+new SnakeGameOnNantuc(period: 200).Run();
 ```
 
-**Запустить с другим тиком (медленнее/быстрее):**
-
-```csharp
-SnakeLauncher.LaunchSnake(period: 100);   // 10 FPS
-SnakeLauncher.LaunchSnake(period: 50);    // 20 FPS — сложнее
-```
-
-**Добавить монитор в свой пример:**
+**Add a monitor to your own example:**
 
 ```csharp
 using Nantuc.Samples.Scratch.SnakeGame;
@@ -228,13 +265,13 @@ var monitor = new MonochromeMonitor(64, 32, (fb, w, h) =>
 using var host = VmHostFactory.CreateDefault();
 int devId = host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB16, name: "VM"), sector: 0);
 host.Emulator.RegisterDevice(monitor, name: "monitor", sector: 1);
-// ... компиляция и загрузка программы, которая пишет в порты 0x10..0x16
+// ... compilation and loading of a program that writes to ports 0x10..0x16
 ```
 
-**Тест аллокатора с проверкой кода возврата:**
+**Allocator test with return-code checking:**
 
 ```csharp
-// в Program.cs после deviceCtx.Run():
+// in Program.cs after deviceCtx.Run():
 var regs = deviceCtx.GetRegistersSnapshot();
 ulong ret = regs[RegType.r0];
 if (ret != 10)
@@ -245,156 +282,165 @@ if (ret != 10)
 Console.WriteLine("Allocator test PASSED");
 ```
 
-## Приближенность модуля к пользователю
+## How close the module is to the user
 
-**Средняя.** Это песочница, но она ближе к «конечному продукту», чем `Nantuc.Samples.Minimal`: здесь есть играбельная змейка, устройства (монитор, клавиатура), фоновый ввод, таймер. Автору собственных игр/демо — прямой пример; автору ядра — тест-полигон для новых фич.
+**Medium.** This is a sandbox, but it is closer to a "finished product" than `Nantuc.Samples.Minimal`: here there is a playable snake, devices (monitor, keyboard), background input, and a timer. For the author of their own games/demos — a direct example; for the kernel author — a test polygon for new features.
 
-**Что стоит делать:**
-- Перед запуском змейки — убедиться, что терминал поддерживает ANSI (`\x1b[H`). Windows Terminal — да, старый `cmd.exe` — нет.
-- Запускать `SnakeLauncher.LaunchSnake()` **вместо** `Program.cs` (через замену тела `Main` или отдельный проект), а не в дополнение — иначе `Main` сначала выполнит тест аллокатора и повиснет на `Console.ReadLine()`? Нет, `Program.cs` не вызывает `ReadLine`, но выполняет свой сценарий полностью.
-- Для отладки змейки — увеличить `period` (медленнее, проще ловить баги) или заменить `QueuedIOStream` на `SynchronousIOStream` в `Program.cs` (для аллокатора).
-- Использовать `LoggingFaultPolicyMinimal` (как в `Program.cs`) — при fault'е в змейке будет видно `[FAULT] status=...`.
+**What you should do:**
+- Before launching the snake — make sure the terminal supports ANSI (`\x1b[H`). Windows Terminal — yes, old `cmd.exe` — no.
+- Run `dotnet run -- -snake <period>` (or the `Game` profile from `launchSettings.json`).
+- For debugging the snake — increase `period` (slower, easier to catch bugs) or replace `QueuedIOStream` with `SynchronousIOStream` in the allocator test.
+- Use `LoggingFaultPolicyMinimal` (as in the allocator test) — on a fault you will see `[FAULT] status=...`.
 
-**Что не стоит делать:**
-- Регистрировать `KeyboardDevice` и одновременно писать в `portBus.WritePort(0, ...)` — двойной ввод.
-- Менять `portWrite = 0x10` в `snake_minic` без пересчёта `DevicePortSize` (см. [Особенная информация](#особенная-информация)).
-- Ожидать, что `ctx.Run()` вернётся сам — змейка работает в `while (1)`, выход только через `Q`/`Escape` (которые вызывают `ctx.Stop()`).
-- Запускать змейку в CI/headless — `Console.KeyAvailable`/`Console.ReadKey` бросят `InvalidOperationException` при перенаправленном вводе.
+**What you should not do:**
+- Register `KeyboardDevice` and simultaneously write to `portBus.WritePort(0, ...)` — double input.
+- Change `portWrite = 0x10` in `snake_minic` without recalculating `DevicePortSize` (see [Special information](#special-information)).
+- Expect `ctx.Run()` to return on its own — the snake runs in `while (1)`, exit only via `Q`/`Escape` (which call `ctx.Stop()`).
+- Run the snake in CI/headless — `Console.KeyAvailable`/`Console.ReadKey` will throw `InvalidOperationException` when input is redirected.
 
-## Особенная информация
+## Special information
 
-### Змейка и баг кодогенератора
+### The snake and the codegen bug
 
-`LibCode.snake_minic` держит **всё состояние в глобалах** (`sx`, `sy`, `slen`, `dir`, `fx`, `fy`, `rngState`, `newX`, `newY`, `ti`, `te`, `tg`, `th`, `tk`). Это не стилистика — это обход бага `FunctionGenerator.GenerateFunction` (`[Nantuc.Compiler](../Nantuc.Compiler/README.md)`, [Что исправить, п.1](../Nantuc.Compiler/README.md#что-исправить)): несимметричный push/pop регистров калечит callee-saved регистры при 3–4 локальных переменных. Пока баг не исправлен в компиляторе, любая функция с несколькими локалами может «портить» регистры вызывающего. `snake_minic` избегает этого, держа состояние в data-секции.
+`LibCode.snake_minic` keeps **all state in globals** (`sx`, `sy`, `slen`, `dir`, `foodX`, `foodY`, `rngState`). This is legacy from a bug in `FunctionGenerator.GenerateFunction` (`[Nantuc.Compiler](../Nantuc.Compiler/README.md)`): asymmetric push/pop of registers corrupted callee-saved registers with 3–4 local variables.
 
-Это же объясняет, почему `rng()`, `occupied()`, `spawnFood()` и т.д. используют глобальные `ti`, `te`, `newX`, `newY` вместо локальных — каждая из них могла бы быть «чистой» функцией с локалами, но тогда баг кодогенератора проявился бы.
+**The bug is fixed.** Therefore `rng()`, `occupied()`, `spawnFood()`, `tick()`, `render()` **could** use locals. The current code has not been migrated yet — this is a task for the next iteration. When writing new samples with 3+ locals in a function, you no longer need to be afraid.
 
-### Ввод: loopback в собственное IO-окно `Device`
+### Input: loopback into the `Device`'s own IO window
 
-`SnakeLauncher` **не** регистрирует `KeyboardDevice` на отдельном sector. Вместо этого:
+`SnakeGameOnNantuc` does **not** register `KeyboardDevice` on a separate sector. Instead:
 
-- `portBus.WritePort(0, code)` — пишет в `Device._ioMemory[0]` (VM сама зарегистрирована на `sector 0`, `Device` реализует `IPortController`, `ResolveAddress(0)` → `_devices[0]` = `Device`, `Device.WritePort(0, code)`).
-- `input_nanasm` делает `IN r0, r1` с `r1 = 0x00` → `portBus.ReadPort(0)` → `Device.ReadPort(0)` → возвращает `_ioMemory[0]`.
+- `portBus.WritePort(0, code)` — writes to `Device._ioMemory[0]` (the VM itself is registered on `sector 0`, `Device` implements `IPortController`, `ResolveAddress(0)` → `_devices[0]` = `Device`, `Device.WritePort(0, code)`).
+- `input_nanasm` does `IN r0, r1` with `r1 = 0x00` → `portBus.ReadPort(0)` → `Device.ReadPort(0)` → returns `_ioMemory[0]`.
 
-То есть **VM — сама себе клавиатура через собственное IO-окно**. Это работает, потому что `Device` зарегистрирован и в `ManagerDevices` (как VM), и в `PortBus._devices` (как `IPortController`). Но:
+That is, **the VM is its own keyboard through its own IO window**. This works because `Device` is registered both in `ManagerDevices` (as a VM) and in `PortBus._devices` (as an `IPortController`). But:
 
-- `KeyboardDevice` остаётся мёртвым кодом.
-- `portBus.WritePort(0, code)` возвращает `BiosStatus` (`NullDeviceOutput` если сектор 0 не зарегистрирован) — `SnakeLauncher` игнорирует результат. Если VM не зарегистрирована на sector 0 (например, ошибка `RegisterDevice`), ввод молча теряется.
-- `IN` в `input_nanasm` читает и сразу сбрасывает (`OUT r0, r1` с `r0=0`). Если два нажатия придут между чтениями VM — второе затрёт первое.
+- `KeyboardDevice` remains dead code.
+- `portBus.WritePort(0, code)` returns a `BiosStatus` (`NullDeviceOutput` if sector 0 is not registered) — `SnakeGameOnNantuc` ignores the result. If the VM is not registered on sector 0, input is silently lost.
+- `IN` in `input_nanasm` reads and immediately resets (`OUT r0, r1` with `r0=0`). If two presses arrive between VM reads — the second overwrites the first.
 
-### Тороид 32×16 и порты монитора
+### 32×16 toroid and monitor ports
 
-`snake_minic` использует wrap по краям (`newX < 0 → 31`, `newX > 31 → 0`, `newY < 0 → 15`, `newY > 15 → 0`) — змейка телепортируется на противоположный край. Это не баг, а фича (классический Snake).
+`snake_minic` uses wrap at the edges (`nx < 0 → 31`, `nx > 31 → 0`, `ny < 0 → 15`, `ny > 15 → 0`) — the snake teleports to the opposite edge. Classic Snake, not a bug.
 
-Порты монитора в `monitor_nanasm`: `0x10` (CURSOR_X), `0x11` (CURSOR_Y), `0x12` (PIXEL), `0x13` (COMMAND). При дефолтном `DevicePortSize.B16` (`PortsOnDevice = 16 = 0x10`) `sector 1` начинается с `1 * 16 = 0x10`. Если поменять `portsPerDevice` в `CreateDefault` (например, на `B32`), база `sector 1` станет `0x20`, и все `OUT r0, 0x10` попадут в **sector 0** (VM саму себя), а не в монитор. Это хрупкое место, привязанное к дефолтному `DevicePortSize`. См. [Что исправить, п.8](#что-исправить).
+Monitor ports in `monitor_nanasm`: `0x10` (CURSOR_X), `0x11` (CURSOR_Y), `0x12` (PIXEL), `0x13` (COMMAND). With the default `DevicePortSize.B16` (`PortsOnDevice = 16 = 0x10`), `sector 1` starts at `1 * 16 = 0x10`. If you change `portsPerDevice` in `CreateDefault` (e.g., to `B32`), the base of `sector 1` becomes `0x20`, and all `OUT r0, 0x10` will go to **sector 0** (the VM itself), not to the monitor. This is a fragile spot tied to the default `DevicePortSize`. See [What to fix, item 8](#what-to-fix).
 
-### `queuedIOStream` в `Program.cs` — не используется
+### `QueuedIOStream` in the allocator test — not used
 
-`Program.cs` создаёт `QueuedIOStream(Console.Out, PortCharEncoding.Utf8)` и регистрирует на `sector 1`, но `source1` (allocator test) **не пишет** в порты — только `alloc`/`free`/`Store64`/`Load64`. I/O-устройство просто висит. Это не ошибка (не мешает), но лишнее для теста аллокатора.
+`Program.cs` (allocator path) creates `QueuedIOStream(Console.Out, PortCharEncoding.Utf8)` and registers it on `sector 1`, but `source1` (allocator test) **does not write** to ports — only `alloc`/`free`/`Store64`/`Load64`. The I/O device just hangs there. This is not an error (does not interfere), but it is superfluous for the allocator test.
 
-### `Program.cs` — `hpPrt` и `GetRamAsNewArray`
+### `hpPrt` — a typo in `Program.cs`
 
-`hpPrt = regs[RegType.rHP]` после `Run()`. В `alloc_minic` `rHP` — bump pointer, растёт при `alloc`. После теста `hpPrt` указывает за последний аллоцированный блок. `GetRamAsNewArray(0, hpPrt)` дампит `RAM[0..hpPrt)` — это код + data + heap. `StringDisassembler.Disassemble(ramSnap, resCompile.CodeSize)` разбирает `[0, CodeSize)` как код, `[CodeSize, hpPrt)` как данные. В data попадут **и** статические данные, **и** heap — визуально неотличимы. Для отладки аллокатора это ок, но для понимания «что где» — misleading.
+In `Program.cs` the variable is called `hpPrt` (an extra `r`):
+```csharp
+var hpPrt = regs[RegType.rHP];
+var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);
+```
+It does not affect functionality, but it is worth renaming to `hpPtr`.
 
-### ANSI и `Console`
+### ANSI and `Console`
 
-`SnakeLauncher.RenderToConsole` использует `\x1b[H` (home) и `\x1b[0m` (reset). `Console.CursorVisible = false` — работает не во всех терминалах (в некоторых бросает `IOException`, но `SnakeLauncher` не ловит). `Console.KeyAvailable`/`Console.ReadKey` — в headless/redirected могут бросить. `SnakeLauncher` не проверяет `Console.IsInputRedirected`/`Console.IsOutputRedirected`.
+`SnakeGameOnNantuc.RenderToConsole` uses `\x1b[H` (home) and `\x1b[0m` (reset). `Console.CursorVisible = false` — does not work in all terminals (in some it throws `IOException`, but the code does not catch it). `Console.KeyAvailable`/`Console.ReadKey` — in headless/redirected can throw. `SnakeGameOnNantuc` does not check `Console.IsInputRedirected`/`Console.IsOutputRedirected`.
 
-### `KeyboardDevice` — мёртвый код
+### `KeyboardDevice` — dead code
 
-`KeyboardDevice.Press(byte key)` публичный, но нигде не вызывается. `SnakeLauncher` пишет напрямую в `portBus.WritePort(0, code)`. Класс оставлен как задел на будущее (или как альтернатива loopback-подходу). Если будете регистрировать его — не забудьте, что `ReadPort(REG_KEY)` возвращает `_key` без сброса, а `ReadPort(REG_HAS_NEW)` — consume-on-read. В `input_nanasm` сброс делается вручную (`OUT 0, 0`), что с `KeyboardDevice` было бы избыточно.
+`KeyboardDevice.Press(byte key)` is public, but is never called. `SnakeGameOnNantuc` writes directly to `portBus.WritePort(0, code)`. The class is left as a groundwork for the future (or as an alternative to the loopback approach). If you register it — do not forget that `ReadPort(REG_KEY)` returns `_key` without a reset, and `ReadPort(REG_HAS_NEW)` — consume-on-read. In `input_nanasm` the reset is done manually (`OUT 0, 0`), which with `KeyboardDevice` would be redundant.
 
-### Ограничения платформ
+### Platform limitations
 
-- **`net10.0`**, без `AllowUnsafeBlocks` — модуль не трогает нативную память.
-- **`Console.KeyAvailable`/`Console.ReadKey`** — только в интерактивном терминале. В WASM/CI/headless — `InvalidOperationException`.
-- **`Console.CursorVisible`/`Console.SetCursorPosition`** — могут бросить в перенаправленном выводе.
-- **ANSI (`\x1b[...`)** — Windows Terminal, Linux, macOS — работают. Старый `cmd.exe` (без VT processing) — не отобразит.
-- **`Timer` + фоновый поток** — в WASM `Timer` работает, но `Thread` с `Console.ReadKey` не имеет смысла. Для WASM-порта змейки нужен другой ввод (например, `KeyboardDevice` поверх `input`-событий браузера).
+- **`net10.0`**, no `AllowUnsafeBlocks` — the module does not touch native memory.
+- **`Console.KeyAvailable`/`Console.ReadKey`** — only in an interactive terminal. In WASM/CI/headless — `InvalidOperationException`.
+- **`Console.CursorVisible`/`Console.SetCursorPosition`** — may throw when output is redirected.
+- **ANSI (`\x1b[...`)** — Windows Terminal, Linux, macOS — work. Old `cmd.exe` (without VT processing) — will not display.
+- **`Timer` + background thread** — in WASM `Timer` works, but a `Thread` with `Console.ReadKey` makes no sense. For a WASM port of the snake, a different input is needed (e.g., `KeyboardDevice` over browser `input` events).
 
-## Что исправить
+## What to fix
 
-По убыванию серьёзности. Ссылки на файлы и строки.
+In descending order of severity. References to files and lines.
 
-1. **`SnakeLauncher.LaunchSnake` — `int deviceId = host.Emulator.RegisterDevice(...)` без проверки на отрицательный ID.**  
-   Файл: `SnakeGame/SnakeLauncher.cs`, строка `int deviceId = host.Emulator.RegisterDevice(handle, sector: 0);`.  
-   Если сектор 0 занят (повторный запуск), `RegisterDevice` вернёт `-2`, `GetDeviceContext(-2)` вернёт `null`, `!` (строка `var ctx = host.Emulator.GetDeviceContext(deviceId)!;`) даст NRE.  
-   Фикс: `if (deviceId < 0) { Console.Error.WriteLine($"RegisterDevice failed: {deviceId}"); return; }` до `GetDeviceContext`.
+1. **`SnakeGameOnNantuc.Run` — `int deviceId = host.Emulator.RegisterDevice(...)` without checking for a negative ID.**
+   File: `SnakeGame/SnakeGameOnNantuc.cs`, line `int deviceId = host.Emulator.RegisterDevice(handle, sector: 0);`.
+   If sector 0 is occupied (re-launch), `RegisterDevice` returns `-2`, `GetDeviceContext(-2)` returns `null`, and `!` (the line `var ctx = host.Emulator.GetDeviceContext(deviceId)!;`) gives an NRE.
+   Fix: `if (deviceId < 0) { Console.Error.WriteLine($"RegisterDevice failed: {deviceId}"); return; }` before `GetDeviceContext`. Or — switch to `TryRegisterDevice` + `IdState.Valid` (see item 2).
 
-2. **`Program.cs` — `using Nantuc.Samples.Scratch.SnakeGame;` не используется.**  
-   Файл: `Program.cs`, строка 5.  
-   `SnakeGame` импортирован, но `Program.cs` не вызывает `SnakeLauncher`/`MonochromeMonitor`/`KeyboardDevice`. Это либо задел, либо забытый переключатель.  
-   Фикс: либо убрать `using`, либо добавить в конец `Main` закомментированный вызов `// SnakeLauncher.LaunchSnake();`, либо вынести два эксперимента в отдельные методы `RunAllocatorTest()`/`RunSnake()` с выбором через аргумент командной строки.
+2. **`Program.cs` (allocator path) — also `RegisterDevice` + `GetDeviceContext(deviceId)!`.**
+   File: `Program.cs`, lines `int deviceId = host.Emulator.RegisterDevice(spec: handle, sector: 0);` + `var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;`.
+   The same problem as item 1, plus **a divergence from `Nantuc.Samples.Minimal`**, where `TryRegisterDevice`/`TryGetDeviceContext` with `IdState` is already used. This confuses the reader: two samples show different APIs for the same task.
+   Fix: bring both samples to the new API (`TryRegisterDevice` → `IdState.Valid`, `TryGetDeviceContext` → `bool`), as in the Minimal README.
 
-3. **`Program.cs` — код возврата `r0` не проверяется.**  
-   Файл: `Program.cs`, строки после `deviceCtx.Run()`:  
+3. **`Program.cs` — the return code `r0` is not checked.**
+   File: `Program.cs`, lines after `deviceCtx.Run()`:
    ```csharp
    var regs = deviceCtx.GetRegistersSnapshot();
    Console.WriteLine($"{RegType.r0.RegName()}: {regs[RegType.r0]}");
    ```
-   `source1` возвращает `int` (`return s; // 10`), но `Run()` возвращает `void`. Фактический результат — в `r0`, но `Program.cs` его только печатает, не сверяет. Тест «проходит» даже при `r0 != 10`.  
-   Фикс: `if (regs[RegType.r0] != 10) { Console.Error.WriteLine($"FAILED: r0={regs[RegType.r0]} (expected 10)"); return; }` или использовать `RunWithLimit` + `LaunchOptions.OnEnd` с отдельным `IProcessorFaultPolicy`, которая считывает `r0`.
+   `source1` returns an `int` (`return s; // 10`), but `Run()` returns a `ProcessorFault`, not the return code. The actual result is in `r0`, but `Program.cs` only prints it, does not compare it. The test "passes" even if `r0 != 10`.
+   Fix: `if (regs[RegType.r0] != 10) { Console.Error.WriteLine($"FAILED: r0={regs[RegType.r0]} (expected 10)"); return; }` — e.g., immediately after `Run()`, before the dump.
 
-4. **`SnakeLauncher` — `portBus.WritePort(0, code)` без проверки результата.**  
-   Файл: `SnakeGame/SnakeLauncher.cs`, строка `portBus.WritePort(0, code);` в `inputThread`.  
-   `IPortBus.WritePort` возвращает `BiosStatus`. Если `sector 0` не зарегистрирован (см. п.1), вернётся `NullDeviceOutput`, ввод молча потеряется.  
-   Фикс: `var st = portBus.WritePort(0, code); if (st != BiosStatus.Success) { /* лог или running = false */ }`.
+4. **`SnakeGameOnNantuc` — `portBus.WritePort(0, code)` without checking the result.**
+   File: `SnakeGame/SnakeGameOnNantuc.cs`, line `portBus.WritePort(0, code);` in `inputThread`.
+   `IPortBus.WritePort` returns a `BiosStatus`. If `sector 0` is not registered (see item 1), `NullDeviceOutput` is returned, and the input is silently lost.
+   Fix: `var st = portBus.WritePort(0, code); if (st != BiosStatus.Success) { /* log or running = false */ }`.
 
-5. **`SnakeLauncher` — `Timer(..., null, 200, period)` бросает при `period <= 0`.**  
-   Файл: `SnakeGame/SnakeLauncher.cs`, строка `using var ticker = new Timer(_ => { ... }, null, 200, period);`.  
-   `Timer` с `period <= 0` бросает `ArgumentOutOfRangeException`. Также если `period == Timeout.Infinite`, таймер сработает один раз.  
-   Фикс: `if (period <= 0) throw new ArgumentOutOfRangeException(nameof(period), "period must be > 0");` в начале `LaunchSnake`, или `period = Math.Max(10, period)`.
+5. **`SnakeGameOnNantuc` — the class does not validate `period`.**
+   File: `SnakeGame/SnakeGameOnNantuc.cs`, constructor `SnakeGameOnNantuc(int period = 200)` and field `_period`.
+   `Timer(..., null, 200, _period)` will throw `ArgumentOutOfRangeException` if `_period <= 0`. `Program.cs` validates `period > 0` on CLI dispatch, but a **direct call** `new SnakeGameOnNantuc(0).Run()` will throw.
+   Fix: `if (period <= 0) throw new ArgumentOutOfRangeException(nameof(period), "period must be > 0");` in the constructor — then the class contract is self-contained and `Program.cs` need not validate.
 
-6. **`SnakeLauncher` — `KeyboardDevice` не регистрируется, ввод идёт через loopback.**  
-   Файл: `SnakeGame/SnakeLauncher.cs` + `SnakeGame/KeyboardDevice.cs`.  
-   `KeyboardDevice` реализован, но в `LaunchSnake` регистрируется только `monitor`. Ввод — через `portBus.WritePort(0, code)` (loopback в `Device._ioMemory[0]`). Работает, но `KeyboardDevice` — мёртвый код, а loopback неочевиден для читателя.  
-   Фикс: либо зарегистрировать `KeyboardDevice` на `sector 2` и поменять `input_nanasm` на чтение из `0x20` (база `sector 2` при `B16`), либо задокументировать в комментарии, что `sector 0` — это loopback, `KeyboardDevice` — альтернатива для будущего.
+6. **`SnakeGameOnNantuc` — `KeyboardDevice` is not registered, input goes through loopback.**
+   File: `SnakeGame/SnakeGameOnNantuc.cs` + `SnakeGame/KeyboardDevice.cs`.
+   `KeyboardDevice` is implemented, but only `monitor` is registered in `Run()`. Input — through `portBus.WritePort(0, code)` (loopback into `Device._ioMemory[0]`). It works, but `KeyboardDevice` is dead code, and the loopback is non-obvious to the reader.
+   Fix: either register `KeyboardDevice` on `sector 2` and change `input_nanasm` to read from `0x20` (the base of `sector 2` with `B16`), or document in a comment that `sector 0` is a loopback and `KeyboardDevice` is an alternative for the future.
 
-7. **`SnakeLauncher` — `catch (Exception ex) when (running)` не ловит исключения после `running = false`.**  
-   Файл: `SnakeGame/SnakeLauncher.cs`, строка `catch (Exception ex) when (running) { Console.WriteLine($"\nVM error: {ex.Message}"); }`.  
-   Если `ctx.Run()` бросит после того, как `inputThread` установил `running = false` (гонка), исключение не будет поймано → процесс упадёт.  
-   Фикс: убрать `when (running)` или сделать `catch (Exception ex) { if (running) Console.WriteLine(...); }`.
+7. **`SnakeGameOnNantuc` — `catch (Exception ex) when (running)` does not catch exceptions after `running = false`.**
+   File: `SnakeGame/SnakeGameOnNantuc.cs`, line `catch (Exception ex) when (running) { Console.WriteLine($"\nVM error: {ex.Message}"); }`.
+   If `ctx.Run()` throws after `inputThread` has set `running = false` (race), the exception will not be caught → the process will crash.
+   Fix: remove `when (running)` or use `catch (Exception ex) { if (running) Console.WriteLine(...); }`.
 
-8. **`SnakeLauncher` — порты монитора (`0x10..0x13`) жёстко зашиты под `DevicePortSize.B16`.**  
-   Файл: `SnakeGame/LibCode.cs`, `monitor_nanasm` (`LDI r4, 0x10; OUT ...; LDI r4, 0x11; ...`) + `SnakeGame/SnakeLauncher.cs` (`VmHostFactory.CreateDefault()` без параметров).  
-   База `sector 1` = `1 * PortsOnDevice`. При дефолтном `B16` = `0x10` — совпадает. При смене `portsPerDevice` — сломается.  
-   Фикс: либо задокументировать в комментарии `SnakeLauncher` («требует DevicePortSize.B16, sector 1 → base 0x10»), либо передавать `portsPerDevice: DevicePortSize.B16` явно в `CreateDefault`, либо вычислять базу в C# и передавать в `snake_minic` через глобал.
+8. **`SnakeGameOnNantuc` — monitor ports (`0x10..0x13`) are hardcoded for `DevicePortSize.B16`.**
+   File: `SnakeGame/LibCode.cs`, `monitor_nanasm` + `SnakeGame/SnakeGameOnNantuc.cs` (`VmHostFactory.CreateDefault()` with no parameters).
+   The base of `sector 1` = `1 * PortsOnDevice`. With the default `B16` = `0x10` — it matches. If `portsPerDevice` changes — it will break.
+   Fix: either document in a comment in `SnakeGameOnNantuc` ("requires DevicePortSize.B16, sector 1 → base 0x10"), or pass `portsPerDevice: DevicePortSize.B16` explicitly in `CreateDefault`, or compute the base in C# and pass it to `snake_minic` via a global.
 
-9. **`MonochromeMonitor` — `_renderer(_fb, Width, Height)` передаёт живой буфер.**  
-   Файл: `SnakeGame/MonochromeMonitor.cs`, строка `_renderer(_fb, Width, Height);` в `WritePort(REG_COMMAND, CMD_FLUSH)`.  
-   Если рендерер асинхронный или долгий, а VM продолжает писать в `_fb` (через `REG_PIXEL`), будет data race. В `SnakeLauncher` рендерер синхронный (`Console.Write`), но контракт не защищает.  
-   Фикс: либо задокументировать `/// <summary>Renderer must not store the buffer reference; copy if needed</summary>`, либо передавать копию (`(byte[])_fb.Clone()`), либо ввести двойную буферизацию (фронт/бэк).
+9. **`MonochromeMonitor` — `_renderer(_fb, Width, Height)` passes the live buffer.**
+   File: `SnakeGame/MonochromeMonitor.cs`, line `_renderer(_fb, Width, Height);` in `WritePort(REG_COMMAND, CMD_FLUSH)`.
+   If the renderer is asynchronous or long-running while the VM continues to write to `_fb` (via `REG_PIXEL`), there will be a data race. In `SnakeGameOnNantuc` the renderer is synchronous (`Console.Write`), but the contract does not protect against it.
+   Fix: either document `/// <summary>Renderer must not store the buffer reference; copy if needed</summary>`, or pass a copy (`(byte[])_fb.Clone()`), or introduce double buffering (front/back).
 
-10. **`MonochromeMonitor` — `ReadPort(REG_PIXEL)` может бросить `IndexOutOfRangeException`.**  
-    Файл: `SnakeGame/MonochromeMonitor.cs`, `REG_PIXEL => _fb[_cy * Width + _cx]`.  
-    `_cx`/`_cy` клампятся при записи, но если `Width`/`Height` изменятся (не могут — `get;` без `set`), или если `_fb` инициализирован с другими размерами — OOB. Сейчас безопасно, но хрупко.  
-    Фикс: `if ((uint)_cx >= (uint)Width || (uint)_cy >= (uint)Height) return 0;` перед доступом.
+10. **`MonochromeMonitor` — `ReadPort(REG_PIXEL)` may throw `IndexOutOfRangeException`.**
+    File: `SnakeGame/MonochromeMonitor.cs`, `REG_PIXEL => _fb[_cy * Width + _cx]`.
+    `_cx`/`_cy` are clamped on write, but if `Width`/`Height` change (they cannot — `get;` without `set`), or if `_fb` is initialized with different sizes — OOB. Currently safe, but fragile.
+    Fix: `if ((uint)_cx >= (uint)Width || (uint)_cy >= (uint)Height) return 0;` before the access.
 
-11. **`MonochromeMonitor` — `_frame` не сбрасывается в `CMD_CLEAR`.**  
-    Файл: `SnakeGame/MonochromeMonitor.cs`, `CMD_CLEAR` вызывает `Array.Clear(_fb); _cx = _cy = 0;`, но не `_frame = 0`.  
-    Это ок (frame — глобальный счётчик), но читатель может подумать, что clear сбрасывает всё.  
-    Фикс: либо задокументировать `_frame` как «lifetime counter, not reset by CMD_CLEAR», либо сбрасывать (если так задумано).
+11. **`MonochromeMonitor` — `_frame` is not reset in `CMD_CLEAR`.**
+    File: `SnakeGame/MonochromeMonitor.cs`, `CMD_CLEAR` calls `Array.Clear(_fb); _cx = _cy = 0;`, but not `_frame = 0`.
+    This is fine (frame is a global counter), but the reader may think that clear resets everything.
+    Fix: either document `_frame` as "lifetime counter, not reset by CMD_CLEAR", or reset it.
 
-12. **`LibCode.input_nanasm` — гонка при двух нажатиях между чтениями VM.**  
-    Файл: `SnakeGame/LibCode.cs`, `input_nanasm`: `IN r0, r1; ... OUT r0, r1;` (чтение + сброс в одном вызове).  
-    Если пользователь нажмёт две стрелки быстрее, чем VM прочитает (200 мс при `period: 200`), второе нажатие затрёт первое в `_ioMemory[0]`. Игра «проглотит» первое.  
-    Фикс: буферизировать в `KeyboardDevice` (очередь), а `input_nanasm` читать из `REG_HAS_NEW`/`REG_KEY` (два порта). Или уменьшить `period` (быстрее тик — меньше окно гонки, но и игра быстрее).
+12. **`LibCode.input_nanasm` — race on two presses between VM reads.**
+    File: `SnakeGame/LibCode.cs`, `input_nanasm`: `IN r0, r1; ... OUT r0, r1;` (read + reset in one call).
+    If the user presses two arrows faster than the VM reads (200 ms with `period: 200`), the second press overwrites the first in `_ioMemory[0]`.
+    Fix: buffer in `KeyboardDevice` (queue), and have `input_nanasm` read from `REG_HAS_NEW`/`REG_KEY` (two ports). Or reduce `period` (faster tick — smaller race window).
 
-13. **`Program.cs` — `QueuedIOStream` создаётся и регистрируется, но не используется.**  
-    Файл: `Program.cs`, строки `var iostream = new QueuedIOStream(...)` + `host.Emulator.RegisterDevice(ioDevice: iostream, ...)`.  
-    `source1` (allocator test) не пишет в порты. Устройство висит, `Dispose` вызовется через `host.Dispose()`, но лишнее.  
-    Фикс: убрать `iostream` и `RegisterDevice(ioDevice: ...)` из `Program.cs` (или использовать — например, `print8` результат `r0`).
+13. **`Program.cs` (allocator path) — `QueuedIOStream` is created and registered but not used.**
+    File: `Program.cs`, lines `var iostream = new QueuedIOStream(...)` + `host.Emulator.RegisterDevice(ioDevice: iostream, ...)`.
+    `source1` (allocator test) does not write to ports. The device hangs there, `Dispose` will be called via `host.Dispose()`, but it is superfluous.
+    Fix: remove `iostream` and `RegisterDevice(ioDevice: ...)` from `Program.cs` (or use it — e.g., `print8` the `r0` result).
 
-14. **`Program.cs` — `using var host` без `Console.OutputEncoding`.**  
-    Файл: `Program.cs`, начало. `LoggingFaultPolicyMinimal` пишет `[FAULT] ...` (ASCII), но если расширите вывод на русский — кракозябры на Windows CP866/1251.  
-    Фикс (профилактически): `Console.OutputEncoding = System.Text.Encoding.UTF8;` первой строкой.
+14. **`Program.cs` — `using var host` without `Console.OutputEncoding`.**
+    File: `Program.cs`, beginning. `LoggingFaultPolicyMinimal` writes `[FAULT] ...` (ASCII), but if you extend the output to Russian — mojibake on Windows CP866/1251.
+    Fix (preventively): `Console.OutputEncoding = System.Text.Encoding.UTF8;` as the first line.
 
-15. **`SnakeLauncher` — `Console.CursorVisible`/`SetCursorPosition` без try/catch.**  
-    Файл: `SnakeGame/SnakeLauncher.cs`, строки `Console.CursorVisible = false;`, `Console.CursorVisible = true;`, `Console.SetCursorPosition(0, 18);`.  
-    В перенаправленном выводе/headless могут бросить `IOException`. `finally` тогда не завершится.  
-    Фикс: `try { Console.CursorVisible = false; } catch (IOException) { }` (и аналогично для остальных).
+15. **`SnakeGameOnNantuc` — `Console.CursorVisible`/`SetCursorPosition` without try/catch.**
+    File: `SnakeGame/SnakeGameOnNantuc.cs`, lines `Console.CursorVisible = false;`, `Console.CursorVisible = true;`, `Console.SetCursorPosition(0, 18);`.
+    In redirected output/headless they may throw `IOException`. Then `finally` will not complete.
+    Fix: `try { Console.CursorVisible = false; } catch (IOException) { }` (and similarly for the rest).
 
-16. **`SnakeLauncher.RenderToConsole` — статический `StringBuilder sb` не потокобезопасен.**  
-    Файл: `SnakeGame/SnakeLauncher.cs`, `private static readonly StringBuilder sb = new();`.  
-    Рендер вызывается из VM-потока (`ctx.Run`), но если добавите второй монитор или отрисовку из другого потока — гонка.  
-    Фикс: сделать `sb` локальным (`var sb = new StringBuilder(...)` в начале метода) — аллокация на кадр незначительна, зато безопасно.
+16. **`SnakeGameOnNantuc` — `RenderToConsole` uses an instance `StringBuilder`.**
+    File: `SnakeGame/SnakeGameOnNantuc.cs`, `private readonly StringBuilder sb = new();`.
+    It was `static` (race between instances), now it is an instance — this is **a step forward**. A theoretical risk remains: if two threads call `Run()` on **one** instance, there will be a race. Currently `Run()` is called once, but the class contract does not forbid it.
+    Fix (low priority): either make `sb` local in `RenderToConsole` (`var sb = new StringBuilder(...)` — one allocation per frame), or document that `Run()` is not thread-safe.
+
+17. **`Program.cs` — typo `hpPrt` (extra `r`).**
+    File: `Program.cs`, `var hpPrt = regs[RegType.rHP];`.
+    Fix: rename to `hpPtr`.

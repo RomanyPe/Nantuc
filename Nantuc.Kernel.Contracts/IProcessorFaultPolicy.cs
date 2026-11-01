@@ -13,12 +13,7 @@ public interface IProcessorFaultPolicy
     public static IProcessorFaultPolicy Default { get; } = new DefaultProcessorFaultPolicy();
     private class DefaultProcessorFaultPolicy : IProcessorFaultPolicy
     {
-        public bool ShouldContinue(in ProcessorFault fault) => fault.Status switch
-        {
-            BiosStatus.Success => true,
-            BiosStatus.NullDeviceOutput => true,
-            _ => false
-        };
+        public bool ShouldContinue(in ProcessorFault fault) => fault.Status == BiosStatus.Success;
     }
 
     /// <summary>

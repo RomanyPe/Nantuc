@@ -77,8 +77,8 @@ public class DeviceContext
     /// <summary>
     /// Безопасная обёртка над нативным буфером, позволяет читать ОЗУ устройства.
     /// </summary>
-    /// <returns>Объект <see cref="INativeReadOnlyBuffer"/>, предоставляющий доступ только для чтения.</returns>
-    public INativeReadOnlyBuffer NativeReadOnlyBuffer => _device.NativeReadOnlyBuffer;
+    /// <returns>Объект <see cref="IReadOnlyNativeBuffer"/>, предоставляющий доступ только для чтения.</returns>
+    public IReadOnlyNativeBuffer NativeReadOnlyBuffer => _device.NativeReadOnlyBuffer;
 
     /// <summary>
     /// Останавливает устройство и сбрасывает режим контекста.
@@ -187,7 +187,7 @@ public class DeviceContext
     /// </summary>
     /// <param name="onStep">Колбэк для анализа состояния процесса.</param>
     /// <exception cref="InvalidOperationException">Контекст не находится в пошаговом режиме.</exception>
-    public void SingleStep(Action<ProcessorReader>? onStep = null)
+    public void SingleStep(Action<ProcessorSnapshot>? onStep = null)
     {
         ThrowIfNotStepMode();
         _device.NextStepProcessor(onStep);
@@ -199,7 +199,7 @@ public class DeviceContext
     /// <param name="count">Количество шагов; по умолчанию 5.</param>
     /// <param name="onStep">Колбэк для анализа состояния процесса после каждого шага.</param>
     /// <exception cref="InvalidOperationException">Контекст не находится в пошаговом режиме.</exception>
-    public void MultiStep(int count = 5, Action<ProcessorReader>? onStep = null)
+    public void MultiStep(int count = 5, Action<ProcessorSnapshot>? onStep = null)
     {
         ThrowIfNotStepMode();
         _device.NextStepProcessorCount(count, onStep);

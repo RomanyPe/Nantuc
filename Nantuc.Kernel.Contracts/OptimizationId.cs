@@ -16,9 +16,7 @@ namespace Nantuc.Kernel.Contracts;
 /// <see cref="MaxLength"/> characters long, e.g.
 /// </para>
 /// <para>
-/// Well-known identifiers are guaranteed stable across library versions
-/// and are safe to persist (logs, caches, config files). Never rename a
-/// well-known id after release — introduce a new one instead.
+///Well-known identifiers are not exposed as fields; create them via constructor or `TryParse`
 /// </para>
 /// </remarks>
 [DebuggerDisplay("{ToString(),nq}")]

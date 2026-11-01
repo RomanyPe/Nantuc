@@ -7,4 +7,4 @@ namespace Nantuc.Kernel.Contracts;
 /// </summary>
 /// <param name="Data">данные</param>
 /// <param name="Status">статус ошибки</param>
-public readonly record struct ReadPortResult(byte Data, BiosStatus Status = BiosStatus.Success);
+public readonly record struct ReadPortResult(byte Data, BiosStatus Status);

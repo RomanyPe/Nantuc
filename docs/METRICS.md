@@ -1,14 +1,13 @@
-
-| Иерархия | Индекс удобства поддержки | Сложность организации цикла | Глубина наследования | Взаимозависимость классов | Строки исходного кода | Строки исполняемого кода |
+﻿| Hierarchy | Maintainability Index | Cyclomatic Complexity | Depth of Inheritance | Class Coupling | Lines of Source Code | Lines of Executable Code |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Nantuc.Kernel.Contracts (Release) | 96 | 56 | 1 | 22 | 294 | 45 |
-| Nantuc.Kernel.Common (Release) | 91 | 176 | 1 | 18 | 1 755 | 204 |
-| Nantuc.VmApplication (Release) | 89 | 249 | 1 | 110 | 1 812 | 397 |
-| Nantuc.Kernel.Diagnostics (Release) | 88 | 41 | 2 | 23 | 501 | 44 |
-| Nantuc.Compiler (Release) | 86 | 1 879 | 2 | 129 | 7 603 | 2 658 |
-| Nantuc.Kernel (Release) | 82 | 364 | 1 | 60 | 2 378 | 587 |
-| Nantuc.VmApplication.Extensions (Release) | 80 | 574 | 2 | 137 | 2 632 | 625 |
-| **Nantuc.Tests (Release)** | **74** | **91** | **3** | **65** | **1 276** | **459** |
-| Nantuc.Benchmarks (Release) | 78 | 126 | 1 | 63 | 949 | 298 |
-| Nantuc.Samples.Scratch (Release) | 70 | 61 | 2 | 49 | 533 | 139 |
-| Nantuc.Samples.Minimal (Release) | 41 | 16 | 1 | 29 | 55 | 40 |
+| `Nantuc.Kernel.Contracts (Release)` | 97 | 77 | 1 | 26 | 339 | 63 |
+| `Nantuc.Kernel.Common (Release)` | 91 | 176 | 1 | 18 | 1755 | 204 |
+| `Nantuc.VmApplication (Release)` | 89 | 249 | 1 | 110 | 1812 | 397 |
+| `Nantuc.Kernel.Diagnostics (Release)` | 88 | 43 | 2 | 22 | 503 | 45 |
+| `Nantuc.Compiler (Release)` | 86 | 1879 | 2 | 129 | 7603 | 2658 |
+| `Nantuc.Kernel (Release)` | 82 | 368 | 1 | 60 | 2402 | 603 |
+| `Nantuc.VmApplication.Extensions (Release)` | 80 | 574 | 2 | 137 | 2632 | 625 |
+| `Nantuc.Benchmarks (Release)` | 78 | 126 | 1 | 63 | 949 | 298 |
+| `Nantuc.Tests (Release)` | 75 | 138 | 3 | 81 | 1683 | 621 |
+| `Nantuc.Samples.Scratch (Release)` | 70 | 61 | 2 | 49 | 533 | 139 |
+| `Nantuc.Samples.Minimal (Release)` | 41 | 16 | 1 | 29 | 55 | 40 |

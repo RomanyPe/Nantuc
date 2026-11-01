@@ -102,7 +102,7 @@ public class DefaultErrorMessageProvider(FrozenDictionary<ErrorCode, string>? ov
     public string GetMessage(ErrorCode code, params ReadOnlySpan<DiagnosticData> args)
     {
         var template = TryGetTemplate(code)
-            ?? throw new InvalidOperationException($"No message template for error code {code}");
+            ?? $"No message template for error code {(int)code}";
         if (args.IsEmpty)
             return template;
 

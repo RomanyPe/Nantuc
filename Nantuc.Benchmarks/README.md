@@ -1,87 +1,87 @@
 ﻿# Nantuc.Benchmarks — README
 
-> Консольный бенчмарк виртуальной машины Nantuc: измеряет MIPS (million instructions per second), стабильность, JIT/warmup impact и статистику по серии прогонов на типовых нагрузках (память, ALU, вызовы, стек, битовые операции, умножение, ветвления).  
-> Зависит от `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` (транзитивно — от `VmApplication`, `Compiler`, `Kernel`).  
-> `[← Корень](../README.md) · [VmApplication](../Nantuc.VmApplication/README.md) · [Extensions](../Nantuc.VmApplication.Extensions/README.md) · [Kernel](../Nantuc.Kernel/README.md) · [Compiler](../Nantuc.Compiler/README.md)`
+> Console benchmark for the Nantuc virtual machine: measures MIPS (million instructions per second), stability, JIT/warmup impact, and statistics over a series of runs on typical workloads (memory, ALU, calls, stack, bitwise operations, multiplication, branches).  
+> Depends on `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` (transitively — on `VmApplication`, `Compiler`, `Kernel`).  
+> `[← Root](../README.md) · [VmApplication](../Nantuc.VmApplication/README.md) · [Extensions](../Nantuc.VmApplication.Extensions/README.md) · [Kernel](../Nantuc.Kernel/README.md) · [Compiler](../Nantuc.Compiler/README.md)`
 
-## Содержание
-- [Об этом модуле](#об-этом-модуле)
-- [Дерево локального проекта](#дерево-локального-проекта)
+## Table of contents
+- [About this module](#about-this-module)
+- [Local project tree](#local-project-tree)
 - [API](#api)
-- [Примеры для API](#примеры-для-api)
-- [Приближенность модуля к пользователю](#приближенность-модуля-к-пользователю)
-- [Особенная информация](#особенная-информация)
-- [Что исправить](#что-исправить)
+- [API examples](#api-examples)
+- [How close the module is to the user](#how-close-the-module-is-to-the-user)
+- [Special information](#special-information)
+- [What to fix](#what-to-fix)
 
-## Об этом модуле
+## About this module
 
-`Nantuc.Benchmarks` — это не библиотека, а **консольное приложение** (`<OutputType>Exe</OutputType>`), которое:
+`Nantuc.Benchmarks` is not a library but a **console application** (`<OutputType>Exe</OutputType>`) that:
 
-1. Повышает приоритет процесса и привязывает его к одному CPU-ядру (`BenchmarkOptimizer`).
-2. Создаёт `VmHost` через `VmHostFactory.CreateDefault`, регистрирует одну `Device` (RAM 64 MiB) на `sector 0`.
-3. Гоняет 12 фиксированных программ на NANASM (текстовые константы `text1`…`text8` в `Program.cs`), каждая — `WarmupRuns=5` + `Runs=20` раз.
-4. Собирает MIPS, elapsed, steps по каждому прогону, считает статистику (`Stats`/`StatsResult`): mean, median, trimmed mean, перцентили, CV, skewness, JIT-impact.
-5. Печатает прогресс-бар (`PrintProgress`) и пишет полный лог в `logs/result_Benchmark_Logs_YYYY-MM-DD_HH-mm-ss.txt`.
+1. Raises the process priority and binds it to a single CPU core (`BenchmarkOptimizer`).
+2. Creates a `VmHost` via `VmHostFactory.CreateDefault`, registers one `Device` (RAM 64 MiB) on `sector 0`.
+3. Runs 12 fixed NANASM programs (text constants `text1`…`text8` in `Program.cs`), each `WarmupRuns=5` + `Runs=20` times.
+4. Collects MIPS, elapsed, steps per run, computes statistics (`Stats`/`StatsResult`): mean, median, trimmed mean, percentiles, CV, skewness, JIT-impact.
+5. Prints a progress bar (`PrintProgress`) and writes a full log to `logs/result_Benchmark_Logs_YYYY-MM-DD_HH-mm-ss.txt`.
 
-Модуль — образец того, **как использовать `VmApplication` для измерений**: он не трогает `Kernel` напрямую, только через `VmHost`/`DeviceContext`, и показывает, что публичного API хватает для бенчмарка без хаков.
+The module is an example of **how to use `VmApplication` for measurements**: it does not touch `Kernel` directly, only through `VmHost`/`DeviceContext`, and shows that the public API is sufficient for a benchmark without hacks.
 
-Ключевые роли:
-- **`Program.cs`** — точка входа + все тестовые программы (`text*`) + форматирование вывода.
-- **`BenchRunner`** — раннер на один `BenchCase`: подготовка (`TryPrepare`), warmup, `RunOnce`, накопление логов и вычисление `PeakMips`/`StepsOnce`/`StepsVariance`.
-- **`BenchCase`** — `record` с именем, текстом программы, числом прогонов и (неиспользуемым) `ExpectedInstructions`.
-- **`Stats`** / **`StatsResult`** — статистика: mean, median, перцентили, IQR, CV, trimmed mean, geometric mean, skewness, half-means.
-- **`BenchmarkOptimizer`** — процессный тюнинг: `ProcessPriorityClass.High` + привязка к последнему CPU-ядру (`ProcessorAffinity` на Windows, `sched_setaffinity` на Linux, `thread_policy_set` на macOS).
+Key roles:
+- **`Program.cs`** — entry point + all test programs (`text*`) + output formatting.
+- **`BenchRunner`** — runner for a single `BenchCase`: preparation (`TryPrepare`), warmup, `RunOnce`, log accumulation, and computation of `PeakMips`/`StepsOnce`/`StepsVariance`.
+- **`BenchCase`** — `record` with name, program text, run counts, and (unused) `ExpectedInstructions`.
+- **`Stats`** / **`StatsResult`** — statistics: mean, median, percentiles, IQR, CV, trimmed mean, geometric mean, skewness, half-means.
+- **`BenchmarkOptimizer`** — process tuning: `ProcessPriorityClass.High` + binding to the last CPU core (`ProcessorAffinity` on Windows, `sched_setaffinity` on Linux, `thread_policy_set` on macOS).
 
-## Дерево локального проекта
+## Local project tree
 
-Namespace — `Nantuc.Benchmarks` (все файлы в одной папке):
+Namespace — `Nantuc.Benchmarks` (all files in one folder):
 
 ```
 Nantuc.Benchmarks/
 ├── Nantuc.Benchmarks.csproj            # net10.0, Exe, ref → VmApplication.Extensions
-├── Program.cs                          # Main + тестовые программы text1..text8 + вывод
+├── Program.cs                          # Main + test programs text1..text8 + output
 ├── BenchRunner.cs                      # BenchRunner + ListExtensions.ComputeVariance
 ├── BenchCase.cs                        # record BenchCase(Name, ProgramText, Runs, WarmupRuns, ExpectedInstructions?)
 ├── Stats.cs                            # static class Stats
 ├── StatsResult.cs                      # record struct StatsResult + From(...)
-└── BenchmarkOptimizer.cs               # priority + CPU affinity; P/Invoke в LinuxNative
+└── BenchmarkOptimizer.cs               # priority + CPU affinity; P/Invoke in LinuxNative
 ```
 
-Замечания по организации:
-- `BenchRunner.cs` содержит и `BenchRunner`, и file-local `ListExtensions` (extension `ComputeVariance`). Для навигации неудобно (grep `ComputeVariance` ведёт в файл с другим именем).
-- `Program.cs` — монолит: 350+ строк с константами `text*`, `Main`, `PrintTestHeader`, `PrintProgress`, `AppendStatsExtended`, `AppendIterations`. Если планируете расширять набор кейсов, стоит вынести тестовые программы в `Cases/` или отдельный `BenchPrograms.cs`.
+Organization notes:
+- `BenchRunner.cs` contains both `BenchRunner` and a file-local `ListExtensions` (the `ComputeVariance` extension). Inconvenient for navigation (grepping `ComputeVariance` leads to a file with a different name).
+- `Program.cs` is a monolith: 350+ lines with `text*` constants, `Main`, `PrintTestHeader`, `PrintProgress`, `AppendStatsExtended`, `AppendIterations`. If you plan to expand the case set, consider moving test programs to `Cases/` or a separate `BenchPrograms.cs`.
 
 ## API
 
-Проект — `Exe`, публичного API нет. Ниже — внутренняя структура, полезная для правок и расширения.
+The project is an `Exe`; there is no public API. Below is the internal structure useful for edits and extensions.
 
-### Точка входа
+### Entry point
 
 `Program.Main()` (private static):
 
 1. `BenchmarkOptimizer.OptimizeCurrentProcess()` — priority + affinity.
 2. `VmHostFactory.CreateDefault()` → `host`.
 3. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` → `deviceId`.
-4. Массив `BenchCase[]` (12 кейсов).
-5. Для каждого кейса: `new BenchRunner(host, deviceId, case)`, `TryPrepare()`, warmup, runs, сбор статистики.
-6. `File.WriteAllText` в `logs/`, `Console.WriteLine`, `Console.ReadLine()`.
+4. `BenchCase[]` array (12 cases).
+5. For each case: `new BenchRunner(host, deviceId, case)`, `TryPrepare()`, warmup, runs, statistics collection.
+6. `File.WriteAllText` to `logs/`, `Console.WriteLine`, `Console.ReadLine()`.
 
-Тестовые программы (`const string` в `Program.cs`):
+Test programs (`const string` in `Program.cs`):
 
-| Константа | Кейс | Что меряет |
+| Constant | Case | What it measures |
 |---|---|---|
-| `text1` | `Call` | `CALL`/`RET` в цикле (10M итераций, `CALL Sum; ADD; RET`) |
-| `text2` | `Math` | `ADD` + `DEC` + `TEST` + `JNZ` (10M итераций) |
-| `text3` | `AluTput1` | 4× `ADD` в одном регистре + loop (2.5M итераций) |
-| `text3a` | `AluTput4` | 4× `ADD` в разные регистры (ILP) + loop |
-| `text3m` | `AluTputM1` | `ADD`/`SUB`/`AND`/`OR` в один регистр |
-| `text3m2` | `AluTputM2` | 4× `ADD` в разные регистры (дубликат `text3a` по форме) |
+| `text1` | `Call` | `CALL`/`RET` in a loop (10M iterations, `CALL Sum; ADD; RET`) |
+| `text2` | `Math` | `ADD` + `DEC` + `TEST` + `JNZ` (10M iterations) |
+| `text3` | `AluTput1` | 4× `ADD` into one register + loop (2.5M iterations) |
+| `text3a` | `AluTput4` | 4× `ADD` into different registers (ILP) + loop |
+| `text3m` | `AluTputM1` | `ADD`/`SUB`/`AND`/`OR` into one register |
+| `text3m2` | `AluTputM2` | 4× `ADD` into different registers (shape duplicate of `text3a`) |
 | `text4` | `Memory` | `STORE_IND.S32` + `LOAD_IND.S32` (safe), 100×50000 |
 | `text4u` | `MemoryUnsafe` | `STORE_IND_UNSAFE.S32` + `LOAD_IND_UNSAFE.S32`, 100×50000 |
-| `text5` | `PushPop` | `PUSH r0; POP r0` в цикле (10M) |
+| `text5` | `PushPop` | `PUSH r0; POP r0` in a loop (10M) |
 | `text6` | `BitOps` | `SHR`/`AND`/`OR`/`XOR` (10M) |
 | `text7` | `Mul` | `MULT_INT` (10M) |
-| `text8` | `Branch` | `TEST`/`JZ`/`JMP` (ветвления, 1M итераций, ~6 инструкций на итерацию) |
+| `text8` | `Branch` | `TEST`/`JZ`/`JMP` (branches, 1M iterations, ~6 instructions per iteration) |
 
 ### `BenchRunner`
 
@@ -95,20 +95,20 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
     public bool IsPrepared { get; private set; }
     public double PeakMips { get; }        // StepsOnce / Min(Elapsed) / 1e6
     public long   StepsOnce { get; }        // StepsLogs[0]
-    public double StepsVariance { get; }    // дисперсия StepsLogs (extension)
+    public double StepsVariance { get; }    // variance of StepsLogs (extension)
     public CompilationResult? Program { get; private set; }
 
     public bool TryPrepare();        // CompileToIL(ASM, optimize:true) → TryFastLoadProgram
     public void RunOnce();           // Launch(MipsLogs, ElapsedLog, StepsLogs, ctx)
-    public void Warmup();            // Launch([], [], [], ctx) — лог отбрасывается
+    public void Warmup();            // Launch([], [], [], ctx) — log discarded
     public static void Launch(List<double> mips, List<double> elapsed,
                               List<long> steps, DeviceContext? ctx);
 }
 ```
 
-`TryPrepare` использует `_host.Project.CompileToIL(text, 0, optimize: true, SourceLanguage.Asm).Build()`. Для ASM `optimize: true` не делает ничего — `ProjectBuilder.Build` ассемблирует asm-файлы напрямую (`AsmParser.Assemble`), без AST/peephole. См. [Особенная информация](#особенная-информация).
+`TryPrepare` uses `_host.Project.CompileToIL(text, 0, optimize: true, SourceLanguage.Asm).Build()`. For ASM, `optimize: true` does nothing — `ProjectBuilder.Build` assembles asm files directly (`AsmParser.Assemble`), without AST/peephole. See [Special information](#special-information).
 
-`Launch` запускает `ctx.Run(new LaunchOptions(ShowTimer: true, OnEnd: ...))`. В `OnEnd` считаются `Mips = Steps / Elapsed.TotalSeconds / 1e6`, добавляются в три списка.
+`Launch` runs `ctx.Run(new LaunchOptions(ShowTimer: true, OnEnd: ...))`. In `OnEnd`, `Mips = Steps / Elapsed.TotalSeconds / 1e6` is computed and added to three lists.
 
 ### `BenchCase`
 
@@ -121,9 +121,9 @@ public record BenchCase(
     long? ExpectedInstructions = null);
 ```
 
-`ExpectedInstructions` **не используется** ни в `BenchRunner`, ни в `Program.cs`. Задел на будущее (сверка фактических шагов с ожидаемыми). См. [Что исправить, п.9](#что-исправить).
+`ExpectedInstructions` is **not used** in either `BenchRunner` or `Program.cs`. It is a placeholder for the future (comparing actual steps with expected). See [What to fix, item 9](#what-to-fix).
 
-### Статистика
+### Statistics
 
 ```csharp
 public static class Stats
@@ -152,11 +152,11 @@ public record struct StatsResult(
 }
 ```
 
-- `Percentile` — линейная интерполяция (rank-based, `rank = p/100 * (n-1)`), работает и для n=1 (возвращает единственный элемент).
-- `TrimmedMean` — отбрасывает `floor(n * trim/100)` с каждого конца, возвращает `Median`, если после отбрасывания пусто.
-- `GeometricMean` — игнорирует `x <= 0` (защита от `log(0) = -inf`).
-- `Skewness` — sample skewness с поправкой `n / ((n-1)(n-2))`.
-- `FirstHalfMean`/`SecondHalfMean` — для JIT-impact: разница между первой и второй половиной прогонов.
+- `Percentile` — linear interpolation (rank-based, `rank = p/100 * (n-1)`), works for n=1 (returns the single element).
+- `TrimmedMean` — discards `floor(n * trim/100)` from each end, returns `Median` if empty after discarding.
+- `GeometricMean` — ignores `x <= 0` (protection against `log(0) = -inf`).
+- `Skewness` — sample skewness with correction `n / ((n-1)(n-2))`.
+- `FirstHalfMean`/`SecondHalfMean` — for JIT-impact: the difference between the first and second half of the runs.
 
 ### `BenchmarkOptimizer`
 
@@ -180,14 +180,14 @@ public static partial class BenchmarkOptimizer
 ```
 
 - **Windows**: `Process.PriorityClass = High`, `ProcessorAffinity = 1L << (ProcessorCount - 1)`.
-- **Linux**: `sched_setaffinity(pid, sizeof(long), &mask)` — привязка к последнему ядру. Требует прав root для `PriorityClass.High`, affinity доступна без root в пределах своих ядер.
-- **macOS**: `thread_policy_set(thread, THREAD_AFFINITY_POLICY, &tag, 1)` — affinity tag, не классическая привязка.
+- **Linux**: `sched_setaffinity(pid, sizeof(long), &mask)` — binding to the last core. Requires root for `PriorityClass.High`; affinity is available without root within your own cores.
+- **macOS**: `thread_policy_set(thread, THREAD_AFFINITY_POLICY, &tag, 1)` — an affinity tag, not classic binding.
 
-Все ошибки ловятся и печатаются как `[Предупреждение]` / `[Ошибка]`, бенчмарк продолжается без привязки.
+All errors are caught and printed as `[Warning]` / `[Error]`; the benchmark continues without binding.
 
-## Примеры для API
+## API examples
 
-**Добавить свой кейс в `Program.Main`:**
+**Add your own case to `Program.Main`:**
 
 ```csharp
 const string textNew =
@@ -202,11 +202,11 @@ loop:
     END;
     """;
 
-// в массиве cases:
+// in the cases array:
 new BenchCase("XorSelf", textNew, Runs: 20, WarmupRuns: 5)
 ```
 
-**Использовать `BenchRunner` в своём коде (не через `Program.Main`):**
+**Use `BenchRunner` in your own code (not via `Program.Main`):**
 
 ```csharp
 using var host = VmHostFactory.CreateDefault();
@@ -227,55 +227,55 @@ Console.WriteLine($"Median MIPS: {mips.Median:F2}");
 Console.WriteLine($"Steps once: {runner.StepsOnce:N0}");
 ```
 
-**Посчитать статистику без VM:**
+**Compute statistics without the VM:**
 
 ```csharp
 var samples = new[] { 100.0, 102.0, 99.0, 101.0, 103.0, 98.0, 500.0 };
 var s = StatsResult.From(samples);
 Console.WriteLine($"Median={s.Median:F2} Trim10={s.TrimmedMean10:F2} CV={s.CV*100:F2}%");
-// Median=101.00 Trim10=101.00 CV=95.11% — выброс 500 не влияет на медиану/trim
+// Median=101.00 Trim10=101.00 CV=95.11% — the 500 outlier does not affect median/trim
 ```
 
-**Дизассемблировать программу кейса:**
+**Disassemble the case program:**
 
 ```csharp
 if (runner.Program is { } comp)
     Console.WriteLine(comp.DisassembleToString());
 ```
 
-## Приближенность модуля к пользователю
+## How close the module is to the user
 
-**Средняя.** Это не библиотека, а «продукт» — образец использования и инструмент для оценки производительности VM. Конечному пользователю MiniC/NANASM бенчмарк не нужен; автору ядра/компилятора — полезен для регрессий.
+**Medium.** It is not a library but a "product" — an example of usage and a tool for evaluating VM performance. The end user of MiniC/NANASM does not need the benchmark; the kernel/compiler author finds it useful for regressions.
 
-**Что стоит делать:**
-- Запускать на **изолированной машине** (или хотя бы без нагрузки) — иначе affinity/priority не помогут.
-- На Linux для `PriorityClass.High` — `sudo`, иначе будет `[Предупреждение]` и обычный приоритет.
-- Читать логи из `logs/` — консоль может обрезать вывод (`PrintProgress` пишет в одну строку с `\r`).
-- Расширять набор кейсов через `BenchCase` + `text*` в `Program.cs`, а не через форк `BenchRunner`.
-- Для сравнения «safe vs unsafe» памяти — `Memory` vs `MemoryUnsafe` уже есть. Для сравнения «с оптимизациями vs без» — добавьте `optimize: false` в `BenchRunner.TryPrepare` или отдельный флаг в `BenchCase`.
+**What you should do:**
+- Run on an **isolated machine** (or at least without load) — otherwise affinity/priority will not help.
+- On Linux, `sudo` is needed for `PriorityClass.High`, otherwise you will get a `[Warning]` and normal priority.
+- Read logs from `logs/` — the console may truncate output (`PrintProgress` writes to a single line with `\r`).
+- Expand the case set via `BenchCase` + `text*` in `Program.cs`, not by forking `BenchRunner`.
+- To compare "safe vs unsafe" memory — `Memory` vs `MemoryUnsafe` already exists. To compare "with optimizations vs without" — add `optimize: false` in `BenchRunner.TryPrepare` or a separate flag in `BenchCase`.
 
-**Что не стоит делать:**
-- Запускать бенчмарк в CI/headless — `Console.ReadLine()` в конце `Main` заблокирует процесс, а `Console.Clear()` может бросить.
-- Сравнивать MIPS между машинами — привязка к ядру, частота, JIT, GC, thermal throttling сильно влияют. Сравнивайте только в пределах одной сессии.
-- Ожидать, что `optimize: true` в `BenchRunner.TryPrepare` что-то даст для ASM-программ — не даст (см. ниже).
-- Использовать `PeakMips` как единственную метрику — он берёт `Min(Elapsed)`, что чувствительно к выбросам. `TrimmedMean10` из `MipsLogs` надёжнее.
+**What you should not do:**
+- Run the benchmark in CI/headless — `Console.ReadLine()` at the end of `Main` will block the process, and `Console.Clear()` may throw.
+- Compare MIPS between machines — core binding, frequency, JIT, GC, thermal throttling have a strong influence. Compare only within one session.
+- Expect `optimize: true` in `BenchRunner.TryPrepare` to do anything for ASM programs — it won't (see below).
+- Use `PeakMips` as the only metric — it takes `Min(Elapsed)`, which is sensitive to outliers. `TrimmedMean10` from `MipsLogs` is more reliable.
 
-## Особенная информация
+## Special information
 
-### `optimize: true` — no-op для ASM
+### `optimize: true` — no-op for ASM
 
-`BenchRunner.TryPrepare` вызывает `_host.Project.CompileToIL(_case.ProgramText, ..., optimize: true, SourceLanguage.Asm).Build()`. В `ProjectBuilder.Build` ASM-файлы обрабатываются так:
+`BenchRunner.TryPrepare` calls `_host.Project.CompileToIL(_case.ProgramText, ..., optimize: true, SourceLanguage.Asm).Build()`. In `ProjectBuilder.Build`, ASM files are processed as follows:
 
 ```csharp
 foreach (SourceFile file in files.Where(file => file.Language == SourceLanguage.Asm))
 {
-    asmParser.Assemble(file.Content, assembler);   // без AST, без peephole
+    asmParser.Assemble(file.Content, assembler);   // no AST, no peephole
 }
 ```
 
-`optimize: true` включает только AST-оптимизации (которые для ASM не применяются) и **не** включает peephole (`VmPeepholeOptimizer.AddStdRules` никто не вызывает). Так что все 12 кейсов — это ровно то, что вы написали в `text*`, без оптимизаций.
+`optimize: true` enables only AST optimizations (which do not apply to ASM) and **does not** enable peephole (`VmPeepholeOptimizer.AddStdRules` is never called). So all 12 cases are exactly what you wrote in `text*`, without optimizations.
 
-Если хотите сравнить «с оптимизациями vs без», нужно явно:
+If you want to compare "with optimizations vs without", you need to do it explicitly:
 
 ```csharp
 host.Project.Optimizator.VMPeepholeOptimizer.AddStdRules();
@@ -286,31 +286,31 @@ var comp = il.Build();
 
 ### `text4` vs `text4u` — safe vs unsafe
 
-Оба кейса используют одинаковый паттерн `MOV r7, rHP; ADD rHP, r0;` (ручной bump allocator), но:
+Both cases use the same pattern `MOV r7, rHP; ADD rHP, r0;` (manual bump allocator), but:
 
-- `text4` — `STORE_IND.S32` / `LOAD_IND.S32` (с проверкой границ и выравнивания в `Processor.Step`).
-- `text4u` — `STORE_IND_UNSAFE.S32` / `LOAD_IND_UNSAFE.S32` (без проверок).
+- `text4` — `STORE_IND.S32` / `LOAD_IND.S32` (with bounds and alignment checks in `Processor.Step`).
+- `text4u` — `STORE_IND_UNSAFE.S32` / `LOAD_IND_UNSAFE.S32` (no checks).
 
-Комментарий в `text4u` (`// <-- замена ALLOC r7`) — исторический: когда-то в языке был опкод `ALLOC`, сейчас его нет, и аллокация делается вручную. На текущий бенчмарк это не влияет.
+The comment in `text4u` (`// <-- replacement for ALLOC r7`) is historical: there used to be an `ALLOC` opcode in the language, now there isn't, and allocation is done manually. This does not affect the current benchmark.
 
-Ожидаемая разница: `MemoryUnsafe` должен быть на 20-40% быстрее, потому что пропускает `AlignmentFault`-проверки и `_ram.UpdateAndReadStatus()`. Если разница < 10% — значит, `Processor` не в горячем пути, или JIT не инлайнит `_ram.ReadInt32LEUnsafe` (см. `[Nantuc.Kernel](../Nantuc.Kernel/README.md)`, `[MethodImpl(AggressiveOptimization)]` на `Step`).
+Expected difference: `MemoryUnsafe` should be 20-40% faster because it skips `AlignmentFault` checks and `_ram.UpdateAndReadStatus()`. If the difference is < 10%, then either `Processor` is not on the hot path, or JIT does not inline `_ram.ReadInt32LEUnsafe` (see `[Nantuc.Kernel](../Nantuc.Kernel/README.md)`, `[MethodImpl(AggressiveOptimization)]` on `Step`).
 
-### `BenchmarkOptimizer` — почему последнее ядро
+### `BenchmarkOptimizer` — why the last core
 
-`targetCore = ProcessorCount - 1` — чтобы уйти от системного шума на ядрах 0/1 (обычно там живут kernel threads, прерывания, GC-потоки). Это не гарантия: планировщик всё равно может мигрировать поток, если affinity не задана, но на Windows `ProcessorAffinity` — жёсткая привязка, на Linux `sched_setaffinity` — тоже.
+`targetCore = ProcessorCount - 1` — to get away from system noise on cores 0/1 (kernel threads, interrupts, GC threads usually live there). This is not a guarantee: the scheduler can still migrate the thread if affinity is not set, but on Windows `ProcessorAffinity` is hard binding, and on Linux `sched_setaffinity` is too.
 
-### `Stats` — почему несколько метрик
+### `Stats` — why several metrics
 
-- `Mean` — чувствителен к выбросам (GC-паузы, thermal throttling).
-- `Median` — устойчив, но не показывает «средний» сценарий.
-- `TrimmedMean10` — компромисс: отбрасывает 10% сверху и снизу, игнорирует выбросы, показывает типичное значение. **Основная метрика** для отчёта.
-- `CV` — коэффициент вариации; `CV < 5%` — стабильно, `CV > 15%` — шумно.
-- `Skewness > 0` — хвост вправо (выбросы «медленные прогоны»); `< 0` — хвост влево.
-- `FirstHalfMean`/`SecondHalfMean` — JIT/warmup: если `firstHalf > secondHalf` на 20%+, JIT ещё не прогрелся к концу warmup'а, стоит увеличить `WarmupRuns`.
+- `Mean` — sensitive to outliers (GC pauses, thermal throttling).
+- `Median` — robust, but does not show the "average" scenario.
+- `TrimmedMean10` — a compromise: discards 10% from the top and bottom, ignores outliers, shows the typical value. **The primary metric** for the report.
+- `CV` — coefficient of variation; `CV < 5%` — stable, `CV > 15%` — noisy.
+- `Skewness > 0` — right tail (outliers are "slow runs"); `< 0` — left tail.
+- `FirstHalfMean`/`SecondHalfMean` — JIT/warmup: if `firstHalf > secondHalf` by 20%+, JIT has not warmed up by the end of warmup; increase `WarmupRuns`.
 
-### JIT/warmup и tiered compilation
+### JIT/warmup and tiered compilation
 
-`BenchmarkOptimizer` не выключает tiered compilation. Это значит: первые прогоны идут в Tier0 (быстрый JIT, медленный код), через ~30 вызовов метод промоутится в Tier1 (оптимизированный). `WarmupRuns=5` **недостаточно** для Tier1 — нужно ~30 вызовов метода. `FirstHalfMean` vs `SecondHalfMean` покажет это в отчёте. Если JIT-impact большой, добавьте в `.csproj`:
+`BenchmarkOptimizer` does not disable tiered compilation. This means: the first runs go in Tier0 (fast JIT, slow code), after ~30 calls the method is promoted to Tier1 (optimized). `WarmupRuns=5` is **not enough** for Tier1 — ~30 method calls are needed. `FirstHalfMean` vs `SecondHalfMean` will show this in the report. If JIT-impact is large, add to `.csproj`:
 
 ```xml
 <PropertyGroup>
@@ -319,128 +319,128 @@ var comp = il.Build();
 </PropertyGroup>
 ```
 
-или установите переменную окружения `DOTNET_TieredCompilation=0` перед запуском. Это уберёт «холодные» прогоны и сделает MIPS стабильнее, но менее реалистичным (в реальной эксплуатации tiered compilation включён).
+or set the environment variable `DOTNET_TieredCompilation=0` before running. This will remove "cold" runs and make MIPS more stable, but less realistic (in real operation tiered compilation is enabled).
 
-### Вывод и формат лога
+### Output and log format
 
-`Program.cs` использует:
-- `PrintProgress` с `\r` и ANSI-символами `▓░✓✗•` — в CI/redirected output `Console.IsOutputRedirected` пропускает прогресс-бар, но `Console.Clear()` в конце `Main` — **не** пропускает (см. [Что исправить, п.3](#что-исправить)).
-- `AppendStatsExtended` — все 20 полей `StatsResult` в формате `\t    name: value`.
-- `AppendIterations` — по одному значению на строку, формат `F4`.
+`Program.cs` uses:
+- `PrintProgress` with `\r` and ANSI characters `▓░✓✗•` — in CI/redirected output `Console.IsOutputRedirected` skips the progress bar, but `Console.Clear()` at the end of `Main` — **does not** (see [What to fix, item 3](#what-to-fix)).
+- `AppendStatsExtended` — all 20 fields of `StatsResult` in the format `\t    name: value`.
+- `AppendIterations` — one value per line, format `F4`.
 
-Лог-файл: `logs/result_Benchmark_Logs_{yyyy-MM-dd_HH-mm-ss}.txt` в `AppDomain.CurrentDomain.BaseDirectory`. Содержит **всё**: от прогресса до полного дизассемблера каждой программы.
+Log file: `logs/result_Benchmark_Logs_{yyyy-MM-dd_HH-mm-ss}.txt` in `AppDomain.CurrentDomain.BaseDirectory`. Contains **everything**: from progress to the full disassembly of each program.
 
-### Ограничения платформ
+### Platform limitations
 
-- **`net10.0`**, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — но `unsafe`-кода нет. Либо для транзитивных зависимостей (маловероятно — `AllowUnsafeBlocks` не наследуется через `ProjectReference`), либо забыто.
-- **`BenchmarkOptimizer`** — `sched_setaffinity`/`thread_policy_set` — только Linux/macOS, на Windows используется `ProcessorAffinity`. В WASM `Process`/P/Invoke не работают — бенчмарк не соберётся под `browser-wasm` (и не должен).
-- **`Console.ReadLine()`** в конце `Main` — блокирует. В CI/headless процесс зависнет. См. [Что исправить, п.3](#что-исправить).
-- **`1L << targetCore`** в `BenchmarkOptimizer.TryBindToLastCpuCore` — на 64-ядерной машине `targetCore = 63`, `1L << 63` = `long.MinValue` (переполнение знака). На 128-ядерной — UB. См. [Что исправить, п.1](#что-исправить).
+- **`net10.0`**, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — but there is no `unsafe` code. Either for transitive dependencies (unlikely — `AllowUnsafeBlocks` is not inherited through `ProjectReference`), or it was forgotten.
+- **`BenchmarkOptimizer`** — `sched_setaffinity`/`thread_policy_set` — Linux/macOS only; on Windows `ProcessorAffinity` is used. In WASM, `Process`/P/Invoke do not work — the benchmark will not build for `browser-wasm` (and should not).
+- **`Console.ReadLine()`** at the end of `Main` — blocks. In CI/headless the process will hang. See [What to fix, item 3](#what-to-fix).
+- **`1L << targetCore`** in `BenchmarkOptimizer.TryBindToLastCpuCore` — on a 64-core machine `targetCore = 63`, `1L << 63` = `long.MinValue` (sign overflow). On 128 cores — UB. See [What to fix, item 1](#what-to-fix).
 
-### Что этот модуль не делает
+### What this module does not do
 
-- Не является библиотекой — это `Exe`.
-- Не публикует результаты в внешнее хранилище (BenchmarkDotNet-style baseline) — только `logs/*.txt`.
-- Не сравнивает версии Nantuc между собой — только измеряет текущую.
-- Не использует `BenchmarkDotNet` — всё вручную, чтобы контролировать `LaunchOptions(ShowTimer: true)` и не зависеть от `VmHost` в чужом фреймворке.
-- Не тестирует многопоточность — все кейсы однопоточные, один `Device` на всё.
+- It is not a library — it is an `Exe`.
+- It does not publish results to external storage (BenchmarkDotNet-style baseline) — only `logs/*.txt`.
+- It does not compare Nantuc versions with each other — it only measures the current one.
+- It does not use `BenchmarkDotNet` — everything is manual to control `LaunchOptions(ShowTimer: true)` and not depend on `VmHost` in someone else's framework.
+- It does not test multithreading — all cases are single-threaded, one `Device` for everything.
 
-## Что исправить
+## What to fix
 
-По убыванию серьёзности. Ссылки на файлы/методы.
+In descending order of severity. References to files/methods.
 
-1. **`BenchmarkOptimizer.TryBindToLastCpuCore` — `1L << targetCore` переполняется на ≥64 ядрах.**  
-   Файл: `BenchmarkOptimizer.cs`, метод `TryBindToLastCpuCore`: `long affinityMask = 1L << targetCore;`.  
-   На машине с 64+ ядрами `targetCore >= 63` → сдвиг в знаковый бит / undefined behavior; affinity-маска получается отрицательной или нулевой, `ProcessorAffinity`/`sched_setaffinity` привяжут не туда (или никуда).  
-   Фикс: проверять `targetCore < 63` (для 64-битной маски), либо использовать `ulong`, либо `IntPtr.Size`-aware маску (на 32-битных системах — 31 ядро max), либо `1UL << targetCore` с проверкой. Для 128-ядерных систем — `cpu_set_t` в Linux требует массив из нескольких `long`.
+1. **`BenchmarkOptimizer.TryBindToLastCpuCore` — `1L << targetCore` overflows on ≥64 cores.**  
+   File: `BenchmarkOptimizer.cs`, method `TryBindToLastCpuCore`: `long affinityMask = 1L << targetCore;`.  
+   On a machine with 64+ cores, `targetCore >= 63` → shift into the sign bit / undefined behavior; the affinity mask becomes negative or zero, and `ProcessorAffinity`/`sched_setaffinity` will bind to the wrong place (or nowhere).  
+   Fix: check `targetCore < 63` (for a 64-bit mask), or use `ulong`, or an `IntPtr.Size`-aware mask (on 32-bit systems — 31 cores max), or `1UL << targetCore` with a check. For 128-core systems, Linux `cpu_set_t` requires an array of several `long`s.
 
-2. **`BenchmarkOptimizer.LinuxNative.pthread_self` — `int` вместо `IntPtr`.**  
-   Файл: `BenchmarkOptimizer.cs`, `private static partial class LinuxNative`, `public static partial int pthread_self();`.  
-   На 64-битных macOS `pthread_t` — это указатель (`_opaque_pthread_t*`). `int` обрежет старшие 32 бита, `thread_policy_set` получит мусорный handle.  
-   Фикс: `public static partial IntPtr pthread_self();`. Аналогично `thread_policy_set(int thread, ...)` — первый параметр должен быть `IntPtr`.
+2. **`BenchmarkOptimizer.LinuxNative.pthread_self` — `int` instead of `IntPtr`.**  
+   File: `BenchmarkOptimizer.cs`, `private static partial class LinuxNative`, `public static partial int pthread_self();`.  
+   On 64-bit macOS, `pthread_t` is a pointer (`_opaque_pthread_t*`). `int` will truncate the upper 32 bits, and `thread_policy_set` will get a garbage handle.  
+   Fix: `public static partial IntPtr pthread_self();`. Similarly, `thread_policy_set(int thread, ...)` — the first parameter should be `IntPtr`.
 
-3. **`Program.Main` — `Console.ReadLine()` в конце блокирует CI/headless.**  
-   Файл: `Program.cs`, конец `Main` (`Console.WriteLine($"Файл результатов..."); Console.ReadLine();`).  
-   Плюс `Console.Clear()` перед сохранением — на headless может бросить `IOException`.  
-   Фикс: `if (!Console.IsInputRedirected && !Console.IsOutputRedirected) Console.ReadLine();` и `try { Console.Clear(); } catch (IOException) { }`. Аналогично для `Console.Clear()` в начале.
+3. **`Program.Main` — `Console.ReadLine()` at the end blocks CI/headless.**  
+   File: `Program.cs`, end of `Main` (`Console.WriteLine($"Results file..."); Console.ReadLine();`).  
+   Plus `Console.Clear()` before saving — on headless it may throw `IOException`.  
+   Fix: `if (!Console.IsInputRedirected && !Console.IsOutputRedirected) Console.ReadLine();` and `try { Console.Clear(); } catch (IOException) { }`. Similarly for `Console.Clear()` at the beginning.
 
-4. **`BenchRunner.TryPrepare` — `Console.WriteLine(res.Errors)` печатает имя типа, а не ошибки.**  
-   Файл: `BenchRunner.cs`, `TryPrepare`: `Console.WriteLine(res.Errors);`.  
-   `IReadOnlyList<string>` в `Console.WriteLine` выводит `System.Collections.Generic.List...`. Ошибки не видны.  
-   Фикс: `foreach (var e in res.Errors ?? []) Console.WriteLine(e);` или `Console.WriteLine(string.Join(Environment.NewLine, res.Errors ?? []))`.
+4. **`BenchRunner.TryPrepare` — `Console.WriteLine(res.Errors)` prints the type name, not the errors.**  
+   File: `BenchRunner.cs`, `TryPrepare`: `Console.WriteLine(res.Errors);`.  
+   `IReadOnlyList<string>` in `Console.WriteLine` outputs `System.Collections.Generic.List...`. The errors are not visible.  
+   Fix: `foreach (var e in res.Errors ?? []) Console.WriteLine(e);` or `Console.WriteLine(string.Join(Environment.NewLine, res.Errors ?? []))`.
 
-5. **`BenchRunner.TryPrepare` — `Console.ReadLine()` в фейл-путях блокирует.**  
-   Файл: `BenchRunner.cs`, `TryPrepare`, два `Console.ReadLine()` после `Console.WriteLine`.  
-   Тот же риск, что и в `Main`. В `Program.Main` фейл обрабатывается через `PrintProgress(..., failed: true)` и `continue`, а `BenchRunner` сам блокирует — несогласованно.  
-   Фикс: убрать `Console.ReadLine()` из `TryPrepare`, вернуть `false` и дать вызывающему решать (в `Main` уже есть обработка).
+5. **`BenchRunner.TryPrepare` — `Console.ReadLine()` in failure paths blocks.**  
+   File: `BenchRunner.cs`, `TryPrepare`, two `Console.ReadLine()` after `Console.WriteLine`.  
+   The same risk as in `Main`. In `Program.Main`, failure is handled via `PrintProgress(..., failed: true)` and `continue`, but `BenchRunner` blocks itself — inconsistent.  
+   Fix: remove `Console.ReadLine()` from `TryPrepare`, return `false`, and let the caller decide (in `Main` handling already exists).
 
-6. **`BenchRunner.PeakMips`/`StepsOnce` — берёт `StepsLogs[0]`, а не минимум/медиану.**  
-   Файл: `BenchRunner.cs`, свойства `PeakMips` и `StepsOnce`.  
-   `StepsOnce = _stepsLogs[0]` — если первый прогон был с другим поведением (например, GC между `TryPrepare` и первым `RunOnce`), число шагов может отличаться от последующих. `PeakMips = StepsOnce / Min(Elapsed)` смешивает шаги одного прогона с временем другого.  
-   Фикс: `StepsOnce` → `_stepsLogs.Min()` (или `Median`), `PeakMips` → `_stepsLogs.Zip(_elapsedSecondsLogs).Max(p => p.First / p.Second / 1e6)`.
+6. **`BenchRunner.PeakMips`/`StepsOnce` — takes `StepsLogs[0]` instead of min/median.**  
+   File: `BenchRunner.cs`, properties `PeakMips` and `StepsOnce`.  
+   `StepsOnce = _stepsLogs[0]` — if the first run had different behavior (e.g., GC between `TryPrepare` and the first `RunOnce`), the step count may differ from subsequent runs. `PeakMips = StepsOnce / Min(Elapsed)` mixes steps from one run with time from another.  
+   Fix: `StepsOnce` → `_stepsLogs.Min()` (or `Median`), `PeakMips` → `_stepsLogs.Zip(_elapsedSecondsLogs).Max(p => p.First / p.Second / 1e6)`.
 
-7. **`BenchRunner.Warmup`/`RunOnce` — warmup пишет в пустые списки.**  
-   Файл: `BenchRunner.cs`, методы `Warmup` и `RunOnce`.  
-   `Warmup` вызывает `Launch([], [], [], ctx)` — `Metric` добавляет запись в пустые списки, которые сразу выбрасываются. Аллокация на каждый warmup-прогон (3 списка) — мелочь, но некрасиво.  
-   Фикс: `Launch` с `onMetric: null` — не добавлять, если списки пустые, или отдельный overload без списков.
+7. **`BenchRunner.Warmup`/`RunOnce` — warmup writes to empty lists.**  
+   File: `BenchRunner.cs`, methods `Warmup` and `RunOnce`.  
+   `Warmup` calls `Launch([], [], [], ctx)` — `Metric` adds a record to empty lists that are immediately discarded. Allocation per warmup run (3 lists) is a minor issue but ugly.  
+   Fix: `Launch` with `onMetric: null` — do not add if the lists are empty, or a separate overload without lists.
 
-8. **`Program.Main` — `Console.Clear()` без `try/catch`.**  
-   Файл: `Program.cs`, `Main`: `Console.Clear();` после `totalSw.Stop()`.  
-   На headless (перенаправленный вывод, CI, некоторые терминалы) бросает `IOException`. Весь бенчмарк уже посчитан, но лог не сохранится.  
-   Фикс: `try { Console.Clear(); } catch (IOException) { /* ignore */ }`.
+8. **`Program.Main` — `Console.Clear()` without `try/catch`.**  
+   File: `Program.cs`, `Main`: `Console.Clear();` after `totalSw.Stop()`.  
+   On headless (redirected output, CI, some terminals) it throws `IOException`. The whole benchmark has already been computed, but the log will not be saved.  
+   Fix: `try { Console.Clear(); } catch (IOException) { /* ignore */ }`.
 
-9. **`BenchCase.ExpectedInstructions` не используется.**  
-   Файл: `BenchCase.cs` (поле) + `Program.cs` (все `new BenchCase(...)` без него) + `BenchRunner` (не читает).  
-   Поле есть, но `BenchRunner` не сверяет фактические `StepsLogs` с ожидаемыми. Если VM выдаст аномальное число шагов (например, из-за бага в `Processor.Step`), бенчмарк это не заметит — MIPS будет «правильный», но шаги — нет.  
-   Фикс: в `BenchRunner.RunOnce` после прогона: `if (_case.ExpectedInstructions is { } expected && steps[^1] != expected) Console.Error.WriteLine($"Steps mismatch: expected {expected}, got {steps[^1]}");`. Заполнить `ExpectedInstructions` для всех кейсов (значения можно взять из эталонного прогона).
+9. **`BenchCase.ExpectedInstructions` is not used.**  
+   File: `BenchCase.cs` (field) + `Program.cs` (all `new BenchCase(...)` without it) + `BenchRunner` (does not read it).  
+   The field exists, but `BenchRunner` does not compare actual `StepsLogs` with expected. If the VM produces an anomalous number of steps (e.g., due to a bug in `Processor.Step`), the benchmark will not notice — MIPS will be "correct", but the steps will not.  
+   Fix: in `BenchRunner.RunOnce` after the run: `if (_case.ExpectedInstructions is { } expected && steps[^1] != expected) Console.Error.WriteLine($"Steps mismatch: expected {expected}, got {steps[^1]}");`. Fill in `ExpectedInstructions` for all cases (values can be taken from a reference run).
 
-10. **`Program.cs` — тестовые программы `text*` в одном файле с `Main`.**  
-    Файл: `Program.cs`, `const string text1`…`text8` (350+ строк).  
-    Монолит, тяжело навигировать, тяжело расширять.  
-    Фикс: вынести в `Cases/BenchPrograms.cs` (`internal static class BenchPrograms { public const string Call = """..."""; ... }`) или в `BenchCase`-фабрику с `switch`. Тогда `Program.Main` станет короче и чище.
+10. **`Program.cs` — test programs `text*` in the same file as `Main`.**  
+    File: `Program.cs`, `const string text1`…`text8` (350+ lines).  
+    A monolith, hard to navigate, hard to extend.  
+    Fix: move to `Cases/BenchPrograms.cs` (`internal static class BenchPrograms { public const string Call = """..."""; ... }`) or a `BenchCase` factory with a `switch`. Then `Program.Main` becomes shorter and cleaner.
 
-11. **`Program.cs` — `text3a` и `text3m2` семантически эквивалентны.**  
-    Файл: `Program.cs`, `const string text3a` и `const string text3m2`.  
-    Оба — 4× `ADD` в разные регистры (r0/r1/r2/r3), r7=1, loop с `DEC r6; TEST r6, r6; JNZ loop`. Различие — только в порядке `LDI`. Кейсы `AluTput4` и `AluTputM2` будут показывать одинаковые MIPS.  
-    Фикс: либо заменить `text3m2` на что-то отличное (например, `MULT_INT` в разные регистры), либо удалить кейс `AluTputM2`.
+11. **`Program.cs` — `text3a` and `text3m2` are semantically equivalent.**  
+    File: `Program.cs`, `const string text3a` and `const string text3m2`.  
+    Both are 4× `ADD` into different registers (r0/r1/r2/r3), r7=1, loop with `DEC r6; TEST r6, r6; JNZ loop`. The only difference is the order of `LDI`. The `AluTput4` and `AluTputM2` cases will show identical MIPS.  
+    Fix: either replace `text3m2` with something different (e.g., `MULT_INT` into different registers), or remove the `AluTputM2` case.
 
-12. **`Program.cs` — `PrintProgress` для `fail` передаёт `done=0, phaseTotal=0`.**  
-    Файл: `Program.cs`, `Main`, ветка `if (!runner.TryPrepare())`:
+12. **`Program.cs` — `PrintProgress` for `fail` passes `done=0, phaseTotal=0`.**  
+    File: `Program.cs`, `Main`, branch `if (!runner.TryPrepare())`:
     ```csharp
     PrintProgress(testIndex, testTotal, name, "fail", 0, 0,
                   phaseTotal, phaseTotal, globalStep, totalSteps, forceNewLine: true, failed: true);
     ```
-    `done=0, phaseTotal=0` — в `phaseStr` не используется (`phase == "fail"` → `$"{phase,-4}"`), но в `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, так что процент считается по `phaseStep/phaseTotal = 1.0`. Не баг, но параметры «0, 0» вводят в заблуждение — либо `phaseTotal, phaseTotal`, либо добавить комментарий.
+    `done=0, phaseTotal=0` — not used in `phaseStr` (`phase == "fail"` → `$"{phase,-4}"`), but in `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, so the percentage is computed as `phaseStep/phaseTotal = 1.0`. Not a bug, but the parameters "0, 0" are misleading — either `phaseTotal, phaseTotal`, or add a comment.
 
-13. **`Stats.Percentile`/`Median`/`TrimmedMean` — `OrderBy().ToArray()` на каждый вызов.**  
-    Файл: `Stats.cs`, методы `Percentile`, `Median`, `TrimmedMean`.  
-    `StatsResult.From` вызывает `Percentile` 10 раз, `Median` 1 раз, `TrimmedMean` 2 раза — итого 13 сортировок одного и того же массива. Для `n=20` незаметно, но при `n=1000` (если расширите `Runs`) — заметно.  
-    Фикс: отсортировать один раз в `StatsResult.From` и передавать `ReadOnlySpan<double>`/отсортированный массив. Или кэшировать в локальной переменной внутри `From`.
+13. **`Stats.Percentile`/`Median`/`TrimmedMean` — `OrderBy().ToArray()` on every call.**  
+    File: `Stats.cs`, methods `Percentile`, `Median`, `TrimmedMean`.  
+    `StatsResult.From` calls `Percentile` 10 times, `Median` 1 time, `TrimmedMean` 2 times — a total of 13 sorts of the same array. For `n=20` it is unnoticeable, but for `n=1000` (if you expand `Runs`) it is noticeable.  
+    Fix: sort once in `StatsResult.From` and pass `ReadOnlySpan<double>`/a sorted array. Or cache in a local variable inside `From`.
 
-14. **`BenchRunner.cs` — `ListExtensions` в том же файле.**  
-    Файл: `BenchRunner.cs`, `file static class ListExtensions`.  
-    `ComputeVariance` — единственный extension в проекте, лежит рядом с `BenchRunner`. Для навигации неудобно.  
-    Фикс: вынести в `Stats.cs` как `public static double Variance(IReadOnlyList<double> v)` и не делать extension (extension на `IReadOnlyList<double>` — сомнительная практика, конфликтует с `System.Linq`).
+14. **`BenchRunner.cs` — `ListExtensions` in the same file.**  
+    File: `BenchRunner.cs`, `file static class ListExtensions`.  
+    `ComputeVariance` is the only extension in the project, located next to `BenchRunner`. Inconvenient for navigation.  
+    Fix: move to `Stats.cs` as `public static double Variance(IReadOnlyList<double> v)` and do not make it an extension (an extension on `IReadOnlyList<double>` is a dubious practice, conflicts with `System.Linq`).
 
-15. **`Benchmarks.csproj` — `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` без `unsafe`-кода.**  
-    Файл: `Nantuc.Benchmarks.csproj`. В коде проекта `unsafe` нет.  
-    Фикс: убрать (или добавить комментарий `<!-- нужно для ... -->`, если действительно нужно для транзитивных зависимостей).
+15. **`Benchmarks.csproj` — `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` without `unsafe` code.**  
+    File: `Nantuc.Benchmarks.csproj`. There is no `unsafe` in the project code.  
+    Fix: remove it (or add a comment `<!-- needed for ... -->` if it is really needed for transitive dependencies).
 
-16. **`Program.cs` — `case text4` не использует heap-allocator.**  
-    Файл: `Program.cs`, `const string text4`. Комментарий в `text4u`: `// <-- замена ALLOC r7`. В `text4` — та же замена (`MOV r7, rHP; ADD rHP, r0;`), но без комментария. Читатель может подумать, что `text4` — «оригинал с ALLOC», а это не так.  
-    Фикс: добавить в `text4` тот же комментарий или вынести bump-alloc в отдельную функцию (через `#include` или inline asm), чтобы было видно, что это ручная аллокация, а не опкод.
+16. **`Program.cs` — `case text4` does not use a heap allocator.**  
+    File: `Program.cs`, `const string text4`. Comment in `text4u`: `// <-- replacement for ALLOC r7`. In `text4` — the same replacement (`MOV r7, rHP; ADD rHP, r0;`), but without a comment. The reader may think that `text4` is the "original with ALLOC", which is not true.  
+    Fix: add the same comment to `text4`, or move the bump alloc into a separate function (via `#include` or inline asm) so that it is clear this is manual allocation, not an opcode.
 
-17. **`Program.cs` — `Console.WriteLine($"Файл результатов...")` с кириллицей и `Console.ReadLine()`.**  
-    Файл: `Program.cs`, конец `Main`.  
-    В консоли Windows с кодовой страницей 866/1251 кириллица может отображаться кракозябрами, если не выставлен `Console.OutputEncoding = Encoding.UTF8`.  
-    Фикс: `Console.OutputEncoding = System.Text.Encoding.UTF8;` в начале `Main` (или `Console.OutputEncoding = new UTF8Encoding(false)` для CI).
+17. **`Program.cs` — `Console.WriteLine($"Results file...")` with Cyrillic and `Console.ReadLine()`.**  
+    File: `Program.cs`, end of `Main`.  
+    In a Windows console with code page 866/1251, Cyrillic may display as mojibake if `Console.OutputEncoding = Encoding.UTF8` is not set.  
+    Fix: `Console.OutputEncoding = System.Text.Encoding.UTF8;` at the beginning of `Main` (or `Console.OutputEncoding = new UTF8Encoding(false)` for CI).
 
-18. **`BenchRunner.TryPrepare` — `Program = res` до `TryFastLoadProgram`.**  
-    Файл: `BenchRunner.cs`, `TryPrepare`:
+18. **`BenchRunner.TryPrepare` — `Program = res` before `TryFastLoadProgram`.**  
+    File: `BenchRunner.cs`, `TryPrepare`:
     ```csharp
     var ctx = _host.Emulator.GetDeviceContext(_deviceId)!;
     Program = res;
     if (!ctx.TryFastLoadProgram(res.Program, 0, out string? errorMath)) { ... return false; }
     ```
-    Если загрузка упала, `Program` уже установлен, а `IsPrepared = false`. Если вызывающий код смотрит на `Program`, он увидит «успешную» компиляцию, но программа не загружена.  
-    Фикс: `Program = res` после успешной загрузки. Или задокументировать, что `Program` — результат компиляции, не загрузки.
+    If loading fails, `Program` is already set, but `IsPrepared = false`. If the calling code looks at `Program`, it will see a "successful" compilation, but the program is not loaded.  
+    Fix: `Program = res` after successful loading. Or document that `Program` is the compilation result, not the loading result.

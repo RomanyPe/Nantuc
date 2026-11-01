@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Numerics;
 
 namespace Nantuc.Kernel.Diagnostics;
 
@@ -13,7 +14,9 @@ public readonly record struct DiagnosticData
 
     // ── Фабрики для типов вне неявных конверсий ──────────────────────
     public static DiagnosticData Of(bool value) => new(value ? "true" : "false");
-    public static DiagnosticData Of<T>(T? value) => new(value?.ToString());
+    public static DiagnosticData Of<T>(T? value) where T : IBinaryNumber<T> 
+        => new(value?.ToString());
+    public static DiagnosticData Of(string value) => new(value ?? string.Empty);
 
     // ── Неявные конверсии для частых типов ───────────────────────────
     public static implicit operator DiagnosticData(string? text) => new(text);

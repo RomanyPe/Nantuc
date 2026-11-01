@@ -132,8 +132,8 @@ public sealed class PortBus : IPortBus
     {
         var (device, offset) = ResolveAddress(address);
         return device != null
-            ? new(device.ReadPort(offset))
-            : new(0, BiosStatus.NullDeviceInput);
+            ? new ReadPortResult(device.ReadPort(offset), BiosStatus.Success)
+            : new ReadPortResult(0, BiosStatus.NullDeviceInput);
     }
 
     /// <summary>

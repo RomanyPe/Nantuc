@@ -7,7 +7,7 @@ using Nantuc.VmApplication.Extensions.DeviceCtx;
 using Nantuc.VmApplication.Extensions.Disassembler;
 using Nantuc.VmApplication.Extensions.Emulator.IO;
 using Nantuc.VmApplication.Extensions.Host;
-using Nantuc.VmApplication.Extensions.LibraresIncludes;
+using Nantuc.VmApplication.Extensions.StdLibraries;
 
 const string source1 =
     """
@@ -62,8 +62,8 @@ using var host = VmHostFactory.CreateDefault();
 var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);
 
 host.Project.SaveFileProject("main.minic", source1);
-host.Project.SaveFileInclude("heap.nanasm", Library.heap_nanasm);
-host.Project.SaveFileInclude("alloc.minic", Library.alloc_minic);
+host.Project.SaveFileInclude("heap.nanasm", Libraries.heap_nanasm);
+host.Project.SaveFileInclude("alloc.minic", Libraries.alloc_minic);
 
 var resCompile = host.Project.CompileToIL(
     baseAddress: 0,

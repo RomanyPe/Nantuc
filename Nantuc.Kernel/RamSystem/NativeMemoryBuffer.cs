@@ -43,7 +43,7 @@ public unsafe sealed class NativeMemoryBuffer : IDisposable
     /// <summary>
     /// Прямой доступ к содержимому буфера только для чтения.
     /// </summary>
-    public INativeReadOnlyBuffer NativeReadOnlyBuffer => _view;
+    public IReadOnlyNativeBuffer NativeReadOnlyBuffer => _view;
 
     /// <summary>
     /// Выделяет занулённый нативный буфер заданного размера.

@@ -40,7 +40,7 @@ public sealed class Device : IPortController
     /// <summary>
     /// Прямой доступ к ОЗУ устройства только для чтения (нативное представление).
     /// </summary>
-    public INativeReadOnlyBuffer NativeReadOnlyBuffer => _ram.NativeReadOnlyBuffer;
+    public IReadOnlyNativeBuffer NativeReadOnlyBuffer => _ram.NativeReadOnlyBuffer;
 
     /// <summary>
     /// Признак того, что процессор устройства в данный момент исполняет программу.
@@ -188,7 +188,7 @@ public sealed class Device : IPortController
                         long stepLimit,
                         int delay,
                         Action? onLaunch,
-                        Action<ProcessorReader>? onStep,
+                        Action<ProcessorSnapshot>? onStep,
                         Action? onEnd)
     {
         bool useSleepMode = delay != 0;
@@ -279,11 +279,11 @@ public sealed class Device : IPortController
         }
     }
 
-    private void RunSimulationLoopDebug(int delay, bool useSleepMode, long stepLimit, Action<ProcessorReader>? onStep)
+    private void RunSimulationLoopDebug(int delay, bool useSleepMode, long stepLimit, Action<ProcessorSnapshot>? onStep)
     {
         while (_processor.IsRunning)
         {
-            onStep?.Invoke(_processor.CurrentProcessorReader);
+            onStep?.Invoke(_processor.CurrentProcessorSnapshot);
             if (stepCounter >= stepLimit)
             {
                 _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
@@ -358,12 +358,12 @@ public sealed class Device : IPortController
     /// </summary>
     /// <param name="OnStep">Необязательный колбэк, получающий снимок после шага.</param>
     /// <remarks>Если процессор не запущен, метод ничего не делает.</remarks>
-    public void NextStepProcessor(Action<ProcessorReader>? OnStep)
+    public void NextStepProcessor(Action<ProcessorSnapshot>? OnStep)
     {
         if (!_processor.IsRunning) return;
 
         _processor.Step();
-        OnStep?.Invoke(_processor.CurrentProcessorReader);
+        OnStep?.Invoke(_processor.CurrentProcessorSnapshot);
         if (!_processor.IsSleeping)
         {
             stepCounter++;
@@ -376,7 +376,7 @@ public sealed class Device : IPortController
     /// <param name="count">Количество шагов.</param>
     /// <param name="OnStep">Необязательный колбэк, получающий снимок после каждого шага.</param>
     /// <remarks>Если процессор не запущен, метод ничего не делает.</remarks>
-    public void NextStepProcessorCount(int count, Action<ProcessorReader>? OnStep)
+    public void NextStepProcessorCount(int count, Action<ProcessorSnapshot>? OnStep)
     {
         if (!_processor.IsRunning) return;
         bool needLog = OnStep != null;
@@ -385,7 +385,7 @@ public sealed class Device : IPortController
             _processor.Step();
             if (needLog)
             {
-                OnStep!.Invoke(_processor.CurrentProcessorReader);
+                OnStep!.Invoke(_processor.CurrentProcessorSnapshot);
             }
             if (!_processor.IsSleeping)
             {
@@ -411,6 +411,7 @@ public sealed class Device : IPortController
 
         Stop();
         _ram?.Dispose();
+        _wakeSignal.Dispose();
         GC.SuppressFinalize(this);
     }
 

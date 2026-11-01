@@ -1,85 +1,85 @@
 ﻿# Nantuc.Kernel.Diagnostics — README
 
-> Общий модуль диагностики: коды ошибок, шаблоны сообщений, `ThrowCompiler`, `CodeException` и типизированные аргументы диагностики `DiagnosticData`.
-> Выделен из ядра, чтобы авторы компиляторов и расширений могли использовать единый механизм ошибок и подменять провайдер сообщений, не трогая `Nantuc.Kernel`.
-> `[← Корень](../README.md) · [Common](../Nantuc.Kernel.Common/README.md) · [Contracts](../Nantuc.Kernel.Contracts/README.md) · [Kernel](../Nantuc.Kernel/README.md) · [Compiler](../Nantuc.Compiler/README.md)`
+> General diagnostics module: error codes, message templates, `ThrowCompiler`, `CodeException`, and typed diagnostic arguments `DiagnosticData`.
+> Extracted from the kernel so that compiler and extension authors can use a unified error mechanism and replace the message provider without touching `Nantuc.Kernel`.
+> `[← Root](../README.md) · [Common](../Nantuc.Kernel.Common/README.md) · [Contracts](../Nantuc.Kernel.Contracts/README.md) · [Kernel](../Nantuc.Kernel/README.md) · [Compiler](../Nantuc.Compiler/README.md)`
 
-## Содержание
-- [Об этом модуле](#об-этом-модуле)
-- [Дерево локального проекта](#дерево-локального-проекта)
+## Table of contents
+- [About this module](#about-this-module)
+- [Local project tree](#local-project-tree)
 - [API](#api)
-- [Примеры для API](#примеры-для-api)
-- [Приближенность модуля к пользователю](#приближенность-модуля-к-пользователю)
-- [Что исправлено в этой версии](#что-исправлено-в-этой-версии)
-- [Особенная информация](#особенная-информация)
-  - [`DiagnosticData` и AOT](#diagnosticdata-и-aot) **[NEW]**
-- [Что исправить](#что-исправить)
+- [API examples](#api-examples)
+- [How close the module is to the user](#how-close-the-module-is-to-the-user)
+- [What was fixed in this version](#what-was-fixed-in-this-version)
+- [Special information](#special-information)
+  - [`DiagnosticData` and AOT](#diagnosticdata-and-aot) **[NEW]**
+- [What to fix](#what-to-fix)
 
-## Об этом модуле
+## About this module
 
-`Nantuc.Kernel.Diagnostics` — автономный модуль диагностики, который обслуживает компилятор MiniC, ассемблер NANASM и потенциально любые другие backend'ы/расширения. Несмотря на `Kernel` в имени namespace, этот проект не зависит ни от одного другого проекта Nantuc — в `.csproj` нет ни одного `ProjectReference`. Это сделано намеренно: автору компилятора не нужно тянуть ядро (`Processor`, `MemoryBus`, нативные буферы, unsafe), чтобы просто бросать осмысленные ошибки с кодами.
+`Nantuc.Kernel.Diagnostics` is a standalone diagnostics module that serves the MiniC compiler, the NANASM assembler, and potentially any other backends/extensions. Despite `Kernel` in the namespace name, this project does not depend on any other Nantuc project — there is not a single `ProjectReference` in the `.csproj`. This is intentional: a compiler author should not have to pull in the kernel (`Processor`, `MemoryBus`, native buffers, unsafe) just to throw meaningful errors with codes.
 
-Ключевые роли:
-- `ErrorCode` — единый enum кодов ошибок, сгруппированных по подсистемам (Lexer, Parser, CodeGen, Asm).
-- `IErrorMessageProvider` — точка расширения для локализации и кастомизации сообщений; содержит `static Default`.
-- `DefaultErrorMessageProvider` — встроенный провайдер с английскими шаблонами; `overrides` **мержатся** поверх стандартных шаблонов.
-- `DiagnosticData` — **типизированный аргумент диагностики** (заменяет `object`); AOT-safe, без рефлексии и боксинга. **[NEW]**
-- `ThrowCompiler` — **instance-класс** (не статический) для бросания ошибок; хранит `ErrorMessageProvider` как поле экземпляра, без глобального mutable state. **[BREAKING]**
-- `CodeException` — `Exception` с `ErrorCode` и `NumericCode`.
+Key roles:
+- `ErrorCode` — a single enum of error codes, grouped by subsystem (Lexer, Parser, CodeGen, Asm).
+- `IErrorMessageProvider` — an extension point for localization and message customization; contains `static Default`.
+- `DefaultErrorMessageProvider` — built-in provider with English templates; `overrides` are **merged** on top of the standard templates.
+- `DiagnosticData` — **typed diagnostic argument** (replaces `object`); AOT-safe, no reflection, no boxing. **[NEW]**
+- `ThrowCompiler` — an **instance class** (not static) for throwing errors; stores `ErrorMessageProvider` as an instance field, no global mutable state. **[BREAKING]**
+- `CodeException` — an `Exception` with `ErrorCode` and `NumericCode`.
 
-Философия модуля: код ошибки — это стабильный контракт (число, не строка), сообщение — это сменный ресурс (шаблон, не хардкод), аргументы — типизированные `DiagnosticData` (не `object`). Это позволяет:
-- Тестировать компилятор по `ErrorCode`, не парся строки.
-- Локализовать сообщения без пересборки ядра.
-- Давать конечному пользователю русский/английский/любой язык через свой `IErrorMessageProvider`.
-- Гарантировать AOT-совместимость на уровне аргументов диагностики (без рефлексии, без боксинга enum'ов).
+The module's philosophy: an error code is a stable contract (a number, not a string), a message is a replaceable resource (a template, not hardcoded), and arguments are typed `DiagnosticData` (not `object`). This enables:
+- Testing the compiler by `ErrorCode` without parsing strings.
+- Localizing messages without rebuilding the kernel.
+- Giving the end user Russian/English/any language through their own `IErrorMessageProvider`.
+- Guaranteeing AOT compatibility at the level of diagnostic arguments (no reflection, no boxing of enums).
 
-> **XML-документация расширена.** Полностью документированы `ErrorCode` (каждый член), `ThrowCompiler` (класс и методы), `DiagnosticData` (частично), `DefaultErrorMessageProvider` (класс и публичные члены), `CodeException` (класс и члены). Без `///` — `IErrorMessageProvider.GetMessage` (только `<summary>`), `TryGetTemplate`. Подробности — в [Что исправить](#что-исправить).
+> **XML documentation has been expanded.** `ErrorCode` (every member), `ThrowCompiler` (class and methods), `DiagnosticData` (partially), `DefaultErrorMessageProvider` (class and public members), `CodeException` (class and members) are fully documented. Without `///` — `IErrorMessageProvider.GetMessage` (only `<summary>`), `TryGetTemplate`. Details — in [What to fix](#what-to-fix).
 
-## Дерево локального проекта
+## Local project tree
 
-Все типы — в namespace `Nantuc.Kernel.Diagnostics`, структура плоская:
+All types are in the namespace `Nantuc.Kernel.Diagnostics`, the structure is flat:
 
 ```
 Nantuc.Kernel.Diagnostics/
-├── Nantuc.Kernel.Diagnostics.csproj   # net10.0, без ProjectReference
-├── CodeException.cs                   # class : Exception, c ErrorCode/NumericCode
-├── DefaultErrorMessageProvider.cs     # FrozenDictionary шаблонов + overrides (мерж) + TryGetTemplate
-├── DiagnosticData.cs                  # readonly record struct — типизированный аргумент диагностики [NEW]
-├── ErrorCode.cs                       # enum ErrorCode (диапазоны 1000/1100/1200/1300/1400)
+├── Nantuc.Kernel.Diagnostics.csproj   # net10.0, no ProjectReference
+├── CodeException.cs                   # class : Exception, with ErrorCode/NumericCode
+├── DefaultErrorMessageProvider.cs     # FrozenDictionary of templates + overrides (merge) + TryGetTemplate
+├── DiagnosticData.cs                  # readonly record struct — typed diagnostic argument [NEW]
+├── ErrorCode.cs                       # enum ErrorCode (ranges 1000/1100/1200/1300/1400)
 ├── IErrorMessageProvider.cs           # interface + static Default
 └── ThrowCompiler.cs                   # class (instance): Throw/Throw<T> + ErrorMessageProvider
 ```
 
 ## API
 
-### Общая картина
+### Overall picture
 
-| Тип | Вид | Default-реализация | Назначение |
+| Type | Kind | Default implementation | Purpose |
 |---|---|---|---|
-| `ErrorCode` | `enum` | — | Стабильные числовые коды ошибок |
-| `IErrorMessageProvider` | `interface` | **да, через `static Default`** | Форматирование сообщения по коду и типизированным аргументам |
-| `DefaultErrorMessageProvider` | `class` | — | Встроенные английские шаблоны + `overrides` (мерж) + `TryGetTemplate` |
-| **`DiagnosticData`** | `readonly record struct` | — | **Типизированный аргумент диагностики (замена `object`)** **[NEW]** |
-| **`ThrowCompiler`** | **`class`** (не `static`) **[BREAKING]** | — | Instance-фасад для бросания `CodeException` |
-| `CodeException` | `class : Exception` | — | Исключение с `ErrorCode` и `NumericCode` |
+| `ErrorCode` | `enum` | — | Stable numeric error codes |
+| `IErrorMessageProvider` | `interface` | **yes, via `static Default`** | Formatting a message by code and typed arguments |
+| `DefaultErrorMessageProvider` | `class` | — | Built-in English templates + `overrides` (merge) + `TryGetTemplate` |
+| **`DiagnosticData`** | `readonly record struct` | — | **Typed diagnostic argument (replaces `object`)** **[NEW]** |
+| **`ThrowCompiler`** | **`class`** (not `static`) **[BREAKING]** | — | Instance facade for throwing `CodeException` |
+| `CodeException` | `class : Exception` | — | Exception with `ErrorCode` and `NumericCode` |
 
-**Default-реализация интерфейса есть только у `IErrorMessageProvider`** — через `static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();`. Это согласуется с `IProcessorFaultPolicy.Default` в `Kernel.Contracts` и даёт единый паттерн «где живёт default» — на самом интерфейсе, а не на `ThrowCompiler`.
+**A default implementation of the interface exists only for `IErrorMessageProvider`** — via `static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();`. This is consistent with `IProcessorFaultPolicy.Default` in `Kernel.Contracts` and provides a unified pattern for "where the default lives" — on the interface itself, not on `ThrowCompiler`.
 
-### `ErrorCode` — единый enum
+### `ErrorCode` — a single enum
 
-Сгруппирован по подсистемам, числовые диапазоны:
+Grouped by subsystem, numeric ranges:
 
-| Диапазон | Подсистема | Коды |
+| Range | Subsystem | Codes |
 |---|---|---|
-| 1000–1001 | Общие | `NotSupported`, `NotImplemented` |
-| 1100–1102 | Лексер | `Lexer_UnexpectedCharacter`, `Lexer_InvalidNumber`, `Lexer_UnterminatedString` |
-| 1200–1208 | Парсер | `Parser_UnknownType`, `Parser_ExpectedToken`, `Parser_UnexpectedToken`, `Parser_InvalidAssignment`, `Parser_ArraySizeNotConstant`, `Parser_UnknownDirective`, `Parser_StructNotDefined`, `Parser_InvalidCharLiteral`, `Parser_IncludeAmbiguous` |
+| 1000–1001 | General | `NotSupported`, `NotImplemented` |
+| 1100–1102 | Lexer | `Lexer_UnexpectedCharacter`, `Lexer_InvalidNumber`, `Lexer_UnterminatedString` |
+| 1200–1208 | Parser | `Parser_UnknownType`, `Parser_ExpectedToken`, `Parser_UnexpectedToken`, `Parser_InvalidAssignment`, `Parser_ArraySizeNotConstant`, `Parser_UnknownDirective`, `Parser_StructNotDefined`, `Parser_InvalidCharLiteral`, `Parser_IncludeAmbiguous` |
 | 1300–1317 | CodeGen | `CodeGen_UnknownTypeSize` (1300) … `CodeGen_DirectStructLoadStore` (1313), `CodeGen_BreakOutsideLoop` (1314), `CodeGen_ContinueOutsideLoop` (1315), **`CodeGen_AssignmentToConst` (1316)**, **`CodeGen_IncrementOfConst` (1317)** **[NEW]** |
 | 1400–1404 | Asm | `Asm_UndefinedLabel`, `Asm_DuplicateLabel`, `Asm_InvalidInstruction`, `Asm_UnknownRegister`, `Asm_UnknownMnemonic` |
 
-Правило «код ошибки — это контракт»: **не меняйте числа существующих кодов** после релиза. Тесты компилятора и внешние тулы будут опираться на них. Новые коды — только с новым номером.
+Rule "an error code is a contract": **do not change the numbers of existing codes** after release. Compiler tests and external tools will rely on them. New codes — only with a new number.
 
-### `IErrorMessageProvider` — точка расширения
+### `IErrorMessageProvider` — extension point
 
 ```csharp
 public interface IErrorMessageProvider
@@ -89,11 +89,11 @@ public interface IErrorMessageProvider
 }
 ```
 
-- `static Default` — единая точка «что такое default-провайдер». `ThrowCompiler` инициализируется через него, а не создаёт `new DefaultErrorMessageProvider()` у себя.
-- `params ReadOnlySpan<DiagnosticData>` — C# 13+ (`params` для `ReadOnlySpan`). Для `DiagnosticData` (value type) нулевой набор → `ReadOnlySpan<DiagnosticData>.Empty`, без аллокаций; 1+ аргумент — аллокация `DiagnosticData[]` (не `object[]`, без боксинга). **[NEW]**
-- Контракт не требует бросать из `GetMessage` для неизвестного кода — это решает реализация. `DefaultErrorMessageProvider` бросает `InvalidOperationException`, но кастомный провайдер вправе вернуть `$"Error {(int)code}"`.
+- `static Default` — a single point for "what the default provider is". `ThrowCompiler` is initialized through it, rather than creating `new DefaultErrorMessageProvider()` itself.
+- `params ReadOnlySpan<DiagnosticData>` — C# 13+ (`params` for `ReadOnlySpan`). For `DiagnosticData` (a value type), an empty set → `ReadOnlySpan<DiagnosticData>.Empty`, no allocations; 1+ arguments — allocation of `DiagnosticData[]` (not `object[]`, no boxing). **[NEW]**
+- The contract does not require throwing from `GetMessage` for an unknown code — the implementation decides. `DefaultErrorMessageProvider` throws `InvalidOperationException`, but a custom provider is free to return `$"Error {(int)code}"`.
 
-### `DiagnosticData` — типизированный аргумент диагностики **[NEW]**
+### `DiagnosticData` — typed diagnostic argument **[NEW]**
 
 ```csharp
 public readonly record struct DiagnosticData
@@ -102,11 +102,11 @@ public readonly record struct DiagnosticData
     public DiagnosticData(string? text);
     public override string ToString() => Text;
 
-    // Фабрики для типов вне неявных конверсий
+    // Factories for types outside the implicit conversions
     public static DiagnosticData Of(bool value);
     public static DiagnosticData Of<T>(T? value);
 
-    // Неявные конверсии для частых типов
+    // Implicit conversions for common types
     public static implicit operator DiagnosticData(string? text);
     public static implicit operator DiagnosticData(char value);
     public static implicit operator DiagnosticData(int value);
@@ -116,18 +116,18 @@ public readonly record struct DiagnosticData
 }
 ```
 
-- Хранит **готовую строку** (`Text`), построенную в момент создания. Никакого `string.Format(object[])`, никакого виртуального `ToString()` на формат-времени, никакого боксинга int/char/enum.
-- **Неявные конверсии** — для `string`, `char`, `int`, `uint`, `long`, `ulong`. Удобно: `ThrowCompiler.Throw(code, "x", 42)` работает без явных `new DiagnosticData(...)`.
-- **Явные фабрики** — `Of(bool)` (иначе `bool` → `int` через неявные конверсии был бы `"0"`/`"1"`), `Of<T>(T?)` (fallback через `ToString()`, **только для своих типов** — см. [Особенная информация](#diagnosticdata-и-aot)).
-- **`implicit operator DiagnosticData(Enum)` отсутствует намеренно** — это привело бы к `Enum.ToString()` (reflection-adjacent, AOT-риск). Для enum'ов используйте явные switch-хелперы (например, `TokenTypeExtension.AsText` в компиляторе). **[AOT]**
+- Stores a **ready-made string** (`Text`) built at creation time. No `string.Format(object[])`, no virtual `ToString()` at format time, no boxing of int/char/enum.
+- **Implicit conversions** — for `string`, `char`, `int`, `uint`, `long`, `ulong`. Convenient: `ThrowCompiler.Throw(code, "x", 42)` works without explicit `new DiagnosticData(...)`.
+- **Explicit factories** — `Of(bool)` (otherwise `bool` → `int` via implicit conversions would give `"0"`/`"1"`), `Of<T>(T?)` (fallback via `ToString()`, **only for your own types** — see [Special information](#diagnosticdata-and-aot)).
+- **`implicit operator DiagnosticData(Enum)` is intentionally absent** — it would lead to `Enum.ToString()` (reflection-adjacent, AOT risk). For enums, use explicit switch helpers (e.g., `TokenTypeExtension.AsText` in the compiler). **[AOT]**
 
-**Соглашение:** аргумент `DiagnosticData` для enum'а должен приходить уже как `string` или как `DiagnosticData`, построенный без `Enum.ToString()`. Для `char`/`int`/`uint`/`long`/`ulong` неявные операторы дают `InvariantCulture.ToString()` — без рефлексии.
+**Convention:** a `DiagnosticData` argument for an enum must arrive either as a `string` or as a `DiagnosticData` built without `Enum.ToString()`. For `char`/`int`/`uint`/`long`/`ulong`, the implicit operators produce `InvariantCulture.ToString()` — without reflection.
 
-### `DefaultErrorMessageProvider` — встроенные шаблоны
+### `DefaultErrorMessageProvider` — built-in templates
 
 ```csharp
 public class DefaultErrorMessageProvider(
-    FrozenDictionary<ErrorCode, string>? overrides = null)  // [BREAKING] FrozenDictionary, не Dictionary
+    FrozenDictionary<ErrorCode, string>? overrides = null)  // [BREAKING] FrozenDictionary, not Dictionary
     : IErrorMessageProvider
 {
     public static FrozenDictionary<ErrorCode, string> DefaultTemplates { get; }
@@ -138,16 +138,16 @@ public class DefaultErrorMessageProvider(
 }
 ```
 
-- Шаблоны по умолчанию — `FrozenDictionary<ErrorCode, string>`, read-only после инициализации. `DefaultTemplates` отдаёт именно `FrozenDictionary`, так что привести обратно к мутабельному `Dictionary` нельзя.
-- `Templates` — `IReadOnlyDictionary` (внутри `ReadOnlyDictionary<,>`), актуальные шаблоны **этого экземпляра** (стандартные + `overrides`).
-- `TryGetTemplate` — `protected virtual` точка расширения. `GetMessage` действительно вызывает `TryGetTemplate`, поэтому override работает.
-- **`overrides` теперь мержится поверх стандартных** (раньше — заменял). Совпадающие ключи перезаписываются, остальные наследуются из дефолтного набора. `MergeTemplates` копирует `templates` в новый `Dictionary`, потом накрывает `overrides`. **[FIX]**
-- `string.Format(template, parts)` — где `parts` — `string[]`, построенный из `args[i].Text`. `string[]` ковариантен `object[]`, поэтому `string.Format` получает тот же массив без копии. Боксинг отсутствует: элементы уже строки.
-- Сообщения — на английском. Локализация — через замену `IErrorMessageProvider`, не через редактирование этого класса.
+- Default templates — a `FrozenDictionary<ErrorCode, string>`, read-only after initialization. `DefaultTemplates` returns exactly a `FrozenDictionary`, so it cannot be cast back to a mutable `Dictionary`.
+- `Templates` — `IReadOnlyDictionary` (internally a `ReadOnlyDictionary<,>`), the actual templates **of this instance** (standard + `overrides`).
+- `TryGetTemplate` — a `protected virtual` extension point. `GetMessage` actually calls `TryGetTemplate`, so overriding works.
+- **`overrides` are now merged on top of the standard ones** (previously they replaced them). Matching keys are overwritten, the rest are inherited from the default set. `MergeTemplates` copies `templates` into a new `Dictionary`, then overlays `overrides`. **[FIX]**
+- `string.Format(template, parts)` — where `parts` is a `string[]` built from `args[i].Text`. `string[]` is covariant with `object[]`, so `string.Format` receives the same array without a copy. No boxing: the elements are already strings.
+- Messages are in English. Localization — by replacing `IErrorMessageProvider`, not by editing this class.
 
-Примеры шаблонов:
+Template examples:
 
-| Код | Шаблон | Аргументы (`DiagnosticData`) |
+| Code | Template | Arguments (`DiagnosticData`) |
 |---|---|---|
 | `Lexer_UnexpectedCharacter` | `"Unexpected character '{0}' at line {1}, column {2}"` | `char`, `int line`, `int col` |
 | `Parser_ExpectedToken` | `"Expected {0}, got {1} at {2}:{3}"` | `string expected`, `string got`, `int line`, `int col` |
@@ -157,9 +157,9 @@ public class DefaultErrorMessageProvider(
 | **`CodeGen_AssignmentToConst`** | **`"Cannot assign to const '{0}'"`** | **`string varName`** **[NEW]** |
 | **`CodeGen_IncrementOfConst`** | **`"Cannot increment/decrement const '{0}'"`** | **`string varName`** **[NEW]** |
 
-Порядок аргументов не задокументирован нигде, кроме кода (`DefaultErrorMessageProvider.templates`). См. [Что исправить, п. 3](#что-исправить).
+The argument order is not documented anywhere except the code (`DefaultErrorMessageProvider.templates`). See [What to fix, item 3](#what-to-fix).
 
-### `ThrowCompiler` — instance-фасад **[BREAKING]**
+### `ThrowCompiler` — instance facade **[BREAKING]**
 
 ```csharp
 public class ThrowCompiler(IErrorMessageProvider? provider)
@@ -174,14 +174,14 @@ public class ThrowCompiler(IErrorMessageProvider? provider)
 }
 ```
 
-- **Не `static class`.** `ThrowCompiler` теперь instance-класс. Каждый компилятор/ассемблер создаёт свой экземпляр: `new ThrowCompiler(provider)` и передаёт его как зависимость.
-- `ErrorMessageProvider` — **instance поле** (не статическое свойство). Глобального mutable state нет. Это устраняет прежнюю проблему с thread-safety при подмене провайдера в рантайме.
-- **`provider == null`** → используется `IErrorMessageProvider.Default`.
-- `Throw(code, args)` — бросает `CodeException(code, provider.GetMessage(code, args))`. `[DoesNotReturn]` + `[MethodImpl(NoInlining)]` — JIT не инлайнит бросающий путь.
-- `Throw<T>(code, args)` — то же, но возвращает `T`, чтобы использовать в выражениях: `return x ?? thrower.Throw<Foo>(code)`. `[DoesNotReturn]` гарантирует, что компилятор не будет ругаться на «возврат без значения».
-- **Extension-методы `ValidateAllCodesCovered`/`TryValidateAllCodesCovered` удалены.** Валидация покрытия теперь — задача тестов (см. [Что исправить, п. 9](#что-исправить)). **[BREAKING]**
+- **Not a `static class`.** `ThrowCompiler` is now an instance class. Each compiler/assembler creates its own instance: `new ThrowCompiler(provider)` and passes it as a dependency.
+- `ErrorMessageProvider` — an **instance field** (not a static property). There is no global mutable state. This eliminates the previous thread-safety issue with replacing the provider at runtime.
+- **`provider == null`** → uses `IErrorMessageProvider.Default`.
+- `Throw(code, args)` — throws `CodeException(code, provider.GetMessage(code, args))`. `[DoesNotReturn]` + `[MethodImpl(NoInlining)]` — the JIT does not inline the throwing path.
+- `Throw<T>(code, args)` — same, but returns `T` so it can be used in expressions: `return x ?? thrower.Throw<Foo>(code)`. `[DoesNotReturn]` guarantees that the compiler will not complain about "not all code paths return a value".
+- **Extension methods `ValidateAllCodesCovered`/`TryValidateAllCodesCovered` removed.** Coverage validation is now the job of tests (see [What to fix, item 9](#what-to-fix)). **[BREAKING]**
 
-### `CodeException` — исключение
+### `CodeException` — exception
 
 ```csharp
 public class CodeException(ErrorCode errorCode, string message) : Exception(message)
@@ -191,34 +191,34 @@ public class CodeException(ErrorCode errorCode, string message) : Exception(mess
 }
 ```
 
-- Наследует `Exception`, `Message` — отформатированное сообщение.
-- `ErrorCode` — типизированный код для `catch`/логики. `NumericCode` — для логов и внешних систем.
-- Primary constructor (C# 12+) — лаконично, но нет конструктора с `innerException`. См. [Что исправить, п. 2](#что-исправить).
-- Нет `[Serializable]`/`ISerializable` — в современном .NET это уже не требуется.
+- Inherits `Exception`, `Message` — the formatted message.
+- `ErrorCode` — typed code for `catch`/logic. `NumericCode` — for logs and external systems.
+- Primary constructor (C# 12+) — concise, but there is no constructor with `innerException`. See [What to fix, item 2](#what-to-fix).
+- No `[Serializable]`/`ISerializable` — in modern .NET this is no longer required.
 
-## Примеры для API
+## API examples
 
-**Создание экземпляра и базовое бросание:**
+**Creating an instance and basic throwing:**
 
 ```csharp
 using Nantuc.Kernel.Diagnostics;
 
-// Один экземпляр на компилятор/парсер/ассемблер
+// One instance per compiler/parser/assembler
 var thrower = new ThrowCompiler(provider: null);   // → IErrorMessageProvider.Default
 
 if (current is null)
     thrower.Throw(ErrorCode.Lexer_UnexpectedCharacter, c, line, col);
-// компилятор знает, что дальше код недостижим (DoesNotReturn)
+// the compiler knows the code after this is unreachable (DoesNotReturn)
 ```
 
-**Использование в выражении (`Throw<T>`):**
+**Use in an expression (`Throw<T>`):**
 
 ```csharp
 Foo foo = MaybeGet() ?? thrower.Throw<Foo>(
     ErrorCode.CodeGen_UndefinedVariable, variableName);
 ```
 
-**Ловля по коду:**
+**Catching by code:**
 
 ```csharp
 try
@@ -235,7 +235,7 @@ catch (CodeException ex)
 }
 ```
 
-**Свой провайдер (русские сообщения):**
+**Custom provider (Russian messages):**
 
 ```csharp
 public sealed class RussianMessageProvider : IErrorMessageProvider
@@ -258,217 +258,152 @@ public sealed class RussianMessageProvider : IErrorMessageProvider
 var thrower = new ThrowCompiler(new RussianMessageProvider());
 ```
 
-**Наследование от `DefaultErrorMessageProvider` (переопределение пары шаблонов):**
+**Inheriting from `DefaultErrorMessageProvider` (overriding a couple of templates):**
 
 ```csharp
 public sealed class MyProvider : DefaultErrorMessageProvider
 {
-    // TryGetTemplate действительно вызывается из GetMessage — override работает
+    // TryGetTemplate is actually called from GetMessage — the override works
     protected override string? TryGetTemplate(ErrorCode code) => code switch
     {
         ErrorCode.Parser_ExpectedToken => "Ожидался {0}, получен {1} ({2}:{3})",
-        _ => base.TryGetTemplate(code),   // fallback на встроенные английские
+        _ => base.TryGetTemplate(code),   // fallback to the built-in English
     };
 }
 
 var thrower = new ThrowCompiler(new MyProvider());
 ```
 
-**`overrides` — теперь мерж, не замена:** **[FIX]**
+**`overrides` — now a merge, not a replacement:** **[FIX]**
 
 ```csharp
-// Только точечные переопределения — все остальные коды берутся из дефолтного набора
+// Only targeted overrides — all other codes come from the default set
 var p = new DefaultErrorMessageProvider(new Dictionary<ErrorCode, string>
 {
     [ErrorCode.Lexer_UnexpectedCharacter] = "Custom 1",
     [ErrorCode.Parser_ExpectedToken]      = "Custom 2",
 }.ToFrozenDictionary());
 
-// Работает и для кодов, которых нет в overrides:
+// Works for codes that are not in overrides too:
 p.GetMessage(ErrorCode.CodeGen_UndefinedVariable, "x");
-// → "Undefined variable 'x'" (из стандартных шаблонов)
+// → "Undefined variable 'x'" (from the standard templates)
 ```
 
-**Изоляция провайдеров между инстансами:** **[BREAKING]**
+**Provider isolation between instances:** **[BREAKING]**
 
 ```csharp
 var throwerA = new ThrowCompiler(new RussianMessageProvider());
-var throwerB = new ThrowCompiler(provider: null);   // → Default (английский)
+var throwerB = new ThrowCompiler(provider: null);   // → Default (English)
 
-// Нет глобального состояния: A и B не влияют друг на друга.
+// No global state: A and B do not affect each other.
 ```
 
-## Приближенность модуля к пользователю
+## How close the module is to the user
 
-Средняя. Для конечного пользователя (того, кто пишет на MiniC/NANASM) модуль не виден — ошибки приходят как `CodeException` с готовым сообщением. Для автора компилятора/ассемблера/расширения — это основной инструмент диагностики.
+Medium. For the end user (the one who writes in MiniC/NANASM) the module is invisible — errors arrive as `CodeException` with a ready message. For the compiler/assembler/extension author, it is the main diagnostic tool.
 
-- Пользователь языка: видит `ex.Message` в консоли. Если язык локализован через `thrower.ErrorMessageProvider` — видит на своём языке. Импортировать этот модуль ему не нужно.
-- Автор компилятора (MiniC, NANASM, сторонние): создаёт `ThrowCompiler` с нужным провайдером и использует `thrower.Throw` + `ErrorCode`. Может подменить провайдер через конструктор.
-- Автор хост-приложения (IDE, REPL, CI): ловит `CodeException`, разбирает `ErrorCode`/`NumericCode`. Может создать `ThrowCompiler` со своим провайдером для каждого запроса/сессии.
-- Автор ядра — не должен использовать этот модуль для внутренних ошибок. Ядро работает с `BiosStatus`/`ProcessorFault` (`Kernel.Common`), а не с `CodeException`.
+- Language user: sees `ex.Message` in the console. If the language is localized via `thrower.ErrorMessageProvider` — sees it in their language. They do not need to import this module.
+- Compiler author (MiniC, NANASM, third-party): creates `ThrowCompiler` with the desired provider and uses `thrower.Throw` + `ErrorCode`. Can replace the provider via the constructor.
+- Host application author (IDE, REPL, CI): catches `CodeException`, parses `ErrorCode`/`NumericCode`. Can create a `ThrowCompiler` with their own provider per request/session.
+- Kernel author — should not use this module for internal errors. The kernel works with `BiosStatus`/`ProcessorFault` (`Kernel.Common`), not with `CodeException`.
 
-**Что стоит делать:**
-- Бросать `thrower.Throw` из frontend'а (Lexer/Parser/CodeGen) и assembler'а, а не `throw new Exception(...)`: это даёт стабильный `ErrorCode` для тестов.
-- **Создавать `ThrowCompiler` один раз на компилятор/сессию и передавать как зависимость** (constructor injection). Компилятор уже это делает: `FunctionGenerator(asm, structTable, ThrowCompiler)`.
-- В тестах ловить `CodeException` и проверять `ex.ErrorCode`, а не `ex.Message` — сообщения могут локализоваться.
-- Использовать `thrower.Throw<T>` в выражениях (`??`, тернарниках) — это его основное назначение.
-- Передавать в аргументы `DiagnosticData`-совместимые типы (`string`, `char`, `int`, `uint`, `long`, `ulong`) — неявные конверсии сработают.
+**What you should do:**
+- Throw via `thrower.Throw` from the frontend (Lexer/Parser/CodeGen) and assembler, not `throw new Exception(...)`: this gives a stable `ErrorCode` for tests.
+- **Create `ThrowCompiler` once per compiler/session and pass it as a dependency** (constructor injection). The compiler already does this: `FunctionGenerator(asm, structTable, ThrowCompiler)`.
+- In tests, catch `CodeException` and check `ex.ErrorCode`, not `ex.Message` — messages may be localized.
+- Use `thrower.Throw<T>` in expressions (`??`, ternaries) — that is its primary purpose.
+- Pass `DiagnosticData`-compatible types (`string`, `char`, `int`, `uint`, `long`, `ulong`) as arguments — the implicit conversions will work.
 
-**Что не стоит делать:**
-- Использовать `ThrowCompiler` в `Kernel`/`Contracts`/`Common` — там своя модель ошибок (`BiosStatus`).
-- Полагаться на глобальный mutable state для провайдера — его больше нет; создавайте новый `ThrowCompiler` при необходимости.
-- Кидать `CodeException` вручную (`new CodeException(...)`) — используйте `thrower.Throw`, чтобы сообщение шло через провайдер.
-- Передавать в аргументы `object` (бокс enum'ов/структур) — используйте `DiagnosticData`, чтобы не потерять AOT-совместимость.
-- Полагаться на `Enum.ToString()` для аргументов — используйте явные switch-хелперы (например, `TokenTypeExtension.AsText` в компиляторе).
+**What you should not do:**
+- Use `ThrowCompiler` in `Kernel`/`Contracts`/`Common` — they have their own error model (`BiosStatus`).
+- Rely on global mutable state for the provider — it no longer exists; create a new `ThrowCompiler` when needed.
+- Throw `CodeException` manually (`new CodeException(...)`) — use `thrower.Throw` so the message goes through the provider.
+- Pass `object` as arguments (boxing enums/structs) — use `DiagnosticData` to preserve AOT compatibility.
+- Rely on `Enum.ToString()` for arguments — use explicit switch helpers (e.g., `TokenTypeExtension.AsText` in the compiler).
 
-## Что исправлено в этой версии
+## What was fixed in this version
 
-По сравнению с прошлой фиксацией `Nantuc.Kernel.Diagnostics`:
+Compared to the previous snapshot of `Nantuc.Kernel.Diagnostics`:
 
-- **`ThrowCompiler` — instance, не `static`.** **[BREAKING]** Убран глобальный mutable `ErrorMessageProvider` static-поле. Теперь у каждого компилятора свой провайдер; thread-safety — по построению. `Throw`/`Throw<T>` — instance-методы.
-- **`DiagnosticData` — типизированные аргументы вместо `object`.** **[BREAKING]** `GetMessage(ErrorCode, params ReadOnlySpan<DiagnosticData>)`. Убран boxing `int`/`char`/enum, убрана рефлексия на формат-времени. Аргумент `DiagnosticData(string? text)` строит строку при создании.
-- **`implicit operator DiagnosticData(Enum)` отсутствует намеренно** — это привело бы к `Enum.ToString()` (AOT-риск). Enum'ы должны приходить как `string` или через явные switch-хелперы.
-- **`overrides` в `DefaultErrorMessageProvider` теперь мержится, а не заменяет.** **[FIX]** `MergeTemplates(templates, overrides)` копирует стандартные шаблоны и накрывает их `overrides`. Раньше передача одного кастомного сообщения отрезала все встроенные — исправлено.
-- **`overrides` принимает `FrozenDictionary<ErrorCode, string>`, а не `Dictionary`.** **[BREAKING]** Гарантия, что переданный словарь не мутируют после конструирования.
-- **`ErrorCode` получил XML-документацию на каждый член.** Полностью, включая `<remarks>` для `CodeGen_AssignmentToConst`/`CodeGen_IncrementOfConst` с перечислением триггеров. **[FIX]**
-- **Новые `ErrorCode.CodeGen_AssignmentToConst = 1316` и `CodeGen_IncrementOfConst = 1317`** — для `const`-нарушений. С шаблонами в `DefaultErrorMessageProvider`. **[NEW]**
-- **`ValidateAllCodesCovered`/`TryValidateAllCodesCovered` удалены.** **[BREAKING]** Валидация покрытия — задача тестов, а не runtime-API. См. [Что исправить, п. 9](#что-исправить).
-- **`ThrowCompiler` XML-документация добавлена.** `<summary>`, `<param>`, `<remarks>`, `<exception>` на классе и обоих `Throw`/`Throw<T>`. **[FIX]**
-- **`DefaultErrorMessageProvider` XML-документация добавлена.** `<summary>` с явным упоминанием мержа, `<param>` на `overrides`. **[FIX]**
-- **`CodeException` XML-документация добавлена** (с опечатками `ошиибки`/`ввиде` — см. [Что исправить, п. 14](#что-исправить)).
-- **`params ReadOnlySpan<DiagnosticData>`** — для `DiagnosticData` (value type) нулевой набор → `ReadOnlySpan.Empty`, без аллокаций. `string[]` для `string.Format` ковариантен `object[]`, без копии.
+- **`ThrowCompiler` — instance, not `static`.** **[BREAKING]** Removed the global mutable `ErrorMessageProvider` static field. Now each compiler has its own provider; thread safety is by construction. `Throw`/`Throw<T>` are instance methods.
+- **`DiagnosticData` — typed arguments instead of `object`.** **[BREAKING]** `GetMessage(ErrorCode, params ReadOnlySpan<DiagnosticData>)`. Removed boxing of `int`/`char`/enum, removed reflection at format time. The `DiagnosticData(string? text)` argument builds the string at creation time.
+- **`implicit operator DiagnosticData(Enum)` is intentionally absent** — it would lead to `Enum.ToString()` (AOT risk). Enums must arrive as `string` or via explicit switch helpers.
+- **`overrides` in `DefaultErrorMessageProvider` are now merged, not replacing.** **[FIX]** `MergeTemplates(templates, overrides)` copies the standard templates and overlays `overrides`. Previously, passing a single custom message cut off all built-in ones — fixed.
+- **`overrides` accepts `FrozenDictionary<ErrorCode, string>` instead of `Dictionary`.** **[BREAKING]** A guarantee that the passed dictionary will not be mutated after construction.
+- **`ErrorCode` received XML documentation for every member.** Fully, including `<remarks>` for `CodeGen_AssignmentToConst`/`CodeGen_IncrementOfConst` listing the triggers. **[FIX]**
+- **New `ErrorCode.CodeGen_AssignmentToConst = 1316` and `CodeGen_IncrementOfConst = 1317`** — for `const` violations. With templates in `DefaultErrorMessageProvider`. **[NEW]**
+- **`ValidateAllCodesCovered`/`TryValidateAllCodesCovered` removed.** **[BREAKING]** Coverage validation is the job of tests, not a runtime API. See [What to fix, item 9](#what-to-fix).
+- **`ThrowCompiler` XML documentation added.** `<summary>`, `<param>`, `<remarks>`, `<exception>` on the class and both `Throw`/`Throw<T>`. **[FIX]**
+- **`DefaultErrorMessageProvider` XML documentation added.** `<summary>` explicitly mentioning the merge, `<param>` on `overrides`. **[FIX]**
+- **`CodeException` XML documentation added** (with typos `ошиибки`/`ввиде` — see [What to fix, item 14](#what-to-fix)).
+- **`params ReadOnlySpan<DiagnosticData>`** — for `DiagnosticData` (a value type), an empty set → `ReadOnlySpan.Empty`, no allocations. The `string[]` for `string.Format` is covariant with `object[]`, no copy.
 
-## Особенная информация
+## Special information
 
-### Модель ошибок: `ErrorCode` vs `BiosStatus`
+### Error model: `ErrorCode` vs `BiosStatus`
 
-| Механизм | Модуль | Когда | Что значит |
+| Mechanism | Module | When | What it means |
 |---|---|---|---|
-| `ErrorCode` + `CodeException` | `Kernel.Diagnostics` | компиляция/ассемблирование | «ваш исходник не компилируется» |
-| `BiosStatus` + `ProcessorFault` | `Kernel.Common` | исполнение байткода | «ваша программа упала в рантайме» |
+| `ErrorCode` + `CodeException` | `Kernel.Diagnostics` | compilation/assembly | "your source does not compile" |
+| `BiosStatus` + `ProcessorFault` | `Kernel.Common` | bytecode execution | "your program crashed at runtime" |
 
-`Kernel.Diagnostics` не используется ядром (`Kernel`/`Contracts`/`Common`). Если вы пишете runtime-код и хотите сообщить об ошибке — используйте `BiosStatus`/`ProcessorFault`, а не `CodeException`.
+`Kernel.Diagnostics` is not used by the kernel (`Kernel`/`Contracts`/`Common`). If you write runtime code and want to report an error — use `BiosStatus`/`ProcessorFault`, not `CodeException`.
 
-### Стабильность кодов
+### Code stability
 
-- Числа `ErrorCode` — wire-format. Не меняйте их после релиза.
-- `NumericCode` — для логов, CI-парсинга, внешних тулов.
-- Удаление `ErrorCode`-значения — breaking change. Помечайте `[Obsolete]`, но не удаляйте, пока не выйдет major.
-- Шаблоны в `DefaultErrorMessageProvider.templates` — тоже контракт (порядок аргументов). Если меняете шаблон — либо сохраняйте порядок аргументов, либо документируйте как breaking.
-- Диапазоны по подсистемам — соглашение: `1000` — общие, `1100` — Lexer, `1200` — Parser, `1300` — CodeGen, `1400` — Asm. Свободные номера внутри диапазона можно занимать; переходить на чужой диапазон — нет.
+- `ErrorCode` numbers are a wire format. Do not change them after release.
+- `NumericCode` — for logs, CI parsing, external tools.
+- Removing an `ErrorCode` value is a breaking change. Mark it `[Obsolete]` but do not remove it until a major release.
+- The templates in `DefaultErrorMessageProvider.templates` are also a contract (argument order). If you change a template — either preserve the argument order or document it as breaking.
+- Ranges by subsystem are a convention: `1000` — general, `1100` — Lexer, `1200` — Parser, `1300` — CodeGen, `1400` — Asm. Free numbers within a range can be used; moving into someone else's range — not.
 
-### `IErrorMessageProvider.Default` — почему `static` на интерфейсе
+### `IErrorMessageProvider.Default` — why `static` on the interface
 
 ```csharp
 static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();
 ```
 
-Это C# 11+ static-член интерфейса с реализацией по умолчанию. Он не виртуален для реализаций (`Default` — это `static`, а не `static abstract`), поэтому `MyProvider.Default` вернёт тот же `DefaultErrorMessageProvider`, а не `MyProvider`. Это ожидаемо: `Default` — «что считается дефолтом в платформе», а не «дефолт для этого типа».
+This is a C# 11+ static interface member with a default implementation. It is not virtual for implementations (`Default` is `static`, not `static abstract`), so `MyProvider.Default` will return the same `DefaultErrorMessageProvider`, not `MyProvider`. This is expected: `Default` is "what is considered the default in the platform", not "the default for this type".
 
-### `DiagnosticData` и AOT **[NEW]**
+### `DiagnosticData` and AOT **[NEW]**
 
-`DiagnosticData` спроектирован так, чтобы весь путь аргументов диагностики был AOT-safe:
+`DiagnosticData` is designed so that the entire diagnostic argument path is AOT-safe:
 
-| Механизм | AOT-риск | Что делать |
+| Mechanism | AOT risk | What to do |
 |---|---|---|
-| `implicit operator DiagnosticData(string?)` | нет | — |
-| `implicit operator DiagnosticData(char)` | нет (`char.ToString()` — BCL, без рефлексии) | — |
-| `implicit operator DiagnosticData(int/uint/long/ulong)` | нет (`IFormattable`/`ToString(InvariantCulture)`, без рефлексии) | — |
-| `Of(bool)` | нет | — |
-| `Of<T>(T?)` | **есть**, если `T` — reference type без `ToString()` override → вызовет `Object.ToString()` → метаданные типа | Использовать только для известных типов (`Type`, `Enum`, свои классы с `ToString()`) |
-| `implicit operator DiagnosticData(Enum)` | **не существует намеренно** — привёл бы к `Enum.ToString()` (reflection-adjacent) | Передавать enum как `string` через явный switch-хелпер |
-| `string.Format(template, string[])` | нет (элементы уже строки, нет `IFormattable`-пути) | — |
-| `$"No message template for error code {code}"` в `GetMessage` | **есть**: `ErrorCode.ToString()` → reflection-adjacent | Только fallback-путь при забытом шаблоне; для AOT-чистоты — заменить на `((int)code).ToString(InvariantCulture)` |
+| `implicit operator DiagnosticData(string?)` | no | — |
+| `implicit operator DiagnosticData(char)` | no (`char.ToString()` — BCL, no reflection) | — |
+| `implicit operator DiagnosticData(int/uint/long/ulong)` | no (`IFormattable`/`ToString(InvariantCulture)`, no reflection) | — |
+| `Of(bool)` | no | — |
+| `Of<T>(T?)` | **yes**, if `T` is a reference type without a `ToString()` override → will call `Object.ToString()` → type metadata | Use only for known types (`Type`, `Enum`, your own classes with `ToString()`) |
+| `implicit operator DiagnosticData(Enum)` | **does not exist intentionally** — would lead to `Enum.ToString()` (reflection-adjacent) | Pass the enum as a `string` via an explicit switch helper |
+| `string.Format(template, string[])` | no (the elements are already strings, no `IFormattable` path) | — |
+| `$"No message template for error code {code}"` in `GetMessage` | **yes**: `ErrorCode.ToString()` → reflection-adjacent | Only a fallback path for a forgotten template; for AOT purity — replace with `((int)code).ToString(InvariantCulture)` |
 
-**Итог:** `DiagnosticData` полностью AOT-safe для всех типовых вызовов (`string`, `char`, `int`, `uint`, `long`, `ulong`, `bool`). Для `Of<T>` и `Enum` — действует соглашение «передавать готовую строку».
+**Bottom line:** `DiagnosticData` is fully AOT-safe for all typical calls (`string`, `char`, `int`, `uint`, `long`, `ulong`, `bool`). For `Of<T>` and `Enum` — the convention "pass a ready-made string" applies.
 
-### `params ReadOnlySpan<DiagnosticData>` — особенности
+### `params ReadOnlySpan<DiagnosticData>` — specifics
 
-- Требует C# 13+ (для `params` на `ReadOnlySpan<T>`) и `net9.0+` (для `string.Format(string, params ReadOnlySpan<object?>)` — но здесь используется `string.Format(template, string[])`, который есть и раньше). На `net10.0` — работает.
-- `DiagnosticData` — `readonly record struct`, value type: нулевой набор аргументов → `ReadOnlySpan<DiagnosticData>.Empty`, без аллокаций. Один и более → аллокация `DiagnosticData[]` (не `object[]`, **без боксинга** int/char).
-- `DiagnosticData` содержит `string Text` (reference), так что внутренние строки боксятся только при `new DiagnosticData(someInt.ToString())` — это неизбежно для строкового представления. Но боксинга самого `int`/`char` в `object` — нет.
-- Если у вызывающего уже есть `ReadOnlySpan<DiagnosticData>` — он может передать его напрямую, без обёртки.
+- Requires C# 13+ (for `params` on `ReadOnlySpan<T>`) and `net9.0+` (for `string.Format(string, params ReadOnlySpan<object?>)` — but here `string.Format(template, string[])` is used, which exists earlier). On `net10.0` — works.
+- `DiagnosticData` is a `readonly record struct`, a value type: an empty set of arguments → `ReadOnlySpan<DiagnosticData>.Empty`, no allocations. One or more → allocation of `DiagnosticData[]` (not `object[]`, **no boxing** of int/char).
+- `DiagnosticData` contains a `string Text` (reference), so the internal strings are boxed only on `new DiagnosticData(someInt.ToString())` — this is unavoidable for a string representation. But there is no boxing of the `int`/`char` itself into `object`.
+- If the caller already has a `ReadOnlySpan<DiagnosticData>` — they can pass it directly, without a wrapper.
 
-### Ограничения платформ
+### Platform limitations
 
-- `net10.0`. `params ReadOnlySpan<DiagnosticData>`, `FrozenDictionary`, `ReadOnlyDictionary`, `[DoesNotReturn]`, primary constructors, `readonly record struct` — всё есть. На `net8.0`/`net9.0` часть не соберётся.
-- `unsafe` отсутствует — модуль безопасен для WASM/AOT и окружений с запретом `unsafe`.
-- `FrozenDictionary` — в AOT работает, но инициализация чуть дороже, чем у обычного `Dictionary`. Один раз на процесс — норм.
-- `Enum.GetValues<ErrorCode>()` (был в удалённом `ValidateAllCodesCovered`) — в AOT без `[DynamicDependency]` может быть вырезан триммером. Сейчас не используется; если вернёте валидацию — учтите.
-- Локализация — `DefaultErrorMessageProvider` не использует `CultureInfo.CurrentUICulture`; сообщения всегда на английском. Если нужна локализация через `ResourceManager` — реализуйте свой `IErrorMessageProvider`.
-- **`ThrowCompiler` — instance:** для WASM/AOT это даже лучше, чем static mutable state: нет глобального поля, которое нужно синхронизировать между запросами.
+- `net10.0`. `params ReadOnlySpan<DiagnosticData>`, `FrozenDictionary`, `ReadOnlyDictionary`, `[DoesNotReturn]`, primary constructors, `readonly record struct` — all present. On `net8.0`/`net9.0` some parts will not build.
+- No `unsafe` — the module is safe for WASM/AOT and environments where `unsafe` is prohibited.
+- `FrozenDictionary` — works in AOT, but initialization is slightly more expensive than a regular `Dictionary`. Once per process — fine.
+- `Enum.GetValues<ErrorCode>()` (was in the removed `ValidateAllCodesCovered`) — in AOT without `[DynamicDependency]` it may be trimmed away. It is not used now; if you bring back validation — keep this in mind.
+- Localization — `DefaultErrorMessageProvider` does not use `CultureInfo.CurrentUICulture`; messages are always in English. If you need localization via `ResourceManager` — implement your own `IErrorMessageProvider`.
+- **`ThrowCompiler` — instance:** for WASM/AOT this is even better than static mutable state: there is no global field that needs to be synchronized between requests.
 
-### Что этот модуль не делает
+### What this module does not do
 
-- Не форматирует ошибки в JSON/структурированный вид — только строка (`GetMessage`).
-- Не содержит severity-уровней (Error/Warning/Info) — только ошибки.
-- Не содержит source-позиций (файл, строка, столбец) как полей — они передаются аргументами в шаблон.
-- Не знает про `IProcessorFaultPolicy`/`BiosStatus` — это runtime-модель, отдельно.
-- Не зависит от других проектов Nantuc — можно подключать в любой .NET-проект как «Nantuc-style diagnostics».
+- It does not format errors into JSON/structured form — only a string (`GetMessage`).
+- It does not contain severity levels (Error/Warning/Info) — only errors.
+- It does not contain source positions (file, line, column) as fields — they are passed as arguments to the template.
+- It knows nothing about `IProcessorFaultPolicy`/`BiosStatus` — that is the runtime model, separate.
+- It does not depend on other Nantuc projects — it can be plugged into any .NET project as "Nantuc-style diagnostics".
 
-Правило «куда положить тип»: код ошибки/исключение/провайдер сообщений/аргумент диагностики → `Kernel.Diagnostics`; runtime-статус → `Kernel.Common`; контракт → `Kernel.Contracts`; реализация исполнения → `Kernel`.
-
-## Что исправить
-
-По убыванию важности.
-
-1. **[XML] Порядок аргументов шаблонов нигде не задокументирован.**  
-   Файл: `DefaultErrorMessageProvider.cs`, `templates` — единственный источник. Автор своего провайдера вынужден читать исходник, чтобы узнать, что `Lexer_UnexpectedCharacter` ждёт `(char, int line, int col)`.  
-   Фикс: `docs/error-codes.md` с таблицей «код → аргументы → шаблон» или `// {0}=char, {1}=line, {2}=col` рядом с каждым шаблоном.
-
-2. **`CodeException` без `innerException`.**  
-   Файл: `CodeException.cs`, primary constructor `(ErrorCode errorCode, string message)`.  
-   Нет способа обернуть `IOException`/`FormatException`/`CodeException` из вложенного вызова. Кодогенератор и парсер часто ловят низкоуровневые исключения и хотят обернуть их в диагностику с кодом.  
-   Фикс: добавить `public CodeException(ErrorCode, string, Exception inner)` и, возможно, `ThrowCompiler.Throw(code, inner, args)`.
-
-3. **[AOT] `$"No message template for error code {code}"` использует `Enum.ToString()`.**  
-   Файл: `DefaultErrorMessageProvider.GetMessage`. Это fallback при забытом шаблоне. В reflection-free режиме вернёт число вместо имени.  
-   Фикс: `$"No message template for error code {(int)code}"` — `int.ToString()` без рефлексии.
-
-4. **[AOT] `DiagnosticData.Of<T>(T? value) => new(value?.ToString())` — reflection-adjacent для reference-type без `ToString()` override.**  
-   Файл: `DiagnosticData.cs`. Если `T` — класс без override, BCL вызовет `Object.ToString()` → метаданные.  
-   Фикс: либо ограничить `where T : IFormattable`, либо задокументировать в `///`, что `Of<T>` — для известных типов.
-
-5. **[XML] `IErrorMessageProvider.GetMessage` — контракт для неизвестного кода не задокументирован.**  
-   Файл: `IErrorMessageProvider.cs`. `DefaultErrorMessageProvider` бросает `InvalidOperationException`, но кастомный провайдер вправе вернуть `$"Error {(int)code}"`.  
-   Фикс: `/// <remarks>` на `GetMessage`: «Implementation may throw for unknown codes, or return a fallback string».
-
-6. **Валидация покрытия не выполняется автоматически при старте.**  
-   Файл: `DefaultErrorMessageProvider.cs`, статический конструктор отсутствует. При добавлении нового кода в `ErrorCode` и забывании шаблона ошибка вылезет в рантайме (`InvalidOperationException` из `GetMessage`), а не в CI.  
-   Рекомендация: тест `AllErrorCodes_HaveTemplates` в `Nantuc.Kernel.Diagnostics.Tests`. Сейчас extension-методы `ValidateAllCodesCovered`/`TryValidateAllCodesCovered` удалены — валидация только тестами.  
-   Фикс: добавить тест (см. п. 9).
-
-7. **`CodeException` — нет `SourceSpan`/`FilePath`/`Line`/`Column` как полей.**  
-   Файл: `CodeException.cs`. Позиции передаются аргументами в шаблон, но не хранятся в исключении. Для IDE/CI, которым нужны структурированные позиции, придётся парсить `Message`.  
-   Рекомендация: добавить опциональные `FilePath`/`Line`/`Column` через отдельный конструктор или задокументировать, что позиции — только в `Message`.
-
-8. **[XML] `DefaultErrorMessageProvider.TryGetTemplate` — без `<param>`/`<returns>`.**  
-   Файл: `DefaultErrorMessageProvider.cs`. Protected virtual точка расширения, но без описания контракта (что возвращает, для чего используется).  
-   Фикс: `<param>`/`<returns>` + `<remarks>` о том, что `GetMessage` вызывает его.
-
-9. **Тестов нет.**  
-   Самый дешёвый и ценный набор:
-   - `DefaultErrorMessageProvider`: каждый `ErrorCode` из `Enum.GetValues<ErrorCode>()` → `GetMessage` не падает.
-   - `overrides` — мерж: `new DefaultErrorMessageProvider(frozenWithOne)` → `GetMessage` для кода не из `overrides` работает (регресс-тест на старый баг).
-   - `ThrowCompiler.Throw`: бросает `CodeException` с ожидаемым `ErrorCode`/`Message`.
-   - `ThrowCompiler.Throw<T>`: компилируется в выражении (`return x ?? thrower.Throw<Foo>(...)`).
-   - `ThrowCompiler(provider: null)` → `ErrorMessageProvider == IErrorMessageProvider.Default`.
-   - **Изоляция провайдеров:** два `ThrowCompiler` с разными провайдерами не влияют друг на друга.
-   - `TryGetTemplate` override работает.
-   - `CodeException.NumericCode == (int)ErrorCode`.
-   - `DiagnosticData`: `implicit`-конверсии для `string`/`char`/`int`/`uint`/`long`/`ulong` дают ожидаемые `Text`; `Of(bool)` → `"true"`/`"false"`; `Of<T>(null)` → `""`.
-
-10. **Опечатки в XML-документации `CodeException.cs`.**  
-    Файл: `CodeException.cs`: `"сообщение с ошиибки"` (→ `ошибки`), `"Код ошибки ввиде <c>enum</c>"` (→ `в виде`).  
-    Фикс: поправить.
-
-11. **Опечатка в XML-документации `IErrorMessageProvider.cs`.**  
-    Файл: `IErrorMessageProvider.cs`: `"Политика исплючений"` (→ `исключений`).  
-    Фикс: поправить.
-
-12. **`ThrowCompiler` — имя класса.**  
-    Файл: `ThrowCompiler.cs`. «Throw compiler» читается странно. Лучше `Diagnostics.Throw(...)`, `ErrorThrower`, `ThrowHelper`. Но если имя уже используется в компиляторе — оставьте, добавьте `[Obsolete]`-алиас при переименовании.
-
-13. **`DiagnosticData` не имеет `implicit operator DiagnosticData(bool)`.**  
-    Файл: `DiagnosticData.cs`. `Of(bool)` — есть, implicit — нет. Это сделано намеренно (bool через `int` был бы `"0"`/`"1"`), но в коде вызова приходится писать `DiagnosticData.Of(true)` вместо `true`.  
-    Рекомендация: оставить как есть, добавить `<remarks>` в `Of(bool)` с объяснением, почему нет implicit.
+Rule for "where to put a type": error code/exception/message provider/diagnostic argument → `Kernel.Diagnostics`; runtime status → `Kernel.Common`; contract → `Kernel.Contracts`; execution implementation → `Kernel`.
