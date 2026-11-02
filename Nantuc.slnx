@@ -2,6 +2,7 @@
   <Folder Name="/Элементы решения/">
     <File Path="CHANGELOG.md" />
     <File Path="CHANGELOG.ru.md" />
+    <File Path="Directory.Build.props" />
     <File Path="git-commit-changelog.sh" />
     <File Path="README.md" />
     <File Path="README.ru.md" />

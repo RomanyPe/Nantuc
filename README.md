@@ -1,7 +1,7 @@
 ﻿# Nantuc — README
 
 > A platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and a public API for embedding.
-> **Project version:** the current project version is specified in `CHANGELOG.md`; semver is partially guaranteed.
+> **Project version:** the current project version is specified in `CHANGELOG.md`; semver is guaranteed.
 > Written in C# (.NET 10). The compiler and runtime are separated into layers, unsafe code is isolated in the kernel, and the public API is a thin facade with safe `Try*` methods and `IdState` diagnostics.
 
 Nantuc is a mini-framework that has everything you need to run a program in a C-like language:

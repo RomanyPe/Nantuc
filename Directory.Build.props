@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <Authors>RomanyPe</Authors>
+    <PackageProjectUrl>https://github.com/RomanyPe/Nantuc</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/RomanyPe/Nantuc.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>Apache License 2.0</PackageLicenseExpression>  <!-- или ваша лицензия -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+  </PropertyGroup>
+</Project>

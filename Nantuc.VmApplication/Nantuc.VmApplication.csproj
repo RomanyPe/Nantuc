@@ -4,10 +4,7 @@
 	  <TargetFrameworks>net10.0</TargetFrameworks>
 	<ImplicitUsings>enable</ImplicitUsings>
 	<Nullable>enable</Nullable>
-	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	<Authors>RomanyPe</Authors>
-	<RepositoryUrl>https://github.com/RomanyPe/Nantuc.git</RepositoryUrl>
-	<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+	  <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>

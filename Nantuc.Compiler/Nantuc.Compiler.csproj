@@ -5,6 +5,7 @@
 	<ImplicitUsings>enable</ImplicitUsings>
 	<Nullable>enable</Nullable>
 	<IsAotCompatible>true</IsAotCompatible>
+	  <IsPackable>true</IsPackable>
   </PropertyGroup>
 <PropertyGroup>
 	<!-- Укажите единую версию для всех пакетов на этом этапе -->

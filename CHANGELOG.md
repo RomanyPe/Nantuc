@@ -43,6 +43,9 @@ Order of sections within a version:
 - `Device.Dispose` now frees `_wakeSignal`
 - desynchronization in README files
 
+### Removed
+- `BenchmarkOptimizer` class from the `Nantuc.Benchmarks` module 
+
 ## [0.7.3] - 2026-10-31
 
 ### Added
