@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+*'   # триггер на теги вида v1.0.0 или v1.0.0-beta.1
+      - 'v*'   # триггер на теги вида v1.0.0 или v1.0.0-beta.1
 
 permissions:
   contents: write    # нужно для создания GitHub Release
