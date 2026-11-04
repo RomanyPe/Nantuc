@@ -2,14 +2,22 @@ name: Publish NuGet Packages
 
 on:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
         description: 'Версия пакета, например 1.2.3 (без префикса v)'
         required: true
         type: string
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
 
 jobs:
   pack-and-publish:
@@ -19,81 +27,71 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
       - name: Determine version
         id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$INPUT_VERSION"
+            [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]] \
+              || { echo "error: invalid version '$VERSION'" >&2; exit 1; }
           else
-            TAG="${GITHUB_REF_NAME}"
-            if [[ ! "$TAG" =~ ^v(.+)$ ]]; then
-              echo "error: tag '$TAG' does not match pattern 'v*'" >&2
-              exit 1
-            fi
+            TAG="$GITHUB_REF_NAME"
+            [[ "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?)$ ]] \
+              || { echo "error: tag '$TAG' is not a valid v<semver>" >&2; exit 1; }
             VERSION="${BASH_REMATCH[1]}"
-          fi
-          if [ -z "$VERSION" ]; then
-            echo "error: empty version" >&2
-            exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Resolved version: $VERSION"
 
-      - name: Pack projects
+      - name: Restore
+        run: dotnet restore Nantuc.sln
+
+      - name: Build
+        run: >
+          dotnet build Nantuc.sln -c Release --no-restore
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Pack
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          OUTPUT_DIR="$GITHUB_WORKSPACE/nupkg"
-          mkdir -p "$OUTPUT_DIR"
-
-          mapfile -t PROJECT_FILES < <(find . -name '*.csproj' \
-            -not -path '*/bin/*' \
-            -not -path '*/obj/*' \
-            -not -iname '*Tests*.csproj' \
-            -not -iname '*Samples*.csproj' \
-            -not -iname '*Benchmarks*.csproj' \
-            | sort)
-
-          if [ ${#PROJECT_FILES[@]} -eq 0 ]; then
-            echo "error: no .csproj files found" >&2
-            exit 1
-          fi
-
-          echo "Found ${#PROJECT_FILES[@]} project(s):"
-          printf '  - %s\n' "${PROJECT_FILES[@]}"
-
-          for proj in "${PROJECT_FILES[@]}"; do
-            echo "--- packing: $proj ---"
-            dotnet pack "$proj" \
-              --configuration Release \
-              --output "$OUTPUT_DIR" \
-              -p:PackageVersion="$VERSION" \
-              -p:Version="$VERSION" \
-              --nologo
-          done
-
+          mkdir -p nupkg
+          dotnet pack Nantuc.sln -c Release --no-build --no-restore -o nupkg \
+            -p:PackageVersion="$VERSION" -p:Version="$VERSION"
           shopt -s nullglob
-          NUPKGS=("$OUTPUT_DIR"/*.nupkg)
-          shopt -u nullglob
-          if [ ${#NUPKGS[@]} -eq 0 ]; then
-            echo "error: no .nupkg files produced" >&2
-            exit 1
-          fi
-          echo "Produced ${#NUPKGS[@]} package(s):"
+          NUPKGS=(nupkg/*.nupkg)
+          [[ ${#NUPKGS[@]} -gt 0 ]] \
+            || { echo "error: no .nupkg files produced" >&2; exit 1; }
+          printf 'Produced %d package(s):\n' "${#NUPKGS[@]}"
           printf '  - %s\n' "${NUPKGS[@]}"
 
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: nupkg/*.nupkg
+          if-no-files-found: error
+
       - name: Push to GitHub Packages
+        shell: bash
         run: |
           set -euo pipefail
-          for nupkg in "$GITHUB_WORKSPACE"/nupkg/*.nupkg; do
+          for nupkg in nupkg/*.nupkg; do
             echo "--- pushing: $(basename "$nupkg") ---"
             dotnet nuget push "$nupkg" \
               --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
