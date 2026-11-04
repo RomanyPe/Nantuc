@@ -125,9 +125,10 @@ if (fault.Status != BiosStatus.EndProgramm)
 ```
 
 Подробный разбор — в [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.ru.md).
+
 ## NuGet-пакеты
 
-Все модули платформы опубликованы как NuGet-пакеты (GitHub Packages, автор — `RomanyPe`). Ставится только то, что нужно сценарию; транзитивные зависимости подтягиваются автоматически.
+Все модули платформы опубликованы как NuGet-пакеты на [nuget.org](https://www.nuget.org/profiles/RomanyPe) (автор — `RomanyPe`). Ставится только то, что нужно сценарию; транзитивные зависимости подтягиваются автоматически.
 
 | Пакет | Кому | Что внутри |
 |---|---|---|
@@ -153,6 +154,8 @@ if (fault.Status != BiosStatus.EndProgramm)
 
 ### Установка
 
+Пакеты опубликованы на **nuget.org**, поэтому дополнительные источники (`dotnet nuget add source`) не нужны — `dotnet add package` работает сразу.
+
 Минимальный набор для запуска MiniC-программы:
 
 ```bash
@@ -175,7 +178,7 @@ dotnet add package Nantuc.Kernel
 ```
 
 Версия подтягивается последняя стабильная; зафиксировать конкретную — `--version 0.8.2`.
-Полный список и версии — на странице пакета в GitHub Packages.
+Полный список и версии — на странице пакета на [nuget.org](https://www.nuget.org/profiles/RomanyPe).
 
 > `Nantuc.Common`, `Nantuc.Contracts`, `Nantuc.Diagnostics` не тянут `unsafe`/`NativeMemory`/`Regex` — их можно подключать в WASM/AOT-проекты и в окружения с запретом `unsafe`.
 
@@ -541,6 +544,7 @@ dotnet test -c Release
 ## Ссылки
 
 - GitHub: [RomanyPe/Nantuc](https://github.com/RomanyPe/Nantuc)
+- NuGet-профиль автора: [nuget.org/profiles/RomanyPe](https://www.nuget.org/profiles/RomanyPe)
 - Документация по модулям — README в каждой папке (ссылки в разделе [Модули](#модули)).
 - Спецификация байткода — [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
 - Справочник кодов ошибок — [`docs/error-codes.ru.md`](docs/error-codes.ru.md).
@@ -549,13 +553,3 @@ dotnet test -c Release
 - Отладчик — [`src/Nantuc.VmApplication.Extensions/README.ru.md`](src/Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
 - Примеры — [`samples/Nantuc.Samples.Minimal`](samples/Nantuc.Samples.Minimal/README.ru.md), [`samples/Nantuc.Samples.Scratch`](samples/Nantuc.Samples.Scratch/README.ru.md).
 - Бенчмарки — [`samples/Nantuc.Benchmarks`](samples/Nantuc.Benchmarks/README.ru.md), [`samples/Nantuc.Benchmarks.BenchmarkDotNet`](samples/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md).
-
-
-
-Да, добавлять стоит — и именно **готовые bash-команды**, а не прозу. Причина простая: в текущем README есть раздел «NuGet-пакеты» с таблицей «кому/что», но **нет ни одной команды установки**. Читатель понимает, какой пакет ему нужен, но не понимает, что с ним делать дальше. Это ровно тот пробел, который закрывается тремя строками `dotnet add package`.
-
-При этом важно: у вас пакеты в **GitHub Packages**, а не в nuget.org, поэтому `dotnet add package` без предварительного `dotnet nuget add source` **упадёт с `NU1101`**. Это критично упомянуть, иначе команда вводит в заблуждение.
-
-## Куда вставить
-
-Новый подраздел **`### Установка`** — сразу после таблицы пакетов, до «Что ставить под сценарий». Логика: сначала «что есть» (таблица), потом «как поставить» (команды), потом «что выбрать под сценарий».
