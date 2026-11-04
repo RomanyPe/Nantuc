@@ -56,11 +56,11 @@ jobs:
           echo "Resolved version: $VERSION"
 
       - name: Restore
-        run: dotnet restore Nantuc.sln
+        run: dotnet restore Nantuc.slnx
 
       - name: Build
         run: >
-          dotnet build Nantuc.sln -c Release --no-restore
+          dotnet build Nantuc.slnx -c Release --no-restore
           -p:Version=${{ steps.version.outputs.version }}
           -p:ContinuousIntegrationBuild=true
 
@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p nupkg
-          dotnet pack Nantuc.sln -c Release --no-build --no-restore -o nupkg \
+          dotnet pack Nantuc.slnx -c Release --no-build --no-restore -o nupkg \
             -p:PackageVersion="$VERSION" -p:Version="$VERSION"
           shopt -s nullglob
           NUPKGS=(nupkg/*.nupkg)
