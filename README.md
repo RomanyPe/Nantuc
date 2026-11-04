@@ -206,18 +206,35 @@ Note:
 
 ```
 Nantuc/
-├── Nantuc.Common/                     # ISA, sizes, BiosStatus, ProcessorFault, IdState
-├── Nantuc.Contracts/                  # public contracts (ports, processor)
-├── Nantuc.Diagnostics/                # ErrorCode, DiagnosticData, ThrowCompiler, CodeException
-├── Nantuc.Kernel/                     # CPU, RAM, PortBus, Device implementation
-├── Nantuc.Compiler/                   # MiniC + NANASM (frontend, backend, ASM, optimizations)
-├── Nantuc.VmApplication/              # main API (TryRegisterDevice, TryGetDeviceContext, Run → ProcessorFault)
-├── Nantuc.VmApplication.Extensions/   # disassembler, debugger, I/O, optimizations, libraries
-├── Nantuc.Samples.Minimal/            # Hello world
-├── Nantuc.Samples.Scratch/            # allocator test + snake
-├── Nantuc.Benchmarks/                 # manual VM benchmark (14 MiniC cases, MIPS/statistics)
-└── Nantuc.Benchmarks.BenchmarkDotNet/ # BenchmarkDotNet benchmark (14 MiniC cases, artifacts)
-```
+├── .github/
+├── .gitignore
+├── Directory.Build.props
+├── README.md
+├── README.ru.md
+├── CHANGELOG.md
+├── CHANGELOG.ru.md
+├── LICENSE
+├── Nantuc.slnx
+│
+├── src/
+│   ├── Nantuc.Common/                 # ISA, sizes, BiosStatus, ProcessorFault, IdState
+│   ├── Nantuc.Contracts/              # public contracts (ports, processor)
+│   ├── Nantuc.Diagnostics/            # ErrorCode, DiagnosticData, ThrowCompiler, CodeException
+│   ├── Nantuc.Kernel/                 # CPU, RAM, PortBus, Device implementation
+│   ├── Nantuc.Compiler/               # MiniC + NANASM (frontend, backend, ASM, optimizations)
+│   ├── Nantuc.VmApplication/          # main API (TryRegisterDevice, TryGetDeviceContext, Run → ProcessorFault)
+│   └── Nantuc.VmApplication.Extensions/   # disassembler, debugger, I/O, optimizations, libraries
+│
+├── tests/
+│   └── Nantuc.Tests/                  # ← placeholder name, replace with the actual one
+│
+├── samples/
+│   ├── Nantuc.Samples.Minimal/        # Hello world
+│   └── Nantuc.Samples.Scratch/        # allocator test + snake
+│
+└── benchmarks/
+    ├── Nantuc.Benchmarks/                     # manual VM benchmark (14 MiniC cases, MIPS/stats)
+    └── Nantuc.Benchmarks.BenchmarkDotNet/     # BenchmarkDotNet benchmark (14 MiniC cases, artifacts)```
 
 ## Modules
 
