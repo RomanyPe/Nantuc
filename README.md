@@ -464,9 +464,10 @@ runner.Wait();
 - Built-in libraries reference — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md).
 - **Documentation:** full translation of all project documentation into English.
 - Baseline/CI profile for `Nantuc.Benchmarks.BenchmarkDotNet` (filters, time limits, version comparison).
+- NuGet packages for `Common`, `Contracts`, `Diagnostics`, `Compiler`, `VmApplication`.
+
 
 **In progress / plans:**
-- NuGet packages for `Common`, `Contracts`, `Diagnostics`, `Compiler`, `VmApplication`.
 - Writing a JIT compiler in `C` and `C++`, but that will be a separate project.
 - Migrating `Libraries.alloc_minic` and `LibCode.snake_minic` from globals to locals (the code generator bug has been fixed, the workaround is no longer required; see [STDLIBRARIES.ru.md](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)).
 - **Debugger:** a frame pointer in `Processor` for an accurate `GetCallStack` (currently a best-effort heuristic over `[rSP, RamSize)`), `Debugger.Reset()`/`Reload()` for reusing a single instance, and a UI panel for IDEs (via the `Stopped` event).

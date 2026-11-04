@@ -464,9 +464,9 @@ runner.Wait();
 - Справочник по встроенным библиотекам — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md).
 - **Документация:** полный перевод всей документации проекта на английский.
 - Baseline/CI-профиль для `Nantuc.Benchmarks.BenchmarkDotNet` (фильтры, лимиты времени, сравнение версий).
+- NuGet-пакеты для `Common`, `Contracts`, `Diagnostics`, `Compiler`, `VmApplication`.
 
 **В работе / планы:**
-- NuGet-пакеты для `Common`, `Contracts`, `Diagnostics`, `Compiler`, `VmApplication`.
 - Написание JIT-компилятора на `C` и `C++`, но это будет отдельный проект.
 - Миграция `Libraries.alloc_minic` и `LibCode.snake_minic` с глобалов на локалы (баг кодогенератора исправлен, workaround больше не обязателен; см. [STDLIBRARIES.ru.md](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)).
 - **Отладчик:** frame pointer в `Processor` для точного `GetCallStack` (сейчас — best-effort эвристика по `[rSP, RamSize)`), `Debugger.Reset()`/`Reload()` для повторного использования одного экземпляра, UI-панель для IDE (через `Stopped`-событие).
