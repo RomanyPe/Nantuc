@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write 
 
     steps:
       - uses: actions/checkout@v4
@@ -87,14 +87,20 @@ jobs:
           path: nupkg/*.nupkg
           if-no-files-found: error
 
-      - name: Push to GitHub Packages
+      - name: NuGet login (OIDC -> temporary API key)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: RomanyPe
+
+      - name: Push to nuget.org
         shell: bash
         run: |
           set -euo pipefail
           for nupkg in nupkg/*.nupkg; do
             echo "--- pushing: $(basename "$nupkg") ---"
             dotnet nuget push "$nupkg" \
-              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-              --api-key "${{ secrets.GITHUB_TOKEN }}" \
+              --source "https://api.nuget.org/v3/index.json" \
+              --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
               --skip-duplicate
           done
