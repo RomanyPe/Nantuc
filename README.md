@@ -1,6 +1,6 @@
 ﻿# Nantuc — README
 
-[Русская версия](README.md)
+[Русская версия](README.ru.md)
 
 > Platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and public API for embedding.
 > **Project version:** current project version is specified in `CHANGELOG.md`, semver guaranteed.
