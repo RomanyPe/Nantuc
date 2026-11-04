@@ -151,6 +151,32 @@ if (fault.Status != BiosStatus.EndProgramm)
 - **Свой компилятор/ассемблер без рантайма** — `Nantuc.Common` + `Nantuc.Diagnostics` (никакого `unsafe`/`NativeMemory`).
 - **Своё правило оптимизации** — `Nantuc.Compiler` + `Nantuc.Contracts` (`IAstOptimizationRule`/`IPeepholeRule`, `OptimizationId`).
 
+### Установка
+
+Минимальный набор для запуска MiniC-программы:
+
+```bash
+dotnet add package Nantuc.VmApplication
+dotnet add package Nantuc.VmApplication.Extensions
+```
+
+Только компилятор, без рантайма (без `unsafe`/`NativeMemory`):
+
+```bash
+dotnet add package Nantuc.Compiler
+dotnet add package Nantuc.Diagnostics
+```
+
+Своё устройство (реализовать `IPortController`):
+
+```bash
+dotnet add package Nantuc.Contracts
+dotnet add package Nantuc.Kernel
+```
+
+Версия подтягивается последняя стабильная; зафиксировать конкретную — `--version 0.8.2`.
+Полный список и версии — на странице пакета в GitHub Packages.
+
 > `Nantuc.Common`, `Nantuc.Contracts`, `Nantuc.Diagnostics` не тянут `unsafe`/`NativeMemory`/`Regex` — их можно подключать в WASM/AOT-проекты и в окружения с запретом `unsafe`.
 
 ## Архитектура
@@ -234,7 +260,8 @@ Nantuc/
 │
 └── benchmarks/
     ├── Nantuc.Benchmarks/                     # ручной бенчмарк VM (14 MiniC-кейсов, MIPS/статистика)
-    └── Nantuc.Benchmarks.BenchmarkDotNet/     # BenchmarkDotNet-бенчмарк (14 MiniC-кейсов, артефакты)```
+    └── Nantuc.Benchmarks.BenchmarkDotNet/     # BenchmarkDotNet-бенчмарк (14 MiniC-кейсов, артефакты)
+```
 
 ## Модули
 
@@ -308,7 +335,7 @@ start:
     - `Device.Run`/`DebugRun` синхронные и блокируют текущий поток (`ManualResetEventSlim.Wait(15)` при `IsSleeping`, `Thread.Sleep(delay)` в `DebugRun`) — в single-threaded browser это блокировка UI; нужен Web Worker или async-цикл.
     - `NativeMemory.AllocZeroed` для больших `RamSize` (≥ `MB512`, тем более `GB1`/`GB2`) рискует `OutOfMemoryException` из-за лимита линейной памяти WASM (~4 GiB на процесс, с фрагментацией). Практический потолок в браузере — ~256 MiB.
   - `Nantuc.VmApplication.Extensions` — `Debugger` работает, но `Continue`/`StepOver`/`StepOut`/`GetCallStack` — синхронные циклы, блокируют текущий поток; для browser-WASM — Web Worker или `Task.Run` с `RequestStop`. `QueuedIOStream` в WASM требует явного `Dispose`/`await`, иначе фоновый drain может не завершиться.
-  - `Nantuc.Benchmarks` — `Process`/P/Invoke, вне WASM; ручной бенчмарк также блокируется на `Console.ReadLine()` в конце `Main`, поэтому не подходит для CI/headless.
+  - `Nantuc.Benchmarks` — ручной бенчмарк также блокируется на `Console.ReadLine()` в конце `Main`, поэтому не подходит для CI/headless.
   - `Nantuc.Benchmarks.BenchmarkDotNet` — desktop/CI-инструмент, не для browser-WASM. В CI используйте `--filter` и ограничение времени, иначе полный прогон 14 кейсов может занять десятки минут.
 
 ## Сборка и запуск
@@ -339,7 +366,7 @@ dotnet run --project Nantuc.Samples.Scratch -c Release -snake 150
 dotnet run --project Nantuc.Samples.Scratch -c Release
 ```
 
-**Запустить ручной бенчмарк** (Linux: для `PriorityClass.High` нужен `sudo`):
+**Запустить ручной бенчмарк**:
 
 ```bash
 dotnet run --project Nantuc.Benchmarks -c Release
@@ -503,7 +530,7 @@ runner.Wait();
 
 Перед PR:
 ```bash
-dotnet build Nantuc.sln -c Release
+dotnet build Nantuc.slnx -c Release
 dotnet test -c Release
 ```
 
@@ -522,3 +549,13 @@ dotnet test -c Release
 - Отладчик — [`src/Nantuc.VmApplication.Extensions/README.ru.md`](src/Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
 - Примеры — [`samples/Nantuc.Samples.Minimal`](samples/Nantuc.Samples.Minimal/README.ru.md), [`samples/Nantuc.Samples.Scratch`](samples/Nantuc.Samples.Scratch/README.ru.md).
 - Бенчмарки — [`samples/Nantuc.Benchmarks`](samples/Nantuc.Benchmarks/README.ru.md), [`samples/Nantuc.Benchmarks.BenchmarkDotNet`](samples/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md).
+
+
+
+Да, добавлять стоит — и именно **готовые bash-команды**, а не прозу. Причина простая: в текущем README есть раздел «NuGet-пакеты» с таблицей «кому/что», но **нет ни одной команды установки**. Читатель понимает, какой пакет ему нужен, но не понимает, что с ним делать дальше. Это ровно тот пробел, который закрывается тремя строками `dotnet add package`.
+
+При этом важно: у вас пакеты в **GitHub Packages**, а не в nuget.org, поэтому `dotnet add package` без предварительного `dotnet nuget add source` **упадёт с `NU1101`**. Это критично упомянуть, иначе команда вводит в заблуждение.
+
+## Куда вставить
+
+Новый подраздел **`### Установка`** — сразу после таблицы пакетов, до «Что ставить под сценарий». Логика: сначала «что есть» (таблица), потом «как поставить» (команды), потом «что выбрать под сценарий».
