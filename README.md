@@ -1,6 +1,6 @@
 ﻿# Nantuc — README
 
-[Русская версия](README.ru.md)
+[Русская версия](README.md)
 
 > Platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and public API for embedding.
 > **Project version:** current project version is specified in `CHANGELOG.md`, semver guaranteed.
@@ -210,9 +210,7 @@ Nantuc/
 ├── .gitignore
 ├── Directory.Build.props
 ├── README.md
-├── README.ru.md
 ├── CHANGELOG.md
-├── CHANGELOG.ru.md
 ├── LICENSE
 ├── Nantuc.slnx
 │
@@ -518,7 +516,7 @@ See the [`LICENSE`](LICENSE) file in the repository root.
 - Bytecode specification — [`docs/bytecode.md`](docs/bytecode.md).
 - Error code reference — [`docs/error-codes.md`](docs/error-codes.md).
 - Code metrics — [`docs/METRICS.md`](docs/METRICS.md).
-- Built-in MiniC/NANASM libraries — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.md).
-- Debugger — [`Nantuc.VmApplication.Extensions/README.md`](Nantuc.VmApplication.Extensions/README.md#debugger).
-- Examples — [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md), [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.md).
-- Benchmarks — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.md), [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet/README.md).
+- Built-in MiniC/NANASM libraries — [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md).
+- Debugger — [`src/Nantuc.VmApplication.Extensions/README.md`](src/Nantuc.VmApplication.Extensions/README.md#отладчик).
+- Samples — [`samples/Nantuc.Samples.Minimal`](samples/Nantuc.Samples.Minimal/README.md), [`samples/Nantuc.Samples.Scratch`](samples/Nantuc.Samples.Scratch/README.md).
+- Benchmarks — [`benchmarks/Nantuc.Benchmarks`](benchmarks/Nantuc.Benchmarks/README.md), [`benchmarks/Nantuc.Benchmarks.BenchmarkDotNet`](benchmarks/Nantuc.Benchmarks.BenchmarkDotNet/README.md).
