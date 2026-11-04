@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<ProjectReference Include="..\Nantuc.Kernel.Common\Nantuc.Kernel.Common.csproj" />
-	<ProjectReference Include="..\Nantuc.Kernel.Contracts\Nantuc.Kernel.Contracts.csproj" />
+	<ProjectReference Include="..\Nantuc.Common\Nantuc.Common.csproj" />
+	<ProjectReference Include="..\Nantuc.Contracts\Nantuc.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

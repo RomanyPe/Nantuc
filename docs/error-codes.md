@@ -47,7 +47,7 @@
 | 1400–1499 | Assembler | 5 | stable |
 | 1500+ | — | 0 | free |
 
-**37** codes are defined in total.
+**38** codes are defined in total.
 
 ---
 
@@ -83,6 +83,7 @@
 | `Parser_StructNotDefined` | 1206 | `Struct '{0}' is not defined` | An undeclared struct is used. |
 | `Parser_InvalidCharLiteral` | 1207 | `Char literal '{0}' is invalid` | The character literal is empty or too long. |
 | `Parser_IncludeAmbiguous` | 1208 | `The file {0} exists in both {1} and {2}; please select a specific file.` | `include` found multiple candidates with the same name. Placeholders: file, path 1, path 2. |
+| `Parser_IncludeNotFound` | 1209 | `The file {0} not found in "{1}" and "{2}"` | The `include` was not found in the project files or the `include` folder |
 
 > **Note:** `Parser_IncludeAmbiguous` is the only template with three
 > path placeholders. When overriding it, do not lose the third one.

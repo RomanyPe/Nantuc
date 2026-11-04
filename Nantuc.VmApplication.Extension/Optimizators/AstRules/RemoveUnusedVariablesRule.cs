@@ -1,6 +1,6 @@
 ﻿using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.Optimizators;
-using Nantuc.Kernel.Contracts;
+using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.AstRules;
 

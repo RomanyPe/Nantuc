@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Common;
+﻿using Nantuc.Common;
 using System.Runtime.CompilerServices;
 
 namespace Nantuc.VmApplication.Emulator;

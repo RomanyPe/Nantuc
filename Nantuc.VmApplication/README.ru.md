@@ -2,8 +2,8 @@
 
 > Основной API платформы: компиляция проекта в байткод, запуск VM, управление устройствами и пошаговое исполнение.  
 > Единственный модуль, предназначенный для встраивания Nantuc в приложение (IDE, REPL, CI, игровой хост).  
-> Зависит от `[Kernel](../Nantuc.Kernel/README.ru.md)`, `[Kernel.Contracts](../Nantuc.Kernel.Contracts/README.ru.md)` и `[Compiler](../Nantuc.Compiler/README.ru.md)`.  
-> `[← Корень](../README.ru.md) · [Common](../Nantuc.Kernel.Common/README.ru.md) · [Contracts](../Nantuc.Kernel.Contracts/README.ru.md) · [Diagnostics](../Nantuc.Kernel.Diagnostics/README.ru.md) · [Kernel](../Nantuc.Kernel/README.ru.md) · [Compiler](../Nantuc.Compiler/README.ru.md)`
+> Зависит от `[Kernel](../Nantuc.Kernel/README.ru.md)`, `[Contracts](../Nantuc.Contracts/README.ru.md)` и `[Compiler](../Nantuc.Compiler/README.ru.md)`.  
+> `[← Корень](../README.ru.md) · [Common](../Nantuc.Common/README.ru.md) · [Contracts](../Nantuc.Contracts/README.ru.md) · [Diagnostics](../Nantuc.Diagnostics/README.ru.md) · [Kernel](../Nantuc.Kernel/README.ru.md) · [Compiler](../Nantuc.Compiler/README.ru.md)`
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -27,7 +27,7 @@
 
 Ключевая архитектурная особенность: VM — это тоже устройство на port-шине. `VmEmulator.TryRegisterDevice(DeviceSpec, sector)` создаёт `Device` из ядра и регистрирует его как `IPortController`. Один эмулятор может держать несколько VM, и они общаются через порты, как обычные устройства (композиция VM внутри VM). `DeviceContext` — удобное окно к конкретному `Device` без прямого доступа к `Nantuc.Kernel`.
 
-Модуль таргетит `net10.0` и включает `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>`, потому что внутри вызывает `Nantuc.Kernel` (нативные буферы), но сам unsafe-кода не содержит — только расширения в `Nantuc.VmApplication.Unsafe` дают escape hatch к `Device`/`PortBus`/`CompileInternal`.
+Модуль таргетит `net10.0`
 
 API следует паттерну «Try + IdState + ProcessorFault»:
 - `TryRegisterDevice` / `TryGetDeviceContext` — без `!` и магических `-1..-4`.
@@ -54,7 +54,7 @@ Nantuc.VmApplication/
 │   ├── DeviceContext.cs                # окно к Device: Run/Step/Load/Ports/Registers/GetLastFault/Pause/Resume
 │   ├── LaunchOptions.cs                # LaunchOptions / LaunchOptionsDebug
 │   ├── SnapshotRegisters.cs            # readonly struct с InlineArray[32]
-│   ├── VmEmulator.cs                   # обёртка Kernel.Utilites.Emulator + DeviceSpec
+│   ├── VmEmulator.cs                   # обёртка Utilites.Emulator + DeviceSpec
 │   └── VmEmulatorBuilder.cs            # fluent: WithPortBusSize / WithPortsPerDevice
 ├── Project/                            (namespace Nantuc.VmApplication.Project)
 │   ├── CompilationResult.cs            # byte[] + метрики секций + ошибки
@@ -118,12 +118,12 @@ using var host = VmHostFactory.CreateDefault();
 - `portBusSize` — размер порт-пространства (`PortSize.KB64`).
 - `portsPerDevice` — размер блока портов на устройство (`DevicePortSize.B16`).
 
-`VmHost.Dispose()` освобождает только `Emulator` (внутри — `Kernel.Utilites.Emulator.Dispose`), но не `Project` — `VmHostProject` не `IDisposable`.
+`VmHost.Dispose()` освобождает только `Emulator` (внутри — `Utilites.Emulator.Dispose`), но не `Project` — `VmHostProject` не `IDisposable`.
 
 ### VmEmulator и VmEmulatorBuilder — исполнение
 
 ```csharp
-public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
+public sealed class VmEmulator(Utilites.Emulator emulator) : IDisposable
 {
     public IPortBus GetPortBus();
     public bool ChangeDeviceSector(int id, uint newSector);
@@ -429,7 +429,7 @@ public static class VmPtojectUnsafeExtension
 **Полный цикл с безопасным API:**
 
 ```csharp
-using Nantuc.Kernel.Common;
+using Nantuc.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Project;
@@ -569,7 +569,7 @@ var state = host.Emulator.TryRegisterDevice(uart, name: "UART0", sector: 1, out 
 
 ```csharp
 using Nantuc.Compiler.C.Optimizators;
-using Nantuc.Kernel.Contracts;
+using Nantuc.Contracts;
 
 public sealed class MyRule : IAstOptimizationRule
 {
@@ -593,7 +593,7 @@ using var host = VmHostFactory.CreateDefault(optimizator: optimizator);
 **Своя политика исключений компилятора:**
 
 ```csharp
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Diagnostics;
 
 IErrorMessageProvider myProvider = /* ... */;
 using var host = VmHostFactory.CreateDefault(provider: myProvider);
@@ -661,7 +661,7 @@ var project = new VmHostProjectBuilder()
 
 ### Почему VM — это устройство
 
-`VmEmulator.TryRegisterDevice(DeviceSpec, sector)` создаёт `Kernel.BiosSystem.Device` и регистрирует его как `IPortController` в `PortBus`. `Device` реализует `IPortController` (для внешней port-шины) и держит собственный `PortBus` (внутренняя шина VM). Внешняя VM может слать `OUT`/`IN` по сектору внутренней VM — и наоборот. `DeviceContext.ReadPort(offset)` читает собственные порты VM.
+`VmEmulator.TryRegisterDevice(DeviceSpec, sector)` создаёт `BiosSystem.Device` и регистрирует его как `IPortController` в `PortBus`. `Device` реализует `IPortController` (для внешней port-шины) и держит собственный `PortBus` (внутренняя шина VM). Внешняя VM может слать `OUT`/`IN` по сектору внутренней VM — и наоборот. `DeviceContext.ReadPort(offset)` читает собственные порты VM.
 
 ### Режимы `DeviceContext`
 

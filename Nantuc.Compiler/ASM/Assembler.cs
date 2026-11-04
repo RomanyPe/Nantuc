@@ -1,5 +1,5 @@
 ﻿using Nantuc.Compiler.ASM.Base;
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Diagnostics;
 
 namespace Nantuc.Compiler.ASM;
 

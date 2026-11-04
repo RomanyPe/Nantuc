@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Diagnostics;
+﻿using Nantuc.Diagnostics;
 
 namespace Nantuc.Compiler.ASM.Base;
 

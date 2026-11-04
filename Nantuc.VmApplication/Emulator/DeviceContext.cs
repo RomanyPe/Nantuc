@@ -1,7 +1,7 @@
-﻿using Nantuc.Compiler.ASM.Utils;
+﻿using Nantuc.Common;
+using Nantuc.Compiler.ASM.Utils;
+using Nantuc.Contracts;
 using Nantuc.Kernel.BiosSystem;
-using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
 using Nantuc.VmApplication.Project;
 using System.Diagnostics.CodeAnalysis;
 

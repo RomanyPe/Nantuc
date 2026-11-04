@@ -1,6 +1,6 @@
 ﻿using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.CodeGenerator;
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Diagnostics;
 
 namespace Nantuc.Compiler.C;
 

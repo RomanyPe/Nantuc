@@ -1,5 +1,5 @@
-﻿using Nantuc.Compiler.C.AST;
-using Nantuc.Kernel.Common;
+﻿using Nantuc.Common;
+using Nantuc.Compiler.C.AST;
 
 namespace Nantuc.Compiler.C.CodeGenerator;
 

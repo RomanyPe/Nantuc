@@ -1,7 +1,7 @@
 # Nantuc.Compiler — README
 
 > MiniC → Nantuc bytecode compiler: lexer, parser, AST, code generator with register coloring, assembler (two backends — direct and IR) and optimization infrastructure.
-> `[← Root](../README.md) · [Common](../Nantuc.Kernel.Common/README.md) · [Contracts](../Nantuc.Kernel.Contracts/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
+> `[← Root](../README.md) · [Common](../Nantuc.Common/README.md) · [Contracts](../Nantuc.Contracts/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
 
 ## Table of contents
 - [About this module](#about-this-module)
@@ -229,8 +229,8 @@ using Nantuc.Compiler.C;
 using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizators;
 using Nantuc.Compiler.ASM.IR;
-using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Common;
+using Nantuc.Diagnostics;
 
 var throwCompiler = new ThrowCompiler();
 string source = """
@@ -367,7 +367,7 @@ Medium. The MiniC user works with the compiler through `VmApplication` (e.g., `V
 | `stackalloc` / `InlineArray` | ✅ | `stackalloc byte[pad]` in `Assembler.Align8` — bounded 0..7 bytes, WASM-safe. |
 | `Interlocked` / `Volatile` | ✅ | Not used. |
 | `System.Collections.Frozen` | ✅ | `FrozenSet` in `MiniCLanguageDefinition` and `AsmLanguageDefinition`. AOT-friendly. |
-| `RegexOptions.Compiled` | ❌ | `MiniCLanguageDefinition._keywordRegex = new(GetKeywordPattern(), RegexOptions.Compiled);` — **throws `PlatformNotSupportedException` on browser-wasm AOT**. Also the regex is dead code. |
+| `RegexOptions.None` | ✅ | generated via `[GeneratedRegex(KeywordPattern, RegexOptions.None)]` |
 | `[GeneratedRegex]` | ✅ | `AssemblerParser.GetRexExtensionAsm()` — AOT-safe. |
 | `Regex` without `Compiled` | ✅ | `AsmLanguageDefinition._mnemonicsRegex`/`regex` — `RegexOptions.IgnoreCase` without `Compiled`, works in AOT. |
 | `Enum.ToString()` | ⚠️ | **Removed from diagnostics** — replaced by `TokenTypeExtension.AsText` and `OpCode.OpName()` (manual switches) [FIX]. In other places (`ErrorCode` as a key) — does not leak. |
@@ -472,7 +472,7 @@ CodeGen_AssignmentToConst = 1316,   // "Cannot assign to const '{0}'"
 CodeGen_IncrementOfConst  = 1317,   // "Cannot increment/decrement const '{0}'"
 ```
 
-Both templates are registered in `DefaultErrorMessageProvider` (`Nantuc.Kernel.Diagnostics`).
+Both templates are registered in `DefaultErrorMessageProvider` (`Nantuc.Diagnostics`).
 
 **What is NOT supported (deliberately)**
 

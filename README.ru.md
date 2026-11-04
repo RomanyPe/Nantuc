@@ -8,11 +8,11 @@ Nantuc — это мини-фреймворк, в котором есть всё
 лексер, парсер, AST-оптимизатор, кодогенератор в байткод, ассемблер (текстовый и IL),
 виртуальная машина с регистрами, памятью и порт-шиной, дизассемблер, отладчик,
 I/O-устройства и API для встраивания в приложение.
-В репозитории есть вывод Hello world на MiniC, играбельная змейка на MiniC, тест аллокатора и бенчмарк VM.
+В репозитории есть вывод Hello world на MiniC, играбельная змейка на MiniC, тест аллокатора и два бенчмарка VM.
 
 ## Качество кода
 - ~20 000 строк, 11 проектов
-- ~17 000 строк, 7 проектов (без двух примеров, тестов, бенчмарка)
+- ~17 000 строк, 7 проектов (ядро и API, без двух примеров, тестов и двух бенчмарков)
 - Индекс поддерживаемости: 80–97 (основные модули)
 - Полная таблица метрик: [docs/METRICS.md](docs/METRICS.md)
 
@@ -29,9 +29,9 @@ I/O-устройства и API для встраивания в приложе�
 - [Сборка и запуск](#сборка-и-запуск)
 - [Примеры](#примеры)
 - [Метрики и качество](#метрики-и-качество)
-- [Статус и планы](#статус-и-планы)
 - [Вклад](#вклад)
 - [Лицензия](#лицензия)
+- [Ссылки](#ссылки)
 
 ## Ключевые особенности
 
@@ -44,7 +44,7 @@ I/O-устройства и API для встраивания в приложе�
 - **Дизассемблер** с секциями кода и данных, текстовый и структурный.
 - **Отладчик** (`Debugger`) поверх `DeviceContext`: `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, точки останова, `RequestStop` из другого потока, best-effort стек вызовов, чтение RAM (`ReadUInt16/32/64`, `ReadCString`), дизассемблирование текущей инструкции через `StringDisassembler`. Без `AsRawDevice` и `unsafe` — только публичный API `DeviceContext`.
 - **Стандартные оптимизации** (AST и peephole) и инфраструктура для своих правил.
-- **Бенчмарк** с 12 кейсами: память (safe/unsafe), ALU (ILP и без), вызовы, стек, битовые операции, умножение, ветвления. MIPS, перцентили, CV, JIT-impact.
+- **Два бенчмарка**: ручной `Nantuc.Benchmarks` (MIPS, стабильность, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` (BenchmarkDotNet, аллокации, статистика, артефакты) на **14 MiniC-кейсах**: вызовы, ALU/ILP, память, битовые операции, умножение, ветвления, деление, рекурсия, указатели, структуры, сортировка.
 
 ## Безопасный API
 
@@ -60,8 +60,8 @@ I/O-устройства и API для встраивания в приложе�
 | Пауза/возобновление | — (было только `Stop`) | `Pause()` / `Resume()` — queue-based, безопасно из другого потока |
 | Пошаговое исполнение | — | `Debugger` (в `VmApplication.Extensions`) поверх `RunStepMode`/`SingleStep` |
 
-- **`IdState`** (`Nantuc.Kernel.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). Возвращается из `ManagerDevices.TryAddDevice` (и из `Emulator.RegisterDevice`/`Emulator.TryRegisterDevice`). `default(IdState) == Unknown`, чтобы неинициализированный статус не воспринимался как успешный; **не полагайтесь на `default(IdState) == Valid`** — это изменилось.
-- **`ProcessorFault`** (`Nantuc.Kernel.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. На успехе `Status == EndProgramm`; на падении — `DivOnZero`/`SegmentationFault`/… с точным `IP` и `OpCode`.
+- **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). Возвращается из `ManagerDevices.TryAddDevice` (и из `Emulator.RegisterDevice`/`Emulator.TryRegisterDevice`). `default(IdState) == Unknown`, чтобы неинициализированный статус не воспринимался как успешный; **не полагайтесь на `default(IdState) == Valid`** — это изменилось.
+- **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. На успехе `Status == EndProgramm`; на падении — `DivOnZero`/`SegmentationFault`/… с точным `IP` и `OpCode`.
 - **`IProcessorFaultPolicy`** — используется **внутри** VM для решения «продолжать ли». Возврат из `Run`/`DebugRun` — это уже `ProcessorFault`, отдельная политика не нужна.
 - **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — не добавляет новых контрактов в `Kernel`/`VmApplication`, работает через `DeviceContext.RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. Поставляется с `DebugStop`, `DebugStopReason`, `CallStackFrame`.
 
@@ -70,7 +70,7 @@ I/O-устройства и API для встраивания в приложе�
 Минимальный пример — компиляция и запуск `Hello world` на MiniC с выводом через UART, с безопасной проверкой каждого шага:
 
 ```csharp
-using Nantuc.Kernel.Common;
+using Nantuc.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Emulator.IO;
@@ -135,78 +135,82 @@ if (fault.Status != BiosStatus.EndProgramm)
 Слои идут снизу вверх. Каждый следующий зависит только от предыдущих, обратных зависимостей нет.
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│  Nantuc.Samples.Minimal   Nantuc.Samples.Scratch   Nantuc.Benchmarks  │
-│  (примеры и конечные продукты)                                       │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  Nantuc.Samples.Minimal   Nantuc.Samples.Scratch                                 │
+│  Nantuc.Benchmarks        Nantuc.Benchmarks.BenchmarkDotNet                      │
+│  (примеры, конечные продукты и бенчмарки)                                        │
+└──────────────────────────────────────────────────────────────────────────────────┘
                               │
-┌──────────────────────────────────────────────────────────────────────┐
-│  Nantuc.VmApplication.Extensions                                     │
-│  (дизассемблер, отладчик, I/O, стандартные оптимизации,              │
-│   библиотеки, утилиты)                                               │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  Nantuc.VmApplication.Extensions                                                 │
+│  (дизассемблер, отладчик, I/O, стандартные оптимизации,                          │
+│   библиотеки, утилиты компиляции и запуска)                                      │
+└──────────────────────────────────────────────────────────────────────────────────┘
                               │
-┌──────────────────────────────────────────────────────────────────────┐
-│  Nantuc.VmApplication                                                │
-│  (VmHost, DeviceContext, VmEmulator, VmHostProject, CompilationResult)│
-│  TryRegisterDevice / TryGetDeviceContext / Run → ProcessorFault       │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  Nantuc.VmApplication                                                            │
+│ (VmHost, DeviceContext, VmEmulator, VmHostProject, CompilationResult)            │
+│  TryRegisterDevice / TryGetDeviceContext / Run → ProcessorFault                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
               │                                │
-┌──────────────────────────┐    ┌──────────────────────────────────────┐
-│  Nantuc.Compiler         │    │  Nantuc.Kernel                       │
-│  (MiniC + NANASM)        │    │  (Processor, MemoryBus, PortBus,     │
-│  Assembler / ILAssembler │    │   Device, ManagerDevices)            │
-└──────────────────────────┘    └──────────────────────────────────────┘
+┌──────────────────────────┐    ┌──────────────────────────────────────────────────┐
+│  Nantuc.Compiler         │    │  Nantuc.Kernel                                   │
+│  (MiniC + NANASM)        │    │  (Processor, MemoryBus, PortBus,                 │
+│  Assembler / ILAssembler │    │   Device, ManagerDevices)                        │
+└──────────────────────────┘    └──────────────────────────────────────────────────┘
               │                                │
-┌──────────────────────────────────────────────────────────────────────┐
-│  Nantuc.Kernel.Contracts                                             │
-│  (IPortBus, IPortUse, IPortController, ProcessorSnapshot, ...)       │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  Nantuc.Contracts                                                                │
+│  (IPortBus, IPortUse, IPortController, ProcessorSnapshot, ...)                   │
+└──────────────────────────────────────────────────────────────────────────────────┘
               │                                │
-┌──────────────────────────────────────────────────────────────────────┐
-│  Nantuc.Kernel.Common            Nantuc.Kernel.Diagnostics           │
-│  (ISA, размеры, BiosStatus,      (ErrorCode, DiagnosticData,         │
-│   ProcessorFault, IdState)        ThrowCompiler)                     │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│  Nantuc.Common            Nantuc.Diagnostics                                     │
+│  (ISA, размеры, BiosStatus,      (ErrorCode, DiagnosticData,                     │
+│   ProcessorFault, IdState)        ThrowCompiler)                                 │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Обратите внимание:
-- **`Kernel.Diagnostics` не зависит ни от одного проекта Nantuc.** Автор компилятора не тянет unsafe-ядро ради кодов ошибок.
-- **Компилятор не зависит от рантайма.** `Nantuc.Compiler` знает только про `Kernel.Common` (ISA), `Kernel.Contracts` (типы оптимизаций) и `Kernel.Diagnostics` (ошибки). Ни `Processor`, ни `MemoryBus` он не видит.
-- **`IdState` живёт в `Kernel.Common`**, а не в `VmApplication`: `Kernel` (где `ManagerDevices`) не может зависеть от `VmApplication`, а `Common` — единственный слой, видимый и `Kernel`, и `VmApplication`, и `Extensions`.
+- **`Diagnostics` не зависит ни от одного проекта Nantuc.** Автор компилятора не тянет unsafe-ядро ради кодов ошибок.
+- **Компилятор не зависит от рантайма.** `Nantuc.Compiler` знает только про `Common` (ISA), `Contracts` (типы оптимизаций) и `Diagnostics` (ошибки). Ни `Processor`, ни `MemoryBus` он не видит.
+- **`IdState` живёт в `Common`**, а не в `VmApplication`: `Kernel` (где `ManagerDevices`) не может зависеть от `VmApplication`, а `Common` — единственный слой, видимый и `Kernel`, и `VmApplication`, и `Extensions`.
 - **VMApplication — единственный модуль, который одновременно знает про компилятор и рантайм.** Он склеивает «скомпилировать» и «запустить».
 - **Отладчик живёт в `VmApplication.Extensions`**, а не в `VmApplication`/`Kernel`: он использует только публичный API (`RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`) и не требует `AsRawDevice`/`unsafe`. Это сохраняет разделение «ядро ничего не знает про UI отладчика».
+- **Бенчмарки живут на самом верхнем слое.** Ручной `Nantuc.Benchmarks` и `Nantuc.Benchmarks.BenchmarkDotNet` используют публичный API `VmApplication`/`Extensions` и не трогают `Kernel` напрямую.
 
 ## Структура репозитория
 
 ```
 Nantuc/
-├── Nantuc.Kernel.Common/              # ISA, размеры, BiosStatus, ProcessorFault, IdState
-├── Nantuc.Kernel.Contracts/           # публичные контракты (порты, процессор)
-├── Nantuc.Kernel.Diagnostics/         # ErrorCode, DiagnosticData, ThrowCompiler, CodeException
+├── Nantuc.Common/                     # ISA, размеры, BiosStatus, ProcessorFault, IdState
+├── Nantuc.Contracts/                  # публичные контракты (порты, процессор)
+├── Nantuc.Diagnostics/                # ErrorCode, DiagnosticData, ThrowCompiler, CodeException
 ├── Nantuc.Kernel/                     # реализация CPU, RAM, PortBus, Device
 ├── Nantuc.Compiler/                   # MiniC + NANASM (frontend, backend, ASM, оптимизации)
 ├── Nantuc.VmApplication/              # основной API (TryRegisterDevice, TryGetDeviceContext, Run → ProcessorFault)
 ├── Nantuc.VmApplication.Extensions/   # дизассемблер, отладчик, I/O, оптимизации, библиотеки
 ├── Nantuc.Samples.Minimal/            # Hello world
 ├── Nantuc.Samples.Scratch/            # тест аллокатора + змейка
-└── Nantuc.Benchmarks/                 # бенчмарк VM
+├── Nantuc.Benchmarks/                 # ручной бенчмарк VM (14 MiniC-кейсов, MIPS/статистика)
+└── Nantuc.Benchmarks.BenchmarkDotNet/ # BenchmarkDotNet-бенчмарк (14 MiniC-кейсов, артефакты)
 ```
 
 ## Модули
 
 | Модуль | Назначение | Кому |
 |---|---|---|
-| [`Nantuc.Kernel.Common`](Nantuc.Kernel.Common/README.ru.md) | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState` (`Unknown` = 0, default-safe), декодер инструкций | Авторы компилятора, расширений, дизассемблера |
-| [`Nantuc.Kernel.Contracts`](Nantuc.Kernel.Contracts/README.ru.md) | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorFaultPolicy`, `OptimizationId` | Авторы устройств и расширений |
-| [`Nantuc.Kernel.Diagnostics`](Nantuc.Kernel.Diagnostics/README.ru.md) | `ErrorCode`, `DiagnosticData`, `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | Авторы компилятора, IDE, CI |
+| [`Nantuc.Common`](Nantuc.Common/README.ru.md) | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState` (`Unknown` = 0, default-safe), декодер инструкций | Авторы компилятора, расширений, дизассемблера |
+| [`Nantuc.Contracts`](Nantuc.Contracts/README.ru.md) | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorFaultPolicy`, `OptimizationId` | Авторы устройств и расширений |
+| [`Nantuc.Diagnostics`](Nantuc.Diagnostics/README.ru.md) | `ErrorCode`, `DiagnosticData`, `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | Авторы компилятора, IDE, CI |
 | [`Nantuc.Kernel`](Nantuc.Kernel/README.ru.md) | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | Встраивающий код, автор отладчика |
-| [`Nantuc.Compiler`](Nantuc.Compiler/README.ru.md) | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer` | Автор IDE, автор правил оптимизации |
+| [`Nantuc.Compiler`](Nantuc.Compiler/README.ru.md) | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer`, `const`-correctness | Автор IDE, автор правил оптимизации |
 | [`Nantuc.VmApplication`](Nantuc.VmApplication/README.ru.md) | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | Конечный пользователь платформы |
 | [`Nantuc.VmApplication.Extensions`](Nantuc.VmApplication.Extensions/README.ru.md) | Дизассемблер, `Debugger` (шаг, точки останова, стек, RAM), `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | Автор IDE, автор игр, автор своих оптимизаций |
 | [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.ru.md) | Минимальный Hello world | Новый пользователь |
 | [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.ru.md) | Тест аллокатора + змейка с монитором | Пример игрового цикла и I/O |
-| [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.ru.md) | Бенчмарк 12 кейсов с MIPS и статистикой | Автор ядра/компилятора |
+| [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.ru.md) | Ручной бенчмарк 14 MiniC-кейсов: MIPS, стабильность, перцентили, CV, JIT-impact | Автор ядра/компилятора |
+| [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md) | BenchmarkDotNet-бенчмарк 14 MiniC-кейсов: время, аллокации, статистика, артефакты | Автор ядра/компилятора |
 
 ## Языки и ISA
 
@@ -251,20 +255,21 @@ start:
 
 - 8 бит на опкод, 5 бит на регистр (32 регистра: `r0..r27`, `rFL`, `rSP`, `rHP`, `rIP`), 2 бита на размер (`S8`/`S16`/`S32`/`S64`).
 - Опкоды с immediate дополняются 8-байтным операндом с выравниванием до 8.
-- Полная спецификация — в [`Nantuc.Kernel.Common`](Nantuc.Kernel.Common/README.ru.md) и [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
+- Полная спецификация — в [`Nantuc.Common`](Nantuc.Common/README.ru.md) и [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
 
 ## Требования
 
 - **.NET 10 SDK**. Все проекты таргетят `net10.0`.
 - **C# 14**: `extension`-блоки, `[InlineArray]`, `params ReadOnlySpan`, `field`-keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
 - **Windows / Linux / macOS / AoT** (другие платформы не тестировались, но Nantuc не привязан к конкретной платформе). В WASM есть ограничения по модулям:
-  - `Kernel.Common` / `Kernel.Contracts` / `Kernel.Diagnostics` — полностью WASM-safe (managed, без `unsafe`, без рефлексии).
-  - `Nantuc.Compiler` — `[GeneratedRegex]` в `AssemblerParser.GetRexExtensionAsm()` — AOT-safe. `MiniCLanguageDefinition._keywordRegex` пока использует `RegexOptions.Compiled` и является WASM-blocker на browser-wasm AOT (см. [Compiler README](Nantuc.Compiler/README.ru.md), «Что исправить»).
+  - `Common` / `Contracts` / `Diagnostics` — полностью WASM-safe (managed, без `unsafe`, без рефлексии). `DiagnosticData` и `TokenTypeExtension.AsText` специально сделаны AOT-safe.
+  - `Nantuc.Compiler` — `[GeneratedRegex]` в `AssemblerParser.GetRexExtensionAsm()` AOT-safe; `MiniCLanguageDefinition.GetKeywordRegex()` — dead code с `RegexOptions.Compiled`, может быть AOT-blocker на browser-wasm. Для строгого AOT/WASM этот путь нужно убрать или заменить.
   - `Nantuc.Kernel` — `unsafe` и `NativeMemory.AllocZeroed`/`Free`/`Clear` поддерживаются WASM (линейная память emscripten), но:
     - `Device.Run`/`DebugRun` синхронные и блокируют текущий поток (`ManualResetEventSlim.Wait(15)` при `IsSleeping`, `Thread.Sleep(delay)` в `DebugRun`) — в single-threaded browser это блокировка UI; нужен Web Worker или async-цикл.
     - `NativeMemory.AllocZeroed` для больших `RamSize` (≥ `MB512`, тем более `GB1`/`GB2`) рискует `OutOfMemoryException` из-за лимита линейной памяти WASM (~4 GiB на процесс, с фрагментацией). Практический потолок в браузере — ~256 MiB.
-  - `Nantuc.VmApplication.Extensions` — `Debugger` работает, но `Continue`/`StepOver`/`StepOut`/`GetCallStack` — синхронные циклы, блокируют текущий поток; для browser-WASM — Web Worker или `Task.Run` с `RequestStop`.
-  - `Nantuc.Benchmarks` — `Process`/P/Invoke, вне WASM.
+  - `Nantuc.VmApplication.Extensions` — `Debugger` работает, но `Continue`/`StepOver`/`StepOut`/`GetCallStack` — синхронные циклы, блокируют текущий поток; для browser-WASM — Web Worker или `Task.Run` с `RequestStop`. `QueuedIOStream` в WASM требует явного `Dispose`/`await`, иначе фоновый drain может не завершиться.
+  - `Nantuc.Benchmarks` — `Process`/P/Invoke, вне WASM; ручной бенчмарк также блокируется на `Console.ReadLine()` в конце `Main`, поэтому не подходит для CI/headless.
+  - `Nantuc.Benchmarks.BenchmarkDotNet` — desktop/CI-инструмент, не для browser-WASM. В CI используйте `--filter` и ограничение времени, иначе полный прогон 14 кейсов может занять десятки минут.
 
 ## Сборка и запуск
 
@@ -283,7 +288,7 @@ dotnet run --project Nantuc.Samples.Minimal -c Release
 **Запустить змейку** (`Nantuc.Samples.Scratch` — `-snake <period>`):
 
 ```bash
-dotnet run --project Nantuc.Samples.Scratch -c Release -- -snake 150
+dotnet run --project Nantuc.Samples.Scratch -c Release -snake 150
 ```
 
 Или через профиль IDE `Game` из `launchSettings.json`. Управление: стрелки — движение, `Q`/`Escape` — выход.
@@ -294,13 +299,25 @@ dotnet run --project Nantuc.Samples.Scratch -c Release -- -snake 150
 dotnet run --project Nantuc.Samples.Scratch -c Release
 ```
 
-**Запустить бенчмарк** (Linux: для `PriorityClass.High` нужен `sudo`):
+**Запустить ручной бенчмарк** (Linux: для `PriorityClass.High` нужен `sudo`):
 
 ```bash
 dotnet run --project Nantuc.Benchmarks -c Release
 ```
 
 Результаты сохраняются в `Nantuc.Benchmarks/bin/.../logs/result_Benchmark_Logs_{timestamp}.txt`.
+
+**Запустить BenchmarkDotNet-бенчмарк:**
+
+```bash
+# Полный прогон (может быть долгим)
+dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release
+
+# Только выбранные кейсы
+dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *Call* *Memory*
+```
+
+Артефакты сохраняются в `BenchmarkDotNet.Artifacts/`: Markdown/CSV/HTML-отчёты и логи. Для точных цифр замените `[ShortRunJob]` на `[MediumRunJob]`/`[LongRunJob]`.
 
 ## Примеры
 
@@ -319,7 +336,7 @@ dotnet run --project Nantuc.Benchmarks -c Release
 ### Полный цикл с диагностикой
 
 ```csharp
-using Nantuc.Kernel.Common;
+using Nantuc.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Host;
@@ -348,7 +365,7 @@ if (fault.Status != BiosStatus.EndProgramm)
 ### Пошаговая отладка
 
 ```csharp
-using Nantuc.Kernel.Common;
+using Nantuc.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Debugging;
@@ -435,7 +452,7 @@ runner.Wait();
 - Безопасный публичный API: `TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`, `Run`/`DebugRun` → `ProcessorFault`, `Pause()`/`Resume()`, `IdState` (`default(IdState) == Unknown`, не `Valid`).
 - Публичный API (`VmHost`, `DeviceContext`, `VmHostProject`, `DeviceSpec`).
 - Примеры: Hello world, змейка, тест аллокатора.
-- Бенчмарк.
+- **Два бенчмарка**: ручной `Nantuc.Benchmarks` (14 MiniC-кейсов, MIPS, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` (14 MiniC-кейсов, BenchmarkDotNet, аллокации, артефакты).
 - AOT-friendly диагностика: `DiagnosticData` (без боксинга, без `Enum.ToString()`), `TokenTypeExtension.AsText` (ручной switch), `[GeneratedRegex]` в `AssemblerParser.GetRexExtensionAsm()`.
 - Частично реализована песочница: Nantuc VM из коробки работает только в полностью изолированной песочнице — может отправлять данные и получать их по запросу `IN`/`OUT`, без прямого доступа к памяти хоста.
 > Ограничение `IN`/`OUT` должно быть на вызывающем коде, а лучше всего — через маленькие короткие фасады.
@@ -445,14 +462,15 @@ runner.Wait();
 - Справочник кодов ошибок — [`docs/error-codes.ru.md`](docs/error-codes.ru.md).
 - Полная спецификация байткода — [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
 - Справочник по встроенным библиотекам — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md).
+- **Документация:** полный перевод всей документации проекта на английский.
+- Baseline/CI-профиль для `Nantuc.Benchmarks.BenchmarkDotNet` (фильтры, лимиты времени, сравнение версий).
 
 **В работе / планы:**
-- NuGet-пакеты для `Kernel.Common`, `Kernel.Contracts`, `Kernel.Diagnostics`, `Compiler`, `VmApplication`.
-- Публикация бенчмарков в BenchmarkDotNet-совместимом формате.
+- NuGet-пакеты для `Common`, `Contracts`, `Diagnostics`, `Compiler`, `VmApplication`.
 - Написание JIT-компилятора на `C` и `C++`, но это будет отдельный проект.
 - Миграция `Libraries.alloc_minic` и `LibCode.snake_minic` с глобалов на локалы (баг кодогенератора исправлен, workaround больше не обязателен; см. [STDLIBRARIES.ru.md](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)).
 - **Отладчик:** frame pointer в `Processor` для точного `GetCallStack` (сейчас — best-effort эвристика по `[rSP, RamSize)`), `Debugger.Reset()`/`Reload()` для повторного использования одного экземпляра, UI-панель для IDE (через `Stopped`-событие).
-- **Документация:** полный перевод всей документации проекта на английский
+
 ## Вклад
 
 Проект открыт для issues и pull request'ов.
@@ -479,7 +497,7 @@ dotnet test -c Release
 - Спецификация байткода — [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
 - Справочник кодов ошибок — [`docs/error-codes.ru.md`](docs/error-codes.ru.md).
 - Метрики кода — [`docs/METRICS.md`](docs/METRICS.md).
-- Встроенные библиотеки MiniC/NANASM — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.md).
+- Встроенные библиотеки MiniC/NANASM — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md).
 - Отладчик — [`Nantuc.VmApplication.Extensions/README.ru.md`](Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
 - Примеры — [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.ru.md), [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.ru.md).
-- Бенчмарк — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.ru.md).
+- Бенчмарки — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.ru.md), [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md).

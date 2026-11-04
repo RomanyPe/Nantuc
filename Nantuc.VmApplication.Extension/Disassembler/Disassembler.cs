@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Common;
+﻿using Nantuc.Common;
 using Nantuc.VmApplication.Project;
 using System.Collections.Immutable;
 using System.Text;

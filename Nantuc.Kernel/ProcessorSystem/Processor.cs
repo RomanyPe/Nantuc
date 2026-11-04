@@ -1,11 +1,11 @@
-﻿using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Common;
+using Nantuc.Contracts;
 using Nantuc.Kernel.ControllersData;
 using Nantuc.Kernel.RamSystem;
 using System.Collections.Concurrent;
 using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
-using static Nantuc.Kernel.Common.InstructionDecoder;
+using static Nantuc.Common.InstructionDecoder;
 
 namespace Nantuc.Kernel.ProcessorSystem;
 

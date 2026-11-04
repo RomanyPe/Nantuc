@@ -1,7 +1,7 @@
 ﻿﻿﻿# Nantuc.Compiler — README
 
 > Компилятор MiniC → байткод Nantuc: лексер, парсер, AST, кодогенератор с регистровой раскраской, ассемблер (два backend'а — прямой и IR) и инфраструктура оптимизаций.
-> `[← Корень](../README.ru.md) · [Common](../Nantuc.Kernel.Common/README.ru.md) · [Contracts](../Nantuc.Kernel.Contracts/README.ru.md) · [Kernel](../Nantuc.Kernel/README.ru.md)`
+> `[← Корень](../README.ru.md) · [Common](../Nantuc.Common/README.ru.md) · [Contracts](../Nantuc.Contracts/README.ru.md) · [Kernel](../Nantuc.Kernel/README.ru.md)`
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -229,8 +229,8 @@ using Nantuc.Compiler.C;
 using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizators;
 using Nantuc.Compiler.ASM.IR;
-using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Common;
+using Nantuc.Diagnostics;
 
 var throwCompiler = new ThrowCompiler();
 string source = """
@@ -257,7 +257,7 @@ byte[] bytecode = asm.Build();
 
 **`const` — что теперь компилируется:**
 
-```csharp
+```c
 const int LIMIT = 100;
 int * const p = &a;              // p нельзя переприсвоить, *p можно менять
 const int *q = &a;               // q можно переприсвоить, *q нельзя менять
@@ -367,7 +367,7 @@ byte[] bytes = asm.Build();
 | `stackalloc` / `InlineArray` | ✅ | `stackalloc byte[pad]` в `Assembler.Align8` — bounded 0..7 байт, WASM-safe. |
 | `Interlocked` / `Volatile` | ✅ | Не используются. |
 | `System.Collections.Frozen` | ✅ | `FrozenSet` в `MiniCLanguageDefinition` и `AsmLanguageDefinition`. AOT-friendly. |
-| `RegexOptions.Compiled` | ❌ | `MiniCLanguageDefinition._keywordRegex = new(GetKeywordPattern(), RegexOptions.Compiled);` — **бросает `PlatformNotSupportedException` на browser-wasm AOT**. Также regex — dead code. |
+| `RegexOptions.None` | ✅ | генерируется через `[GeneratedRegex(KeywordPattern, RegexOptions.None)]` |
 | `[GeneratedRegex]` | ✅ | `AssemblerParser.GetRexExtensionAsm()` — AOT-safe. |
 | `Regex` без `Compiled` | ✅ | `AsmLanguageDefinition._mnemonicsRegex`/`regex` — `RegexOptions.IgnoreCase` без `Compiled`, работает в AOT. |
 | `Enum.ToString()` | ⚠️ | **Убран из диагностики** — заменён на `TokenTypeExtension.AsText` и `OpCode.OpName()` (ручные switch) [FIX]. В остальных местах (`ErrorCode` как ключ) — не течёт. |
@@ -472,7 +472,7 @@ CodeGen_AssignmentToConst = 1316,   // "Cannot assign to const '{0}'"
 CodeGen_IncrementOfConst  = 1317,   // "Cannot increment/decrement const '{0}'"
 ```
 
-Оба шаблона зарегистрированы в `DefaultErrorMessageProvider` (`Nantuc.Kernel.Diagnostics`).
+Оба шаблона зарегистрированы в `DefaultErrorMessageProvider` (`Nantuc.Diagnostics`).
 
 **Что НЕ поддерживается (осознанно)**
 

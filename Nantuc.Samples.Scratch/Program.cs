@@ -1,5 +1,5 @@
-﻿using Nantuc.Compiler.ASM.Utils;
-using Nantuc.Kernel.Common;
+﻿using Nantuc.Common;
+using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Samples.Scratch.SnakeGame;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;

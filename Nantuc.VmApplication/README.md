@@ -2,8 +2,8 @@
 
 > The main API of the platform: compiling a project to bytecode, running the VM, managing devices, and step-by-step execution.  
 > The only module intended for embedding Nantuc into an application (IDE, REPL, CI, game host).  
-> Depends on `[Kernel](../Nantuc.Kernel/README.md)`, `[Kernel.Contracts](../Nantuc.Kernel.Contracts/README.md)`, and `[Compiler](../Nantuc.Compiler/README.md)`.  
-> `[← Root](../README.md) · [Common](../Nantuc.Kernel.Common/README.md) · [Contracts](../Nantuc.Kernel.Contracts/README.md) · [Diagnostics](../Nantuc.Kernel.Diagnostics/README.md) · [Kernel](../Nantuc.Kernel/README.md) · [Compiler](../Nantuc.Compiler/README.md)`
+> Depends on `[Kernel](../Nantuc.Kernel/README.md)`, `[Contracts](../Nantuc.Contracts/README.md)`, and `[Compiler](../Nantuc.Compiler/README.md)`.  
+> `[← Root](../README.md) · [Common](../Nantuc.Common/README.md) · [Contracts](../Nantuc.Contracts/README.md) · [Diagnostics](../Nantuc.Diagnostics/README.md) · [Kernel](../Nantuc.Kernel/README.md) · [Compiler](../Nantuc.Compiler/README.md)`
 
 ## Table of contents
 - [About this module](#about-this-module)
@@ -27,7 +27,7 @@
 
 A key architectural feature: a VM is also a device on the port bus. `VmEmulator.TryRegisterDevice(DeviceSpec, sector)` creates a `Device` from the kernel and registers it as an `IPortController`. A single emulator can hold multiple VMs, and they communicate through ports like ordinary devices (VM composition inside VM). `DeviceContext` is a convenient window into a specific `Device` without direct access to `Nantuc.Kernel`.
 
-The module targets `net10.0` and includes `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` because it internally calls `Nantuc.Kernel` (native buffers), but it contains no `unsafe` code itself — only the extensions in `Nantuc.VmApplication.Unsafe` provide an escape hatch to `Device`/`PortBus`/`CompileInternal`.
+The module targets `net10.0`
 
 The API follows the "Try + IdState + ProcessorFault" pattern:
 - `TryRegisterDevice` / `TryGetDeviceContext` — without `!` and magic `-1..-4`.
@@ -54,7 +54,7 @@ Nantuc.VmApplication/
 │   ├── DeviceContext.cs                # window into Device: Run/Step/Load/Ports/Registers/GetLastFault/Pause/Resume
 │   ├── LaunchOptions.cs                # LaunchOptions / LaunchOptionsDebug
 │   ├── SnapshotRegisters.cs            # readonly struct with InlineArray[32]
-│   ├── VmEmulator.cs                   # wrapper over Kernel.Utilites.Emulator + DeviceSpec
+│   ├── VmEmulator.cs                   # wrapper over Utilites.Emulator + DeviceSpec
 │   └── VmEmulatorBuilder.cs            # fluent: WithPortBusSize / WithPortsPerDevice
 ├── Project/                            (namespace Nantuc.VmApplication.Project)
 │   ├── CompilationResult.cs            # byte[] + section metrics + errors
@@ -118,12 +118,12 @@ Optional parameters:
 - `portBusSize` — the size of the port space (`PortSize.KB64`).
 - `portsPerDevice` — the size of the port block per device (`DevicePortSize.B16`).
 
-`VmHost.Dispose()` frees only `Emulator` (inside — `Kernel.Utilites.Emulator.Dispose`), not `Project` — `VmHostProject` is not `IDisposable`.
+`VmHost.Dispose()` frees only `Emulator` (inside — `Utilites.Emulator.Dispose`), not `Project` — `VmHostProject` is not `IDisposable`.
 
 ### VmEmulator and VmEmulatorBuilder — execution
 
 ```csharp
-public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
+public sealed class VmEmulator(Utilites.Emulator emulator) : IDisposable
 {
     public IPortBus GetPortBus();
     public bool ChangeDeviceSector(int id, uint newSector);
@@ -429,7 +429,7 @@ For cases when the wrapper is not enough: direct access to `Device`/`PortBus`/`I
 **Full cycle with the safe API:**
 
 ```csharp
-using Nantuc.Kernel.Common;
+using Nantuc.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Project;
@@ -569,7 +569,7 @@ var state = host.Emulator.TryRegisterDevice(uart, name: "UART0", sector: 1, out 
 
 ```csharp
 using Nantuc.Compiler.C.Optimizators;
-using Nantuc.Kernel.Contracts;
+using Nantuc.Contracts;
 
 public sealed class MyRule : IAstOptimizationRule
 {
@@ -593,7 +593,7 @@ using var host = VmHostFactory.CreateDefault(optimizator: optimizator);
 **Your own compiler exception policy:**
 
 ```csharp
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Diagnostics;
 
 IErrorMessageProvider myProvider = /* ... */;
 using var host = VmHostFactory.CreateDefault(provider: myProvider);
@@ -661,7 +661,7 @@ Compared to the previous snapshot of `Nantuc.VmApplication`:
 
 ### Why the VM is a device
 
-`VmEmulator.TryRegisterDevice(DeviceSpec, sector)` creates a `Kernel.BiosSystem.Device` and registers it as an `IPortController` in `PortBus`. `Device` implements `IPortController` (for the external port bus) and holds its own `PortBus` (the VM's internal bus). An external VM can send `OUT`/`IN` over the sector of an internal VM — and vice versa. `DeviceContext.ReadPort(offset)` reads the VM's own ports.
+`VmEmulator.TryRegisterDevice(DeviceSpec, sector)` creates a `BiosSystem.Device` and registers it as an `IPortController` in `PortBus`. `Device` implements `IPortController` (for the external port bus) and holds its own `PortBus` (the VM's internal bus). An external VM can send `OUT`/`IN` over the sector of an internal VM — and vice versa. `DeviceContext.ReadPort(offset)` reads the VM's own ports.
 
 ### `DeviceContext` modes
 

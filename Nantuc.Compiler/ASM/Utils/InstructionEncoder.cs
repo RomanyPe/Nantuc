@@ -1,6 +1,6 @@
-﻿using Nantuc.Compiler.ASM.Base;
-using Nantuc.Kernel.Common;
-using static Nantuc.Kernel.Common.InstructionDecoder;
+﻿using Nantuc.Common;
+using Nantuc.Compiler.ASM.Base;
+using static Nantuc.Common.InstructionDecoder;
 
 namespace Nantuc.Compiler.ASM.Utils;
 

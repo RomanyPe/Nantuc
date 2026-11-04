@@ -1,8 +1,8 @@
-﻿using Nantuc.Compiler.ASM;
+﻿using Nantuc.Common;
+using Nantuc.Compiler.ASM;
 using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.ASM.Utils;
-using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
+using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 

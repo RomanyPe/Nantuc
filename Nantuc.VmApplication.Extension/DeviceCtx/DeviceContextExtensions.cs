@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Contracts;
 using Nantuc.VmApplication.Emulator;
 
 namespace Nantuc.VmApplication.Extensions.DeviceCtx;

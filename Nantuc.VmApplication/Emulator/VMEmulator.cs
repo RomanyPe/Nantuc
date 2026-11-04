@@ -1,6 +1,6 @@
-﻿using Nantuc.Kernel.BiosSystem;
-using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Common;
+using Nantuc.Contracts;
+using Nantuc.Kernel.BiosSystem;
 using Nantuc.Kernel.ControllersData;
 using System.Diagnostics.CodeAnalysis;
 

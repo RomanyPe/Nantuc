@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Common;
+﻿using Nantuc.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Host;

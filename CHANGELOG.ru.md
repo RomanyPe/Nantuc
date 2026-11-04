@@ -6,6 +6,18 @@
 
 Порядок разделов внутри версии:
 **Добавлено → Изменено → Устарело → Удалено → Исправлено → Документация**.
+## [0.8.0] - 2026-11-04
+
+### Добавлено
+- новый `ErrorCode` - `Parser_IncludeNotFound = 1209`,
+- добавлены соотсветсвующие записи в `error-codes.md`
+- добавлен соотсветсвующий элемент в `DefaultErrorMessageProvider`
+- добавлены новые кейсы в [`Nantuc.Benchmarks/SourceCasesMiniC.cs`](Nantuc.Benchmarks/SourceCasesMiniC.cs)
+- исходные файлы для бенчмарков находятся в отдельном файле [`Nantuc.Benchmarks/SourceCasesMiniC.cs`](Nantuc.Benchmarks/SourceCasesMiniC.cs)
+- добавлен новый проект [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet) - проект использующий фреймворк `BenchmarkDotNet` 
+
+### Изменено
+- **BREAKING:** все `namespace` вида `Nantuc.Kernel.*` и соотсветсвующие проекты изменены, убраны `*.Kernel.*` вставки. Для всех кроме `Nantuc.Kernel`
 
 ## [0.7.4] - 2026-11-01
 

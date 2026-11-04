@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Common;
+﻿using Nantuc.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Disassembler;
@@ -10,274 +10,8 @@ namespace Nantuc.Benchmarks;
 
 internal class Program
 {
-    const string text1 =
-    """
-        LDI r0, 0;
-        LDI r1, 10000000;
 
-    loop:
-        CALL Sum;
-        DEC r1;
-        TEST r1, r1;
-        JNZ loop;
-
-        END;
-
-    Sum:
-        ADD r0, r1;
-        RET;
-    """;
-
-    const string text2 =
-    """
-        LDI r0, 0;
-        LDI r1, 10000000;
-
-    loop:
-        ADD r0, r1;
-        DEC r1;
-        TEST r1, r1;
-        JNZ loop;
-
-        END;
-    """;
-
-    const string text3 =
-    """
-        LDI r0, 0;
-        LDI r7, 1;
-        LDI r6, 2500000;
-
-    loop:
-        ADD r0, r7;
-        ADD r0, r7;
-        ADD r0, r7;
-        ADD r0, r7;
-        DEC r6;
-        TEST r6, r6;
-        JNZ loop;
-
-        END;
-    """;
-
-    const string text3a =
-    """
-        LDI r0, 0;
-        LDI r1, 0;
-        LDI r2, 0;
-        LDI r3, 0;
-        LDI r7, 1;
-        LDI r6, 2500000;
-
-    loop:
-        ADD r0, r7;
-        ADD r1, r7;
-        ADD r2, r7;
-        ADD r3, r7;
-        DEC r6;
-        TEST r6, r6;
-        JNZ loop;
-
-        END;
-    """;
-
-    const string text4 =
-    """
-        LDI r8, 100;
-        LDI r0, 200000;
-        MOV r7, rHP;
-        ADD rHP, r0;
-        MOV r1, r7;
-        LDI r2, 0;
-        LDI r4, 4;
-
-    outer:
-        MOV r1, r7;
-        LDI r2, 0;
-        LDI r6, 50000;
-
-    fill:
-        STORE_IND.S32 r2, r1;
-        ADD r1, r4;
-        INC r2;
-        DEC r6;
-        TEST r6, r6;
-        JNZ fill;
-
-        MOV r1, r7;
-        LDI r0, 0;
-        LDI r6, 50000;
-
-    sum:
-        LOAD_IND.S32 r5, r1;
-        ADD r0, r5;
-        ADD r1, r4;
-        DEC r6;
-        TEST r6, r6;
-        JNZ sum;
-
-        DEC r8;
-        TEST r8, r8;
-        JNZ outer;
-
-    END;
-    """;
-
-    const string text4u =
-    """
-        LDI r8, 100;
-        LDI r0, 200000;
-        MOV r7, rHP;        // <-- замена ALLOC r7
-        ADD rHP, r0;        // <-- сдвигаем heap pointer за блоком
-        MOV r1, r7;
-        LDI r2, 0;
-        LDI r4, 4;
-
-    outer:
-        MOV r1, r7;
-        LDI r2, 0;
-        LDI r6, 50000;
-
-    fill:
-        STORE_IND_UNSAFE.S32 r2, r1;
-        ADD r1, r4;
-        INC r2;
-        DEC r6;
-        TEST r6, r6;
-        JNZ fill;
-
-        MOV r1, r7;
-        LDI r0, 0;
-        LDI r6, 50000;
-
-    sum:
-        LOAD_IND_UNSAFE.S32 r5, r1;
-        ADD r0, r5;
-        ADD r1, r4;
-        DEC r6;
-        TEST r6, r6;
-        JNZ sum;
-
-        DEC r8;
-        TEST r8, r8;
-        JNZ outer;
-
-    END;
-    """;
-
-    const string text5 =
-    """
-        LDI r0, 0;
-        LDI r6, 10000000;
-
-    loop:
-        PUSH r0;
-        POP  r0;
-        DEC  r6;
-        TEST r6, r6;
-        JNZ  loop;
-
-        END;
-    """;
-
-    const string text6 =
-    """
-        LDI r0, 1;
-        LDI r1, 1;
-        LDI r6, 10000000;
-
-    loop:
-        SHR r0, r1;
-        AND r2, r0;
-        OR  r3, r0;
-        XOR r4, r0;
-        DEC r6;
-        TEST r6, r6;
-        JNZ loop;
-
-        END;
-    """;
-
-    const string text7 =
-    """
-        LDI r0, 1;
-        LDI r1, 3;
-        LDI r6, 10000000;
-
-    loop:
-        MULT_INT r0, r1;
-        DEC r6;
-        TEST r6, r6;
-        JNZ loop;
-
-        END;
-    """;
-
-    const string text8 =
-    """
-        LDI r5, 1000000;
-        LDI r6, 0;
-        LDI r10, 1;
-
-    loop:
-        INC r6;
-        TEST r6, r10;       // Z = (r6 & 1) == 0
-        JZ  even;
-    odd:
-        INC r2;
-        JMP next;
-    even:
-        INC r3;
-    next:
-        DEC r5;
-        TEST r5, r5;
-        JNZ loop;
-
-    END;
-    """;
-
-    const string text3m =
-    """
-        LDI r0, 0;
-        LDI r1, 0;
-        LDI r2, 0;
-        LDI r3, 0;
-        LDI r7, 1;
-        LDI r6, 2500000;
-
-    loop:
-        ADD r0, r7;
-        SUB r1, r7;      // SUB с вычитанием 1 — уйдёт в минус, но нам важен тайминг
-        AND r2, r7;      // r2 = r2 & 1 (остаётся 0 или 1)
-        OR  r3, r7;      // r3 = r3 | 1 (всегда 1 после первого)
-        DEC r6;
-        TEST r6, r6;
-        JNZ loop;
-
-        END;
-    """;
-
-    const string text3m2 =
-    """
-        LDI r0, 0;
-        LDI r1, 0;
-        LDI r2, 0;
-        LDI r3, 0;
-        LDI r7, 1;
-        LDI r6, 2500000;
-
-    loop:
-        ADD r0, r7;
-        ADD r1, r7;
-        ADD r2, r7;
-        ADD r3, r7;
-        DEC r6;
-        TEST r6, r6;
-        JNZ loop;
-
-        END;
-    """;
-
+    // ────────── Инфраструктура бенчмарка ──────────
 
     private static readonly int _runs = 20;
     private static readonly int _runsWarmup = 5;
@@ -294,24 +28,25 @@ internal class Program
 
         var cases = new[]
         {
-            new BenchCase("Memory",       text4,  Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("MemoryUnsafe", text4u, Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("Math",         text2,  Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("AluTput1",     text3,  Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("AluTput4",     text3a, Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("AluTputM1",    text3m, Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("AluTputM2",    text3m2,Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("Call",         text1,  Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("PushPop",      text5,  Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("BitOps",       text6,  Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("Mul",          text7,  Runs: _runs, WarmupRuns: _runsWarmup),
-            new BenchCase("Branch",       text8,  Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Call",           SourceCasesMiniC.callMc,         Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Math",           SourceCasesMiniC.mathMc,         Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("AluTput1",       SourceCasesMiniC.aluTput1Mc,     Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("AluTput4",       SourceCasesMiniC.aluTput4Mc,     Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("AluTputMixed",   SourceCasesMiniC.aluTputMixedMc, Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Memory",         SourceCasesMiniC.memoryMc,       Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("BitOps",         SourceCasesMiniC.bitOpsMc,       Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Mul",            SourceCasesMiniC.mulMc,          Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Branch",         SourceCasesMiniC.branchMc,       Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("DivMod",         SourceCasesMiniC.divModMc,       Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Recursion",      SourceCasesMiniC.recursionMc,    Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Pointer",        SourceCasesMiniC.pointerMc,      Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Struct",         SourceCasesMiniC.structMc,       Runs: _runs, WarmupRuns: _runsWarmup),
+            new BenchCase("Sort",           SourceCasesMiniC.sortMc,         Runs: _runs, WarmupRuns: _runsWarmup),
         };
 
         var sb = new StringBuilder();
         var runners = cases.Select(c => new BenchRunner(host, deviceId, c)).ToArray();
 
-        // Общий план: сколько всего шагов (warm + run) по всем тестам
         int totalSteps = runners.Sum(r => r.Case.WarmupRuns + r.Case.Runs);
         int globalStep = 0;
         var totalSw = Stopwatch.StartNew();
@@ -336,7 +71,6 @@ internal class Program
                 continue;
             }
 
-            // Warmup
             for (int i = 0; i < runner.Case.WarmupRuns; i++)
             {
                 runner.Warmup();
@@ -345,7 +79,6 @@ internal class Program
                               phaseStep, phaseTotal, globalStep, totalSteps, totalSw);
             }
 
-            // Runs
             for (int i = 0; i < runner.Case.Runs; i++)
             {
                 runner.RunOnce();
@@ -354,7 +87,6 @@ internal class Program
                               phaseStep, phaseTotal, globalStep, totalSteps, totalSw);
             }
 
-            // Отмечаем тест как завершённый
             PrintProgress(testIndex, testTotal, name, "done", phaseTotal, phaseTotal,
                           phaseStep, phaseTotal, globalStep, totalSteps, totalSw, forceNewLine: true);
 

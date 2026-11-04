@@ -1,5 +1,5 @@
-﻿using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Common;
+using Nantuc.Contracts;
 using Nantuc.Kernel.ControllersData;
 using Nantuc.Kernel.ProcessorSystem;
 using Nantuc.Kernel.RamSystem;
@@ -147,7 +147,7 @@ public sealed class Device : IPortController
                     long? limit,
                     bool snowTimer,
                     Action? onLaunch,
-                    Action<ITimerSimulationResult?>? onEnd)
+                    Action<ITimerSimulationResult>? onEnd)
     {
 
         onLaunch?.Invoke();
@@ -163,11 +163,15 @@ public sealed class Device : IPortController
         else
             RunSimulationLoop();
 
-        SimulationResult? timeSpan = null;
+        SimulationResult timeSpan;
         if (sw != null)
         {
             sw.Stop();
             timeSpan = new(sw.Elapsed, stepCounter);
+        }
+        else
+        {
+            timeSpan = new(TimeSpan.Zero, stepCounter);
         }
 
         onEnd?.Invoke(timeSpan);

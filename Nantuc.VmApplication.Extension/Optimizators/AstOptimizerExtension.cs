@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Contracts;
 using Nantuc.VmApplication.Extensions.Optimizators.AstRules;
 using Nantuc.VmApplication.Project;
 

@@ -2,7 +2,7 @@
 
 > Ядро виртуальной машины Nantuc: процессор, ОЗУ, шина портов, реестр устройств и эмулятор.  
 > Единственный слой платформы, который использует `unsafe`, `NativeMemory`, `[InlineArray]` и `ConcurrentQueue`.  
-> `[← Корень](../README.ru.md) · [Common](../Nantuc.Kernel.Common/README.ru.md) · [Contracts](../Nantuc.Kernel.Contracts/README.ru.md)`
+> `[← Корень](../README.ru.md) · [Common](../Nantuc.Common/README.ru.md) · [Contracts](../Nantuc.Contracts/README.ru.md)`
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -17,7 +17,7 @@
 
 `Nantuc.Kernel` — это слой исполнения. Здесь живут: процессор (`Processor` + `ProcessorSnapshot`), управляемая обёртка над нативной ОЗУ (`MemoryBus` + `NativeMemoryBuffer` + `NativeReadOnlyView`), шина портов (`PortBus`), реестр устройств (`ManagerDevices`) и эмулятор (`Emulator`), а также «вычислительное устройство» (`Device`), владеющее ОЗУ и процессором и реализующее `IPortController` из `Contracts`.
 
-Модуль — единственный в платформе, где разрешён `unsafe` (`<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` в `Nantuc.Kernel.csproj`). Всё нативное — в `NativeMemoryBuffer`: `NativeMemory.AllocZeroed`, `NativeMemory.Free`, `byte*`, `Unsafe.ReadUnaligned` / `Unsafe.WriteUnaligned`. Остальной код работает с управляемыми обёртками.
+Модуль — единственный в платформе, где разрешён `unsafe` (`<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` в `Nantuc.csproj`). Всё нативное — в `NativeMemoryBuffer`: `NativeMemory.AllocZeroed`, `NativeMemory.Free`, `byte*`, `Unsafe.ReadUnaligned` / `Unsafe.WriteUnaligned`. Остальной код работает с управляемыми обёртками.
 
 Ключевые роли модуля:
 - ОЗУ: `MemoryBus` (проверяемые/непроверяемые типизированные операции), `NativeMemoryBuffer` (сам нативный буфер), `NativeReadOnlyView` (read-only представление с проверками).
@@ -35,7 +35,7 @@ Namespace-ы по слоям, файлы плоские внутри них:
 
 ```
 Nantuc.Kernel/
-├── Nantuc.Kernel.csproj               # net10.0, AllowUnsafeBlocks=true, refs Common+Contracts
+├── Nantuc.csproj               # net10.0, AllowUnsafeBlocks=true, refs Common+Contracts
 ├── RamSystem/
 │   ├── MemoryBus.cs                   # проверяемая/непроверяемая шина ОЗУ
 │   ├── NativeMemoryBuffer.cs          # unsafe, NativeMemory, byte*, ReadUnaligned
@@ -180,8 +180,8 @@ Nantuc.Kernel/
 **Минимальный запуск:**
 
 ```csharp
-using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
+using Nantuc.Common;
+using Nantuc.Contracts;
 using Nantuc.Kernel.Utilites;
 
 using var emulator = new Emulator(PortSize.KB64, DevicePortSize.B64);

@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Contracts;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Host;
@@ -40,11 +40,11 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
     {
         IsPrepared = false;
 
-        CompilationResult res = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.Asm).Build();
+        CompilationResult res = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.C).Build();
         if (!res.Success)
         {
-            Console.WriteLine(res.Errors);
-            Console.ReadLine();
+            foreach (var err in res.Errors ?? [])
+                Console.WriteLine(err);
             return false;
         }
         var ctx = _host.Emulator.GetDeviceContext(_deviceId)!;

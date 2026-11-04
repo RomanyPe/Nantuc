@@ -2,7 +2,7 @@
 using Nantuc.Compiler.ASM.Base;
 using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.C;
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace Nantuc.VmApplication.Project;
@@ -123,7 +123,7 @@ public sealed class VmHostProject(CompilerContext ctx)
         catch (Exception ex)
         {
             // Передаём null вместо ассемблера и лога в случае ошибки.
-            return createResult(null!, res, [ex.ToString()]);
+            return createResult(null!, res, [ex.Message]);
         }
     }
 
