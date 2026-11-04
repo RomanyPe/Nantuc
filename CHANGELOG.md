@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Order of sections within a version:
 **Added → Changed → Deprecated → Removed → Fixed → Documentation**.
 
+## [0.8.2] - 2026-11-04
+
+### Changed
+- Repository split into `src/`, `tests/`, `samples/`, `benchmarks/`.
+- Solution file rebuilt for the new layout.
+- `ProjectReference` relative paths updated after project moves.
+
 ## [0.8.1] - 2026-11-04
 
 ### Changed

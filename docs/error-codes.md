@@ -5,7 +5,7 @@
 > JSON, and tests. Existing values must not be changed; new ones may only be
 > added at the end of their hundred.
 >
-> `[← Root](../README.md) · [Kernel.Diagnostics](../Nantuc.Kernel.Diagnostics/README.md)`
+> `[← Root](../README.md) · [Kernel.Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md)`
 
 ## Table of contents
 
@@ -233,9 +233,9 @@ depend on the current thread culture.
 
 ## Links
 
-- [`ErrorCode.cs`](../Nantuc.Kernel.Diagnostics/ErrorCode.cs) — definitions.
-- [`DefaultErrorMessageProvider.cs`](../Nantuc.Kernel.Diagnostics/DefaultErrorMessageProvider.cs) — templates.
-- [`DiagnosticData.cs`](../Nantuc.Kernel.Diagnostics/DiagnosticData.cs) — arguments.
-- [`ThrowCompiler.cs`](../Nantuc.Kernel.Diagnostics/ThrowCompiler.cs) — facade.
-- [`CodeException.cs`](../Nantuc.Kernel.Diagnostics/CodeException.cs) — exception.
-- [`Nantuc.Kernel.Diagnostics/README.md`](../Nantuc.Kernel.Diagnostics/README.md) — module overview.
+- [`ErrorCode.cs`](../../src/Nantuc.Kernel.Diagnostics/ErrorCode.cs) — definitions.
+- [`DefaultErrorMessageProvider.cs`](../../src/Nantuc.Kernel.Diagnostics/DefaultErrorMessageProvider.cs) — templates.
+- [`DiagnosticData.cs`](../../src/Nantuc.Kernel.Diagnostics/DiagnosticData.cs) — arguments.
+- [`ThrowCompiler.cs`](../../src/Nantuc.Kernel.Diagnostics/ThrowCompiler.cs) — facade.
+- [`CodeException.cs`](../../src/Nantuc.Kernel.Diagnostics/CodeException.cs) — exception.
+- [`Nantuc.Kernel.Diagnostics/README.md`](../../src/Nantuc.Kernel.Diagnostics/README.md) — module overview.

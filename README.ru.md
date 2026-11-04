@@ -1,5 +1,7 @@
 # Nantuc — README
 
+[English version](README.md)
+
 > Платформа для выполнения байткода с собственным языком MiniC (почти полноценный C), ассемблером NANASM, компилятором, виртуальной машиной и публичным API для встраивания.
 > **Версия проекта:** текущая версия проекта указана в `CHANGELOG.ru.md`, semver гарантирован.
 > Написана на C# (.NET 10). Компилятор и рантайм разделены по слоям, unsafe-код изолирован в ядре, публичный API — тонкий фасад с безопасными `Try*`-методами и `IdState`-диагностикой.
@@ -204,18 +206,35 @@ if (fault.Status != BiosStatus.EndProgramm)
 
 ```
 Nantuc/
-├── Nantuc.Common/                     # ISA, размеры, BiosStatus, ProcessorFault, IdState
-├── Nantuc.Contracts/                  # публичные контракты (порты, процессор)
-├── Nantuc.Diagnostics/                # ErrorCode, DiagnosticData, ThrowCompiler, CodeException
-├── Nantuc.Kernel/                     # реализация CPU, RAM, PortBus, Device
-├── Nantuc.Compiler/                   # MiniC + NANASM (frontend, backend, ASM, оптимизации)
-├── Nantuc.VmApplication/              # основной API (TryRegisterDevice, TryGetDeviceContext, Run → ProcessorFault)
-├── Nantuc.VmApplication.Extensions/   # дизассемблер, отладчик, I/O, оптимизации, библиотеки
-├── Nantuc.Samples.Minimal/            # Hello world
-├── Nantuc.Samples.Scratch/            # тест аллокатора + змейка
-├── Nantuc.Benchmarks/                 # ручной бенчмарк VM (14 MiniC-кейсов, MIPS/статистика)
-└── Nantuc.Benchmarks.BenchmarkDotNet/ # BenchmarkDotNet-бенчмарк (14 MiniC-кейсов, артефакты)
-```
+├── .github/
+├── .gitignore
+├── Directory.Build.props
+├── README.md
+├── README.ru.md
+├── CHANGELOG.md
+├── CHANGELOG.ru.md
+├── LICENSE
+├── Nantuc.slnx
+│
+├── src/
+│   ├── Nantuc.Common/                 # ISA, размеры, BiosStatus, ProcessorFault, IdState
+│   ├── Nantuc.Contracts/              # публичные контракты (порты, процессор)
+│   ├── Nantuc.Diagnostics/            # ErrorCode, DiagnosticData, ThrowCompiler, CodeException
+│   ├── Nantuc.Kernel/                 # реализация CPU, RAM, PortBus, Device
+│   ├── Nantuc.Compiler/               # MiniC + NANASM (frontend, backend, ASM, оптимизации)
+│   ├── Nantuc.VmApplication/          # основной API (TryRegisterDevice, TryGetDeviceContext, Run → ProcessorFault)
+│   └── Nantuc.VmApplication.Extensions/   # дизассемблер, отладчик, I/O, оптимизации, библиотеки
+│
+├── tests/
+│   └── Nantuc.Tests/                  # ← имя-заглушка, замените на фактическое
+│
+├── samples/
+│   ├── Nantuc.Samples.Minimal/        # Hello world
+│   └── Nantuc.Samples.Scratch/        # тест аллокатора + змейка
+│
+└── benchmarks/
+    ├── Nantuc.Benchmarks/                     # ручной бенчмарк VM (14 MiniC-кейсов, MIPS/статистика)
+    └── Nantuc.Benchmarks.BenchmarkDotNet/     # BenchmarkDotNet-бенчмарк (14 MiniC-кейсов, артефакты)```
 
 ## Модули
 
@@ -499,7 +518,7 @@ dotnet test -c Release
 - Спецификация байткода — [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
 - Справочник кодов ошибок — [`docs/error-codes.ru.md`](docs/error-codes.ru.md).
 - Метрики кода — [`docs/METRICS.md`](docs/METRICS.md).
-- Встроенные библиотеки MiniC/NANASM — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md).
-- Отладчик — [`Nantuc.VmApplication.Extensions/README.ru.md`](Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
-- Примеры — [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.ru.md), [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.ru.md).
-- Бенчмарки — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.ru.md), [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md).
+- Встроенные библиотеки MiniC/NANASM — [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md).
+- Отладчик — [`src/Nantuc.VmApplication.Extensions/README.ru.md`](src/Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
+- Примеры — [`samples/Nantuc.Samples.Minimal`](samples/Nantuc.Samples.Minimal/README.ru.md), [`samples/Nantuc.Samples.Scratch`](samples/Nantuc.Samples.Scratch/README.ru.md).
+- Бенчмарки — [`samples/Nantuc.Benchmarks`](samples/Nantuc.Benchmarks/README.ru.md), [`samples/Nantuc.Benchmarks.BenchmarkDotNet`](samples/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md).

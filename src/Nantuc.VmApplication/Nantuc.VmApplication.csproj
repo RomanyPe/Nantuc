@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <TargetFrameworks>net10.0</TargetFrameworks>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+	<ProjectReference Include="..\Nantuc.Compiler\Nantuc.Compiler.csproj" />
+	<ProjectReference Include="..\Nantuc.Contracts\Nantuc.Contracts.csproj" />
+	<ProjectReference Include="..\Nantuc.Kernel\Nantuc.Kernel.csproj" />
+  </ItemGroup>
+
+</Project>

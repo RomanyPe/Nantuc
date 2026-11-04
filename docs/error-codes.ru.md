@@ -5,7 +5,7 @@
 > JSON и тесты. Существующие значения менять нельзя, новые — только
 > в конец своей сотни.
 >
-> `[← Корень](../README.md) · [Kernel.Diagnostics](../Nantuc.Kernel.Diagnostics/README.md)`
+> `[← Корень](../README.md) · [Kernel.Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md)`
 
 ## Содержание
 
@@ -233,9 +233,9 @@ catch (CodeException ex)
 
 ## Ссылки
 
-- [`ErrorCode.cs`](../Nantuc.Kernel.Diagnostics/ErrorCode.cs) — определения.
-- [`DefaultErrorMessageProvider.cs`](../Nantuc.Kernel.Diagnostics/DefaultErrorMessageProvider.cs) — шаблоны.
-- [`DiagnosticData.cs`](../Nantuc.Kernel.Diagnostics/DiagnosticData.cs) — аргументы.
-- [`ThrowCompiler.cs`](../Nantuc.Kernel.Diagnostics/ThrowCompiler.cs) — фасад.
-- [`CodeException.cs`](../Nantuc.Kernel.Diagnostics/CodeException.cs) — исключение.
-- [`Nantuc.Kernel.Diagnostics/README.md`](../Nantuc.Kernel.Diagnostics/README.md) — обзор модуля.
+- [`ErrorCode.cs`](../../src/Nantuc.Kernel.Diagnostics/ErrorCode.cs) — определения.
+- [`DefaultErrorMessageProvider.cs`](../../src/Nantuc.Kernel.Diagnostics/DefaultErrorMessageProvider.cs) — шаблоны.
+- [`DiagnosticData.cs`](../../src/Nantuc.Kernel.Diagnostics/DiagnosticData.cs) — аргументы.
+- [`ThrowCompiler.cs`](../../src/Nantuc.Kernel.Diagnostics/ThrowCompiler.cs) — фасад.
+- [`CodeException.cs`](../../src/Nantuc.Kernel.Diagnostics/CodeException.cs) — исключение.
+- [`Nantuc.Kernel.Diagnostics/README.md`](../../src/Nantuc.Kernel.Diagnostics/README.md) — обзор модуля.

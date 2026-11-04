@@ -1,7 +1,9 @@
 ﻿# Nantuc — README
 
+[Русская версия](README.ru.md)
+
 > Platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and public API for embedding.
-> **Project version:** current project version is specified in `CHANGELOG.ru.md`, semver guaranteed.
+> **Project version:** current project version is specified in `CHANGELOG.md`, semver guaranteed.
 > Written in C# (.NET 10). Compiler and runtime are separated by layers, unsafe code is isolated in the kernel, public API is a thin facade with safe `Try*` methods and `IdState` diagnostics.
 
 Nantuc is a mini-framework that has everything needed to run a program in a C-like language:
@@ -122,7 +124,7 @@ if (fault.Status != BiosStatus.EndProgramm)
     Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");
 ```
 
-Detailed breakdown — in [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.ru.md).
+Detailed breakdown — in [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md).
 ## NuGet packages
 
 All platform modules are published as NuGet packages (GitHub Packages, author — `RomanyPe`). Install only what the scenario needs; transitive dependencies are pulled automatically.
@@ -221,17 +223,17 @@ Nantuc/
 
 | Module | Purpose | For whom |
 |---|---|---|
-| [`Nantuc.Common`](Nantuc.Common/README.ru.md) | Opcodes, registers, RAM/port sizes, `BiosStatus`, `ProcessorFault`, `IdState` (`Unknown` = 0, default-safe), instruction decoder | Compiler, extension, disassembler authors |
-| [`Nantuc.Contracts`](Nantuc.Contracts/README.ru.md) | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorFaultPolicy`, `OptimizationId` | Device and extension authors |
-| [`Nantuc.Diagnostics`](Nantuc.Diagnostics/README.ru.md) | `ErrorCode`, `DiagnosticData`, `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | Compiler, IDE, CI authors |
-| [`Nantuc.Kernel`](Nantuc.Kernel/README.ru.md) | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | Embedding code, debugger author |
-| [`Nantuc.Compiler`](Nantuc.Compiler/README.ru.md) | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer`, `const`-correctness | IDE author, optimization rule author |
-| [`Nantuc.VmApplication`](Nantuc.VmApplication/README.ru.md) | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | End user of the platform |
-| [`Nantuc.VmApplication.Extensions`](Nantuc.VmApplication.Extensions/README.ru.md) | Disassembler, `Debugger` (step, breakpoints, stack, RAM), `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | IDE author, game author, custom optimization author |
-| [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.ru.md) | Minimal Hello world | New user |
-| [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.ru.md) | Allocator test + snake with monitor | Example of game loop and I/O |
-| [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.ru.md) | Manual benchmark of 14 MiniC cases: MIPS, stability, percentiles, CV, JIT-impact | Core/compiler author |
-| [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md) | BenchmarkDotNet benchmark of 14 MiniC cases: time, allocations, statistics, artifacts | Core/compiler author |
+| [`Nantuc.Common`](Nantuc.Common/README.md) | Opcodes, registers, RAM/port sizes, `BiosStatus`, `ProcessorFault`, `IdState` (`Unknown` = 0, default-safe), instruction decoder | Compiler, extension, disassembler authors |
+| [`Nantuc.Contracts`](Nantuc.Contracts/README.md) | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorFaultPolicy`, `OptimizationId` | Device and extension authors |
+| [`Nantuc.Diagnostics`](Nantuc.Diagnostics/README.md) | `ErrorCode`, `DiagnosticData`, `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | Compiler, IDE, CI authors |
+| [`Nantuc.Kernel`](Nantuc.Kernel/README.md) | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | Embedding code, debugger author |
+| [`Nantuc.Compiler`](Nantuc.Compiler/README.md) | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer`, `const`-correctness | IDE author, optimization rule author |
+| [`Nantuc.VmApplication`](Nantuc.VmApplication/README.md) | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | End user of the platform |
+| [`Nantuc.VmApplication.Extensions`](Nantuc.VmApplication.Extensions/README.md) | Disassembler, `Debugger` (step, breakpoints, stack, RAM), `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | IDE author, game author, custom optimization author |
+| [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md) | Minimal Hello world | New user |
+| [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.md) | Allocator test + snake with monitor | Example of game loop and I/O |
+| [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.md) | Manual benchmark of 14 MiniC cases: MIPS, stability, percentiles, CV, JIT-impact | Core/compiler author |
+| [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet/README.md) | BenchmarkDotNet benchmark of 14 MiniC cases: time, allocations, statistics, artifacts | Core/compiler author |
 
 ## Languages and ISA
 
@@ -276,7 +278,7 @@ bit:  31…20    | 19…18     | 17…13  | 12…8   | 7…0
 
 - 8 bits per opcode, 5 bits per register (32 registers: `r0..r27`, `rFL`, `rSP`, `rHP`, `rIP`), 2 bits per size (`S8`/`S16`/`S32`/`S64`).
 - Opcodes with immediate are padded with an 8-byte operand aligned to 8.
-- Full specification — in [`Nantuc.Common`](Nantuc.Common/README.ru.md) and [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
+- Full specification — in [`Nantuc.Common`](Nantuc.Common/README.md) and [`docs/bytecode.md`](docs/bytecode.md).
 
 ## Requirements
 
@@ -344,15 +346,15 @@ Artifacts are saved to `BenchmarkDotNet.Artifacts/`: Markdown/CSV/HTML reports a
 
 ### Hello world (safe path)
 
-See [`Nantuc.Samples.Minimal/README.ru.md`](Nantuc.Samples.Minimal/README.ru.md) — full breakdown with `TryRegisterDevice` + `TryGetDeviceContext` + `ProcessorFault`, explanation of ports `0x10`/`0x12` and `QueuedIOStream`.
+See [`Nantuc.Samples.Minimal/README.md`](Nantuc.Samples.Minimal/README.md) — full breakdown with `TryRegisterDevice` + `TryGetDeviceContext` + `ProcessorFault`, explanation of ports `0x10`/`0x12` and `QueuedIOStream`.
 
 ### Snake
 
-See [`Nantuc.Samples.Scratch/README.ru.md`](Nantuc.Samples.Scratch/README.ru.md) — `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE loop, ticker, ANSI render. Run via `dotnet run -- -snake 150`.
+See [`Nantuc.Samples.Scratch/README.md`](Nantuc.Samples.Scratch/README.md) — `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE loop, ticker, ANSI render. Run via `dotnet run -- -snake 150`.
 
 ### Allocator test
 
-See [`Nantuc.Samples.Scratch/README.ru.md`](Nantuc.Samples.Scratch/README.ru.md), `Program.cs` — `Libraries.alloc_minic` (first-fit + split + coalescing), check `return 10`, register dump and RAM disassembler.
+See [`Nantuc.Samples.Scratch/README.md`](Nantuc.Samples.Scratch/README.md), `Program.cs` — `Libraries.alloc_minic` (first-fit + split + coalescing), check `return 10`, register dump and RAM disassembler.
 
 ### Full cycle with diagnostics
 
@@ -466,11 +468,11 @@ runner.Wait();
 - ~17,600 lines, 7 projects (core and API, without two examples, tests and two benchmarks)
 - Maintainability index: 80–97 (main modules)
 - Full metrics table: [docs/METRICS.md](docs/METRICS.md)
-> **Module status** — in each module's README (section "What was fixed in this version" / "Module proximity to the user"). **Change history** — in [`CHANGELOG.ru.md`](CHANGELOG.ru.md). **Plans** — below.
+> **Module status** — in each module's README (section "What was fixed in this version" / "Module proximity to the user"). **Change history** — in [`CHANGELOG.md`](CHANGELOG.md). **Plans** — below.
 
 **In progress / plans:**
 - Writing a JIT compiler in `C` and `C++`, but this will be a separate project.
-- Migrating `Libraries.alloc_minic` and `LibCode.snake_minic` from globals to locals (the code generator bug is fixed, the workaround is no longer required; see [STDLIBRARIES.ru.md](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)).
+- Migrating `Libraries.alloc_minic` and `LibCode.snake_minic` from globals to locals (the code generator bug is fixed, the workaround is no longer required; see [STDLIBRARIES.md](Nantuc.VmApplication.Extensions/STDLIBRARIES.md)).
 - **Debugger:** frame pointer in `Processor` for accurate `GetCallStack` (currently — best-effort heuristic over `[rSP, RamSize)`), `Debugger.Reset()`/`Reload()` for reusing one instance, UI panel for IDE (via `Stopped` event).
 
 ## Contributing
@@ -496,10 +498,10 @@ See the [`LICENSE`](LICENSE) file in the repository root.
 
 - GitHub: [RomanyPe/Nantuc](https://github.com/RomanyPe/Nantuc)
 - Module documentation — README in each folder (links in the [Modules](#modules) section).
-- Bytecode specification — [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
-- Error code reference — [`docs/error-codes.ru.md`](docs/error-codes.ru.md).
+- Bytecode specification — [`docs/bytecode.md`](docs/bytecode.md).
+- Error code reference — [`docs/error-codes.md`](docs/error-codes.md).
 - Code metrics — [`docs/METRICS.md`](docs/METRICS.md).
-- Built-in MiniC/NANASM libraries — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md).
-- Debugger — [`Nantuc.VmApplication.Extensions/README.ru.md`](Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
-- Examples — [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.ru.md), [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.ru.md).
-- Benchmarks — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.ru.md), [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md).
+- Built-in MiniC/NANASM libraries — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.md).
+- Debugger — [`Nantuc.VmApplication.Extensions/README.md`](Nantuc.VmApplication.Extensions/README.md#debugger).
+- Examples — [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.md), [`Nantuc.Samples.Scratch`](Nantuc.Samples.Scratch/README.md).
+- Benchmarks — [`Nantuc.Benchmarks`](Nantuc.Benchmarks/README.md), [`Nantuc.Benchmarks.BenchmarkDotNet`](Nantuc.Benchmarks.BenchmarkDotNet/README.md).
