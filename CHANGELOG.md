@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Order of sections within a version:
 **Added → Changed → Deprecated → Removed → Fixed → Documentation**.
 
+## [0.8.1] - 2026-11-04
+
+### Changed
+- Configured packaging and publishing of NuGet packages via GitHub Actions.
+- No code changes.
+- 
 ## [0.8.0] - 2026-11-04
 
 ### Added

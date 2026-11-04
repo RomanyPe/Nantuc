@@ -17,6 +17,7 @@
   <Project Path="Nantuc.Kernel/Nantuc.Kernel.csproj" Id="9d1173c7-0c5f-402c-a10c-a5f7752b4b31" />
   <Folder Name="/Элементы решения/.github/" />
   <Folder Name="/Элементы решения/.github/workflow/">
+    <File Path=".github/workflows/build-and-tests.yml" />
     <File Path=".github/workflows/publish-nuget.yml" />
   </Folder>
   <Folder Name="/Элементы решения/docs/">
