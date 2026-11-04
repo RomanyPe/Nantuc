@@ -11,8 +11,8 @@ I/O devices, and an API for embedding into an application.
 The repository contains a Hello world example in MiniC, a playable Snake game in MiniC, an allocator test, and two VM benchmarks.
 
 ## Code quality
-- ~20,000 lines, 11 projects
-- ~17,000 lines, 7 projects (core and API, excluding two samples, tests, and two benchmarks)
+- ~21,000 lines, 12 projects
+- ~17,600 lines, 7 projects (core and API, excluding two samples, tests, and two benchmarks)
 - Maintainability index: 80–97 (main modules)
 - Full metrics table: [docs/METRICS.md](docs/METRICS.md)
 
