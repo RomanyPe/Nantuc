@@ -10,17 +10,11 @@ Nantuc — это мини-фреймворк, в котором есть всё
 I/O-устройства и API для встраивания в приложение.
 В репозитории есть вывод Hello world на MiniC, играбельная змейка на MiniC, тест аллокатора и два бенчмарка VM.
 
-## Качество кода
-- ~21 000 строк, 12 проектов
-- ~17 600 строк, 7 проектов (ядро и API, без двух примеров, тестов и двух бенчмарков)
-- Индекс поддерживаемости: 80–97 (основные модули)
-- Полная таблица метрик: [docs/METRICS.md](docs/METRICS.md)
-
-
 ## Содержание
 - [Ключевые особенности](#ключевые-особенности)
 - [Безопасный API](#безопасный-api)
 - [Быстрый старт](#быстрый-старт)
+- [NuGet-пакеты](#nuget-пакеты)
 - [Архитектура](#архитектура)
 - [Структура репозитория](#структура-репозитория)
 - [Модули](#модули)
@@ -129,6 +123,33 @@ if (fault.Status != BiosStatus.EndProgramm)
 ```
 
 Подробный разбор — в [`Nantuc.Samples.Minimal`](Nantuc.Samples.Minimal/README.ru.md).
+## NuGet-пакеты
+
+Все модули платформы опубликованы как NuGet-пакеты (GitHub Packages, автор — `RomanyPe`). Ставится только то, что нужно сценарию; транзитивные зависимости подтягиваются автоматически.
+
+| Пакет | Кому | Что внутри |
+|---|---|---|
+| `Nantuc.Common` | Авторы компилятора, расширений, дизассемблера | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState` (default-safe), декодер инструкций |
+| `Nantuc.Contracts` | Авторы устройств и расширений | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorFaultPolicy`, `OptimizationId` |
+| `Nantuc.Diagnostics` | Авторы компилятора, IDE, CI | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` |
+| `Nantuc.Kernel` | Встраивающий код, автор отладчика | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices`, `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) |
+| `Nantuc.Compiler` | Автор IDE, автор правил оптимизации | `Lexer`, `Parser`, AST, кодогенератор, `Assembler`/`ILAssembler`, peephole/AST-оптимизации, `const`-correctness |
+| `Nantuc.VmApplication` | Конечный пользователь платформы | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `DeviceSpec` |
+| `Nantuc.VmApplication.Extensions` | Автор IDE, автор игр, автор своих оптимизаций | Дизассемблер, `Debugger` (шаг, точки останова, стек, RAM), `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` |
+
+**Зависимости (снизу вверх):**
+`Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions`.
+`Contracts` зависит только от `Common`; `Compiler` — от `Common`+`Contracts`+`Diagnostics`; `VmApplication` — единственный модуль, который одновременно знает про компилятор и рантайм.
+
+**Что ставить под сценарий:**
+
+- **Запустить MiniC-программу** — достаточно `Nantuc.VmApplication` + `Nantuc.VmApplication.Extensions` (остальное подтянется транзитивно).
+- **Своё устройство (UART, монитор, клавиатура)** — `Nantuc.Contracts` (реализовать `IPortController`) + `Nantuc.Kernel` (если нужен `Emulator`/`PortBus`), но лучше `Nantuc.VmApplication` + `Nantuc.VmApplication.Extensions`.
+- **Своя IDE / отладчик** — `Nantuc.VmApplication` + `Nantuc.VmApplication.Extensions` (`Debugger`, `Disassembler`).
+- **Свой компилятор/ассемблер без рантайма** — `Nantuc.Common` + `Nantuc.Diagnostics` (никакого `unsafe`/`NativeMemory`).
+- **Своё правило оптимизации** — `Nantuc.Compiler` + `Nantuc.Contracts` (`IAstOptimizationRule`/`IPeepholeRule`, `OptimizationId`).
+
+> `Nantuc.Common`, `Nantuc.Contracts`, `Nantuc.Diagnostics` не тянут `unsafe`/`NativeMemory`/`Regex` — их можно подключать в WASM/AOT-проекты и в окружения с запретом `unsafe`.
 
 ## Архитектура
 
@@ -441,30 +462,11 @@ runner.Wait();
 
 ## Метрики и качество
 
-**Готово:**
-- MiniC (лексер, парсер, AST, кодогенерация, структуры, указатели, массивы, `const`-correctness, inline asm, `#include`, `extern`).
-- NANASM (текстовый ассемблер, размерные суффиксы, метки, секции `.data`/`.text`).
-- VM (регистры, RAM, стек, heap, порты, HALT/WAKE, внешние команды, fault-policy).
-- Устройства: UART (sync/async/numeric), монитор (32×16), клавиатура.
-- Дизассемблер (текстовый и структурный, `Disassembler` — public).
-- **Отладчик** (`Debugger` в `VmApplication.Extensions`): `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, точки останова, `RequestStop` из другого потока, `Wake` из `HALT`, best-effort стек вызовов, чтение RAM (`ReadUInt16/32/64`, `ReadCString`), дизассемблирование текущей инструкции. Без `AsRawDevice`/`unsafe`.
-- Стандартные AST- и peephole-оптимизации.
-- Безопасный публичный API: `TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`, `Run`/`DebugRun` → `ProcessorFault`, `Pause()`/`Resume()`, `IdState` (`default(IdState) == Unknown`, не `Valid`).
-- Публичный API (`VmHost`, `DeviceContext`, `VmHostProject`, `DeviceSpec`).
-- Примеры: Hello world, змейка, тест аллокатора.
-- **Два бенчмарка**: ручной `Nantuc.Benchmarks` (14 MiniC-кейсов, MIPS, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` (14 MiniC-кейсов, BenchmarkDotNet, аллокации, артефакты).
-- AOT-friendly диагностика: `DiagnosticData` (без боксинга, без `Enum.ToString()`), `TokenTypeExtension.AsText` (ручной switch), `[GeneratedRegex]` в `AssemblerParser.GetRexExtensionAsm()`.
-- Частично реализована песочница: Nantuc VM из коробки работает только в полностью изолированной песочнице — может отправлять данные и получать их по запросу `IN`/`OUT`, без прямого доступа к памяти хоста.
-> Ограничение `IN`/`OUT` должно быть на вызывающем коде, а лучше всего — через маленькие короткие фасады.
-
-> VM — минимальная среда с фиксированным ОЗУ, единым адресным пространством и безопасным набором инструкций (проверки границ/выравнивания, остановка с причиной вместо исключений). UNSAFE LOAD/STORE — явный escape hatch без проверок, ответственность на хосте. Внешние эффекты — только через IO-функции, предоставленные хостом. Остановка кооперативная и потокобезопасная; таймауты и бюджеты — политика хоста.
-- Тесты: юнит на лексер/парсер/кодогенерацию, golden-тесты на исполнение, fuzz парсера, тесты на `const`-correctness, тесты на диагностику (`DefaultErrorMessageProvider`).
-- Справочник кодов ошибок — [`docs/error-codes.ru.md`](docs/error-codes.ru.md).
-- Полная спецификация байткода — [`docs/bytecode.ru.md`](docs/bytecode.ru.md).
-- Справочник по встроенным библиотекам — [`Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md).
-- **Документация:** полный перевод всей документации проекта на английский.
-- Baseline/CI-профиль для `Nantuc.Benchmarks.BenchmarkDotNet` (фильтры, лимиты времени, сравнение версий).
-- NuGet-пакеты для `Common`, `Contracts`, `Diagnostics`, `Compiler`, `VmApplication`.
+- ~21 000 строк, 12 проектов
+- ~17 600 строк, 7 проектов (ядро и API, без двух примеров, тестов и двух бенчмарков)
+- Индекс поддерживаемости: 80–97 (основные модули)
+- Полная таблица метрик: [docs/METRICS.md](docs/METRICS.md)
+> **Статус по модулям** — в README каждого модуля (раздел «Что исправлено в этой версии» / «Приближенность модуля к пользователю»). **История изменений** — в [`CHANGELOG.ru.md`](CHANGELOG.ru.md). **Планы** — ниже.
 
 **В работе / планы:**
 - Написание JIT-компилятора на `C` и `C++`, но это будет отдельный проект.
