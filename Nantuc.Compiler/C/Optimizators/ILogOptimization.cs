@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Contracts;
 
 namespace Nantuc.Compiler.C.Optimizators;
 

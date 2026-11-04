@@ -1,8 +1,8 @@
 ﻿using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizators;
-using Nantuc.Kernel.Contracts;
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Contracts;
+using Nantuc.Diagnostics;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.AstRules;
 

@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Contracts;
 
 namespace Nantuc.Kernel.RamSystem;
 
@@ -6,7 +6,7 @@ namespace Nantuc.Kernel.RamSystem;
 /// Публичное read-only представление над <see cref="NativeMemoryBuffer"/>:
 /// проверяет границы и состояние освобождения при каждом обращении.
 /// </summary>
-public class NativeReadOnlyView(NativeMemoryBuffer buffer) : INativeReadOnlyBuffer
+public class NativeReadOnlyView(NativeMemoryBuffer buffer) : IReadOnlyNativeBuffer
 {
     /// <summary>
     /// Размер буфера в байтах.

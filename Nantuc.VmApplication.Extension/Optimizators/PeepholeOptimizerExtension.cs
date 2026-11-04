@@ -4,9 +4,9 @@ using Nantuc.Compiler.C.Optimizators;
 using Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 using Nantuc.VmApplication.Project;
 using System.Text;
-using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
 using Nantuc.Compiler.ASM.Utils;
+using Nantuc.Common;
+using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators;
 

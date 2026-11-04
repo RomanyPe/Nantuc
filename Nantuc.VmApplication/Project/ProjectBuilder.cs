@@ -5,8 +5,8 @@ using Nantuc.Compiler.C;
 using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizators;
-using Nantuc.Kernel.Contracts;
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Contracts;
+using Nantuc.Diagnostics;
 
 namespace Nantuc.VmApplication.Project;
 
@@ -149,7 +149,7 @@ public static class ProjectBuilder
             return service.ReadFile(fullPathInc);
         }
 
-        throw new FileNotFoundException($"Included file not found: '{fileName}'. Searched in paths: {projPath}, {includePath}");
+        return throwCompiler.Throw<string>(ErrorCode.Parser_IncludeNotFound, fileName, projPath, includePath);
     }
 
     /// <summary>

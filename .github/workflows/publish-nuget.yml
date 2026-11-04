@@ -1,0 +1,103 @@
+name: Publish NuGet Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Версия пакета, например 1.2.3 (без префикса v)'
+        required: true
+        type: string
+
+jobs:
+  pack-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Determine version
+        id: version
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            if [[ ! "$TAG" =~ ^v(.+)$ ]]; then
+              echo "error: tag '$TAG' does not match pattern 'v*'" >&2
+              exit 1
+            fi
+            VERSION="${BASH_REMATCH[1]}"
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "error: empty version" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      - name: Pack projects
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          OUTPUT_DIR="$GITHUB_WORKSPACE/nupkg"
+          mkdir -p "$OUTPUT_DIR"
+
+          mapfile -t PROJECT_FILES < <(find . -name '*.csproj' \
+            -not -path '*/bin/*' \
+            -not -path '*/obj/*' \
+            -not -iname '*Test*.csproj' \
+            -not -iname '*Example*.csproj' \
+            -not -iname '*Benchmark*.csproj' \
+            | sort)
+
+          if [ ${#PROJECT_FILES[@]} -eq 0 ]; then
+            echo "error: no .csproj files found" >&2
+            exit 1
+          fi
+
+          echo "Found ${#PROJECT_FILES[@]} project(s):"
+          printf '  - %s\n' "${PROJECT_FILES[@]}"
+
+          for proj in "${PROJECT_FILES[@]}"; do
+            echo "--- packing: $proj ---"
+            dotnet pack "$proj" \
+              --configuration Release \
+              --output "$OUTPUT_DIR" \
+              -p:PackageVersion="$VERSION" \
+              -p:Version="$VERSION" \
+              --nologo
+          done
+
+          shopt -s nullglob
+          NUPKGS=("$OUTPUT_DIR"/*.nupkg)
+          shopt -u nullglob
+          if [ ${#NUPKGS[@]} -eq 0 ]; then
+            echo "error: no .nupkg files produced" >&2
+            exit 1
+          fi
+          echo "Produced ${#NUPKGS[@]} package(s):"
+          printf '  - %s\n' "${NUPKGS[@]}"
+
+      - name: Push to GitHub Packages
+        run: |
+          set -euo pipefail
+          for nupkg in "$GITHUB_WORKSPACE"/nupkg/*.nupkg; do
+            echo "--- pushing: $(basename "$nupkg") ---"
+            dotnet nuget push "$nupkg" \
+              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+              --api-key "${{ secrets.GITHUB_TOKEN }}" \
+              --skip-duplicate
+          done

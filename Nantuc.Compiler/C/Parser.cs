@@ -1,5 +1,5 @@
 ﻿using Nantuc.Compiler.C.AST;
-using Nantuc.Kernel.Diagnostics;
+using Nantuc.Diagnostics;
 using System.Text;
 
 namespace Nantuc.Compiler.C;

@@ -1,4 +1,4 @@
-﻿using Nantuc.Kernel.Diagnostics;
+﻿using Nantuc.Diagnostics;
 using System.Collections.Frozen;
 
 namespace Nantuc.Compiler.C;

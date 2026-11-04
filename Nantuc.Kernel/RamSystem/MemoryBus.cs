@@ -1,5 +1,5 @@
-﻿using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Common;
+using Nantuc.Contracts;
 
 namespace Nantuc.Kernel.RamSystem;
 
@@ -31,7 +31,7 @@ public class MemoryBus(RamSize size) : IDisposable
     /// <summary>
     /// Прямой доступ к ОЗУ только для чтения через нативное представление.
     /// </summary>
-    public INativeReadOnlyBuffer NativeReadOnlyBuffer => _memory.NativeReadOnlyBuffer;
+    public IReadOnlyNativeBuffer NativeReadOnlyBuffer => _memory.NativeReadOnlyBuffer;
 
     private ulong _faultData = 0;
     private BiosStatus _lastStatus = BiosStatus.Success;

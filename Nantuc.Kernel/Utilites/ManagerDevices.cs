@@ -1,5 +1,5 @@
-﻿using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Common;
+using Nantuc.Contracts;
 using Nantuc.Kernel.ControllersData;
 using System.Diagnostics.CodeAnalysis;
 
@@ -36,6 +36,9 @@ public class ManagerDevices(PortBus portBus) : IDisposable
     private readonly int _count = (int)portBus.SectorCount;
     private int _nextId = 0;
     private bool _disposed;
+    private int _liveCount;
+    private bool _isDirty;
+
     private readonly PortBus _portBus = portBus;
 
     /// <summary>
@@ -48,10 +51,12 @@ public class ManagerDevices(PortBus portBus) : IDisposable
     {
         get
         {
+            if (!_isDirty) return _liveCount;
             int n = 0;
             for (int i = 0; i < _devices.Count; i++)
                 if (_devices[i].IsValid) n++;
-            return n;
+            _liveCount = n;
+            return _liveCount;
         }
     }
 
@@ -169,6 +174,7 @@ public class ManagerDevices(PortBus portBus) : IDisposable
             return IdState.Rejected;
         }
 
+        _isDirty = true;
         if (slot != null)
         {
             // Переиспользуем освобождённый слот вместе с его ID.
@@ -203,7 +209,7 @@ public class ManagerDevices(PortBus portBus) : IDisposable
     {
         var e = FindValid(id);
         if (e == null) return false;
-
+        _isDirty = true;
         _portBus.UnregisterDevice(e.Sector);
         e.Device?.Dispose();
         e.Device = null;
@@ -245,6 +251,7 @@ public class ManagerDevices(PortBus portBus) : IDisposable
     public void Dispose()
     {
         if (_disposed) return;
+        _isDirty = true;
         for (int i = 0; i < _devices.Count; i++)
         {
             _devices[i].Device?.Dispose();

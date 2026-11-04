@@ -1,5 +1,5 @@
-﻿using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Contracts;
+﻿using Nantuc.Common;
+using Nantuc.Contracts;
 using Nantuc.VmApplication.Project;
 
 namespace Nantuc.VmApplication.Extensions.Host;

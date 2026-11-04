@@ -1,9 +1,9 @@
-﻿using Nantuc.Kernel.Common;
+﻿using Nantuc.Common;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Emulator.IO;
 using Nantuc.VmApplication.Extensions.Host;
-using Nantuc.VmApplication.Extensions.LibraresIncludes;
+using Nantuc.VmApplication.Extensions.StdLibraries;
 
 const string source =
     """
@@ -14,8 +14,8 @@ const string source =
 
 using var host = VmHostFactory.CreateDefault();
 host.Project.SaveFileProject("main.minic", source);
-host.Project.SaveFileInclude("io.nanasm", Library.io_nanasm);
-host.Project.SaveFileInclude("print.minic", Library.print_minic);
+host.Project.SaveFileInclude("io.nanasm", Libraries.io_nanasm);
+host.Project.SaveFileInclude("print.minic", Libraries.print_minic);
 
 // 1) Регистрация VM — через TryRegisterDevice, IdState вместо int < 0
 var vmState = host.Emulator.TryRegisterDevice(

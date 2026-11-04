@@ -1,189 +1,233 @@
-﻿# Nantuc.Samples.Minimal — README
+# Nantuc.Samples.Minimal — README
 
-> Минимальный рабочий пример платформы Nantuc: компилирует MiniC-программу «Hello world», запускает её на виртуальной машине и выводит UTF-16 строку в `Console.Out` через порт-устройство.  
-> Показывает полный путь «исходник → байткод → VM → I/O» на одном экране.  
-> Зависит от `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).  
-> `[← Корень](../README.md) · [VmApplication](../Nantuc.VmApplication/README.md) · [Extensions](../Nantuc.VmApplication.Extensions/README.md) · [Compiler](../Nantuc.Compiler/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
+> A minimal working example of the Nantuc platform: compiles a MiniC program "Hello world. Привет мир", runs it on the virtual machine, and prints a UTF-16 string to `Console.Out` via a port device.
+> Shows the full path "source → bytecode → VM → I/O" on a single screen.
+> Depends on `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
+> `[← Root](../README.md) · [VmApplication](../Nantuc.VmApplication/README.md) · [Extensions](../Nantuc.VmApplication.Extensions/README.md) · [Compiler](../Nantuc.Compiler/README.md) · [Kernel](../Nantuc.Kernel/README.md)`
 
-## Содержание
-- [Об этом модуле](#об-этом-модуле)
-- [Дерево локального проекта](#дерево-локального-проекта)
+## Table of contents
+- [About this module](#about-this-module)
+- [Local project tree](#local-project-tree)
 - [API](#api)
-- [Примеры для API](#примеры-для-api)
-- [Приближенность модуля к пользователю](#приближенность-модуля-к-пользователю)
-- [Особенная информация](#особенная-информация)
-- [Что исправить](#что-исправить)
+- [API examples](#api-examples)
+- [How close the module is to the user](#how-close-the-module-is-to-the-user)
+- [Special information](#special-information)
+- [What to fix](#what-to-fix)
 
-## Об этом модуле
+## About this module
 
-`Nantuc.Samples.Minimal` — это **один файл `Program.cs` с top-level statements** (без `class Program`, без namespace). Проект — `Exe`, `net10.0`, зависит только от `VmApplication.Extensions`. Это «hello world» для платформы: если вы никогда не видели Nantuc, начните отсюда.
+`Nantuc.Samples.Minimal` is a **single `Program.cs` file with top-level statements** (no `class Program`, no namespace). The project is an `Exe`, `net10.0`, and depends only on `VmApplication.Extensions`. This is the "hello world" for the platform: if you have never seen Nantuc, start here.
 
-Что демонстрирует пример:
+What the example demonstrates:
 
-1. **`VmHostFactory.CreateDefault()`** — создание `VmHost` (проект + эмулятор) одной строкой.
-2. **`LoggingFaultPolicyMinimal`** — кастомная политика fault'ов, которая логирует `ProcessorFault` в `Console.Out` и останавливает симуляцию.
-3. **`SaveFileProject` / `SaveFileInclude`** — запись исходника и include-файлов в `RamFileService` (in-memory, без реальной ФС). Используется `Librare.print_minic` и `Librare.io_nanasm` из `VmApplication.Extensions`.
-4. **`DeviceSpec.Create`** — VM с 128 MiB RAM, именем `"ConsoleVM"`, кастомной fault-политикой.
-5. **`QueuedIOStream(Console.Out, PortCharEncoding.Utf16)`** — асинхронное устройство вывода, UTF-16LE, регистрируется на `sector 1`.
-6. **`RegisterDevice`** — два вызова: VM на `sector 0`, I/O на `sector 1`.
-7. **`CompileToIL(0, optimize: true).Build()`** — компиляция всех файлов из `IFileService` в байткод.
-8. **`TryFastLoadProgram`** — быстрая загрузка (`NativeMemory.Copy`) в RAM VM.
-9. **`Run()`** — блокирующий запуск до `END`/fault'а.
+1. **`VmHostFactory.CreateDefault()`** — creating a `VmHost` (project + emulator) in one line.
+2. **`SaveFileProject` / `SaveFileInclude`** — writing the source and include files to `RamFileService` (in-memory, no real file system). It uses `Libraries.print_minic` and `Libraries.io_nanasm` from `VmApplication.Extensions`.
+3. **`DeviceSpec.Create(RamSize.MB128, name: "ConsoleVM")`** — a VM with 128 MiB RAM and the name `"ConsoleVM"`.
+4. **`QueuedIOStream(Console.Out, PortCharEncoding.Utf16)`** — an asynchronous output device, UTF-16LE, registered on `sector 1`.
+5. **`TryRegisterDevice`** — registers the VM on `sector 0` and the I/O on `sector 1`. Returns `IdState` instead of `int < 0`.
+6. **`TryGetDeviceContext`** — obtains the `DeviceContext` without `!`.
+7. **`CompileToIL(baseAddress: 0, optimize: true).Build()`** — compiles all files from `IFileService` into bytecode.
+8. **`TryLoadProgram`** — loads the bytecode into the VM's RAM.
+9. **`Run()`** — a blocking run until `END`/a fault. Returns `ProcessorFault` — the status is checked directly, without additional calls.
 
-Исходник `source1` (MiniC):
+The source `main.minic` (MiniC):
 
 ```c
 #include "print.minic"
-
-char str[] = "Hello world";
-
-void main() {
-    print16(str);
-}
+char str[] = "Hello world. Привет мир";
+void main() { print16(str); }
 ```
 
-`print.minic` (из `Librare.print_minic`) подключает `io.nanasm` и определяет `print16`/`write16`/`flush`, которые пишут в порты `0x10` (Data) и `0x12` (Flush). `QueuedIOStream` с `Utf16` собирает пары байт в `char` и пишет в `TextWriter`.
+The string contains both ASCII and Cyrillic — this verifies that `print16` and the UTF-16LE path in `QueuedIOStream` work correctly with non-ASCII characters. `print.minic` (from `Libraries.print_minic`) includes `io.nanasm` and defines `print16`/`write16`/`flush`, which write to ports `0x10` (Data) and `0x12` (Flush). `QueuedIOStream` with `Utf16` assembles byte pairs into a `char` and writes to the `TextWriter`.
 
-## Дерево локального проекта
+## Local project tree
 
-Один файл:
+One file:
 
 ```
 Nantuc.Samples.Minimal/
 ├── Nantuc.Samples.Minimal.csproj   # net10.0, Exe, ref → VmApplication.Extensions
-└── Program.cs                       # top-level statements, ~60 строк
+└── Program.cs                       # top-level statements, ~55 lines
 ```
 
-Никаких классов, namespace'ов, helper-методов — весь пример в `Program.cs`.
+No classes, namespaces, or helper methods — the whole example is in `Program.cs`.
 
 ## API
 
-Публичного API нет — это `Exe`. Ниже — поток выполнения, чтобы можно было читать код.
+There is no public API — it is an `Exe`. Below is the execution flow so that the code can be read.
 
-### Поток выполнения `Program.cs`
+### Execution flow of `Program.cs`
 
-| Шаг | Код | Что делает |
+| Step | Code | What it does |
 |---|---|---|
-| 1 | `using var host = VmHostFactory.CreateDefault();` | `VmHost` с `RamFileService` + дефолтный `PortBus` (`PortSize.KB64`, `DevicePortSize.B16`) |
-| 2 | `var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);` | Пишет `[FAULT] ...` в stdout, `ShouldContinue` возвращает `false` |
-| 3 | `host.Project.SaveFileProject("main.minic", source1);` | Кладёт `source1` в `RamFileService` под `ProjectPath/main.minic` |
-| 4 | `host.Project.SaveFileInclude("io.nanasm", Librare.io_nanasm);` | Кладёт asm-lib в `IncludePath/io.nanasm` |
-| 5 | `host.Project.SaveFileInclude("print.minic", Librare.print_minic);` | Кладёт C-lib в `IncludePath/print.minic` |
-| 6 | `DeviceSpec.Create(RamSize.MB128, lfPolicy, "ConsoleVM")` | Дескриптор VM |
-| 7 | `new QueuedIOStream(Console.Out, PortCharEncoding.Utf16)` | Устройство вывода |
-| 8 | `host.Emulator.RegisterDevice(handle, sector: 0)` | VM → `sector 0` |
-| 9 | `host.Emulator.RegisterDevice(iostream, "console", sector: 1)` | I/O → `sector 1` |
-| 10 | `host.Emulator.GetDeviceContext(deviceId)!` | `DeviceContext` для VM |
-| 11 | `host.Project.CompileToIL(0, optimize: true).Build()` | Компилирует всё из `IFileService` в `CompilationResult` |
-| 12 | `deviceCtx.TryFastLoadProgram(resCompile.Program, 0, out error)` | Загружает байткод в RAM VM |
-| 13 | `deviceCtx.Run()` | Запускает до `END`/fault'а |
+| 1 | `using var host = VmHostFactory.CreateDefault();` | A `VmHost` with `RamFileService` + the default `PortBus` (`PortSize.KB64`, `DevicePortSize.B16`) |
+| 2 | `host.Project.SaveFileProject("main.minic", source);` | Puts the source into `RamFileService` under `ProjectPath/main.minic` |
+| 3 | `host.Project.SaveFileInclude("io.nanasm", Libraries.io_nanasm);` | Puts the asm lib into `IncludePath/io.nanasm` |
+| 4 | `host.Project.SaveFileInclude("print.minic", Libraries.print_minic);` | Puts the C lib into `IncludePath/print.minic` |
+| 5 | `host.Emulator.TryRegisterDevice(DeviceSpec.Create(RamSize.MB128, name: "ConsoleVM"), sector: 0, out int vmId)` | Registers the VM on `sector 0`; `IdState.Valid` — success, `vmId` — the id |
+| 6 | `host.Emulator.TryRegisterDevice(new QueuedIOStream(Console.Out, PortCharEncoding.Utf16), name: "console", sector: 1, out _)` | Registers the I/O on `sector 1`; for a port device the name is passed as a parameter, for the VM — inside `DeviceSpec` |
+| 7 | `host.Emulator.TryGetDeviceContext(vmId, out var vm)` | A `DeviceContext` for the VM without `!` and without the risk of an NRE |
+| 8 | `host.Project.CompileToIL(baseAddress: 0, optimize: true).Build()` | Compiles everything from `IFileService` into a `CompilationResult` |
+| 9 | `vm.TryLoadProgram(compilation.Program!, loadAddress: 0, out var error)` | Loads the bytecode into the VM's RAM; `false` + `out error` — failure |
+| 10 | `ProcessorFault fault = vm.Run();` | Runs until `END`/a fault, returns `ProcessorFault` |
+| 11 | `if (fault.Status != BiosStatus.EndProgramm) ...` | Checks for successful completion |
 
-`CompileToIL(ulong, bool)` — extension из `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` (`ProjectExtension`). Внутри вызывает `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` и `ProjectBuilder.Build` с `Assembler` (прямой) или `IRAssembler` (через `CompileToIL`).
+`CompileToIL(ulong, bool)` — an extension from `[Nantuc.VmApplication.Extensions](../Nantuc.VmApplication.Extensions/README.md)` (`ProjectExtension`). Internally it calls `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` and `ProjectBuilder.Build`.
 
-`SaveFileProject`/`SaveFileInclude` — тоже extension из `ProjectExtension`, пишут в `IFileService` по путям `Paths.ProjectPath` / `Paths.IncludePath`.
+`TryRegisterDevice`/`TryGetDeviceContext` — the new emulator API, returning `IdState`/`bool` instead of "magic" negative ids and `null`. See the "`IdState` vs `int` / `null`" section below.
 
-## Примеры для API
+## API examples
 
-Этот проект **и есть** пример. Варианты использования:
+This project **is** the example. Usage options:
 
-**Заменить `QueuedIOStream` на синхронный (проще отлаживать):**
+**Replace `QueuedIOStream` with a synchronous one (easier to debug):**
 
 ```csharp
 var iostream = new SynchronousIOStream(Console.Out, PortCharEncoding.Utf16);
 ```
 
-**Заменить UTF-16 на UTF-8 (тогда `print8` в `print.minic`):**
+**Replace UTF-16 with UTF-8 (then `print8` in `print.minic`):**
 
 ```csharp
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 ```
 
-и в `source1` вызвать `print8(str)` вместо `print16(str)`. Но `char` в MiniC — 16-bit, `print8` ожидает `char*` и делает `write8(str[i])` — truncation 16→8. Для ASCII работает, для не-ASCII — нет.
+and in `main.minic` call `print8(str)` instead of `print16(str)`. But `char` in MiniC is 16-bit, `print8` expects `char*` and does `write8(str[i])` — a 16→8 truncation. For ASCII (`"Hello world."`) it works, for Cyrillic (`"Привет мир"`) it does not: the characters U+041F…U+0440 do not fit in a byte. For non-ASCII, keep `Utf16`.
 
-**Добавить диагностику завершения:**
+**Add completion diagnostics:**
 
 ```csharp
-deviceCtx.Run(new LaunchOptions(
+ProcessorFault fault = vm.Run(new LaunchOptions(
     StartAddress: 0,
     ShowTimer: true,
     OnEnd: r => Console.WriteLine($"steps={r?.Steps} elapsed={r?.Elapsed}")));
 ```
 
-**Заменить `RamFileService` на реальную ФС:**
+**Add `LoggingFaultPolicyMinimal` (optional):**
+
+```csharp
+using Nantuc.VmApplication.Extensions.Host;
+
+var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);
+var vmSpec = DeviceSpec.Create(RamSize.MB128, name: "ConsoleVM", faultPolicy: lfPolicy);
+```
+
+The policy logs the `ProcessorFault` to `Console.Out` and stops the simulation. In the current example it is **not used** — `Run()` already returns a `ProcessorFault`, which we check manually.
+
+**Replace `RamFileService` with a real file system:**
 
 ```csharp
 var fs = new DefaultFileService();
-fs.SaveFile(Path.Combine(AppContext.BaseDirectory, "project", "main.minic"), source1);
-fs.SaveFile(Path.Combine(AppContext.BaseDirectory, "include", "io.nanasm"), Librare.io_nanasm);
-fs.SaveFile(Path.Combine(AppContext.BaseDirectory, "include", "print.minic"), Librare.print_minic);
+fs.SaveFile(Path.Combine(AppContext.BaseDirectory, "project", "main.minic"), source);
+fs.SaveFile(Path.Combine(AppContext.BaseDirectory, "include", "io.nanasm"), Libraries.io_nanasm);
+fs.SaveFile(Path.Combine(AppContext.BaseDirectory, "include", "print.minic"), Libraries.print_minic);
 
 using var host = VmHostFactory.CreateDefault(fileService: fs);
 ```
 
-## Приближенность модуля к пользователю
+## How close the module is to the user
 
-**Максимальная.** Это учебный пример — «скопируй, запусти, получи Hello world». Предназначен для:
+**Maximum.** This is a teaching example — "copy, run, get Hello world + Привет мир". It is intended for:
 
-- Нового пользователя платформы, который хочет увидеть Nantuc в действии.
-- Автора расширений, которому нужен минимальный каркас для собственного устройства или оптимизации.
-- CI-сборки, которая проверяет, что публичный API не сломан (если добавите тест, который запускает `dotnet run` и сверяет stdout с `"Hello world"`).
+- A new user of the platform who wants to see Nantuc in action.
+- An extension author who needs a minimal skeleton for their own device or optimization.
+- A CI build that checks the public API has not broken (if you add a test that runs `dotnet run` and compares stdout with `"Hello world. Привет мир"`).
 
-**Что стоит делать:**
-- Запустить `dotnet run` в `Nantuc.Samples.Minimal` — на экран выведется `Hello world` (UTF-16).
-- Использовать как шаблон для своих примеров: копировать структуру `SaveFileProject` → `RegisterDevice` → `CompileToIL` → `TryFastLoadProgram` → `Run`.
-- Для отладки заменить `Run()` на `RunStepMode` + `SingleStep`, как в `[VmApplication README](../Nantuc.VmApplication/README.md)`.
+**What you should do:**
+- Run `dotnet run` in `Nantuc.Samples.Minimal` — the screen will print `Hello world. Привет мир` (UTF-16).
+- Use it as a template for your own examples: copy the structure `SaveFileProject` → `TryRegisterDevice` → `TryGetDeviceContext` → `CompileToIL` → `TryLoadProgram` → `Run`.
+- Check the `IdState` from `TryRegisterDevice` — this replaces the old `deviceId < 0` check.
+- For debugging, replace `Run()` with `RunStepMode` + `SingleStep`, as in the `[VmApplication README](../Nantuc.VmApplication/README.md)`.
 
-**Что не стоит делать:**
-- Ожидать, что `optimize: true` даст ускорение — без `AddStdRules()` AST-оптимизатор пуст (см. [Что исправить, п.6](#что-исправить)).
-- Менять `portsPerDevice` в `VmHostFactory.CreateDefault(...)` без пересчёта `portWrite`/`portFlush` в `print.minic` (см. [Особенная информация](#особенная-информация)).
-- Использовать `RamFileService.Combine` в своих путях — он использует `\\` на всех ОС, что ломает `DefaultFileService` при смешивании.
+**What you should not do:**
+- Expect `optimize: true` to provide a speedup — without `AddStdRules()` the AST optimizer is empty (see [What to fix, item 2](#what-to-fix)).
+- Change `portsPerDevice` in `VmHostFactory.CreateDefault(...)` without recalculating `portWrite`/`portFlush` in `print.minic` (see [Special information](#special-information)).
+- Use `RamFileService.Combine` in your own paths — it uses `\\` on all OSes, which breaks `DefaultFileService` when mixed.
+- Rely on `Console.Out` for Cyrillic on Windows without explicitly setting `Console.OutputEncoding` (see [What to fix, item 3](#what-to-fix)).
 
-## Особенная информация
+## Special information
 
-### Порты: откуда `0x10` и `0x12`
+### `IdState` vs `int` / `null`
 
-`print.minic` (из `Librare`) содержит:
+Previously, device registration returned an `int`: `>= 0` — the id, `-2` — an error; and `GetDeviceContext(id)!` crashed with an NRE if the id was invalid. Now:
+
+- `TryRegisterDevice(...)` returns `IdState` (`Valid` / `Invalid` / …); `out int id` is always filled.
+- `TryGetDeviceContext(id, out vm)` returns `bool`.
+- `TryLoadProgram(...)` returns `bool` with `out string error`.
+
+This allows you to not rely on "magic" negative ids and not write `!` for `GetDeviceContext`.
+
+### Ports: where `0x10` and `0x12` come from
+
+`print.minic` (from `Libraries.print_minic`) contains:
 
 ```c
 int portWrite = 0x10;
 int portFlush = 0x12;
 ```
 
-Это **абсолютные адреса** в порт-пространстве VM, а не смещения. `PortBus` (`[Nantuc.Kernel](../Nantuc.Kernel/README.md)`) маршрутизирует `address >> deviceShift` в сектор, `address & offsetMask` в смещение внутри устройства. При дефолтных `PortSize.KB64` и `DevicePortSize.B16`:
+These are **absolute addresses** in the VM's port space, not offsets. `PortBus` (`[Nantuc.Kernel](../Nantuc.Kernel/README.md)`) routes `address >> deviceShift` to the sector, `address & offsetMask` to the offset within the device. With the default `PortSize.KB64` and `DevicePortSize.B16`:
 
-- `PortsOnDevice = 1 << 4 = 16` (байт).
+- `PortsOnDevice = 1 << 4 = 16` (bytes).
 - `SectorCount = 1 << (16 - 4) = 4096`.
-- Сектор 1 → база `1 * 16 = 16 = 0x10`.
+- Sector 1 → base `1 * 16 = 16 = 0x10`.
 - `Data` (offset 0) → `0x10`, `Flush` (offset 2) → `0x12`.
 
-Если поменять `portsPerDevice` в `VmHostFactory.CreateDefault` (например, на `DevicePortSize.B32` = 32), база сектора 1 станет `0x20`, а `portWrite = 0x10` попадёт в **сектор 0** (VM самого себя), и вывод пропадёт или сломается. Это ограничение примера, не платформы.
-Вынесены в глобальные переменные чтобы иметь возможность менять адреса записи, полезно если системы находятся в разных секторах
-### UTF-16 и `QueuedIOStream`
+If you change `portsPerDevice` in `VmHostFactory.CreateDefault` (e.g., to `DevicePortSize.B32` = 32), the base of sector 1 becomes `0x20`, and `portWrite = 0x10` lands in **sector 0** (the VM itself), and the output will disappear or break. This is a limitation of the example, not of the platform.
 
-`QueuedIOStream` с `PortCharEncoding.Utf16` собирает пары байт в `char`:
+The addresses are placed in the global variables `portWrite`/`portFlush` so that they can be changed to match your sector topology.
+
+### UTF-16 and `QueuedIOStream`
+
+`QueuedIOStream` with `PortCharEncoding.Utf16` assembles byte pairs into a `char`:
 
 ```csharp
 if (pendingLowByte is null) { pendingLowByte = b; /* buffered */ continue; }
 char c = (char)(pendingLowByte.Value | (b << 8));
 ```
 
-`print16` (в `print.minic`) пишет low byte первым (`write8(c)`), high — вторым (`write8(c >> 8)`). Порядок совпадает с UTF-16LE. `flush()` в конце пишет `1` в `Flush`-порт → `QueuedIOStream.Flush()` ждёт до 2 сек, пока `_pendingCount` не станет 0, и делает `_writer.Flush()`.
+`print16` (in `print.minic`) writes the low byte first (`write8(c)`), the high byte second (`write8(c >> 8)`). The order matches UTF-16LE. `flush()` at the end writes `1` to the `Flush` port → `QueuedIOStream.Flush()` waits up to 2 sec for `_pendingCount` to become 0, and does `_writer.Flush()`.
+
+The string `"Hello world. Привет мир"` verifies that:
+- ASCII (`Hello world.`) goes as is (U+0048…U+0077, 2 bytes in UTF-16).
+- Cyrillic (`Привет мир`, U+041F…U+0440) is also 2 bytes in UTF-16, but outside the ASCII range — `QueuedIOStream` writes the `char` directly to the `TextWriter`, and the decoding depends on the `Console.Out` encoding.
 
 ### `void main()` vs `int main()`
 
-`source1` объявляет `void main()`. Компилятор MiniC не проверяет тип возврата `main` (`FunctionGenerator.GenerateFunction` смотрит только `func.Name == "main"`), а в эпилоге `main` всегда `EmitEnd()`. Так что `void main` и `int main` дают одинаковый байткод. Для стиля C лучше `int main()`, но для примера `void main()` короче.
+`main.minic` declares `void main()`. The MiniC compiler does not check the return type of `main` (`FunctionGenerator.GenerateFunction` only looks at `func.Name == "main"`), and in the epilogue of `main` it always does `EmitEnd()`. So `void main` and `int main` produce the same bytecode. For C style, `int main()` is better, but for the example `void main()` is shorter.
 
 ### `optimize: true` — no-op
 
-`CompileToIL(0, optimize: true)` включает только AST-оптимизации. Но `VmHostProject.Optimizator.VMAstOptimizer` создаётся пустым — если не вызвать `AddStdRules()`, ни одно правило не применится. В этом примере `optimize: true` — просто «флаг на будущее». См. [Что исправить, п.6](#что-исправить).
+`CompileToIL(0, optimize: true)` enables only AST optimizations. But `VmHostProject.Optimizator.VMAstOptimizer` is created empty — if `AddStdRules()` is not called, no rule will apply. In this example `optimize: true` is a "flag for the future". See [What to fix, item 2](#what-to-fix).
 
-### `Run()` и `QueuedIOStream`
+### `Run()` and `QueuedIOStream`
 
-`deviceCtx.Run()` блокирует поток до `END`/fault'а. `print16` в конце вызывает `flush()` → `QueuedIOStream.Flush()` синхронно ждёт пустой очереди. Так что к моменту возврата из `Run()` всё выведено в `Console.Out`. `host.Dispose()` (через `using`) затем вызывает `ManagerDevices.Dispose` → `iostream.Dispose` → `_drainTask.Wait(5s)` (на случай, если что-то осталось). Порядок безопасен.
+`vm.Run()` blocks the thread until `END`/a fault. `print16` at the end calls `flush()` → `QueuedIOStream.Flush()` synchronously waits for an empty queue. So by the time `Run()` returns, everything has been output to `Console.Out`. `host.Dispose()` (via `using`) then calls `ManagerDevices.Dispose` → `iostream.Dispose` → `_drainTask.Wait(5s)` (in case something remains). The order is safe.
 
-### Ограничения платформ
+### Platform limitations
 
-- **`net10.0`**, без `AllowUnsafeBlocks` — пример не трогает нативную память напрямую.
-- **`QueuedIOStream`** использует `Task.Run` + `Channel<byte>` — в WASM работает, но фоновый drain может не завершиться до конца синхронного `Main`. Для WASM-примера используйте `SynchronousIOStream`.
-- **`LoggingFaultPolicyMinimal`** пишет в `Console.Out` — в headless/CI работает, но без `Console.OutputEncoding = UTF8` кириллица в сообщениях о fault'ах может отображаться некорректно.
-- **`RamFileService`** не зависит от ОС (in-memory), но `Combine` с `\\` — не «нативный» путь. Для реальной ФС — `DefaultFileService` + `Path.Combine`.
+- **`net10.0`**, no `AllowUnsafeBlocks` — the example does not touch native memory directly.
+- **`QueuedIOStream`** uses `Task.Run` + `Channel<byte>` — it works in WASM, but the background drain may not finish before the end of a synchronous `Main`. For a WASM example, use `SynchronousIOStream`.
+- **Cyrillic in `Console.Out`** — on Windows without `Console.OutputEncoding = Encoding.UTF8`, the string `"Привет мир"` may display as `????`. See [What to fix, item 3](#what-to-fix).
+- **`RamFileService`** does not depend on the OS (in-memory), but `Combine` with `\\` is not a "native" path. For a real file system — `DefaultFileService` + `Path.Combine`.
+
+## What to fix
+
+1. **`QueuedIOStream` in WASM — background drain.**  
+   File: `Nantuc.VmApplication.Extensions/Emulator/IO/QueuedIOStream.cs`. In WASM, `Task.Run` may not execute before the end of a synchronous `Main`, because there is no event loop for the background task.  
+   Fix: for WASM examples use `SynchronousIOStream`, or document in `README`/`STDLIBRARIES` that `QueuedIOStream` requires an explicit `await`/`Dispose`.
+
+2. **`optimize: true` without `AddStdRules()` — no-op.**  
+   File: `Program.cs`. `CompileToIL(baseAddress: 0, optimize: true)` enables AST optimizations, but `VMAstOptimizer` is empty.  
+   Fix: either call `host.Project.Optimizator.VMAstOptimizer.AddStdRules()` before compiling, or pass `optimize: false` so as not to mislead the reader.
+
+3. **Cyrillic in `Console.Out`.**  
+   File: `Program.cs`. On Windows without explicitly setting `Console.OutputEncoding`, the string `"Привет мир"` may display as `????`.  
+   Fix: at the start of `Program.cs` add `Console.OutputEncoding = System.Text.Encoding.UTF8;` (before the first output), or document it in the README/platform notes.
+
+4. **`void main()` in the example.**  
+   File: `Program.cs`. It works, but for C style `int main()` is better.  
+   Fix: replace with `int main() { print16(str); return 0; }` — more familiar to the reader.
+
+5. **`LibraresIncludes` → `StdLibraries` — name synchronization.**  
+   File: `Nantuc.VmApplication.Extensions/LibraresIncludes/LibraresForCompiler.cs`. The example already uses `using Nantuc.VmApplication.Extensions.StdLibraries;` and `Libraries.io_nanasm`. You need to make sure that in `VmApplication.Extensions` itself the namespace/folder/class are renamed to `StdLibraries`/`Libraries` (or, conversely, the example still uses the old path). The typos `Librares`/`Librare` — remove them in a single BREAKING commit.

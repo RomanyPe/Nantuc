@@ -1,5 +1,5 @@
-﻿using Nantuc.Kernel.Common;
-using Nantuc.Kernel.Diagnostics;
+﻿using Nantuc.Common;
+using Nantuc.Diagnostics;
 using Nantuc.VmApplication.Default;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Project;
