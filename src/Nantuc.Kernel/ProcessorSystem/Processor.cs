@@ -313,10 +313,7 @@ public sealed class Processor(MemoryBus ram,
 
     private BiosStatus InstructionCALL_IND(RegType r)
     {
-        var nextIp = _registers[r.Int()];
-        if (nextIp >= _ram.Length)
-            return RecordFaultContext(BiosStatus.SegmentationFault, nextIp);
-        
+        var nextIp = _registers[r.Int()];        
         return InstructionCALL(nextIp);
     }
 
@@ -692,27 +689,42 @@ public sealed class Processor(MemoryBus ram,
     }
     private BiosStatus InstructionJMP(ulong targetAddress)
     {
+        if (targetAddress >= _ram.Length)
+            return RecordFaultContext(BiosStatus.SegmentationFault, targetAddress);
+
         _registers[RegType.rIP.Int()] = targetAddress;
         return BiosStatus.Success;
     }
 
     private BiosStatus InstructionJZ(ulong t)
     {
+        if (t >= _ram.Length)
+            return RecordFaultContext(BiosStatus.SegmentationFault, t);
+
         if (ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
         return BiosStatus.Success;
     }
     private BiosStatus InstructionJNZ(ulong t)
     {
+        if (t >= _ram.Length)
+            return RecordFaultContext(BiosStatus.SegmentationFault, t);
+
         if (!ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
         return BiosStatus.Success;
     }
     private BiosStatus InstructionJL(ulong t)
     {
+        if (t >= _ram.Length)
+            return RecordFaultContext(BiosStatus.SegmentationFault, t);
+
         if (NegativeFlagSet) _registers[RegType.rIP.Int()] = t;
         return BiosStatus.Success;
     }
     private BiosStatus InstructionJG(ulong t)
     {
+        if (t >= _ram.Length)
+            return RecordFaultContext(BiosStatus.SegmentationFault, t);
+
         if (!NegativeFlagSet & !ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
         return BiosStatus.Success;
     }
@@ -758,6 +770,9 @@ public sealed class Processor(MemoryBus ram,
 
     private BiosStatus InstructionCALL(ulong targetAddress)
     {
+        if (targetAddress >= _ram.Length)
+            return RecordFaultContext(BiosStatus.SegmentationFault, targetAddress);
+
         ulong oldSp = _registers[RegType.rSP.Int()];
 
         if (oldSp < 8)

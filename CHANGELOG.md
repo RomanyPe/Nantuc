@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Order of sections within a version:
 **Added → Changed → Deprecated → Removed → Fixed → Documentation**.
 
+## [0.8.3]
+
+### Added
+- new std libraries in `Nantuc.VmApplication.Extensions.StdLibraries.Libraries`: `imath`, `bitops`, `ovf`
+- added a test for the allocator from `std`
+- 
+### Changed
+- **BREAKING:** the `ITimerSimulationResult` interface has been replaced with `readonly record struct TimeSimulationResult(TimeSpan Elapsed, long Steps)`; all places with the old semantics have been replaced with the new one
+
+### Documentation
+- Updated the root `README.md` and its localization; it has become smaller
+
 ## [0.8.2] - 2026-11-04
 
 ### Changed

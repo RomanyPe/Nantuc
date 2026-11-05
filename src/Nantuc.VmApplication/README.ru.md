@@ -248,7 +248,7 @@ public record class LaunchOptions(
     long? StepLimit = null,
     bool ShowTimer = false,
     Action? OnLaunch = null,
-    Action<ITimerSimulationResult?>? OnEnd = null)
+    Action<TimeSimulationResult>? OnEnd = null)
 { public static LaunchOptions Default { get; } }
 
 public record class LaunchOptionsDebug(
@@ -644,7 +644,8 @@ var project = new VmHostProjectBuilder()
 - **`VmHostProjectBuilder`** — добавлен `WithThrowProvider(IErrorMessageProvider?)`; `WithOptimizator` принимает `VmCompilerOptimizator?`.
 - **`VmHostFactory.CreateDefault`** — добавлен параметр `IErrorMessageProvider? provider = null` (4-м, перед `portBusSize`).
 - **`DeviceContext`** — добавлены `Pause()` (OpCode.HALT) и `Resume()` (OpCode.WAKE); `SingleStep`/`MultiStep` принимают `Action<ProcessorSnapshot>?`; `LoadProgram` принимает `ReadOnlySpan<byte>`; `TryFastLoadProgram` → `TryLoadProgram`; добавлен `GetLastFault()`.
-- **`LaunchOptions.OnEnd`** — `Action<ITimerSimulationResult?>?`; **`LaunchOptionsDebug.OnStep`** — `Action<ProcessorSnapshot>?`.
+- **`LaunchOptions.OnEnd`** — `Action<TimeSimulationResult>?`; 
+- **`LaunchOptionsDebug.OnStep`** — `Action<ProcessorSnapshot>?`.
 - **`SnapshotRegisters`** — вынесен в отдельный файл; `Count` стал `const int = 32`; `GetHashCode` согласован с `Equals`.
 - **`CompilationResult.Success`** требует `Program != null`.
 - **`CompilationToILResult(ILAssembler?, OptimizationResultLog?)`** — конструктор публичный.

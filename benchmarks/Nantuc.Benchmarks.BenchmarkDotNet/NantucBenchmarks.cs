@@ -75,12 +75,3 @@ public class NantucBenchmarks
         return steps;
     }
 }
-
-public record BenchCase(
-    string Name,
-    string ProgramText,
-    int Runs = 1,
-    int WarmupRuns = 1)
-{
-    public override string ToString() => Name;
-}

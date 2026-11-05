@@ -248,7 +248,7 @@ public record class LaunchOptions(
     long? StepLimit = null,
     bool ShowTimer = false,
     Action? OnLaunch = null,
-    Action<ITimerSimulationResult?>? OnEnd = null)
+    Action<TimeSimulationResult>? OnEnd = null)
 { public static LaunchOptions Default { get; } }
 
 public record class LaunchOptionsDebug(
@@ -644,7 +644,8 @@ Compared to the previous snapshot of `Nantuc.VmApplication`:
 - **`VmHostProjectBuilder`** — added `WithThrowProvider(IErrorMessageProvider?)`; `WithOptimizator` accepts `VmCompilerOptimizator?`.
 - **`VmHostFactory.CreateDefault`** — added the parameter `IErrorMessageProvider? provider = null` (4th, before `portBusSize`).
 - **`DeviceContext`** — added `Pause()` (OpCode.HALT) and `Resume()` (OpCode.WAKE); `SingleStep`/`MultiStep` accept `Action<ProcessorSnapshot>?`; `LoadProgram` accepts `ReadOnlySpan<byte>`; `TryFastLoadProgram` → `TryLoadProgram`; added `GetLastFault()`.
-- **`LaunchOptions.OnEnd`** — `Action<ITimerSimulationResult?>?`; **`LaunchOptionsDebug.OnStep`** — `Action<ProcessorSnapshot>?`.
+- **`LaunchOptions.OnEnd`** — `Action<TimeSimulationResult>?`; 
+- **`LaunchOptionsDebug.OnStep`** — `Action<ProcessorSnapshot>?`.
 - **`SnapshotRegisters`** — moved to a separate file; `Count` became `const int = 32`; `GetHashCode` is consistent with `Equals`.
 - **`CompilationResult.Success`** requires `Program != null`.
 - **`CompilationToILResult(ILAssembler?, OptimizationResultLog?)`** — the constructor is public.
@@ -653,7 +654,6 @@ Compared to the previous snapshot of `Nantuc.VmApplication`:
 - **`VmHostProject.OptimizationIL`** on error preserves the `OptimizationResultLog` from the original result.
 - **`VmCompilerOptimizator`** — properties renamed: `VMAstOptimizer` → `VmAstOptimizer`, `VMPeepholeOptimizer` → `VmPeepholeOptimizer`.
 - **`RamFileService.Combine`** — `Path.Combine` instead of `"\\"`, `GetNameFiles`/`Ext` — `StringComparison.Ordinal`.
-- **`DeviceView`** removed.
 - **Unsafe extensions**: `CompilationResultUnsafeExtension` (`Assembler`), `VmEmulatorUnsafeExtension.GetRawPortBus()`, `VmPtojectUnsafeExtension.CustomCompile<TAssembler,TResult>(...)` (wrapper over `CompileInternal`).
 - **XML documentation** added on public members (previously noted as missing).
 
@@ -696,7 +696,3 @@ Inside `DeviceContext` — `private enum Mode { Step, Continuous, None }` and `v
 - `[InlineArray]` in `SnapshotRegisters` — C# 12+, works in AOT/WASM.
 - `DefaultFileService` uses `Directory.EnumerateFiles`/`File.ReadAllText` — works in WASM, but is slow. For WASM — `RamFileService`.
 - `Thread.Sleep(delay)` in `DeviceContext.DebugRun` (via `Device.DebugRun`) — in WASM either a no-op or `PlatformNotSupportedException`.
-
-## Desync with the previous README version
-
-*(Note: this section is listed in the table of contents of the source but its body was not present in the provided file. If you have the content, please provide it and I'll translate it as well.)*

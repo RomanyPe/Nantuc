@@ -23,12 +23,10 @@
 - Шина портов: `IPortBus`, `IPortUse`, `IPortController`, `ReadPortResult`.
 - Процессор: `ProcessorSnapshot`, `IProcessorFaultPolicy` (с кэшированным `Default`).
 - Оптимизации: `OptimizationId`, `OptimizationLogEntry`, `IReadOnlyLogOptimization`.
-- Результаты замеров: `ITimerSimulationResult`.
+- Результаты замеров: `TimeSimulationResult`.
 - Устройства: `DeviceInfo`, `IReadOnlyNativeBuffer`.
 
 Проект — листовой по зависимостям (только `Common`), не содержит `unsafe`, `NativeMemory`, `Regex` и рефлексии.
-
-> **XML-документация почти полная.** Документированы `ITimerSimulationResult`, `OptimizationId`, `IReadOnlyNativeBuffer`, `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IReadOnlyLogOptimization`, `IProcessorFaultPolicy`. Все тривиальные DTO (`OptimizationLogEntry`, `ReadPortResult`, `DeviceInfo`) тоже имеют `///` на структуре и `<param>` на параметрах. Оставшиеся пробелы — семантика (поведение при ошибках, порядок `Dispose`, валидные значения `RegType`) и одно фактическое обещание в XML `OptimizationId`, не подкреплённое кодом. Подробности — в разделе [Что исправить](#что-исправить).
 
 ## Дерево локального проекта
 
@@ -45,7 +43,7 @@ Nantuc.Contracts/
 ├── IProcessorFaultPolicy.cs          # interface IProcessorFaultPolicy + nested DefaultProcessorFaultPolicy
 ├── ProcessorSnapshot.cs              # readonly struct ProcessorSnapshot, [InlineArray(32)]
 ├── IReadOnlyLogOptimization.cs       # interface IReadOnlyLogOptimization
-├── ITimerSimulationResult.cs         # interface ITimerSimulationResult
+├── TimeSimulationResult.cs           # readonly record struct TimeSimulationResult
 ├── OptimizationId.cs                 # readonly struct OptimizationId
 ├── OptimizationLogEntry.cs           # readonly record struct OptimizationLogEntry
 └── ReadPortResult.cs                 # readonly record struct ReadPortResult
@@ -67,7 +65,7 @@ Nantuc.Contracts/
 
 | Тип | Вид | Назначение |
 |---|---|---|
-| `ITimerSimulationResult` | `interface` | `Elapsed`, `Steps` |
+| `TimeSimulationResult` | `readonly record struct` | `Elapsed`, `Steps` |
 | `IPortBus` | `interface` | `ReadPort(ulong)`, `WritePort(ulong, byte)`, `WakeProcessor(ulong)` |
 | `IPortUse` | `interface` | `ReadPort(ulong)`, `WritePort(ulong, byte)`, `WakeProcessor()` |
 | `IPortController` | `interface : IPortUse, IDisposable` | Композиция «устройство на шине + освобождение» |
@@ -146,7 +144,7 @@ public interface IProcessorFaultPolicy
 
 **`IReadOnlyNativeBuffer`** — read-only буфер: `Length: nuint`, `this[nuint]: byte`. Несмотря на «Native» в имени, сам интерфейс — managed. Реализация может быть над `NativeMemory`, но это забота реализующего слоя (см. [WASM](#wasm--кроссплатформенность)).
 
-**`ITimerSimulationResult`** — `Elapsed: TimeSpan`, `Steps: long`. Read-only снимок замеров.
+**`TimeSimulationResult`** — `Elapsed: TimeSpan`, `Steps: long`. Read-only снимок замеров.
 
 ## Примеры для API
 

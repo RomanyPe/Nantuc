@@ -23,12 +23,10 @@ Key roles of the module:
 - Port bus: `IPortBus`, `IPortUse`, `IPortController`, `ReadPortResult`.
 - Processor: `ProcessorSnapshot`, `IProcessorFaultPolicy` (with a cached `Default`).
 - Optimizations: `OptimizationId`, `OptimizationLogEntry`, `IReadOnlyLogOptimization`.
-- Measurement results: `ITimerSimulationResult`.
+- Measurement results: `TimeSimulationResult`.
 - Devices: `DeviceInfo`, `IReadOnlyNativeBuffer`.
 
 The project is a leaf in terms of dependencies (only `Common`) and contains no `unsafe`, `NativeMemory`, `Regex`, or reflection.
-
-> **XML documentation is almost complete.** `ITimerSimulationResult`, `OptimizationId`, `IReadOnlyNativeBuffer`, `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IReadOnlyLogOptimization`, `IProcessorFaultPolicy` are documented. All trivial DTOs (`OptimizationLogEntry`, `ReadPortResult`, `DeviceInfo`) also have `///` on the struct and `<param>` on the parameters. The remaining gaps are semantics (behavior on errors, `Dispose` order, valid `RegType` values) and one factual promise in the `OptimizationId` XML that is not backed by code. Details — in the [What to fix](#what-to-fix) section. *(Note: the "What to fix" section was not present in the provided source.)*
 
 ## Local project tree
 
@@ -45,7 +43,7 @@ Nantuc.Contracts/
 ├── IProcessorFaultPolicy.cs          # interface IProcessorFaultPolicy + nested DefaultProcessorFaultPolicy
 ├── ProcessorSnapshot.cs              # readonly struct ProcessorSnapshot, [InlineArray(32)]
 ├── IReadOnlyLogOptimization.cs       # interface IReadOnlyLogOptimization
-├── ITimerSimulationResult.cs         # interface ITimerSimulationResult
+├── TimeSimulationResult.cs           # readonly record struct TimeSimulationResult
 ├── OptimizationId.cs                 # readonly struct OptimizationId
 ├── OptimizationLogEntry.cs           # readonly record struct OptimizationLogEntry
 └── ReadPortResult.cs                 # readonly record struct ReadPortResult
@@ -68,7 +66,7 @@ The module has 7 `interface`s and 5 `struct`/`record struct`s. Public surface:
 
 | Type | Kind | Purpose |
 |---|---|---|
-| `ITimerSimulationResult` | `interface` | `Elapsed`, `Steps` |
+| `TimeSimulationResult` | `readonly record struct` | `Elapsed`, `Steps` |
 | `IPortBus` | `interface` | `ReadPort(ulong)`, `WritePort(ulong, byte)`, `WakeProcessor(ulong)` |
 | `IPortUse` | `interface` | `ReadPort(ulong)`, `WritePort(ulong, byte)`, `WakeProcessor()` |
 | `IPortController` | `interface : IPortUse, IDisposable` | Composition "device on the bus + disposal" |
@@ -148,7 +146,7 @@ Semantics of `Default`: continue on `Success` and `NullDeviceOutput`, stop on an
 
 **`IReadOnlyNativeBuffer`** — a read-only buffer: `Length: nuint`, `this[nuint]: byte`. Despite "Native" in the name, the interface itself is managed. The implementation may be over `NativeMemory`, but that is the concern of the implementing layer (see [WASM](#wasm--cross-platform)).
 
-**`ITimerSimulationResult`** — `Elapsed: TimeSpan`, `Steps: long`. A read-only snapshot of measurements.
+**`TimeSimulationResult`** — `Elapsed: TimeSpan`, `Steps: long`. A read-only snapshot of measurements.
 
 ## API examples
 

@@ -2,7 +2,7 @@
 
 > Расширения к основному API: дизассемблер, отладчик, I/O-устройства, стандартные оптимизации (AST и peephole), утилиты компиляции «одной строкой», встроенные библиотеки MiniC/NANASM.
 > Зависит только от `[Nantuc.VmApplication](../../src/Nantuc.VmApplication/README.ru.md)` (транзитивно — от `Compiler`, `Kernel`, `Contracts`, `Common`).
-> `[← Корень](../README.ru.md) · [VmApplication](../../src/Nantuc.VmApplication/README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Common](../../src/Nantuc.Kernel.Common/README.ru.md) · [Contracts](../../src/Nantuc.Kernel.Contracts/README.ru.md) · [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.ru.md) · [STDLIBRARIES](STDLIBRARIES.md)`
+> `[← Корень](../README.ru.md) · [VmApplication](../../src/Nantuc.VmApplication/README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Common](../../src/Nantuc.Kernel.Common/README.ru.md) · [Contracts](../../src/Nantuc.Kernel.Contracts/README.ru.md) · [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.ru.md) · [STDLIBRARIES](STDLIBRARIES.ru.md)`
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -23,7 +23,7 @@
 - **I/O-устройства** (`NumericIOStream`, `SynchronousIOStream`, `QueuedIOStream`): вывод байтов/UTF-8/UTF-16 из VM в `TextWriter`. Плюс `PortCharEncoding` и `OutputPortLayout` (раскладка 8-байтного окна).
 - **Стандартные оптимизации**: AST-правила (`FoldConstants`, `PropagateConstants`, `RemoveUnusedVariables`, `RemoveUnreachableCode`, `InlineSmallVoidFunctions`) и peephole-правила (`ConstantFolding`, `RemoveNoopMov`, `RemovePushPopPair`, `RemoveSwapMovPair`, `RemoveJumpToNextLabel`, `RemoveMultiEnd`).
 - **Утилиты компиляции** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIL("int main(){}", 0, true, SourceLanguage.C)` и `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — одна строка вместо пайплайна.
-- **Встроенные библиотеки** (`Libraries`): строковые константы `heap_nanasm`, `alloc_minic`, `io_nanasm`, `print_minic` для `#include`. Подробнее — в [STDLIBRARIES.md](STDLIBRARIES.md).
+- **Встроенные библиотеки** (`Libraries`): строковые константы `heap_nanasm`, `alloc_minic`, `io_nanasm`, `print_minic`, `imath_minic`, `bitops_minic`, `ovf_minic` для `#include`. Подробнее — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
 - **RAM-утилиты** (`DeviceContextExtensions`): `GetRamAsNewArray`, `CopyRamTo` — читать RAM работающей/остановленной VM.
 
 Ключевая идея — не менять контракт `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IPeepholeRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`, отладчик работает через `DeviceContext.RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. Никаких новых интерфейсов в `Kernel.Contracts`.
@@ -62,7 +62,7 @@ Nantuc.VmApplication.Extensions/
 │   ├── HostExtensions.cs                     # RunOutcome + RunAndKeep / RunAndCleanup / RunOnce
 │   └── ProjectExtension.cs                   # Compile/CompileToIL по строке/строкам + SaveFileInclude/SaveFileProject + LoggingFaultPolicyMinimal
 ├── StdLibraries/
-│   └── Libraries.cs                # static class Libraries: heap_nanasm, alloc_minic, io_nanasm, print_minic
+│   └── Libraries.cs                          # static class Libraries: heap_nanasm, alloc_minic, io_nanasm, print_minic, imath_minic, bitops_minic, ovf_minic
 └── Optimizators/
     ├── AstOptimizerExtension.cs              # extension(VmAstOptimizer).AddStdRules() + WithASTNodePrefix + OptimizationId-константы
     ├── PeepholeOptimizerExtension.cs         # extension(VmPeepholeOptimizer).AddStdRules() + WithPeepholePrefix / WithRule + OptimizationId-константы + PeepholeLog
@@ -83,7 +83,7 @@ Nantuc.VmApplication.Extensions/
 ```
 
 Замечания по организации:
-- `Librares` (папка), `Librare` (устаревшее имя в доке) и `StdLibraries` (namespace) — три разные опечатки одного слова `Libraries`. Файл называется `Libraries.cs`, класс — `Libraries`. Публичное имя класса правильное, а namespace/папка — нет; см. [Что исправить](#что-исправить).
+- Папка и namespace — `StdLibraries`, файл и публичный класс — `Libraries`. Исторически папка называлась `Librares`, в старых доках встречалось `Librare` — обе опечатки исправлены. Namespace `Nantuc.VmApplication.Extensions.StdLibraries`, класс `Libraries`.
 - `ProjectExtension.cs` содержит `LoggingFaultPolicyMinimal` — класс не про расширения проекта, а про политику fault'ов. Логичнее вынести в `Host/`.
 - `AstOptimizerExtension.cs` и `PeepholeOptimizerExtension.cs` содержат не только extension-методы, но и `OptimizationId`-константы. Они — часть публичного контракта: по этим ID вы ищете логи в `OptimizationResultLog`.
 - `Compiler/CompilerExtension.cs` — расширение над `IReadOnlyDictionary<ErrorCode, string>` (`ValidateAllCodesCovered`/`TryValidateAllCodesCovered`). По changelog 0.7.2 эти методы помечены как удалённые; в коде файл пока присутствует — см. [Что исправить](#что-исправить), п.3.
@@ -495,11 +495,16 @@ public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorFaultPolic
 **`Libraries`** — `static class` со строковыми константами (namespace `Nantuc.VmApplication.Extensions.StdLibraries`):
 
 - `heap_nanasm` — `func_HeapGet`, `func_HeapSet`, `func_GetSP`, `func_Load64/32/16/8`, `func_Store64/32/16/8`.
-- `alloc_minic` — first-fit аллокатор с split и coalescing. Раскладка блока: header (size | FREE_BIT) + payload + footer. `MIN_BLOCK = 24`.
+- `alloc_minic` — first-fit аллокатор с split и coalescing. Раскладка блока: header (size | FREE_BIT) + payload + footer. `MIN_BLOCK = 24`, `HDR_FTR = 16`.
 - `io_nanasm` — `func_In`, `func_Out`.
 - `print_minic` — `print8`, `print16`, `write8`, `write16`, `flush` через `io_nanasm`.
+- `imath_minic` — `imin`/`imax`/`umin`/`umax`, `iclamp`/`uclamp`, `iabs`, `igcd`/`ugcd`, `ipow`, `uisqrt`, `idiv_floor`/`idiv_ceil`/`udiv_round_up`.
+- `bitops_minic` — `upopcount`, `uclz`/`uctz`, `rotl64`/`rotr64`, `urev64`, `unext_pow2`.
+- `ovf_minic` — `add_ovf_i32`/`sub_ovf_i32`/`mul_ovf_i32`, `add_ovf_u64`/`sub_ovf_u64`/`mul_ovf_u64`.
 
-**Важно:** баг `FunctionGenerator.GenerateFunction` (несимметричный push/pop callee-saved регистров, калечивший `alloc_minic` при 3-4 локалах) **исправлен**. Поэтому workaround «держать состояние в глобалах» больше не обязателен: в следующей итерации `alloc_minic` можно (и стоит) переписать с локалами. Текущая версия кода всё ещё держит `heapFreeList`/`heapCur`/`heapStart`/`FREE_BIT`/`MIN_BLOCK` в глобалах как легаси. Подробнее — в [STDLIBRARIES.md](STDLIBRARIES.md).
+`imath_minic`, `bitops_minic` и `ovf_minic` не требуют `#include` других библиотек — независимы. Подробнее — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
+
+**Важно:** баг `FunctionGenerator.GenerateFunction` (несимметричный push/pop callee-saved регистров, калечивший `alloc_minic` при 3-4 локалах) **исправлен**. Поэтому workaround «держать состояние в глобалах» больше не обязателен: в следующей итерации `alloc_minic` можно (и стоит) переписать с локалами. Текущая версия кода всё ещё держит `heapFreeList`/`heapCur`/`heapStart`/`FREE_BIT`/`MIN_BLOCK`/`HDR_FTR` в глобалах как легаси. Подробнее — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
 
 ### RAM-утилиты
 
@@ -719,6 +724,8 @@ var outcome = host.RunAndKeep(source, SourceLanguage.C, sector: 5);
 **Сохранение исходников в проект:**
 
 ```csharp
+using Nantuc.VmApplication.Extensions.StdLibraries;
+
 host.Project.SaveFileProject("main.c", "int main() { return 0; }");
 host.Project.SaveFileInclude("heap.nanasm", Libraries.heap_nanasm);
 ```
@@ -750,13 +757,14 @@ if (outcome.Success)
 - Для отладки — `Debugger` поверх `DeviceContext`: `dbg.Load(program)` → `dbg.Step()`/`StepOver()`/`StepOut()`/`Continue()`, `dbg.AddBreakpoint(addr)`, `dbg.CurrentInstruction`, `dbg.GetCallStack()`. Для останова длинного прогона — `dbg.RequestStop()` из другого потока.
 - Для отладки в IDE — подписаться на `dbg.Stopped`, чтобы обновлять панель регистров/стека/RAM на каждом останове.
 - Для «догнать до конца» (например, CI-прогон) — `dbg.RunToEnd(stepLimit: N)`, не `Continue` (последний застрянет на первой точке останова).
+- Для типовых целочисленных операций и проверок переполнения — `imath.minic`, `bitops.minic`, `ovf.minic` вместо ручных реализаций.
 
 **Что не стоит делать:**
 - Вызывать `RunAndKeep` несколько раз на одном `VmHost` с тем же `sector` — сектор будет занят. Используйте `sector:` явно или `RunOnce`.
 - Использовать `RunAndKeep` для недоверенного кода — он регистрирует VM на указанном секторе без sandbox'а.
 - Полагаться на `AddStdRules` для peephole — `ReplaceSafeMemAccessWithUnsafeRule` **не** добавляется автоматически.
 - Ожидать, что `RunOutcome.Success` отражает runtime-фолты — `Success` только про компиляцию и загрузку. Для статуса — `outcome.FaultInfo`.
-- Использовать `Libraries.alloc_minic` как «эталон» — там всё ещё глобалы как легаси (workaround больше не нужен, но код пока не упрощён).
+- Использовать `Libraries.alloc_minic` как «эталон» — там всё ещё глобалы как легаси (workaround больше не нужен, но код пока не упрощён), и в `free` есть баг (см. [Что исправить](#что-исправить), п. 14).
 - Вызывать `Step`/`Continue`/`Load` из разных потоков на одном `Debugger` — не потокобезопасно (кроме `RequestStop`). Модель — та же, что у `DeviceContext`.
 - Ожидать точного стека вызовов от `GetCallStack()` — VM не хранит frame pointer, восстановление эвристическое; возможны ложные срабатывания.
 - Полагаться на `stop.Snapshot.IsSleeping` в `Continue` — флаг сна приходит только из `_stepSnapshot` (после `SingleStep`); при останове через `RequestStop` он может быть `false`, даже если VM в `HALT`. Для `HALT` надёжнее `stop.Reason == Sleeping`.
@@ -772,7 +780,8 @@ if (outcome.Success)
 - **`ReplaceSafeMemAccessWithUnsafeRule.SizeRam = RamSize.B128`** — у правила теперь дефолт.
 - **`RunOutcome` содержит `ProcessorFault FaultInfo`**.
 - **`RunAndKeep`/`RunAndCleanup`/`RunOnce` принимают `sector`**.
-- **`Libraries.alloc_minic`** — first-fit с split и coalescing, header + footer, `FREE_BIT`, `MIN_BLOCK = 24`.
+- **`Libraries.alloc_minic`** — first-fit с split и coalescing, header + footer, `FREE_BIT`, `MIN_BLOCK = 24`, `HDR_FTR = 16`.
+- **`Libraries`** — добавлены `imath_minic`, `bitops_minic`, `ovf_minic` (типовые целочисленные операции, битовые операции, проверки переполнения). Namespace — `Nantuc.VmApplication.Extensions.StdLibraries`.
 - **`<AllowUnsafeBlocks>` убран** из csproj (в коде модуля `unsafe` нет).
 - **Баг компилятора `FunctionGenerator.GenerateFunction`** (несимметричный push/pop callee-saved регистров) исправлен. Поэтому workaround «держать состояние в глобалах» больше не обязателен.
 
@@ -830,9 +839,21 @@ VM не хранит frame pointer и не ведёт отдельный call st
 +16..sz-8: продолжение payload / unused
 +sz-8..sz: size | FREE_BIT(бит0)        — футер (для слияния влево)
 ```
-`payload` начинается с `+8`. Минимальный блок — 24 байта. При освобождении: `blkMark(b, size, 1)` → `mergeRight(b)` → `mergeLeft(b)` → `blkPush(b)`. При аллокации: first-fit по `heapFreeList`, при достаточном размере — `split` (если `csz - need >= MIN_BLOCK`), иначе `blkMark(curr, csz, 0)` (без split); иначе bump через `GetSP()`.
+`payload` начинается с `+8`. Минимальный блок — 24 байта. `HDR_FTR = 16` (8 hdr + 8 ftr) прибавляется к выровненному `payload`'у в `alloc`: `need = ((size + 7) & ~7) + HDR_FTR`, но не меньше `MIN_BLOCK`. При освобождении: `blkMark(b, size, 1)` → `mergeRight(b)` → `mergeLeft(b)` → `blkPush(b)`. При аллокации: first-fit по `heapFreeList`, при достаточном размере — `split` (если `csz - need >= MIN_BLOCK`), иначе `blkMark(curr, csz, 0)` (без split); иначе bump через `GetSP()`.
 
-**Историческая справка:** раньше `alloc_minic` держал всё состояние в глобалах из-за бага `FunctionGenerator.GenerateFunction` в компиляторе (несимметричный push/pop callee-saved регистров при 3-4 локалах). Баг исправлен — workaround больше не нужен, но текущий код ещё не мигрирован на локалы. Детали — в [STDLIBRARIES.md](STDLIBRARIES.md).
+**Известный баг в текущей версии:** в начале `free` стоит `if (blkFree(b)) return;` **до** объявления `ulong b = ptr - 8;` — обращение к необъявленной переменной. См. [Что исправить](#что-исправить), п. 14.
+
+**Историческая справка:** раньше `alloc_minic` держал всё состояние в глобалах из-за бага `FunctionGenerator.GenerateFunction` в компиляторе (несимметричный push/pop callee-saved регистров при 3-4 локалах). Баг исправлен — workaround больше не нужен, но текущий код ещё не мигрирован на локалы. Детали — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
+
+### `Libraries.imath_minic`, `Libraries.bitops_minic`, `Libraries.ovf_minic`
+
+Три независимые библиотеки поверх стандартных операторов MiniC — без `#include` и без ассемблерных обёрток:
+
+- `imath_minic` — `imin`/`imax`/`umin`/`umax`, `iclamp`/`uclamp`, `iabs`, `igcd`/`ugcd`, `ipow`, `uisqrt`, `idiv_floor`/`idiv_ceil`/`udiv_round_up`.
+- `bitops_minic` — `upopcount` (Kernighan), `uclz`/`uctz` (`0..64`, `64` для нуля), `rotl64`/`rotr64` (`n & 63`), `urev64`, `unext_pow2` (`0` — переполнение для `x > 2^63`).
+- `ovf_minic` — `add_ovf_i32`/`sub_ovf_i32`/`mul_ovf_i32` (для signed 32-bit; `INT_MAX = 2147483647`, `INT_MIN = -2147483647 - 1`), `add_ovf_u64`/`sub_ovf_u64`/`mul_ovf_u64` (для unsigned 64-bit). Все возвращают `1` при переполнении и `0` — иначе.
+
+Подробности — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
 
 ### `PortBusExtensions.GetBaseAddress`
 
@@ -904,4 +925,7 @@ VM не хранит frame pointer и не ведёт отдельный call st
 13. **[API] `Debugger.GetCallStack` — best-effort, ложные срабатывания.**  
     Файл: `Debugging/Debugger.cs`. VM не хранит frame pointer, стек восстанавливается сканированием `[rSP, RamSize)` на 8-байтные значения в диапазоне кода. Локальные `ulong`, случайно попавшие в диапазон, дадут ложные кадры.  
     Фикс: либо `/// <remarks>` с явным предупреждением (сейчас — в README), либо реализовать frame pointer в `Processor` (breaking change для байткода).
-```
+
+14. **[API] `alloc_minic.free` — обращение к `b` до его объявления.**  
+    Файл: `StdLibraries/Libraries.cs`. В начале `free(ulong ptr)` стоит `if (blkFree(b)) return;`, но `b` объявляется ниже (`ulong b = ptr - 8;`). Это баг — обращение к необъявленной переменной.  
+    Фикс: убрать лишнюю строку `if (blkFree(b)) return;` (двойное освобождение и так не поддерживается, а проверка `if (ptr == 0) return;` уже есть), либо перенести её **после** объявления `b`: `ulong b = ptr - 8; if (blkFree(b)) return;`.

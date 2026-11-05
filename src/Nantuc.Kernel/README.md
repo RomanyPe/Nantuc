@@ -149,7 +149,7 @@ Its own `MemoryBus` + `Processor` + `byte[] _ioMemory` + `ManualResetEventSlim _
 
 | Method | Purpose |
 |---|---|
-| `Run(ulong, long?, bool, Action?, Action<ITimerSimulationResult?>?)` | blocking run until completion/fault; `limit` — step limit → `InfinityLoop` |
+| `Run(ulong, long?, bool, Action?, Action<TimeSimulationResult>?)` | blocking run until completion/fault; `limit` — step limit → `InfinityLoop` |
 | `DebugRun(ulong, long, int, Action?, Action<ProcessorSnapshot>?, Action?)` | run with a delay and a per-step callback |
 | `BreakPointerLaunchDevice(ulong?, Action?)` | initialization without starting the loop |
 | `NextStepProcessor(Action<ProcessorSnapshot>?)` / `NextStepProcessorCount(int, Action<ProcessorSnapshot>?)` | manual steps |
@@ -196,7 +196,7 @@ ProcessorFault fault = device.Run(
     limit: 10_000,
     snowTimer: true,
     onLaunch: () => Console.WriteLine("start"),
-    onEnd: r => Console.WriteLine($"steps={r?.Steps}, elapsed={r?.Elapsed}"));
+    onEnd: r => Console.WriteLine($"steps={r.Steps}, elapsed={r.Elapsed}"));
 
 Console.WriteLine($"{fault.Status} @ 0x{fault.InstructionPointer:X}");
 ```
@@ -281,7 +281,7 @@ Medium (higher than `Common`/`Contracts`, lower than `VmApplication`).
 | `NativeMemory` | ⚠️ | `NativeMemory.AllocZeroed`/`Free`/`Clear` work on WASM (emscripten linear memory). But allocating 2 GiB (`RamSize.GB2`) in a browser will almost certainly throw `OutOfMemoryException` — the WASM linear memory limit is ~4 GiB for the whole process, with fragmentation. `MemoryBus`/`Device` do not check this limit. |
 | `unsafe` / `byte*` | ✅ | `NativeMemoryBuffer` is `unsafe`; WASM supports pointers. `Unsafe.ReadUnaligned`/`WriteUnaligned` work. |
 | `stackalloc` / `InlineArray` | ✅ | `stackalloc` is not used in hot paths, except `Processor.GetCurrentProcessorSnapshot` (32 × 8 bytes). `[InlineArray(32)]` in `Processor` — compile-time, AOT-friendly. |
-| `Interlocked` / `Volatile` | ⚠️ | `Interlocked.Exchange` in `MemoryBus.Dispose` and `Device.Dispose`, `Volatile.Read/Write` in `NativeMemoryBuffer.Dispose` and `Processor` — on single-threaded WASM (without `SharedArrayBuffer`) this is a no-op, but the code works. With threaded WASM — atomic. **Inconsistent use**: see [What to fix](#what-to-fix). |
+| `Interlocked` / `Volatile` | ⚠️ | `Interlocked.Exchange` in `MemoryBus.Dispose` and `Device.Dispose`, `Volatile.Read/Write` in `NativeMemoryBuffer.Dispose` and `Processor` — on single-threaded WASM (without `SharedArrayBuffer`) this is a no-op, but the code works. With threaded WASM — atomic. |
 | `ConcurrentQueue<T>` | ✅ | Two queues in `Processor` (`_externalCommands`, `_statusFromSimulation`). On single-threaded WASM — just a queue; on threaded — lock-free. |
 | `ManualResetEventSlim.Wait(15)` | ⚠️⚠️ | In `Device.RunSimulationLoop`/`RunSimulationLoopWithLimit`/`RunSimulationLoopDebug` — `_wakeSignal.Wait(15)` blocks the current thread for 15 ms when `IsSleeping`. In a browser — blocks the UI. Replacement: `await Task.Delay` + async loop, or a Web Worker. |
 | `Thread.Sleep(delay)` | ⚠️⚠️ | `RunSimulationLoopDebug` — `Thread.Sleep(delay)`. In a browser — blocks the UI. |
@@ -334,7 +334,3 @@ Medium (higher than `Common`/`Contracts`, lower than `VmApplication`).
 - It does not provide an async API — everything is synchronous (`Run`, `NextStep*`).
 - It does not manage the process lifecycle — that is `VmApplication`.
 - It does not parse `.bin`/`.nanas` bytecode — it only executes 32-bit words via `Processor.Step`.
-
-## What to fix
-
-*(This section was not present in the provided source; the document ends at "What this module does not do". If you have the "What to fix" content, please provide it and I'll translate it as well.)*

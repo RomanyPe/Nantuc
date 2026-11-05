@@ -149,7 +149,7 @@ Nantuc.Kernel/
 
 | Метод | Назначение |
 |---|---|
-| `Run(ulong, long?, bool, Action?, Action<ITimerSimulationResult?>?)` | блокирующий запуск до завершения/сбоя; `limit` — лимит шагов → `InfinityLoop` |
+| `Run(ulong, long?, bool, Action?, Action<TimeSimulationResult>?)` | блокирующий запуск до завершения/сбоя; `limit` — лимит шагов → `InfinityLoop` |
 | `DebugRun(ulong, long, int, Action?, Action<ProcessorSnapshot>?, Action?)` | запуск с задержкой и колбэком на шаг |
 | `BreakPointerLaunchDevice(ulong?, Action?)` | инициализация без запуска цикла |
 | `NextStepProcessor(Action<ProcessorSnapshot>?)` / `NextStepProcessorCount(int, Action<ProcessorSnapshot>?)` | ручные шаги |
@@ -196,7 +196,7 @@ ProcessorFault fault = device.Run(
     limit: 10_000,
     snowTimer: true,
     onLaunch: () => Console.WriteLine("start"),
-    onEnd: r => Console.WriteLine($"steps={r?.Steps}, elapsed={r?.Elapsed}"));
+    onEnd: r => Console.WriteLine($"steps={r.Steps}, elapsed={r.Elapsed}"));
 
 Console.WriteLine($"{fault.Status} @ 0x{fault.InstructionPointer:X}");
 ```
@@ -280,8 +280,8 @@ if (st != BiosStatus.Success)
 | Сборка в WASM | ⚠️ | Собирается под `browser-wasm` без правок csproj, но `Device.Run`/`DebugRun` — синхронные блокирующие методы. На single-threaded WASM они блокируют UI-поток. Требуется вынос в Web Worker или замена на async-цикл. |
 | `NativeMemory` | ⚠️ | `NativeMemory.AllocZeroed`/`Free`/`Clear` работают на WASM (линейная память emscripten). Но аллокация 2 GiB (`RamSize.GB2`) в браузере почти наверняка бросит `OutOfMemoryException` — лимит линейной памяти WASM ~4 GiB на весь процесс, с фрагментацией. `MemoryBus`/`Device` не проверяют этот лимит. |
 | `unsafe` / `byte*` | ✅ | `NativeMemoryBuffer` — `unsafe`; WASM поддерживает указатели. `Unsafe.ReadUnaligned`/`WriteUnaligned` работают. |
-| `stackalloc` / `InlineArray` | ✅ | `stackalloc` не используется в горячих путях, кроме `Processor.GetCurrentProcessorSnapshot` (32 × 8 байт). `[InlineArray(32)]` в `Processor` — compile-time, AOT-friendly. |
-| `Interlocked` / `Volatile` | ⚠️ | `Interlocked.Exchange` в `MemoryBus.Dispose` и `Device.Dispose`, `Volatile.Read/Write` в `NativeMemoryBuffer.Dispose` и `Processor` — на single-threaded WASM (без `SharedArrayBuffer`) это no-op, но код работает. С threaded WASM — атомарно. **Несогласованное использование**: см. [Что исправить](#что-исправить). |
+| `stackalloc` / `InlineArray` | ✅ | `stackalloc` не используе| `Interlocked` / `Volatile` | ⚠️ | `Interlocked.Exchange` в `MemoryBus.Dispose` и `Device.Dispose`, `Volatile.Read/Write` в `NativeMemoryBuffer.Dispose` и `Processor` — на single-threaded WASM (без `SharedArrayBuffer`) это no-op, но код работает. С threaded WASM — атомарно. |
+тся в горячих путях, кроме `Processor.GetCurrentProcessorSnapshot` (32 × 8 байт). `[InlineArray(32)]` в `Processor` — compile-time, AOT-friendly. |
 | `ConcurrentQueue<T>` | ✅ | Две очереди в `Processor` (`_externalCommands`, `_statusFromSimulation`). На single-threaded WASM — просто очередь; на threaded — lock-free. |
 | `ManualResetEventSlim.Wait(15)` | ⚠️⚠️ | В `Device.RunSimulationLoop`/`RunSimulationLoopWithLimit`/`RunSimulationLoopDebug` — `_wakeSignal.Wait(15)` блокирует текущий поток на 15 мс при `IsSleeping`. В браузере — блокировка UI. Замена: `await Task.Delay` + async-цикл, либо Web Worker. |
 | `Thread.Sleep(delay)` | ⚠️⚠️ | `RunSimulationLoopDebug` — `Thread.Sleep(delay)`. В браузере — блокировка UI. |

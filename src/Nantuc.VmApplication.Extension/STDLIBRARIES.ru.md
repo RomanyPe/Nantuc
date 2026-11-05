@@ -1,6 +1,6 @@
-﻿# Встроенные библиотеки (`LibraresForCompiler`)
+﻿# Встроенные библиотеки (`Libraries`)
 
-> Справочник по строковым константам `Nantuc.VmApplication.Extensions.LibraresIncludes.LibraresForCompiler`. Эти строки — содержимое `heap.nanasm`, `alloc.minic`, `io.nanasm`, `print.minic` — предназначены для `#include` в исходниках MiniC/NANASM.
+> Справочник по строковым константам `Nantuc.VmApplication.Extensions.StdLibraries.Libraries`. Эти строки — содержимое `heap.nanasm`, `alloc.minic`, `io.nanasm`, `print.minic`, `imath.minic`, `bitops.minic`, `ovf.minic` — предназначены для `#include` в исходниках MiniC/NANASM.
 >
 > `[← Корень](../README.ru.md) · [VmApplication.Extensions](README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md)`
 
@@ -11,18 +11,24 @@
 - [alloc.minic](#allocminic)
 - [io.nanasm](#ionanasm)
 - [print.minic](#printminic)
+- [imath.minic](#imathminic)
+- [bitops.minic](#bitopsminic)
+- [ovf.minic](#ovfminic)
 - [Пример использования](#пример-использования)
 - [Историческая справка про баг компилятора](#историческая-справка-про-баг-компилятора)
 
 ## Общее
 
 ```csharp
-using Nantuc.VmApplication.Extensions.LibraresIncludes;
+using Nantuc.VmApplication.Extensions.StdLibraries;
 
-host.Project.SaveFileInclude("heap.nanasm",  LibraresForCompiler.heap_nanasm);
-host.Project.SaveFileInclude("alloc.minic",   LibraresForCompiler.alloc_minic);
-host.Project.SaveFileInclude("io.nanasm",     LibraresForCompiler.io_nanasm);
-host.Project.SaveFileInclude("print.minic",   LibraresForCompiler.print_minic);
+host.Project.SaveFileInclude("heap.nanasm",   Libraries.heap_nanasm);
+host.Project.SaveFileInclude("alloc.minic",   Libraries.alloc_minic);
+host.Project.SaveFileInclude("io.nanasm",     Libraries.io_nanasm);
+host.Project.SaveFileInclude("print.minic",   Libraries.print_minic);
+host.Project.SaveFileInclude("imath.minic",   Libraries.imath_minic);
+host.Project.SaveFileInclude("bitops.minic",  Libraries.bitops_minic);
+host.Project.SaveFileInclude("ovf.minic",     Libraries.ovf_minic);
 ```
 
 После этого в исходнике можно писать:
@@ -30,16 +36,18 @@ host.Project.SaveFileInclude("print.minic",   LibraresForCompiler.print_minic);
 ```c
 #include "alloc.minic"
 #include "print.minic"
+#include "imath.minic"
+#include "bitops.minic"
 
 int main() {
-    char* p = (char*)alloc(128);
+    char* p = alloc(128);
     print8("hello\n");
     free(p);
     return 0;
 }
 ```
 
-Все четыре библиотеки **независимы** по смыслу, но `alloc.minic` и `print.minic` подключают `heap.nanasm`/`io.nanasm` через `#include`. Поэтому при `SaveFileInclude` для `alloc.minic` нужен и `heap.nanasm` (аналогично — `print.minic` требует `io.nanasm`).
+Библиотеки **независимы** по смыслу, но `alloc.minic` и `print.minic` подключают `heap.nanasm`/`io.nanasm` через `#include`. Поэтому при `SaveFileInclude` для `alloc.minic` нужен и `heap.nanasm` (аналогично — `print.minic` требует `io.nanasm`). `imath.minic`, `bitops.minic` и `ovf.minic` не требуют ничего дополнительно.
 
 ## heap.nanasm
 
@@ -80,15 +88,18 @@ First-fit аллокатор с split и coalescing. Публичное API — 
 - `payload` для пользователя начинается с `+8`.
 - `MIN_BLOCK = 24` байта (8 hdr + 8 payload + 8 ftr) — минимальный блок, который может существовать в куче. `split` создаёт остаток только если `csz - need >= MIN_BLOCK`.
 - `FREE_BIT` (бит 0) — маркер свободного блока. `size` в заголовке/футере — всегда `size & ~FREE_BIT`.
+- `HDR_FTR = 16` — суммарный overhead заголовка и футера, прибавляется к выровненному payload'у в `alloc`.
 
 ### Состояние
 
 ```c
-ulong heapFreeList;   // голова free-list (0 — пусто)
-ulong heapCur;        // вершина bump'а (== rHP), 0 — не инициализировано
-ulong heapStart;      // первый блок (для остановки coalesce влево)
-ulong FREE_BIT  = 1;
-ulong MIN_BLOCK = 24;
+ulong heapFreeList = 0;   // голова free-list (0 — пусто)
+ulong heapCur;            // вершина bump'а (== rHP), 0 — не инициализировано
+ulong heapStart;          // первый блок (для остановки coalesce влево)
+
+const ulong FREE_BIT  = 1;
+const ulong MIN_BLOCK = 24;
+ulong HDR_FTR = 16;       // 8 hdr + 8 ftr
 ```
 
 > Состояние сейчас в **глобалах**. Это легаси от бага `FunctionGenerator.GenerateFunction` (см. [Историческая справка](#историческая-справка-про-баг-компилятора)); баг исправлен, миграция в локалы — задача следующей итерации.
@@ -96,7 +107,7 @@ ulong MIN_BLOCK = 24;
 ### Поток `alloc(size)`
 
 1. `size = max(size, 1)`.
-2. `need = ((size + 7) / 8) * 8 + 16` (hdr + payload + ftr, выровнено на 8), но не меньше `MIN_BLOCK`.
+2. `need = ((size + 7) & ~7) + HDR_FTR` (hdr + payload + ftr, выровнено на 8), но не меньше `MIN_BLOCK`.
 3. `heapInit()` — если `heapCur == 0`, `heapCur = align8(rHP or 0x100000)`, `heapStart = heapCur`.
 4. **First-fit по `heapFreeList`.** Если `csz >= need`:
    - вырезать `curr` из free-list;
@@ -114,6 +125,8 @@ ulong MIN_BLOCK = 24;
 6. `blkPush(b)` — в голову free-list.
 
 `mergeRight` останавливается на `heapCur` (дальше bump не продвинулся). `mergeLeft` останавливается на `heapStart` (левого соседа нет).
+
+> ⚠️ В текущей строковой константе `alloc_minic` в начале `free` стоит строка `if (blkFree(b)) return;` **до** объявления `b` — это баг (обращение к необъявленной переменной), который нужно убрать; выше описано целевое поведение.
 
 ## io.nanasm
 
@@ -133,7 +146,7 @@ ulong MIN_BLOCK = 24;
 | `print8` | `void print8(char* str)` | Печатает ASCII-строку (1 байт на символ), затем `flush()` |
 | `print16` | `void print16(char* str)` | Печатает UTF-16-строку (2 байта на символ), затем `flush()` |
 | `write8` | `void write8(byte c)` | Один байт через `Out(c, portWrite)` |
-| `write16` | `void write16(char c)` | Два байта: `Out(c & 0xFF)`, `Out((c >> 8) & 0xFF)` |
+| `write16` | `void write16(char c)` | Два байта: `write8(c)`, затем `write8(c >> 8)` |
 | `flush` | `void flush()` | `Out(1, portFlush)` |
 
 Пример:
@@ -156,23 +169,72 @@ host.Emulator.RegisterDevice(uart, name: "UART0", sector: 1);
 // portFlush = GetBaseAddress(sector) + OutputPortLayout.Flush
 ```
 
+## imath.minic
+
+Целочисленная арифметика: min/max/clamp, модуль, НОД, степень, корень, деление с округлением. Без `#include`, независима.
+
+| Функция | Сигнатура | Что делает |
+|---|---|---|
+| `imin` / `imax` | `int imin(int a, int b)` / `int imax(int a, int b)` | Минимум / максимум двух `int` |
+| `umin` / `umax` | `ulong umin(ulong a, ulong b)` / `ulong umax(ulong a, ulong b)` | Минимум / максимум двух `ulong` |
+| `iclamp` | `int iclamp(int x, int lo, int hi)` | `x`, зажатый в `[lo, hi]` |
+| `uclamp` | `ulong uclamp(ulong x, ulong lo, ulong hi)` | `x`, зажатый в `[lo, hi]` |
+| `iabs` | `int iabs(int x)` | Модуль `int` |
+| `igcd` | `int igcd(int a, int b)` | НОД (алгоритм Евклида); знаки нормализуются |
+| `ugcd` | `ulong ugcd(ulong a, ulong b)` | НОД для `ulong` |
+| `ipow` | `int ipow(int base, int exp)` | `base^exp` для `exp >= 0` (бинарное возведение) |
+| `uisqrt` | `ulong uisqrt(ulong n)` | Целочисленный `sqrt(n)` (метод Ньютона) |
+| `idiv_floor` | `int idiv_floor(int a, int b)` | Деление с округлением вниз (с учётом C99-семантики `/`, `%`) |
+| `idiv_ceil` | `int idiv_ceil(int a, int b)` | Деление с округлением вверх |
+| `udiv_round_up` | `ulong udiv_round_up(ulong a, ulong b)` | Беззнаковое деление с округлением вверх (часто нужно аллокаторам) |
+
+## bitops.minic
+
+Битовые операции над 64-битными словами. Без `#include`, независима.
+
+| Функция | Сигнатура | Что делает |
+|---|---|---|
+| `upopcount` | `int upopcount(ulong x)` | Число установленных бит (Kernighan) |
+| `uclz` | `int uclz(ulong x)` | Число ведущих нулей, `0..64` (`64` для `x == 0`) |
+| `uctz` | `int uctz(ulong x)` | Число хвостовых нулей, `0..64` (`64` для `x == 0`) |
+| `rotl64` | `ulong rotl64(ulong x, int n)` | Циклический сдвиг влево (`n & 63`; `n == 0` → без изменений) |
+| `rotr64` | `ulong rotr64(ulong x, int n)` | Циклический сдвиг вправо (`n & 63`; `n == 0` → без изменений) |
+| `urev64` | `ulong urev64(ulong x)` | Зеркальное отражение бит |
+| `unext_pow2` | `ulong unext_pow2(ulong x)` | Ближайшая степень двойки `>= x`; `0` — переполнение (для `x > 2^63`) |
+
+## ovf.minic
+
+Проверки целочисленного переполнения. Без `#include`, независима. Возвращают `1` при переполнении и `0` — иначе.
+
+| Функция | Сигнатура | Что делает |
+|---|---|---|
+| `add_ovf_i32` | `int add_ovf_i32(int a, int b, int* out)` | `a + b`; при переполнении `*out` не трогается |
+| `sub_ovf_i32` | `int sub_ovf_i32(int a, int b, int* out)` | `a - b`; при переполнении `*out` не трогается |
+| `mul_ovf_i32` | `int mul_ovf_i32(int a, int b, int* out)` | `a * b`; ловит `INT_MIN * -1` до умножения; при переполнении `*out` не трогается |
+| `add_ovf_u64` | `int add_ovf_u64(ulong a, ulong b, ulong* out)` | `a + b`; пишет усечённый результат в `*out` в любом случае, `1` — при переносе |
+| `sub_ovf_u64` | `int sub_ovf_u64(ulong a, ulong b, ulong* out)` | `a - b`; пишет усечённый результат в `*out` в любом случае, `1` — при заёме |
+| `mul_ovf_u64` | `int mul_ovf_u64(ulong a, ulong b, ulong* out)` | `a * b`; при переполнении `*out` не трогается |
+
+> `INT_MAX` = `2147483647`, `INT_MIN` = `-2147483647 - 1`.
+
 ## Пример использования
 
 ```csharp
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Extensions.Emulator.IO;
 using Nantuc.VmApplication.Extensions.Host;
-using Nantuc.VmApplication.Extensions.LibraresIncludes;
+using Nantuc.VmApplication.Extensions.StdLibraries;
 using Nantuc.VmApplication.Project;
 using Nantuc.Kernel.Common;
 
 using var host = VmHostFactory.CreateDefault();
 
 // 1. Сохраняем библиотеки в include-директорию проекта.
-host.Project.SaveFileInclude("heap.nanasm",  LibraresForCompiler.heap_nanasm);
-host.Project.SaveFileInclude("io.nanasm",    LibraresForCompiler.io_nanasm);
-host.Project.SaveFileInclude("alloc.minic",  LibraresForCompiler.alloc_minic);
-host.Project.SaveFileInclude("print.minic",  LibraresForCompiler.print_minic);
+host.Project.SaveFileInclude("heap.nanasm",  Libraries.heap_nanasm);
+host.Project.SaveFileInclude("io.nanasm",    Libraries.io_nanasm);
+host.Project.SaveFileInclude("alloc.minic",  Libraries.alloc_minic);
+host.Project.SaveFileInclude("print.minic",  Libraries.print_minic);
+host.Project.SaveFileInclude("imath.minic",  Libraries.imath_minic);
 
 // 2. UART на секторе 1.
 var uart = new SynchronousIOStream(Console.Out, PortCharEncoding.BytePerChar);
@@ -182,15 +244,19 @@ host.Emulator.RegisterDevice(uart, name: "UART0", sector: 1);
 const string source = """
 #include "alloc.minic"
 #include "print.minic"
+#include "imath.minic"
+
+char str[] = "hello from MiniC\n";
+char n = "\n";
 
 int main() {
-    print8("hello from MiniC\n");
-    char* p = (char*)alloc(64);
+    print8(str);
+    char* p = alloc(64);
     p[0] = 'O';
     p[1] = 'K';
     p[2] = '\0';
-    print8((char*)p);
-    print8("\n");
+    print8(p);
+    print8(n);
     free(p);
     return 0;
 }
@@ -198,3 +264,5 @@ int main() {
 
 var outcome = host.RunAndKeep(source, SourceLanguage.C, sector: 1);
 ```
+
+---

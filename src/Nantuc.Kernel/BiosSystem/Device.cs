@@ -21,13 +21,6 @@ namespace Nantuc.Kernel.BiosSystem;
 /// </remarks>
 public sealed class Device : IPortController
 {
-
-    private sealed class SimulationResult(TimeSpan elapsed, long steps) : ITimerSimulationResult
-    {
-        public TimeSpan Elapsed => elapsed;
-        public long Steps => steps;
-    }
-
     private readonly byte[] _ioMemory;
     private readonly ManualResetEventSlim _wakeSignal = new(false);
     private readonly MemoryBus _ram;
@@ -147,7 +140,7 @@ public sealed class Device : IPortController
                     long? limit,
                     bool snowTimer,
                     Action? onLaunch,
-                    Action<ITimerSimulationResult>? onEnd)
+                    Action<TimeSimulationResult>? onEnd)
     {
 
         onLaunch?.Invoke();
@@ -163,7 +156,7 @@ public sealed class Device : IPortController
         else
             RunSimulationLoop();
 
-        SimulationResult timeSpan;
+        TimeSimulationResult timeSpan;
         if (sw != null)
         {
             sw.Stop();

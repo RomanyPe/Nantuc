@@ -19,7 +19,7 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
-        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.C).Build();
+        var comp = host.Project.Compile(program, 0, false, SourceLanguage.C);
         if (!comp.Success)
         {
             _outPut.WriteLine(string.Join("\n", comp.Errors ?? []));
@@ -52,7 +52,7 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
-        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.C).Build();
+        var comp = host.Project.Compile(program, 0, false, SourceLanguage.C);
 
         if (comp.Success)
         {
@@ -65,5 +65,40 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
         Assert.False(comp.Success, "Compilation unexpectedly succeeded — const violation not caught");
         Assert.NotNull(comp.Errors);
         Assert.NotEmpty(comp.Errors!);
+    }
+    protected void RunCompile_WithLibs(string program, ulong res, ReadOnlySpan<(string name, string content)> libs)
+    {
+        using var host = VmHostFactory.CreateDefault();
+        var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
+        var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
+        var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
+
+        foreach (var (name, content) in libs)
+            host.Project.SaveFileInclude(name, content);
+        
+        var comp = host.Project.Compile(program, 0, false, SourceLanguage.C);
+        if (!comp.Success)
+        {
+            _outPut.WriteLine(string.Join("\n", comp.Errors ?? []));
+            _outPut.WriteLine(program);
+        }
+        Assert.True(comp.Success);
+        Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
+
+        deviceCtx.Run();
+        var regs = deviceCtx.GetRegistersSnapshot();
+        bool v = res == regs[RegType.r0];
+
+        if (!v)
+        {
+            _outPut.WriteLine($"Expected: {res}");
+            _outPut.WriteLine($"Actual: {regs[RegType.r0]}");
+            _outPut.WriteLine("--- MiniC ---");
+            _outPut.WriteLine(program);
+            _outPut.WriteLine("--- NANASM ---");
+            _outPut.WriteLine(comp.DisassembleToString());
+        }
+
+        Assert.True(v);
     }
 }

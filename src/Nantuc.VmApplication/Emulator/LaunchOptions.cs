@@ -15,7 +15,7 @@ public record class LaunchOptions(ulong StartAddress = ProjectBuilder.BaseAddres
                              long? StepLimit = null,
                              bool ShowTimer = false,
                              Action? OnLaunch = null,
-                             Action<ITimerSimulationResult?>? OnEnd = null)
+                             Action<TimeSimulationResult>? OnEnd = null)
 { 
     /// <summary>
     /// Дефолтные настройки

@@ -6,6 +6,17 @@
 
 Порядок разделов внутри версии:
 **Добавлено → Изменено → Устарело → Удалено → Исправлено → Документация**.
+## [0.8.3]
+
+### Добавлено
+- новые std библиотеки в `Nantuc.VmApplication.Extensions.StdLibraries.Libraries`: `imath`, `bitops`, `ovf`
+- добавлен тест на аллокатор из `std`
+- 
+### Изменено
+- **BREAKING:** интерфейс `ITimerSimulationResult` заменен на `readonly record struct TimeSimulationResult(TimeSpan Elapsed, long Steps)` все места с старой сематикой заменены на новую
+
+### Документация
+- Обновлен корневой `README.md` и его локализация, он стал меньше
 
 ## [0.8.2] - 2026-11-04
 
