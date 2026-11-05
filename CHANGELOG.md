@@ -16,7 +16,7 @@ Order of sections within a version:
 ### Changed
 - **BREAKING:** the `ITimerSimulationResult` interface has been replaced with `readonly record struct TimeSimulationResult(TimeSpan Elapsed, long Steps)`; all places with the old semantics have been replaced with the new one
 
-### Documentation
+### Documentation 
 - Updated the root `README.md` and its localization; it has become smaller
 
 ## [0.8.2] - 2026-11-04

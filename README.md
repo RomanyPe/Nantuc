@@ -6,9 +6,7 @@
 > **Project version:** specified in `CHANGELOG.md`; semver is guaranteed.
 > Written in C# (.NET 10). The compiler and runtime are separated into layers, `unsafe` code is isolated in the core, and the public API is a thin facade with safe `Try*` methods and `IdState` diagnostics.
 
-Nantuc is a mini-framework for running programs in a C-like language: lexer, parser, AST optimizer, bytecode code generator, assembler (text and IL), register-based VM with memory and a port bus, disassembler, debugger, I/O devices, and an embedding API.
-
-Nantuc is a safe low-level scripting engine for .NET: a C-like MiniC, the NANASM assembler with a disassembler and step-by-step debugging, explicit In/Out, and a script crash does not crash the host. For cases where C-level control is needed but the code cannot be trusted.
+**Nantuc** is a mini-framework and safe low-level scripting engine for .NET for cases where C-level control is needed but the code cannot be trusted. It runs programs written in a C-like language (MiniC) and provides a complete pipeline: lexer, parser, AST optimizer, bytecode code generator, assembler (text and IL), a register-based VM with memory and a port bus, a disassembler, a step-by-step debugger, I/O devices, and an embedding API. It also includes the NANASM assembler with disassembly and debugging support, explicit In/Out operations, and isolation so that a script crash does not crash the host.
 
 The repository contains: Hello world in MiniC, a playable Snake game, an allocator test, and two VM benchmarks.
 
