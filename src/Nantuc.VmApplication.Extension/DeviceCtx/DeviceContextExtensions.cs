@@ -9,7 +9,7 @@ public static class DeviceContextExtensions
     {
         public byte[] GetRamAsNewArray(nuint start, nuint length)
         {
-            ctx.ThrowIfRunning("Cannot read the RAM of a running device");
+            ctx.ThrowIfRunning("Cannot copy the RAM of a running device");
 
             IReadOnlyNativeBuffer innerBuffer = ctx.NativeReadOnlyBuffer;
             nuint bufferLength = innerBuffer.Length;
@@ -27,7 +27,7 @@ public static class DeviceContextExtensions
 
         public void CopyRamTo(Span<byte> destination, nuint start)
         {
-            ctx.ThrowIfRunning("Cannot read the RAM of a running device");
+            ctx.ThrowIfRunning("Cannot copy the RAM of a running device");
 
             IReadOnlyNativeBuffer innerBuffer = ctx.NativeReadOnlyBuffer;
             nuint bufferLength = innerBuffer.Length;

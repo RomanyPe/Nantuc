@@ -13,6 +13,7 @@ const string source =
     """;
 
 using var host = VmHostFactory.CreateDefault();
+
 host.Project.SaveFileProject("main.minic", source);
 host.Project.SaveFileInclude("io.nanasm", Libraries.io_nanasm);
 host.Project.SaveFileInclude("print.minic", Libraries.print_minic);

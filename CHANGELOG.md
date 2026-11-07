@@ -2,10 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/).
 
 Order of sections within a version:
 **Added → Changed → Deprecated → Removed → Fixed → Documentation**.
+
+Short labels:
+- **BREAKING** — a backward-incompatible change; may break user code when upgrading.
+
+## [0.9.0]
+
+### Added
+- added new module `Nantuc.CLI`
+- added new tests `Nantuc.CLI.Tests`
+
+### Documentation
+- Updated root `README.md` and its localization
+- Added new `README.md` for `Nantuc.CLI`
 
 ## [0.8.3]
 

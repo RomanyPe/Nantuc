@@ -8,7 +8,6 @@
 
   <ItemGroup>
 	<ProjectReference Include="..\Nantuc.Compiler\Nantuc.Compiler.csproj" />
-	<ProjectReference Include="..\Nantuc.Contracts\Nantuc.Contracts.csproj" />
 	<ProjectReference Include="..\Nantuc.Kernel\Nantuc.Kernel.csproj" />
   </ItemGroup>
 

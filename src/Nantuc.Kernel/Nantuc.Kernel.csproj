@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<ProjectReference Include="..\Nantuc.Common\Nantuc.Common.csproj" />
 	<ProjectReference Include="..\Nantuc.Contracts\Nantuc.Contracts.csproj" />
   </ItemGroup>
 

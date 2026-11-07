@@ -8,7 +8,7 @@
 
 Вот объединённое описание:
 
-**Nantuc** — это мини-фреймворк и безопасный низкоуровневый скриптовый движок для .NET, предназначенный для случаев, когда нужен контроль уровня C, но коду нельзя доверять. Он включает C-подобный язык MiniC и ассемблер NANASM (текстовый и IL) с дизассемблером и пошаговой отладкой, а также полный конвейер: лексер, парсер, оптимизатор AST, генератор байткода, ассемблер и регистровую VM с памятью и портовой шиной. В состав входят устройства ввода-вывода, явные In/Out, API для встраивания и изоляция, благодаря которой падение скрипта не приводит к падению хоста.
+**Nantuc** — это мини-фреймворк и безопасный низкоуровневый скриптовый движок для .NET, предназначенный для случаев, когда нужен контроль уровня C, но коду нельзя доверять. Он включает C-подобный язык MiniC и ассемблер NANASM (текстовый и IL) с дизассемблером и пошаговой отладкой, а также полный конвейер: лексер, парсер, оптимизатор AST, генератор байткода, ассемблер и регистровую VM с памятью и портовой шиной. В состав входят устройства ввода-вывода, явные In/Out, API для встраивания, тонкий CLI (`nantuc`) и изоляция, благодаря которой падение скрипта не приводит к падению хоста.
 
 В репозитории: Hello world на MiniC, играбельная змейка, тест аллокатора и два бенчмарка VM.
 
@@ -28,7 +28,31 @@
 
 ## Быстрый старт
 
-Минимальный пример — компиляция и запуск `Hello world` на MiniC с выводом через UART, с безопасной проверкой каждого шага:
+Минимальный пример - компиляция и запуск `Hello world` на MiniC с выводом через UART:
+
+```csharp
+using Nantuc.Common;
+using Nantuc.VmApplication.Extensions.Host;
+
+const string source =
+    """
+    #include "print.minic"
+    char str[] = "Hello world";
+    void main() { print16(str); }
+    """;
+
+using var host = VmHostFactory.CreateDefault();
+
+host.Project.SaveFileInclude("io.nanasm", Libraries.io_nanasm);
+host.Project.SaveFileInclude("print.minic", Libraries.print_minic);
+
+var result = host.RunAndKeep(source, SourceLanguage.MiniC, output: Console.Out);
+
+if (!result.Success)
+    Console.Error.WriteLine(string.Join("\n", result.Diagnostics));
+```
+
+Подробный пример:
 
 ```csharp
 using Nantuc.Common;
@@ -82,6 +106,29 @@ if (fault.Status != BiosStatus.EndProgramm)
 
 Подробный разбор (объяснение портов `0x10`/`0x12`, `QueuedIOStream`, диагностика) — в [`Nantuc.Samples.Minimal/README.ru.md`](Nantuc.Samples.Minimal/README.ru.md).
 
+
+**То же самое через CLI (`nantuc`)** — пакет ставится как .NET global tool и покрывает весь конвейер: `compile` → `run` → `disasm` + управление инклюдами через `lib`.
+
+```bash
+# Установить CLI как .NET global tool
+dotnet tool install --global Nantuc.Cli
+
+# Скомпилировать проект из текущей директории в ./bin (с оптимизациями)
+nantuc compile -s ./bin -o
+
+# Запустить с лимитом шагов и таймером
+nantuc run -p ./bin/program.bin -ram 8MB -l 500000 -t
+
+# Дизассемблировать первые 128 байт в файл ./out/result-decompile.txt
+nantuc disasm -f ./bin/program.bin -cs 128 -s ./out
+
+# Добавить инклюд из файла и проверить его наличие
+nantuc lib add -p ./print.minic
+nantuc lib exist print.minic
+```
+
+Справка по всем командам — `nantuc help`. Детали — в [`src/Nantuc.Cli/README.ru.md`](src/Nantuc.Cli/README.ru.md).
+
 ## Ключевые особенности
 
 - **Два языка**: MiniC (C-подобный: структуры, указатели, массивы, `const`, `sizeof`, inline `asm`, `extern`, `#include`) и NANASM (ассемблер с метками и размерными суффиксами). Спецификации — в [`Nantuc.Compiler/README.ru.md`](Nantuc.Compiler/README.ru.md).
@@ -91,6 +138,7 @@ if (fault.Status != BiosStatus.EndProgramm)
 - **Устройства как first-class**: VM сама является устройством (`IPortController`) — можно вкладывать VM друг в друга, подключать UART, мониторы, клавиатуры.
 - **Публичный API без хаков**: `VmHost` / `DeviceContext` / `VmHostProject` — весь unsafe и нативные буферы спрятаны в `Nantuc.Kernel`.
 - **Дизассемблер и отладчик**: секции кода/данных, текстовый и структурный вывод; `Debugger` поверх `DeviceContext` с `Step`/`StepOver`/`StepOut`/`Continue`/`RunToEnd`, точками останова, `RequestStop` из другого потока, best-effort стеком вызовов, чтением RAM.
+- **CLI `nantuc`**: тонкая обёртка над публичным API (`compile`, `run`, `disasm`, `lib`, `help`), без собственной логики компиляции/исполнения; ставится как .NET global tool (`Nantuc.Cli`).
 - **Стандартные оптимизации** (AST и peephole) и инфраструктура для своих правил.
 - **Два бенчмарка**: ручной `Nantuc.Benchmarks` (MIPS, стабильность, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` на **14 MiniC-кейсах**.
 
@@ -119,8 +167,8 @@ if (fault.Status != BiosStatus.EndProgramm)
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│  Nantuc.Samples.*   Nantuc.Benchmarks.*                                          │
-│  (примеры, конечные продукты, бенчмарки)                                         │
+│  Nantuc.Samples.*   Nantuc.Benchmarks.*   Nantuc.Cli                             │
+│  (примеры, конечные продукты, бенчмарки, консольный интерфейс)                    │
 └──────────────────────────────────────────────────────────────────────────────────┘
                               │
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -155,6 +203,7 @@ if (fault.Status != BiosStatus.EndProgramm)
 - **`Diagnostics` не зависит ни от одного проекта Nantuc** — автор компилятора не тянет unsafe-ядро ради кодов ошибок.
 - **Компилятор не зависит от рантайма** — `Nantuc.Compiler` знает только `Common` + `Contracts` + `Diagnostics`.
 - **`VmApplication` — единственный модуль, который одновременно знает про компилятор и рантайм**; он склеивает «скомпилировать» и «запустить». Отладчик, дизассемблер и бенчмарки живут выше по слоям.
+- **`Nantuc.Cli` — верхний слой**: не содержит собственной логики, только разбирает аргументы и вызывает `VmApplication`/`Extensions`.
 
 ## Модули и NuGet
 
@@ -169,8 +218,9 @@ if (fault.Status != BiosStatus.EndProgramm)
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.ru.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.ru.md) |
 | `Nantuc.VmApplication.Extensions` | Дизассемблер, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extensions/README.ru.md) |
+| `Nantuc.Cli` | CLI `nantuc`: `compile`, `run`, `disasm`, `lib`, `help`; ставится как .NET global tool | [README](src/Nantuc.Cli/README.ru.md) |
 
-**Зависимости (снизу вверх):** `Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions`.
+**Зависимости (снизу вверх):** `Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions` → `Nantuc.Cli`.
 
 **Что ставить под сценарий:**
 
@@ -186,6 +236,10 @@ dotnet add package Nantuc.Diagnostics
 # Своё устройство (реализовать IPortController)
 dotnet add package Nantuc.Contracts
 dotnet add package Nantuc.Kernel
+
+# CLI как .NET global tool
+dotnet tool install --global Nantuc.Cli
+nantuc help
 ```
 
 Версия подтягивается последняя стабильная; зафиксировать конкретную — `--version 0.8.2`.
@@ -197,7 +251,7 @@ dotnet add package Nantuc.Kernel
 - **.NET 10 SDK** (все проекты таргетят `net10.0`).
 - **C# 14**: `extension`-блоки, `[InlineArray]`, `params ReadOnlySpan`, `field`-keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
 - **Windows / Linux / macOS / AoT** (другие платформы не тестировались, но Nantuc не привязан к конкретной платформе).
-- **WASM**: `Common`/`Contracts`/`Diagnostics` — полностью WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks` имеют ограничения (блокирующие вызовы, лимиты линейной памяти, single-thread browser). Полный разбор — [`docs/wasm.ru.md`](docs/wasm.ru.md).
+- **WASM**: `Common`/`Contracts`/`Diagnostics` — полностью WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `Cli` имеют ограничения (блокирующие вызовы, лимиты линейной памяти, single-thread browser). Полный разбор — [`docs/wasm.ru.md`](docs/wasm.ru.md).
 
 ## Сборка и запуск
 
@@ -213,6 +267,10 @@ dotnet run --project Nantuc.Samples.Scratch -c Release -snake 150
 
 # Тест аллокатора (по умолчанию в Samples.Scratch)
 dotnet run --project Nantuc.Samples.Scratch -c Release
+
+# CLI локально (без установки как global tool)
+dotnet run --project src/Nantuc.Cli -c Release -- compile -s ./bin -o
+dotnet run --project src/Nantuc.Cli -c Release -- run -p ./bin/program.bin -l 100000 -t
 
 # Ручной бенчмарк (результаты в bin/.../logs/result_Benchmark_Logs_{ts}.txt)
 dotnet run --project Nantuc.Benchmarks -c Release
@@ -231,18 +289,21 @@ dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *C
 | `Nantuc.Samples.Scratch` | `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE-цикл, ANSI-рендер; тест аллокатора (`Libraries.alloc_minic`) | [README](samples/Nantuc.Samples.Scratch/README.ru.md) |
 | `Nantuc.Benchmarks` | Ручной бенчмарк 14 MiniC-кейсов: MIPS, стабильность, перцентили, CV, JIT-impact | [README](samples/Nantuc.Benchmarks/README.ru.md) |
 | `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet-бенчмарк 14 MiniC-кейсов: время, аллокации, статистика, артефакты | [README](samples/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md) |
+| `Nantuc.Cli` | `nantuc`: `compile`/`run`/`disasm`/`lib`/`help`, установка как .NET global tool | [README](src/Nantuc.Cli/README.ru.md) |
 
-Дополнительные примеры (полный цикл с диагностикой, пошаговая отладка, своя оптимизация, Pause/Resume) — в README соответствующих модулей (`VmApplication`, `VmApplication.Extensions`).
+Дополнительные примеры (полный цикл с диагностикой, пошаговая отладка, своя оптимизация, Pause/Resume) — в README соответствующих модулей (`VmApplication`, `VmApplication.Extensions`, `Cli`).
 
 ## Метрики и качество
 
-- ~21 000 строк, 12 проектов; ядро и API (без сэмплов, тестов и бенчмарков) — ~17 600 строк, 7 проектов.
+- ~22 000 строк, 13 проектов; ядро и API (без сэмплов, тестов и бенчмарков) — ~17,900 строк, 7 проектов.
+- Конечный продукт `Nantuc.CLI` (консольное приложение): ~865 строк.
 - Индекс поддерживаемости: 80–97 (основные модули).
 - Полная таблица метрик — [docs/METRICS.md](docs/METRICS.md).
 
 **В работе / планы:**
 - JIT-компилятор на C/C++ (отдельный проект).
 - **Отладчик:** frame pointer в `Processor` для точного `GetCallStack`, `Debugger.Reset()`/`Reload()`, UI-панель для IDE (через `Stopped`-событие).
+- **CLI:** интерактивный REPL-режим, конфигурационный файл проекта вместо флагов на каждую команду.
 
 ## Вклад
 
@@ -274,4 +335,7 @@ dotnet test -c Release
 - Метрики: [`docs/METRICS.md`](docs/METRICS.md)
 - WASM-ограничения: [`docs/wasm.ru.md`](docs/wasm.ru.md)
 - Встроенные библиотеки MiniC/NANASM: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)
+- CLI: [`src/Nantuc.Cli/README.ru.md`](src/Nantuc.Cli/README.ru.md)
 - README модулей: см. столбец «README» в разделе [Модули и NuGet](#модули-и-nuget)
+
+---

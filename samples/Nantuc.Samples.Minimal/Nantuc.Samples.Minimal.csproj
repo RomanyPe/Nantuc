@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<ProjectReference Include="..\..\src\Nantuc.VmApplication.Extension\Nantuc.VmApplication.Extensions.csproj" />
+    <ProjectReference Include="..\..\src\Nantuc.VmApplication.Extension\Nantuc.VmApplication.Extensions.csproj" />
   </ItemGroup>
 
 </Project>
