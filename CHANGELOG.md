@@ -10,7 +10,7 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
-## [0.9.0]
+## [0.9.0] - 2026-11-08
 
 ### Added
 - added new module `Nantuc.CLI`
@@ -20,7 +20,7 @@ Short labels:
 - Updated root `README.md` and its localization
 - Added new `README.md` for `Nantuc.CLI`
 
-## [0.8.3]
+## [0.8.3] - 2026-11-05
 
 ### Added
 - new std libraries in `Nantuc.VmApplication.Extensions.StdLibraries.Libraries`: `imath`, `bitops`, `ovf`
