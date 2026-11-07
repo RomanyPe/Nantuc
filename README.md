@@ -110,7 +110,7 @@ Detailed walkthrough (explanation of ports `0x10`/`0x12`, `QueuedIOStream`, diag
 
 ```bash
 # Install the CLI as a .NET global tool
-dotnet tool install --global Nantuc.Cli
+dotnet tool install --global Nantuc.CLI
 
 # Compile the project from the current directory into ./bin (with optimizations)
 nantuc compile -s ./bin -o
@@ -126,7 +126,7 @@ nantuc lib add -p ./print.minic
 nantuc lib exist print.minic
 ```
 
-Help for all commands — `nantuc help`. Details — in [`src/Nantuc.Cli/README.md`](src/Nantuc.Cli/README.md).
+Help for all commands — `nantuc help`. Details — in [`src/Nantuc.CLI/README.md`](src/Nantuc.CLI/README.md).
 
 ## Key Features
 
@@ -137,7 +137,7 @@ Help for all commands — `nantuc help`. Details — in [`src/Nantuc.Cli/README.
 - **Devices as first-class**: the VM itself is a device (`IPortController`) — you can nest VMs, attach UART, monitors, keyboards.
 - **Hack-free public API**: `VmHost` / `DeviceContext` / `VmHostProject` — all `unsafe` and native buffers are hidden in `Nantuc.Kernel`.
 - **Disassembler and debugger**: code/data sections, textual and structural output; `Debugger` over `DeviceContext` with `Step`/`StepOver`/`StepOut`/`Continue`/`RunToEnd`, breakpoints, `RequestStop` from another thread, best-effort call stack, RAM reads.
-- **`nantuc` CLI**: a thin wrapper over the public API (`compile`, `run`, `disasm`, `lib`, `help`) with no compilation/execution logic of its own; installed as a .NET global tool (`Nantuc.Cli`).
+- **`nantuc` CLI**: a thin wrapper over the public API (`compile`, `run`, `disasm`, `lib`, `help`) with no compilation/execution logic of its own; installed as a .NET global tool (`Nantuc.CLI`).
 - **Standard optimizations** (AST and peephole) and infrastructure for custom rules.
 - **Two benchmarks**: a hand-rolled `Nantuc.Benchmarks` (MIPS, stability, percentiles, CV, JIT impact) and `Nantuc.Benchmarks.BenchmarkDotNet` on **14 MiniC cases**.
 
@@ -166,7 +166,7 @@ Layers go bottom-up. Each subsequent layer depends only on the previous ones; th
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│  Nantuc.Samples.*   Nantuc.Benchmarks.*   Nantuc.Cli                             │
+│  Nantuc.Samples.*   Nantuc.Benchmarks.*   Nantuc.CLI                             │
 │  (examples, end products, benchmarks, console interface)                         │
 └──────────────────────────────────────────────────────────────────────────────────┘
                               │
@@ -202,7 +202,7 @@ Key invariants:
 - **`Diagnostics` depends on no Nantuc project** — a compiler author does not pull in the unsafe kernel just for error codes.
 - **The compiler does not depend on the runtime** — `Nantuc.Compiler` knows only `Common` + `Contracts` + `Diagnostics`.
 - **`VmApplication` is the only module that knows both the compiler and the runtime**; it glues "compile" and "run" together. The debugger, disassembler, and benchmarks live higher up the stack.
-- **`Nantuc.Cli` is the top layer**: it contains no logic of its own, only parses arguments and calls into `VmApplication`/`Extensions`.
+- **`Nantuc.CLI` is the top layer**: it contains no logic of its own, only parses arguments and calls into `VmApplication`/`Extensions`.
 
 ## Modules and NuGet
 
@@ -217,9 +217,9 @@ All modules are published as NuGet packages on [nuget.org](https://www.nuget.org
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.md) |
 | `Nantuc.VmApplication.Extensions` | Disassembler, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extensions/README.md) |
-| `Nantuc.Cli` | `nantuc` CLI: `compile`, `run`, `disasm`, `lib`, `help`; installed as a .NET global tool | [README](src/Nantuc.Cli/README.md) |
+| `Nantuc.CLI` | `nantuc` CLI: `compile`, `run`, `disasm`, `lib`, `help`; installed as a .NET global tool | [README](src/Nantuc.CLI/README.md) |
 
-**Dependencies (bottom-up):** `Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions` → `Nantuc.Cli`.
+**Dependencies (bottom-up):** `Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions` → `Nantuc.CLI`.
 
 **What to install per scenario:**
 
@@ -237,7 +237,7 @@ dotnet add package Nantuc.Contracts
 dotnet add package Nantuc.Kernel
 
 # CLI as a .NET global tool
-dotnet tool install --global Nantuc.Cli
+dotnet tool install --global Nantuc.CLI
 nantuc help
 ```
 
@@ -250,7 +250,7 @@ The latest stable version is pulled by default; pin a specific one with `--versi
 - **.NET 10 SDK** (all projects target `net10.0`).
 - **C# 14**: `extension` blocks, `[InlineArray]`, `params ReadOnlySpan`, `field` keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
 - **Windows / Linux / macOS / AoT** (other platforms are untested, but Nantuc is not tied to a specific platform).
-- **WASM**: `Common`/`Contracts`/`Diagnostics` are fully WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `Cli` have limitations (blocking calls, linear memory limits, single-thread browser). Full breakdown — [`docs/wasm.md`](docs/wasm.md).
+- **WASM**: `Common`/`Contracts`/`Diagnostics` are fully WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` have limitations (blocking calls, linear memory limits, single-thread browser). Full breakdown — [`docs/wasm.md`](docs/wasm.md).
 
 ## Build and Run
 
@@ -268,8 +268,8 @@ dotnet run --project Nantuc.Samples.Scratch -c Release -snake 150
 dotnet run --project Nantuc.Samples.Scratch -c Release
 
 # CLI locally (without installing as a global tool)
-dotnet run --project src/Nantuc.Cli -c Release -- compile -s ./bin -o
-dotnet run --project src/Nantuc.Cli -c Release -- run -p ./bin/program.bin -l 100000 -t
+dotnet run --project src/Nantuc.CLI -c Release -- compile -s ./bin -o
+dotnet run --project src/Nantuc.CLI -c Release -- run -p ./bin/program.bin -l 100000 -t
 
 # Hand-rolled benchmark (results in bin/.../logs/result_Benchmark_Logs_{ts}.txt)
 dotnet run --project Nantuc.Benchmarks -c Release
@@ -288,9 +288,9 @@ BenchmarkDotNet artifacts — in `BenchmarkDotNet.Artifacts/`. The IDE profile `
 | `Nantuc.Samples.Scratch` | `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE loop, ANSI rendering; allocator test (`Libraries.alloc_minic`) | [README](samples/Nantuc.Samples.Scratch/README.md) |
 | `Nantuc.Benchmarks` | Hand-rolled benchmark of 14 MiniC cases: MIPS, stability, percentiles, CV, JIT impact | [README](samples/Nantuc.Benchmarks/README.md) |
 | `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet benchmark of 14 MiniC cases: time, allocations, statistics, artifacts | [README](samples/Nantuc.Benchmarks.BenchmarkDotNet/README.md) |
-| `Nantuc.Cli` | `nantuc`: `compile`/`run`/`disasm`/`lib`/`help`, installed as a .NET global tool | [README](src/Nantuc.Cli/README.md) |
+| `Nantuc.CLI` | `nantuc`: `compile`/`run`/`disasm`/`lib`/`help`, installed as a .NET global tool | [README](src/Nantuc.CLI/README.md) |
 
-Additional examples (full pipeline with diagnostics, step-by-step debugging, custom optimization, Pause/Resume) — in the READMEs of the respective modules (`VmApplication`, `VmApplication.Extensions`, `Cli`).
+Additional examples (full pipeline with diagnostics, step-by-step debugging, custom optimization, Pause/Resume) — in the READMEs of the respective modules (`VmApplication`, `VmApplication.Extensions`, `CLI`).
 
 ## Metrics and Quality
 
@@ -334,5 +334,5 @@ See [`LICENSE`](LICENSE) in the repository root.
 - Metrics: [`docs/METRICS.md`](docs/METRICS.md)
 - WASM limitations: [`docs/wasm.md`](docs/wasm.md)
 - Built-in MiniC/NANASM libraries: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md)
-- CLI: [`src/Nantuc.Cli/README.md`](src/Nantuc.Cli/README.md)
+- CLI: [`src/Nantuc.CLI/README.md`](src/Nantuc.CLI/README.md)
 - Module READMEs: see the "README" column in [Modules and NuGet](#modules-and-nuget)

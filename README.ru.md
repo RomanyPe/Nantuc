@@ -111,7 +111,7 @@ if (fault.Status != BiosStatus.EndProgramm)
 
 ```bash
 # Установить CLI как .NET global tool
-dotnet tool install --global Nantuc.Cli
+dotnet tool install --global Nantuc.CLI
 
 # Скомпилировать проект из текущей директории в ./bin (с оптимизациями)
 nantuc compile -s ./bin -o
@@ -127,7 +127,7 @@ nantuc lib add -p ./print.minic
 nantuc lib exist print.minic
 ```
 
-Справка по всем командам — `nantuc help`. Детали — в [`src/Nantuc.Cli/README.ru.md`](src/Nantuc.Cli/README.ru.md).
+Справка по всем командам — `nantuc help`. Детали — в [`src/Nantuc.CLI/README.ru.md`](src/Nantuc.CLI/README.ru.md).
 
 ## Ключевые особенности
 
@@ -138,7 +138,7 @@ nantuc lib exist print.minic
 - **Устройства как first-class**: VM сама является устройством (`IPortController`) — можно вкладывать VM друг в друга, подключать UART, мониторы, клавиатуры.
 - **Публичный API без хаков**: `VmHost` / `DeviceContext` / `VmHostProject` — весь unsafe и нативные буферы спрятаны в `Nantuc.Kernel`.
 - **Дизассемблер и отладчик**: секции кода/данных, текстовый и структурный вывод; `Debugger` поверх `DeviceContext` с `Step`/`StepOver`/`StepOut`/`Continue`/`RunToEnd`, точками останова, `RequestStop` из другого потока, best-effort стеком вызовов, чтением RAM.
-- **CLI `nantuc`**: тонкая обёртка над публичным API (`compile`, `run`, `disasm`, `lib`, `help`), без собственной логики компиляции/исполнения; ставится как .NET global tool (`Nantuc.Cli`).
+- **CLI `nantuc`**: тонкая обёртка над публичным API (`compile`, `run`, `disasm`, `lib`, `help`), без собственной логики компиляции/исполнения; ставится как .NET global tool (`Nantuc.CLI`).
 - **Стандартные оптимизации** (AST и peephole) и инфраструктура для своих правил.
 - **Два бенчмарка**: ручной `Nantuc.Benchmarks` (MIPS, стабильность, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` на **14 MiniC-кейсах**.
 
@@ -167,7 +167,7 @@ nantuc lib exist print.minic
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│  Nantuc.Samples.*   Nantuc.Benchmarks.*   Nantuc.Cli                             │
+│  Nantuc.Samples.*   Nantuc.Benchmarks.*   Nantuc.CLI                             │
 │  (примеры, конечные продукты, бенчмарки, консольный интерфейс)                    │
 └──────────────────────────────────────────────────────────────────────────────────┘
                               │
@@ -203,7 +203,7 @@ nantuc lib exist print.minic
 - **`Diagnostics` не зависит ни от одного проекта Nantuc** — автор компилятора не тянет unsafe-ядро ради кодов ошибок.
 - **Компилятор не зависит от рантайма** — `Nantuc.Compiler` знает только `Common` + `Contracts` + `Diagnostics`.
 - **`VmApplication` — единственный модуль, который одновременно знает про компилятор и рантайм**; он склеивает «скомпилировать» и «запустить». Отладчик, дизассемблер и бенчмарки живут выше по слоям.
-- **`Nantuc.Cli` — верхний слой**: не содержит собственной логики, только разбирает аргументы и вызывает `VmApplication`/`Extensions`.
+- **`Nantuc.CLI` — верхний слой**: не содержит собственной логики, только разбирает аргументы и вызывает `VmApplication`/`Extensions`.
 
 ## Модули и NuGet
 
@@ -218,9 +218,9 @@ nantuc lib exist print.minic
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.ru.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.ru.md) |
 | `Nantuc.VmApplication.Extensions` | Дизассемблер, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extensions/README.ru.md) |
-| `Nantuc.Cli` | CLI `nantuc`: `compile`, `run`, `disasm`, `lib`, `help`; ставится как .NET global tool | [README](src/Nantuc.Cli/README.ru.md) |
+| `Nantuc.CLI` | CLI `nantuc`: `compile`, `run`, `disasm`, `lib`, `help`; ставится как .NET global tool | [README](src/Nantuc.CLI/README.ru.md) |
 
-**Зависимости (снизу вверх):** `Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions` → `Nantuc.Cli`.
+**Зависимости (снизу вверх):** `Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions` → `Nantuc.CLI`.
 
 **Что ставить под сценарий:**
 
@@ -238,7 +238,7 @@ dotnet add package Nantuc.Contracts
 dotnet add package Nantuc.Kernel
 
 # CLI как .NET global tool
-dotnet tool install --global Nantuc.Cli
+dotnet tool install --global Nantuc.CLI
 nantuc help
 ```
 
@@ -251,7 +251,7 @@ nantuc help
 - **.NET 10 SDK** (все проекты таргетят `net10.0`).
 - **C# 14**: `extension`-блоки, `[InlineArray]`, `params ReadOnlySpan`, `field`-keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
 - **Windows / Linux / macOS / AoT** (другие платформы не тестировались, но Nantuc не привязан к конкретной платформе).
-- **WASM**: `Common`/`Contracts`/`Diagnostics` — полностью WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `Cli` имеют ограничения (блокирующие вызовы, лимиты линейной памяти, single-thread browser). Полный разбор — [`docs/wasm.ru.md`](docs/wasm.ru.md).
+- **WASM**: `Common`/`Contracts`/`Diagnostics` — полностью WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` имеют ограничения (блокирующие вызовы, лимиты линейной памяти, single-thread browser). Полный разбор — [`docs/wasm.ru.md`](docs/wasm.ru.md).
 
 ## Сборка и запуск
 
@@ -269,8 +269,8 @@ dotnet run --project Nantuc.Samples.Scratch -c Release -snake 150
 dotnet run --project Nantuc.Samples.Scratch -c Release
 
 # CLI локально (без установки как global tool)
-dotnet run --project src/Nantuc.Cli -c Release -- compile -s ./bin -o
-dotnet run --project src/Nantuc.Cli -c Release -- run -p ./bin/program.bin -l 100000 -t
+dotnet run --project src/Nantuc.CLI -c Release -- compile -s ./bin -o
+dotnet run --project src/Nantuc.CLI -c Release -- run -p ./bin/program.bin -l 100000 -t
 
 # Ручной бенчмарк (результаты в bin/.../logs/result_Benchmark_Logs_{ts}.txt)
 dotnet run --project Nantuc.Benchmarks -c Release
@@ -289,9 +289,9 @@ dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *C
 | `Nantuc.Samples.Scratch` | `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE-цикл, ANSI-рендер; тест аллокатора (`Libraries.alloc_minic`) | [README](samples/Nantuc.Samples.Scratch/README.ru.md) |
 | `Nantuc.Benchmarks` | Ручной бенчмарк 14 MiniC-кейсов: MIPS, стабильность, перцентили, CV, JIT-impact | [README](samples/Nantuc.Benchmarks/README.ru.md) |
 | `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet-бенчмарк 14 MiniC-кейсов: время, аллокации, статистика, артефакты | [README](samples/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md) |
-| `Nantuc.Cli` | `nantuc`: `compile`/`run`/`disasm`/`lib`/`help`, установка как .NET global tool | [README](src/Nantuc.Cli/README.ru.md) |
+| `Nantuc.CLI` | `nantuc`: `compile`/`run`/`disasm`/`lib`/`help`, установка как .NET global tool | [README](src/Nantuc.CLI/README.ru.md) |
 
-Дополнительные примеры (полный цикл с диагностикой, пошаговая отладка, своя оптимизация, Pause/Resume) — в README соответствующих модулей (`VmApplication`, `VmApplication.Extensions`, `Cli`).
+Дополнительные примеры (полный цикл с диагностикой, пошаговая отладка, своя оптимизация, Pause/Resume) — в README соответствующих модулей (`VmApplication`, `VmApplication.Extensions`, `CLI`).
 
 ## Метрики и качество
 
@@ -335,7 +335,7 @@ dotnet test -c Release
 - Метрики: [`docs/METRICS.md`](docs/METRICS.md)
 - WASM-ограничения: [`docs/wasm.ru.md`](docs/wasm.ru.md)
 - Встроенные библиотеки MiniC/NANASM: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)
-- CLI: [`src/Nantuc.Cli/README.ru.md`](src/Nantuc.Cli/README.ru.md)
+- CLI: [`src/Nantuc.CLI/README.ru.md`](src/Nantuc.CLI/README.ru.md)
 - README модулей: см. столбец «README» в разделе [Модули и NuGet](#модули-и-nuget)
 
 ---
