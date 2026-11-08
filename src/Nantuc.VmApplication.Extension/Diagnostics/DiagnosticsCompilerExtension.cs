@@ -1,8 +1,8 @@
 ﻿using Nantuc.Diagnostics;
 
-namespace Nantuc.VmApplication.Extensions.Compiler;
+namespace Nantuc.VmApplication.Extensions.Diagnostics;
 
-public static class CompilerExtension
+public static class DiagnosticsCompilerExtension
 {
     private static readonly HashSet<ErrorCode> _errorCodesValidateTable = [.. Enum.GetValues<ErrorCode>()];
 

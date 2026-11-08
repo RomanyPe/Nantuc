@@ -10,6 +10,22 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.10.0] - 2026-11-08
+
+### Добавлено
+- новые методы для копирования ОЗУ `Nantuc VM`
+- новый класс для статичного анализа байт кода - `Bytecode/BytecodeExtension.cs`
+- у всех `NuGet` пакетов теперь есть свои `README.md` файлы
+
+### Изменено
+- **BREAKING:** смена имени класса `CompilerExtension` -> `DiagnosticsCompilerExtension`
+- **BREAKING:** смена имени `namespace` `Compiler` -> `Diagnostics`
+
+### Документация
+- добавлены пункты о `Bytecode/BytecodeExtension.cs`
+- синхронизированы пункты о `Diagnostics/DiagnosticsCompilerExtension.cs`
+- синхронизированы пункты о `DeviceCtx/DeviceContextExtensions.cs`
+
 ## [0.9.0] - 2026-11-08
 
 ### Добавлено

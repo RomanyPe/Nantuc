@@ -1,8 +1,8 @@
-﻿# Nantuc.VmApplication.Extensions — README
+﻿﻿# Nantuc.VmApplication.Extensions — README
 
 > Расширения к основному API: дизассемблер, отладчик, I/O-устройства, стандартные оптимизации (AST и peephole), утилиты компиляции «одной строкой», встроенные библиотеки MiniC/NANASM.
-> Зависит только от `[Nantuc.VmApplication](../../src/Nantuc.VmApplication/README.ru.md)` (транзитивно — от `Compiler`, `Kernel`, `Contracts`, `Common`).
-> `[← Корень](../README.ru.md) · [VmApplication](../../src/Nantuc.VmApplication/README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Common](../../src/Nantuc.Kernel.Common/README.ru.md) · [Contracts](../../src/Nantuc.Kernel.Contracts/README.ru.md) · [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.ru.md) · [STDLIBRARIES](STDLIBRARIES.ru.md)`
+> Зависит от `[Nantuc.VmApplication]` (транзитивно — от `Diagnostics`, `Kernel`, `Contracts`, `Common`; напрямую из `Common` используется `OpCode`, `AlignUp`, `InstructionDecoder`).
+> `[← Корень](../README.ru.md) · [VmApplication](../../src/Nantuc.VmApplication/README.ru.md) · [Diagnostics](../../src/Nantuc.Diagnostics/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Common](../../src/Nantuc.Kernel.Common/README.ru.md) · [Contracts](../../src/Nantuc.Kernel.Contracts/README.ru.md) · [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.ru.md) · [STDLIBRARIES](STDLIBRARIES.ru.md)`
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -22,10 +22,10 @@
 - **Отладчик** (`Debugger`): пошаговое исполнение поверх `DeviceContext` — `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, точки останова, best-effort стек вызовов, чтение RAM (`ReadUInt16/32/64`, `ReadCString`), дизассемблирование текущей инструкции через `StringDisassembler`. Не использует `AsRawDevice` и `unsafe` — только публичный API `DeviceContext`/`ProcessorSnapshot`.
 - **I/O-устройства** (`NumericIOStream`, `SynchronousIOStream`, `QueuedIOStream`): вывод байтов/UTF-8/UTF-16 из VM в `TextWriter`. Плюс `PortCharEncoding` и `OutputPortLayout` (раскладка 8-байтного окна).
 - **Стандартные оптимизации**: AST-правила (`FoldConstants`, `PropagateConstants`, `RemoveUnusedVariables`, `RemoveUnreachableCode`, `InlineSmallVoidFunctions`) и peephole-правила (`ConstantFolding`, `RemoveNoopMov`, `RemovePushPopPair`, `RemoveSwapMovPair`, `RemoveJumpToNextLabel`, `RemoveMultiEnd`).
-- **Утилиты компиляции** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIL("int main(){}", 0, true, SourceLanguage.C)` и `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — одна строка вместо пайплайна.
+- **Утилиты компиляции** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIL("int main(){}", 0, true, SourceLanguage.C)` и `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — одна строка вместо пайплайна. `RunAndKeep`/`RunOnce`/`RunAndCleanup` умеют регистрировать UART через `QueuedIOStream`, если передан `output`.
 - **Встроенные библиотеки** (`Libraries`): строковые константы `heap_nanasm`, `alloc_minic`, `io_nanasm`, `print_minic`, `imath_minic`, `bitops_minic`, `ovf_minic` для `#include`. Подробнее — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
-- **RAM-утилиты** (`DeviceContextExtensions`): `GetRamAsNewArray`, `CopyRamTo` — читать RAM работающей/остановленной VM.
-
+- **RAM-утилиты** (`DeviceContextExtensions`): `GetRamAsNewArray` / `GetAllRamAsNewArray`, `CopyRamTo` в `Span<byte>` / `byte[]` / `Memory<byte>` / `Stream`, `ReadRam<T>` / `CopyRamTo<T>` для `unmanaged`-типов, `TryCopyRamTo` без исключений — читать RAM **остановленной** VM (все, кроме `TryCopyRamTo`, бросают `InvalidOperationException` при `ctx.IsRunning`).
+- **Bytecode-утилиты** (`BytecodeExtension`): `GetOpCodeSafety` / `GetUnsafeOpCodes` — статический разбор `CompilationResult.Program` на наличие `*_UNSAFE` опкодов (`OpCodeSafety.Safe`/`HasUnsafe`/`Unknown`) и поиск их местоположений (`UnsafeOpCodeLocation(OpCode, Offset, Ip)`). Полезно для проверки недоверенного кода перед запуском и для проверки результата `ReplaceSafeMemAccessWithUnsafeRule`.
 Ключевая идея — не менять контракт `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IPeepholeRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`, отладчик работает через `DeviceContext.RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. Никаких новых интерфейсов в `Kernel.Contracts`.
 
 ## Дерево локального проекта
@@ -35,8 +35,10 @@ Namespace'ы соответствуют папкам:
 ```
 Nantuc.VmApplication.Extensions/
 ├── Nantuc.VmApplication.Extensions.csproj   # net10.0, ref → VmApplication
-├── Compiler/
-│   └── CompilerExtension.cs                  # extension on IReadOnlyDictionary<ErrorCode,string> (ValidateAllCodesCovered / TryValidateAllCodesCovered) — см. «Что исправить», п.3
+├── Bytecode/
+│   └── BytecodeExtension.cs                  # extension on CompilationResult: GetOpCodeSafety / GetUnsafeOpCodes + OpCodeSafety + UnsafeOpCodeLocation + IsUnsafeOpcode
+├── Diagnostics/
+│   └── DiagnosticsCompilerExtension.cs                  # extension on IReadOnlyDictionary<ErrorCode,string> (ValidateAllCodesCovered / TryValidateAllCodesCovered) — см. «Что исправить», п.3
 ├── Debugging/
 │   ├── Debugger.cs                           # пошаговый отладчик над DeviceContext: Step/StepOver/StepOut/Continue/ContinueTo/RunToEnd/breakpoints/RAM/дизассемблер/стек
 │   ├── DebugStop.cs                          # readonly record struct: Reason + IP + StepCount + ProcessorSnapshot + ProcessorFault
@@ -59,7 +61,7 @@ Nantuc.VmApplication.Extensions/
 │   ├── QueuedIOStream.cs                     # async: Channel<byte> + фоновый drain
 │   └── SynchronousIOStream.cs                # синхронный: пишет символы
 ├── Host/
-│   ├── HostExtensions.cs                     # RunOutcome + RunAndKeep / RunAndCleanup / RunOnce
+│   ├── HostExtensions.cs                     # RunOutcome + RunAndKeep / RunAndCleanup / RunOnce (+ UART через QueuedIOStream, если output != null)
 │   └── ProjectExtension.cs                   # Compile/CompileToIL по строке/строкам + SaveFileInclude/SaveFileProject + LoggingFaultPolicyMinimal
 ├── StdLibraries/
 │   └── Libraries.cs                          # static class Libraries: heap_nanasm, alloc_minic, io_nanasm, print_minic, imath_minic, bitops_minic, ovf_minic
@@ -86,8 +88,10 @@ Nantuc.VmApplication.Extensions/
 - Папка и namespace — `StdLibraries`, файл и публичный класс — `Libraries`. Исторически папка называлась `Librares`, в старых доках встречалось `Librare` — обе опечатки исправлены. Namespace `Nantuc.VmApplication.Extensions.StdLibraries`, класс `Libraries`.
 - `ProjectExtension.cs` содержит `LoggingFaultPolicyMinimal` — класс не про расширения проекта, а про политику fault'ов. Логичнее вынести в `Host/`.
 - `AstOptimizerExtension.cs` и `PeepholeOptimizerExtension.cs` содержат не только extension-методы, но и `OptimizationId`-константы. Они — часть публичного контракта: по этим ID вы ищете логи в `OptimizationResultLog`.
-- `Compiler/CompilerExtension.cs` — расширение над `IReadOnlyDictionary<ErrorCode, string>` (`ValidateAllCodesCovered`/`TryValidateAllCodesCovered`). По changelog 0.7.2 эти методы помечены как удалённые; в коде файл пока присутствует — см. [Что исправить](#что-исправить), п.3.
+- `Diagnostics/DiagnosticsCompilerExtension.cs` — расширение над `IReadOnlyDictionary<ErrorCode, string>` (`ValidateAllCodesCovered`/`TryValidateAllCodesCovered`). По changelog 0.7.2 эти методы помечены как удалённые; в коде файл пока присутствует — см. [Что исправить](#что-исправить), п.3.
 - `Debugging/` — новый слой поверх `DeviceContext`, не меняет `Nantuc.VmApplication`. Отладчик не потокобезопасен (кроме `RequestStop`), что совпадает с моделью `DeviceContext`. Стек вызовов восстанавливается эвристически — VM не хранит frame pointer. Подробности — в [Особенная информация](#особенная-информация).
+- `Bytecode/` — статический разбор `CompilationResult.Program`, не трогает `DeviceContext`/`VmEmulator`. `IsUnsafeOpcode` — тот же набор, что использует `ReplaceSafeMemAccessWithUnsafeRule`, поэтому модуль можно использовать для верификации результата peephole-правила (после применения — все `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` заменены на `*_UNSAFE`).
+- `Host/HostExtensions.cs` — `RunAndKeep` в текущей версии использует только safe-API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`), без `!`. Побочный эффект: при ошибке регистрации/загрузки возвращается `RunOutcome` с `Device == null`, а не NRE. UART регистрируется на `sector + 1`, если передан `output`.
 
 ## API
 
@@ -363,12 +367,12 @@ public static readonly OptimizationId VariableRemoved;      // astnode-opt.remov
 ```
 
 Стандартные AST-правила (`AddStdRules`):
-1. `PropagateConstantsRule` — `IdentifierNode` → `NumberNode` если переменная объявлена с константой и не переприсваивается.
-2. `FoldConstantsRule` — `Number op Number` → `Number`.
-3. `RemoveUnusedVariablesRule` — убирает `VariableNode` без чтений (только если initializer side-effect-free).
-4. `RemoveUnreachableCodeRule` — убирает код после `return` и `if(false)`/`while(false)`.
-5. `InlineSmallVoidFunctionsRule` — инлайнит `void`-функции ≤ 10 операторов, без рекурсии.
-6. `RemoveUnreachableCodeRule` — ещё раз (после инлайна). См. [Что исправить](#что-исправить).
+1. `PropagateConstantsRule` — `IdentifierNode` → `NumberNode` если переменная объявлена с константой и не переприсваивается (нигде в функции).
+2. `FoldConstantsRule` — `Number op Number` → `Number`, включая унарные `-`/`!`/`~` и рекурсивно по всем выражениям (`FunctionCallNode`, `ArrayAccessNode`, `MemberAccessNode`, `AddressOfNode`, `DereferenceNode`).
+3. `RemoveUnusedVariablesRule` — убирает `VariableNode`, которые нигде не читаются и никуда не присваиваются (присваивание считается использованием), только если initializer side-effect-free. Side-effect-free: `NumberNode`, `IdentifierNode`, `BinaryOpNode`, `UnaryOpNode`, а также `null`.
+4. `RemoveUnreachableCodeRule` — убирает код после `return`; `if(false)` заменяет содержимым `else` (или удаляет); `if(true)` заменяет содержимым `then`; `while(false)` и `for(...; false; ...)` удаляет. Рекурсивно по вложенным блокам.
+5. `InlineSmallVoidFunctionsRule` — инлайнит `void`-функции с `CountStatements(body) ≤ 10` (считая вложенные), без прямой self-recursion (`!ContainsCallTo(body, name)`). Взаимная рекурсия двух кандидатов (`A` вызывает `B`, `B` вызывает `A`) **не** отсеивается — возможна дублирующая экспансия, но не бесконечная (один проход). Тела `main` не инлайнятся.
+6. `RemoveUnreachableCodeRule` — ещё раз (после инлайна). См. [Что исправить](#что-исправить), п. 9.
 
 **`PeepholeOptimizerExtension`**:
 
@@ -395,11 +399,11 @@ public static readonly OptimizationId ReplaceSafeAccess;        // peephole.repl
 
 Стандартные peephole-правила (`AddStdRules`):
 1. `RemoveNoopMovRule` — `MOV rX, rX` (не сразу после метки).
-2. `RemovePushPopPairRule` — `PUSH rX; POP rX`.
-3. `RemoveSwapMovPairRule` — `MOV rA, rB; MOV rB, rA` (нетто-эффект нулевой).
+2. `RemovePushPopPairRule` — `PUSH rX; POP rX` (ни `PUSH`, ни `POP` не сразу после метки).
+3. `RemoveSwapMovPairRule` — `MOV rA, rB; MOV rB, rA` (не сразу после метки). См. примечание в [Что исправить](#что-исправить), п. 15: при типичной семантике `MOV dst, src` паттерн не является no-op, правило сохраняется для обратной совместимости и должно быть проверено на реальной семантике `OpCode.MOV`.
 4. `RemoveJumpToNextLabelRule` — `JMP label; label:` → удалить `JMP`.
-5. `ConstantFoldingRule` — `LDI rA, X; LDI rB, Y; OP rA, rB` → `LDI rA, X op Y` (без меток между).
-6. `RemoveMultiEndPairRule` — `END; END` → один `END`.
+5. `ConstantFoldingRule` — `LDI rA, X; LDI rB, Y; OP rA, rB` → `LDI opInstr.FirstReg, X op Y` (без меток между `ldi1`, `ldi2`, `op`). Поддерживаемые опкоды: `ADD`, `SUB`, `MULT_INT`, `DIV`, `AND`, `OR`, `XOR`, `SHR`. Допускается «обратный» порядок регистров (`ldi1.FirstReg == op.SecondReg && ldi2.FirstReg == op.FirstReg`). При `DIV` с `right == 0` правило **no-op** (не трогает инструкции).
+6. `RemoveMultiEndPairRule` — `END; END` → один `END` (цепочки из >2 `END` схлопываются последовательно, потому что `newIndex == index`).
 
 **`ReplaceSafeMemAccessWithUnsafeRule`** — **не входит** в `AddStdRules`, добавляется вручную:
 
@@ -410,7 +414,12 @@ public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
 }
 ```
 
-Заменяет `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` на `*_UNSAFE`-варианты, если адрес известен и в границах `SizeRam`. Дефолт `RamSize.B128` (128 байт) — **заниженный**, правило сработает только на самых маленьких адресах, если `SizeRam` не выставлен под реальный размер RAM у `Device`. См. [Что исправить](#что-исправить).
+Заменяет `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` на `*_UNSAFE`-варианты, если:
+- адрес известен: для `LOAD`/`STORE` — `Immediate`, для `LOAD_IND`/`STORE_IND` — предшествующая `LDI` в регистр-адрес (`instr.SecondReg`);
+- `address + dataSize ≤ SizeRam.Bytes`;
+- `address % dataSize == 0` (выравнивание по размеру данных; `dataSize` из `OpCodeSize`).
+
+Дефолт `RamSize.B128` (128 байт) — **заниженный**, правило сработает только на самых маленьких адресах, если `SizeRam` не выставлен под реальный размер RAM у `Device`. См. [Что исправить](#что-исправить).
 
 **`PeepholeLog`**:
 
@@ -464,7 +473,9 @@ extension(VmHost host)
     public RunOutcome RunAndKeep(
         string source, SourceLanguage lang,
         RamSize? ram = null, bool optimize = false,
-        string deviceName = "run", uint sector = 0);
+        string deviceName = "run", uint sector = 0,
+        TextWriter? output = null,
+        PortCharEncoding encoding = PortCharEncoding.Utf16);
 
     public bool RunAndCleanup(
         string source, SourceLanguage lang,
@@ -476,9 +487,9 @@ extension(VmHost host)
 }
 ```
 
-- `RunAndKeep` — компилирует `source`, создаёт `DeviceSpec` (`RamSize.MB16` по умолчанию), регистрирует на `sector`, грузит, запускает. Возвращает `RunOutcome` с живым `Device` и `ProcessorFault` из `ctx.Run(...)`. `sector` — параметр.
+- `RunAndKeep` — компилирует `source`, регистрирует VM (`DeviceSpec` с `RamSize.MB16` по умолчанию, если `ram == null`) на `sector`, грузит, запускает. Если передан `output != null`, дополнительно регистрирует `QueuedIOStream(output, encoding)` как устройство с именем `"{deviceName}-console"` на `sector + 1`; при ошибке регистрации UART VM откатывается. `Success` = `fault.Status == BiosStatus.EndProgramm` (а не «факт запуска»). Все операции — через safe-API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`): при провале возвращается `RunOutcome` с `Device == null`, `DeviceId == null`, `Success == false` и диагностикой в `Diagnostics`, без NRE и без исключений.
 - `RunAndCleanup` — `RunAndKeep` + `UnregisterDevice`. Возвращает `Success`.
-- `RunOnce` — то же, но возвращает `RunOutcome` с `Device = null, DeviceId = null`.
+- `RunOnce` — `RunAndKeep` + `UnregisterDevice`, возвращает `RunOutcome` с `Device = null, DeviceId = null`.
 
 **`LoggingFaultPolicyMinimal`**:
 
@@ -508,19 +519,88 @@ public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorFaultPolic
 
 ### RAM-утилиты
 
-**`DeviceContextExtensions`**:
+**`DeviceContextExtensions`** — extension на `DeviceContext`. Все методы читают RAM через `NativeReadOnlyBuffer`; ни один **не** использует `unsafe`/`AsRawDevice` (только `IReadOnlyNativeBuffer`). `<AllowUnsafeBlocks>` не требуется.
 
 ```csharp
 extension(DeviceContext ctx)
 {
+    // ===== Массивы =====
+
     public byte[] GetRamAsNewArray(nuint start, nuint length);
-    public void   CopyRamTo(Span<byte> destination, nuint start);
+    public byte[] GetRamAsNewArray(nuint start);              // от start до конца RAM
+    public byte[] GetAllRamAsNewArray();                      // вся RAM
+
+    // ===== Span / Memory / byte[] =====
+
+    public void CopyRamTo(Span<byte> destination, nuint start);
+    public void CopyRamTo(Span<byte> destination, nuint start, nuint length);
+    public void CopyRamTo(byte[] destination, int destinationIndex, nuint start, int length);
+    public void CopyRamTo(Memory<byte> destination, nuint start);
+
+    // ===== Try* (без исключений) =====
+
+    public bool TryCopyRamTo(Span<byte> destination, nuint start);
+
+    // ===== Типизированные чтения (unmanaged) =====
+
+    public T ReadRam<T>(nuint byteOffset) where T : unmanaged;
+    public void CopyRamTo<T>(Span<T> destination, nuint byteOffset) where T : unmanaged;
+
+    // ===== Поток — для больших объёмов без одной огромной аллокации =====
+
+    public void CopyRamTo(Stream stream, nuint start, nuint length, int bufferSize = 81920);
 }
 ```
 
-Оба бросают `InvalidOperationException`, если `ctx.IsRunning`. Проверяют `start + length <= bufferLength` и `length <= int.MaxValue`. Копирование по-байтовое (через `IReadOnlyNativeBuffer`).
+Поведение:
 
-### `CompilerExtension`
+- **Все методы, кроме `TryCopyRamTo`**, бросают `InvalidOperationException`, если `ctx.IsRunning`. `TryCopyRamTo` в этом случае возвращает `false`. Это согласуется с моделью `DeviceContext`: во время `IsRunning` буфер реестра-visible, и синхронное чтение дало бы race-y данные.
+- **Границы** проверяются через `ArgumentOutOfRangeException.ThrowIfGreaterThan(start, bufferLength)` и `(length, bufferLength - start)`. Для `GetRamAsNewArray(start, length)` дополнительно `length <= int.MaxValue` (нельзя выделить массив больше).
+- **`CopyRamTo(Span<byte>, start, length)`** копирует ровно `length` байт, даже если `destination.Length` больше — это удобно для буферов «с запасом».
+- **`CopyRamTo(byte[], destinationIndex, start, length)`** — convenience-обёртка над `destination.AsSpan(destinationIndex, length)`; проверяет `ArgumentNullException`/`ArgumentOutOfRangeException` для `destinationIndex`/`length`.
+- **`CopyRamTo(Stream, start, length, bufferSize = 81920)`** — читает RAM чанками по `bufferSize` и пишет в `stream.Write(...)`. Границы `[start, start + length)` проверяются один раз до цикла; за пределы RAM не выйдет.
+- **`ReadRam<T>` / `CopyRamTo<T>`** — `MemoryMarshal.Read<T>` / `MemoryMarshal.AsBytes(...)` над временным byte-буфером, заполненным по-байтово. Никакого `unsafe` — только `MemoryMarshal` и `System.Runtime.CompilerServices.Unsafe.SizeOf<T>()` (последний не требует `<AllowUnsafeBlocks>`).
+- **Копирование по-байтовое** (`for (int i = 0; i < destination.Length; i++) destination[i] = buf[(nuint)i + start];`) — медленнее `Buffer.MemoryCopy`, но не требует `unsafe`. Для больших объёмов лучше `CopyRamTo(Stream, ...)` (он хотя бы не аллоцирует один огромный массив).
+- **`CopyRamTo<T>` на `Span<T>` с `start` в байтах** (не в элементах `T`): `CopyRamTo<T>(Span<T>, nuint)` берёт `MemoryMarshal.AsBytes(destination)` — смещение `byteOffset` в байтах RAM.
+
+### Bytecode-утилиты
+
+**`BytecodeExtension`** — `public static class` в namespace `Nantuc.VmApplication.Extensions.Bytecode`. Статический разбор `CompilationResult.Program`, не трогает `DeviceContext`/`VmEmulator`. Полезно для проверки недоверенного кода и для верификации `ReplaceSafeMemAccessWithUnsafeRule`.
+
+```csharp
+public static class BytecodeExtension
+{
+    public enum OpCodeSafety { Safe, HasUnsafe, Unknown }
+
+    public readonly record struct UnsafeOpCodeLocation(
+        OpCode OpCode,
+        int    Offset,   // смещение в Program (байтовый массив)
+        ulong  Ip);      // виртуальный адрес инструкции
+
+    extension(CompilationResult res)
+    {
+        public OpCodeSafety GetOpCodeSafety();
+        public IReadOnlyList<UnsafeOpCodeLocation> GetUnsafeOpCodes();
+        public IReadOnlyList<UnsafeOpCodeLocation> GetUnsafeOpCodes(out bool fullyScanned);
+    }
+
+    public static bool IsUnsafeOpcode(OpCode opCode);
+}
+```
+
+Поведение:
+
+- **`GetOpCodeSafety()`**:
+  - `Unknown` — если `!res.Success`, `res.CodeSize` (или `Program.Length`, если `CodeSize` == null) `< 0`, `> Program.Length`, или встретилась усечённая инструкция (`pos + 4 > Program.Length`, либо для `HasNeed64IntData`-опкода `nextPos + 8 > Program.Length`).
+  - `HasUnsafe` — если найден хотя бы один `*_UNSAFE` опкод.
+  - `Safe` — если программа просканирована до `actualCodeSize` и unsafe-опкодов нет.
+- **`GetUnsafeOpCodes()`** — возвращает список всех `*_UNSAFE` опкодов с их `OpCode`, `Offset` (в `Program`) и `Ip` (виртуальный адрес = `StartAdress + pos`). При ошибках/усечении — возвращает то, что успело накопиться; полный список гарантирован, только если `fullyScanned == true`.
+- **`GetUnsafeOpCodes(out bool fullyScanned)`** — вариант с флагом: `fullyScanned == false` означает «разбор остановился на усечённой/битой программе, список может быть неполным». `!res.Success` → `fullyScanned = false`, пустой список.
+- **`IsUnsafeOpcode`** — `true` для `LOAD_UNSAFE`, `STORE_UNSAFE`, `STORE_IND_UNSAFE`, `LOAD_IND_UNSAFE`. Тот же набор, что и у `ReplaceSafeMemAccessWithUnsafeRule`.
+
+Разбор учитывает длину инструкции: 4 байта для обычной, плюс паддинг до `AlignUp(8)` плюс 8 байт immediate для опкодов с `HasNeed64IntData` (например, `LDI`, `SYSCALL`, `CALL`). Это соответствует §3.2 [`bytecode.md`](../docs/bytecode.md).
+
+### `DiagnosticsCompilerExtension`
 
 Расширение над `IReadOnlyDictionary<ErrorCode, string>`:
 
@@ -715,10 +795,19 @@ if (outcome.Success)
 }
 ```
 
+**Запуск с выводом в консоль через UART:**
+
+```csharp
+var outcome = host.RunAndKeep(source, SourceLanguage.C, output: Console.Out);
+// UART зарегистрирован на sector + 1, кодировка по умолчанию — Utf16.
+// Чтобы получить Utf8 — передайте encoding: PortCharEncoding.Utf8.
+```
+
 **Регистрация на другом секторе:**
 
 ```csharp
 var outcome = host.RunAndKeep(source, SourceLanguage.C, sector: 5);
+// UART (если output != null) займёт sector 6.
 ```
 
 **Сохранение исходников в проект:**
@@ -742,6 +831,43 @@ if (outcome.Success)
 }
 ```
 
+**Проверка недоверенного кода перед запуском:**
+
+```csharp
+using Nantuc.VmApplication.Extensions.Bytecode;
+
+var comp = host.Project.Compile("int main() { return 0; }", 0, optimize: false);
+if (!comp.Success) { /* … */ }
+
+switch (comp.GetOpCodeSafety())
+{
+    case OpCodeSafety.Safe:
+        // все обращения к памяти — *_UNSAFE, потенциально небезопасны
+        break;
+    case OpCodeSafety.HasUnsafe:
+        foreach (var loc in comp.GetUnsafeOpCodes())
+            Console.Error.WriteLine($"unsafe {loc.OpCode} at 0x{loc.Ip:X} (offset {loc.Offset})");
+        break;
+    case OpCodeSafety.Unknown:
+        Console.Error.WriteLine("program is truncated or not compiled");
+        break;
+}
+```
+
+> `Safe` означает «нет `*_UNSAFE` опкодов», а не «безопасно». Обычные `LOAD`/`STORE` тоже могут обращаться к произвольным адресам — на это влияет только `SizeRam` в `ReplaceSafeMemAccessWithUnsafeRule` и границы `Device`. `HasUnsafe`, наоборот, означает, что код **точно** содержит небезопасные обращения — их наличие нужно либо принять (если это доверенный код), либо запретить (если это недоверенный код).
+
+**Проверка результата `ReplaceSafeMemAccessWithUnsafeRule`:**
+
+```csharp
+host.Project.Optimizator.VMPeepholeOptimizer.AddStdRules();
+// … собрать IL с peephole …
+var comp = il.Build();
+
+if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
+    foreach (var loc in comp.GetUnsafeOpCodes())
+        Console.Error.WriteLine($"missed at 0x{loc.Ip:X}: {loc.OpCode}");
+```
+
 ## Приближенность модуля к пользователю
 
 Средняя-высокая. Это опциональный слой поверх основного API. Если вы пишете «просто запустить и посмотреть» — подключайте `Nantuc.VmApplication.Extensions` и используйте `RunAndKeep`/`RunOnce`/`AddStdRules`. Если вы пишете IDE или отладчик — используйте `Debugger`/`Disassembler`/`StringDisassembler`/`InstructionFormatter`. Если пишете игру — `SynchronousIOStream`/`QueuedIOStream` для UART.
@@ -753,37 +879,27 @@ if (outcome.Success)
 - Для сохранения RAM — `GetRamAsNewArray` (снимок) и `CopyRamTo` (в готовый `Span<byte>`).
 - Выставлять `ReplaceSafeMemAccessWithUnsafeRule.SizeRam` под реальный размер RAM у `Device`.
 - `SaveFileProject`/`SaveFileInclude` — с проверкой `localPath` на отсутствие `..`.
-- Своим оптимизационным правилам — присваивать `OptimizationId` через `WithPeepholePrefix()` / `WithRule()` / `WithASTNodePrefix()`, чтобы префикс совпадал с встроенными.
+- Своим оптимизационным правилам — присваивать `OptimizationId` через `WithPeepholePrefix()` / `WithRule()` / `WithASTNodePrefix()`, чтобы префикс совпадал со встроенными.
 - Для отладки — `Debugger` поверх `DeviceContext`: `dbg.Load(program)` → `dbg.Step()`/`StepOver()`/`StepOut()`/`Continue()`, `dbg.AddBreakpoint(addr)`, `dbg.CurrentInstruction`, `dbg.GetCallStack()`. Для останова длинного прогона — `dbg.RequestStop()` из другого потока.
 - Для отладки в IDE — подписаться на `dbg.Stopped`, чтобы обновлять панель регистров/стека/RAM на каждом останове.
 - Для «догнать до конца» (например, CI-прогон) — `dbg.RunToEnd(stepLimit: N)`, не `Continue` (последний застрянет на первой точке останова).
 - Для типовых целочисленных операций и проверок переполнения — `imath.minic`, `bitops.minic`, `ovf.minic` вместо ручных реализаций.
+- Для недоверенного кода — проверять `comp.GetOpCodeSafety()` и/или перечислять `comp.GetUnsafeOpCodes()` до загрузки VM; это дешёвый статический чек (`*_UNSAFE`-опкоды), не заменяющий sandbox.
+- Для вывода из VM в консоль/файл без ручной регистрации UART — `host.RunAndKeep(source, lang, output: writer)` (UART будет зарегистрирован на `sector + 1`, кодировка по умолчанию — `Utf16`).
 
 **Что не стоит делать:**
 - Вызывать `RunAndKeep` несколько раз на одном `VmHost` с тем же `sector` — сектор будет занят. Используйте `sector:` явно или `RunOnce`.
+- Вызывать `RunAndKeep` несколько раз на одном `VmHost` с `output != null` без `UnregisterDevice` — сектор `sector + 1` тоже будет занят UART'ом.
 - Использовать `RunAndKeep` для недоверенного кода — он регистрирует VM на указанном секторе без sandbox'а.
 - Полагаться на `AddStdRules` для peephole — `ReplaceSafeMemAccessWithUnsafeRule` **не** добавляется автоматически.
-- Ожидать, что `RunOutcome.Success` отражает runtime-фолты — `Success` только про компиляцию и загрузку. Для статуса — `outcome.FaultInfo`.
+- Ожидать, что `RunOutcome.Success` отражает только факт запуска — `Success == (fault.Status == BiosStatus.EndProgramm)`, т.е. программа действительно дошла до `END`. Runtime-фолты видны и в `Success`, и в `FaultInfo`.
 - Использовать `Libraries.alloc_minic` как «эталон» — там всё ещё глобалы как легаси (workaround больше не нужен, но код пока не упрощён), и в `free` есть баг (см. [Что исправить](#что-исправить), п. 14).
 - Вызывать `Step`/`Continue`/`Load` из разных потоков на одном `Debugger` — не потокобезопасно (кроме `RequestStop`). Модель — та же, что у `DeviceContext`.
 - Ожидать точного стека вызовов от `GetCallStack()` — VM не хранит frame pointer, восстановление эвристическое; возможны ложные срабатывания.
 - Полагаться на `stop.Snapshot.IsSleeping` в `Continue` — флаг сна приходит только из `_stepSnapshot` (после `SingleStep`); при останове через `RequestStop` он может быть `false`, даже если VM в `HALT`. Для `HALT` надёжнее `stop.Reason == Sleeping`.
 - Использовать один `Debugger` для нескольких `Load` — после завершения программы (или ручного `Dispose`) создавайте новый экземпляр. Повторный `Load` бросит `InvalidOperationException` (защита от утечки step-режима).
 - Ожидать от `Debugger.ReadRam` защиту от `IsRunning` (как у `DeviceContextExtensions.GetRamAsNewArray`) — отладчик читает RAM во время останова; если вызвать `ReadRam` из другого потока во время `Continue`, данные будут race-y.
-
-## Что исправлено в этой версии
-
-- **Добавлен отладчик `Debugger`** (`Debugging/`): `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, точки останова, `RequestStop` из другого потока, `Wake`, чтение RAM (`ReadRam`/`CopyRamTo`/`ReadUInt16/32/64`/`ReadCString`), `CurrentInstruction`/`DisassembleAt`/`DisassembleProgram` через `StringDisassembler`, `GetCallStack` (best-effort), событие `Stopped`. Не использует `AsRawDevice`/`unsafe` — только публичный API `DeviceContext`.
-- **`Disassembler` теперь `public static class`** — extension `res.Disassemble(int?)` доступен снаружи.
-- **`PeepholeLog.GetLogs()` больше не вызывает `log.Clear()`**.
-- **`PeepholeLog.Id => id`** — двойной префикс `peephole.peephole.*` исправлен.
-- **`ReplaceSafeMemAccessWithUnsafeRule.SizeRam = RamSize.B128`** — у правила теперь дефолт.
-- **`RunOutcome` содержит `ProcessorFault FaultInfo`**.
-- **`RunAndKeep`/`RunAndCleanup`/`RunOnce` принимают `sector`**.
-- **`Libraries.alloc_minic`** — first-fit с split и coalescing, header + footer, `FREE_BIT`, `MIN_BLOCK = 24`, `HDR_FTR = 16`.
-- **`Libraries`** — добавлены `imath_minic`, `bitops_minic`, `ovf_minic` (типовые целочисленные операции, битовые операции, проверки переполнения). Namespace — `Nantuc.VmApplication.Extensions.StdLibraries`.
-- **`<AllowUnsafeBlocks>` убран** из csproj (в коде модуля `unsafe` нет).
-- **Баг компилятора `FunctionGenerator.GenerateFunction`** (несимметричный push/pop callee-saved регистров) исправлен. Поэтому workaround «держать состояние в глобалах» больше не обязателен.
+- Считать `GetOpCodeSafety() == Safe` гарантией памяти-безопасности. `Safe` — это «нет `*_UNSAFE`», а не «нет произвольных адресов»: обычные `LOAD`/`STORE` тоже пишут по адресу из регистра. Для реальной защиты — комбинация `ReplaceSafeMemAccessWithUnsafeRule`, `SizeRam` = фактический размер RAM и границы `Device`/`MemoryBus`. `GetOpCodeSafety` — это сигнал «есть ли `*_UNSAFE`», а не «безопасен ли код».
 
 ## Особенная информация
 
@@ -861,11 +977,21 @@ VM не хранит frame pointer и не ведёт отдельный call st
 
 ### `HostExtensions` и `sector`
 
-`RunAndKeep`/`RunOnce`/`RunAndCleanup` принимают `sector` (по умолчанию `0`). Если `sector` занят другим устройством, `RegisterDevice` вернёт `-2`, `GetDeviceContext(-2)!` даст NRE. `RunOnce` и `RunAndCleanup` освобождают `sector` через `UnregisterDevice`, поэтому их можно вызывать повторно с тем же `sector`. `RunAndKeep` — нет, пока не сделаете `UnregisterDevice` вручную.
+`RunAndKeep`/`RunOnce`/`RunAndCleanup` принимают `sector` (по умолчанию `0`). Если `sector` занят другим устройством, `TryRegisterDevice` вернёт не-`Valid` `IdState`, и `RunOutcome` будет с `Success == false` и диагностикой `"register vm: {state}"` в `Diagnostics` — NRE больше нет (используется safe-API). Если передан `output != null`, UART регистрируется на `sector + 1`; при провале регистрации UART'а VM откатывается через `UnregisterDevice` и `RunOutcome` возвращается с `Success == false`, `Device == null`, диагностикой `"register uart: {state}"`. `RunOnce` и `RunAndCleanup` освобождают **только VM** (`UnregisterDevice(vmId)`), UART остаётся зарегистрированным — это потенциальная утечка, если `output != null` и вызывать `RunOnce`/`RunAndCleanup` многократно с тем же `sector`. См. [Что исправить](#что-исправить), п. 16.
 
-### `RunOutcome.FaultInfo`
+### `RunOutcome.FaultInfo` и `Success`
 
-`FaultInfo` — это `ProcessorFault` из `ctx.Run(new LaunchOptions(...))`. На успехе — `BiosStatus.EndProgramm`; на падении — соответствующий статус с `InstructionPointer`/`OpCode`. При провале компиляции/загрузки `RunOutcome.Success == false`, `Device == null`, а `FaultInfo == default(ProcessorFault)`. Важно: `_faultData` в `Processor` не сбрасывается в `LaunchProgramm` — второй `Run` на том же `Device` может вернуть fault от первого, если первый был падением.
+`FaultInfo` — это `ProcessorFault` из `ctx.Run(new LaunchOptions(StartAddress: 0))`. `Success` в `RunAndKeep` — это `fault.Status == BiosStatus.EndProgramm`, а не «факт запуска» и не «успех компиляции». При провале компиляции/регистрации/загрузки `RunOutcome.Success == false`, `Device == null`, `FaultInfo == default(ProcessorFault)`, а причина — в `Diagnostics`. Важно: `_faultData` в `Processor` не сбрасывается в `LaunchProgramm` — второй `Run` на том же `Device` может вернуть fault от первого, если первый был падением.
+
+### `BytecodeExtension`: усечённая программа и `fullyScanned`
+
+`GetOpCodeSafety`/`GetUnsafeOpCodes` идут по `Program` до `actualCodeSize = CodeSize ?? Program.Length`, но **границы** проверяют по `Program.Length` (а не по `actualCodeSize`):
+- `pos + 4 > Program.Length` → разбор останавливается (для `GetOpCodeSafety` — `Unknown`, для `GetUnsafeOpCodes` — `fullyScanned = false`);
+- для опкодов с `HasNeed64IntData`: `nextPos + 8 > Program.Length` → то же самое.
+
+Причина: `Program` — это `byte[]`, и усечение означает, что либо `Program` битый, либо `CodeSize` не соответствует `Program`. В первом случае `actualCodeSize > size` уже отсеивается как `Unknown`. Во втором — `CodeSize < Program.Length` (нормально: в хвосте `Program` может быть data-секция; `BytecodeExtension` её не сканирует, потому что `actualCodeSize` ограничивает цикл, но паддинг/усечение на границе всё равно проверяется по `Program.Length`).
+
+`UnsafeOpCodeLocation.Offset` — смещение в `Program` (байтовый массив `CompilationResult.Program`), **не** в секции кода. Для `Program`, совпадающего с code-секцией (`CodeSize == Program.Length`), `Offset` совпадает с адресом относительно начала программы.
 
 ### Ограничения платформ
 
@@ -878,25 +1004,9 @@ VM не хранит frame pointer и не ведёт отдельный call st
 
 ## Что исправить
 
-2. **[API/XML] `LoggingFaultPolicyMinimal` живёт в `ProjectExtension.cs`.**  
-   Файл: `Host/ProjectExtension.cs`. Класс — политика fault'ов, а не расширение проекта. Логичнее — отдельный файл в `Host/` (например, `LoggingFaultPolicyMinimal.cs`).  
-   Фикс: вынести в отдельный файл, namespace не менять (`Nantuc.VmApplication.Extensions.Host`).
-
-3. **[API] `CompilerExtension.cs` — файл противоречит changelog 0.7.2.**  
-   Файл: `Compiler/CompilerExtension.cs`. Changelog 0.7.2 помечает `ValidateAllCodesCovered`/`TryValidateAllCodesCovered` как удалённые (**BREAKING**), но файл в коде присутствует. Либо удалить файл (тогда README — просто убрать раздел), либо откатить запись в changelog.  
-   Фикс: определиться и привести код и changelog в соответствие.
-
-4. **[API] `alloc_minic` всё ещё держит состояние в глобалах.**  
-   Файл: `StdLibraries/Libraries.cs`. Баг компилятора, из-за которого это было нужно, исправлен.  
-   Фикс: переписать `alloc_minic` с локалами (`ulong heapFreeList = 0; ulong heapCur = 0; …`) и проверить тестами (выделение/освобождение/coalesce). После этого убрать «историческую справку» из README и STDLIBRARIES.
-
-5. **[API] `WithRule` и `WithASTNodePrefix` не задокументированы.**  
-   Файлы: `Optimizators/PeepholeOptimizerExtension.cs`, `Optimizators/AstOptimizerExtension.cs`. Публичные extension-методы на `OptimizationId`. В README теперь описаны (см. раздел «Оптимизации»), но стоит проверить, что они реально нужны пользователю: `WithRule` нигде не используется внутри модуля.  
-   Фикс: либо использовать `WithRule` в одном из правил для консистентности, либо убрать из публичного API.
-
-6. **[API] `RunAndCleanup` не даёт выбрать `deviceName`.**  
-   Файл: `Host/HostExtensions.cs`. `RunAndKeep` принимает `deviceName`, `RunAndCleanup` — нет (всегда `"run"`). Это несимметрично и мешает при отладке.  
-   Фикс: добавить `string deviceName = "run"` в `RunAndCleanup` и `RunOnce`.
+6. **[API] `RunAndCleanup` и `RunOnce` не дают выбрать `deviceName` и не принимают `output`/`encoding`.**  
+   Файл: `Host/HostExtensions.cs`. `RunAndKeep` принимает `deviceName`, `output`, `encoding`; `RunAndCleanup`/`RunOnce` — нет (всегда `"run"`, без UART). Это несимметрично и мешает при отладке и при прогоне с выводом.  
+   Фикс: добавить те же параметры в `RunAndCleanup`/`RunOnce` и прокинуть их в `RunAndKeep`.
 
 7. **[API/XML] `SaveFileInclude`/`SaveFileProject` — path traversal.**  
    Файл: `Host/ProjectExtension.cs`. `localPath` не проверяется на `..` и абсолютные пути.  
@@ -929,3 +1039,11 @@ VM не хранит frame pointer и не ведёт отдельный call st
 14. **[API] `alloc_minic.free` — обращение к `b` до его объявления.**  
     Файл: `StdLibraries/Libraries.cs`. В начале `free(ulong ptr)` стоит `if (blkFree(b)) return;`, но `b` объявляется ниже (`ulong b = ptr - 8;`). Это баг — обращение к необъявленной переменной.  
     Фикс: убрать лишнюю строку `if (blkFree(b)) return;` (двойное освобождение и так не поддерживается, а проверка `if (ptr == 0) return;` уже есть), либо перенести её **после** объявления `b`: `ulong b = ptr - 8; if (blkFree(b)) return;`.
+
+15. **[API/семантика] `RemoveSwapMovPairRule` удаляет `MOV rA, rB; MOV rB, rA`, предполагая «нетто-эффект нулевой».**  
+    Файл: `Optimizators/IRAsmRules/RemoveSwapMovPairRule.cs`. Для типичной семантики `MOV dst, src` (`dst = src`) этот паттерн **не** является no-op: после `MOV A, B` имеем `A = old B`, после `MOV B, A` — `B = old B`; итог `A = old B, B = old B`. Правило корректно только если `OpCode.MOV` в VM имеет семантику swap (крайне нетипично) или если автор правила опирался на иную конвенцию.  
+    Фикс: (а) уточнить семантику `OpCode.MOV` в `docs/bytecode.md`; (б) либо убрать правило из `AddStdRules`, либо переписать его под swap (`XCHG`/`SWAP`), если такой опкод есть; (в) как минимум — добавить `<remarks>` с явным предупреждением.
+
+16. **[API] `RunOnce`/`RunAndCleanup` не освобождают UART, зарегистрированный на `sector + 1`.**  
+    Файл: `Host/HostExtensions.cs`. При `output != null` `RunAndKeep` регистрирует `QueuedIOStream` на `sector + 1`; `RunOnce`/`RunAndCleanup` освобождают только VM (`UnregisterDevice(vmId)`), но не UART. Повторный вызов с тем же `sector` и `output != null` упадёт на регистрации UART.  
+    Фикс: `RunAndKeep` должен возвращать `UartDeviceId` в `RunOutcome` (или в отдельном out-параметре), а `RunOnce`/`RunAndCleanup` — освобождать и его. Как минимум — документировать, что при `output != null` `sector + 1` тоже занимается.

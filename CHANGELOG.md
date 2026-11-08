@@ -10,6 +10,22 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.10.0] - 2026-11-08
+
+### Added
+- new methods for copying RAM in `Nantuc VM`
+- new class for static bytecode analysis - `Bytecode/BytecodeExtension.cs`
+- all `NuGet` packages now have their own `README.md` files
+
+### Changed
+- **BREAKING:** class `CompilerExtension` renamed to `DiagnosticsCompilerExtension`
+- **BREAKING:** `namespace` `Compiler` renamed to `Diagnostics`
+
+### Documentation
+- added sections about `Bytecode/BytecodeExtension.cs`
+- synchronized sections about `Diagnostics/DiagnosticsCompilerExtension.cs`
+- synchronized sections about `DeviceCtx/DeviceContextExtensions.cs`
+
 ## [0.9.0] - 2026-11-08
 
 ### Added

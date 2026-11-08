@@ -128,7 +128,7 @@ public sealed class Processor(MemoryBus ram,
     private ulong Get64IntData()
     {
         ulong ip = _registers[RegType.rIP.Int()];
-        ip = (ip + 7) & ~7UL;
+        ip = ip.AlignUp(8UL);
         ulong data = _ram.ReadInt64LEUnSafe(ip);
         ip += 8;
         _registers[RegType.rIP.Int()] = ip;
