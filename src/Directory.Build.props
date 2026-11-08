@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(PackageReadmeFile)' != ''">
-    <None Update="$(MSBuildProjectDirectory)/README.md"
+    <None Include="$(MSBuildProjectDirectory)/README.md"
           Pack="true"
           PackagePath="\"
           Visible="false" />
