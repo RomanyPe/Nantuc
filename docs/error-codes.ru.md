@@ -85,9 +85,6 @@
 | `Parser_IncludeAmbiguous` | 1208 | `The file {0} exists in both {1} and {2}; please select a specific file.` | `include` нашёл несколько кандидатов с одинаковым именем. Плейсхолдеры: файл, путь 1, путь 2. |
 | `Parser_IncludeNotFound` | 1209 | `The file {0} not found in \"{1}\" and \"{2}\"` | `include` не найдет в файлах проекта и папке `include` |
 
-> **Особенность:** `Parser_IncludeAmbiguous` — единственный шаблон с тремя
-> плейсхолдерами пути. При переопределении не потеряйте третий.
-
 ---
 
 ## Генератор кода (1300–1399)
