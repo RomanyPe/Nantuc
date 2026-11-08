@@ -85,9 +85,6 @@
 | `Parser_IncludeAmbiguous` | 1208 | `The file {0} exists in both {1} and {2}; please select a specific file.` | `include` found multiple candidates with the same name. Placeholders: file, path 1, path 2. |
 | `Parser_IncludeNotFound` | 1209 | `The file {0} not found in "{1}" and "{2}"` | The `include` was not found in the project files or the `include` folder |
 
-> **Note:** `Parser_IncludeAmbiguous` is the only template with three
-> path placeholders. When overriding it, do not lose the third one.
-
 ---
 
 ## Code generator (1300–1399)
