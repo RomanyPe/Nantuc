@@ -305,6 +305,7 @@ dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *C
 - JIT-компилятор на C/C++ (отдельный проект).
 - **Отладчик:** frame pointer в `Processor` для точного `GetCallStack`, `Debugger.Reset()`/`Reload()`, UI-панель для IDE (через `Stopped`-событие).
 - **CLI:** интерактивный REPL-режим, конфигурационный файл проекта вместо флагов на каждую команду.
+- Более подробно - [ROADMAP.ru.md](ROADMAP.ru.md)
 
 ## Вклад
 

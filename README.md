@@ -304,7 +304,7 @@ Additional examples (full cycle with diagnostics, step-by-step debugging, custom
 - JIT compiler in C/C++ (separate project).
 - **Debugger:** frame pointer in `Processor` for an accurate `GetCallStack`, `Debugger.Reset()`/`Reload()`, IDE UI panel (via the `Stopped` event).
 - **CLI:** interactive REPL mode, project configuration file instead of flags for every command.
-
+- For more details, see [ROADMAP.md](ROADMAP.md)
 ## Contributing
 
 The project is open to issues and pull requests.
