@@ -104,7 +104,7 @@ if (fault.Status != BiosStatus.EndProgramm)
     Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");
 ```
 
-A detailed walkthrough (explanation of ports `0x10`/`0x12`, `QueuedIOStream`, diagnostics) — in [`Nantuc.Samples.Minimal/README.md`](Nantuc.Samples.Minimal/README.md).
+A detailed walkthrough (explanation of ports `0x10`/`0x12`, `QueuedIOStream`, diagnostics) — in [`samples/Nantuc.Samples.Minimal/README.md`](samples/Nantuc.Samples.Minimal/README.md).
 
 **The same via CLI (`nantuc`)** — the package is installed as a .NET global tool and covers the whole pipeline: `compile` → `run` → `disasm` + include management via `lib`.
 
@@ -250,7 +250,7 @@ The latest stable version is pulled by default; to pin a specific one — `--ver
 - **.NET 10 SDK** (all projects target `net10.0`).
 - **C# 14**: `extension` blocks, `[InlineArray]`, `params ReadOnlySpan`, `field` keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
 - **Windows / Linux / macOS / AoT** (other platforms have not been tested, but Nantuc is not tied to a specific platform).
-- **WASM**: `Common`/`Contracts`/`Diagnostics` — fully WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` have limitations (blocking calls, linear memory limits, single-threaded browser). Full analysis — [`docs/wasm.md`](docs/wasm.md).
+- **WASM**: `Common`/`Contracts`/`Diagnostics` — fully WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` have limitations (blocking calls, linear memory limits, single-threaded browser).
 
 ## Build and run
 
