@@ -6,6 +6,8 @@
     <File Path="git-commit-changelog.sh" />
     <File Path="README.md" />
     <File Path="README.ru.md" />
+    <File Path="ROADMAP.md" />
+    <File Path="ROADMAP.ru.md" />
   </Folder>
   <Folder Name="/Элементы решения/.github/" />
   <Folder Name="/Элементы решения/.github/workflows/">
@@ -13,8 +15,49 @@
     <File Path=".github/workflows/publish-nuget.yml" />
   </Folder>
   <Folder Name="/Элементы решения/benchmarks/">
-    <File Path="benchmarks/Nantuc.Benchmarks/Nantuc.Benchmarks.csproj" />
     <Project Path="benchmarks/Nantuc.Benchmarks.BenchmarkDotNet/Nantuc.Benchmarks.BenchmarkDotNet.csproj" />
+    <Project Path="benchmarks/Nantuc.Benchmarks/Nantuc.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/">
+    <File Path="benchmarks/OtherLangs/langs.json" />
+    <File Path="benchmarks/OtherLangs/README.md" />
+    <File Path="benchmarks/OtherLangs/README.ru.md" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/c/">
+    <File Path="benchmarks/OtherLangs/c/benchmarks.c" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/cpp/">
+    <File Path="benchmarks/OtherLangs/cpp/benchmarks.cpp" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/csharp/">
+    <File Path="benchmarks/OtherLangs/csharp/benchmarks.cs" />
+    <File Path="benchmarks/OtherLangs/csharp/BenchmarksProject.csproj" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/java/">
+    <File Path="benchmarks/OtherLangs/java/Benchmarks.java" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/javascript/">
+    <File Path="benchmarks/OtherLangs/javascript/benchmarks.js" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/lua/">
+    <File Path="benchmarks/OtherLangs/lua/benchmarks.lua" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/luajit/">
+    <File Path="benchmarks/OtherLangs/luajit/benchmarks.lua" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/python/">
+    <File Path="benchmarks/OtherLangs/python/benchmarks.py" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/ruby/">
+    <File Path="benchmarks/OtherLangs/ruby/benchmarks.rb" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/runner/">
+    <File Path="benchmarks/OtherLangs/runner/run.ps1" />
+    <File Path="benchmarks/OtherLangs/runner/run.py" />
+  </Folder>
+  <Folder Name="/Элементы решения/benchmarks/OtherLangs/rust/">
+    <File Path="benchmarks/OtherLangs/rust/benchmarks.rs" />
+    <File Path="benchmarks/OtherLangs/rust/Cargo.toml" />
   </Folder>
   <Folder Name="/Элементы решения/docs/">
     <File Path="docs/bytecode.md" />

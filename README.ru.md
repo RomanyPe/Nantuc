@@ -140,7 +140,7 @@ nantuc lib exist print.minic
 - **Дизассемблер и отладчик**: секции кода/данных, текстовый и структурный вывод; `Debugger` поверх `DeviceContext` с `Step`/`StepOver`/`StepOut`/`Continue`/`RunToEnd`, точками останова, `RequestStop` из другого потока, best-effort стеком вызовов, чтением RAM.
 - **CLI `nantuc`**: тонкая обёртка над публичным API (`compile`, `run`, `disasm`, `lib`, `help`), без собственной логики компиляции/исполнения; ставится как .NET global tool (`Nantuc.CLI`).
 - **Стандартные оптимизации** (AST и peephole) и инфраструктура для своих правил.
-- **Два бенчмарка**: ручной `Nantuc.Benchmarks` (MIPS, стабильность, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` на **14 MiniC-кейсах**.
+- **Два бенчмарка**: ручной `Nantuc.Benchmarks` (MIPS, стабильность, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` на **14 MiniC-кейсах**. Рядом — `OtherLangs`: те же 14 кейсов на Python, Lua, LuaJIT, Ruby, JS, C, C++, C#, Java и Rust (отдельный раннер, [`benchmarks/OtherLangs/README.ru.md`](benchmarks/OtherLangs/README.ru.md)).
 
 ## Безопасный API
 
@@ -287,8 +287,9 @@ dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *C
 |---|---|---|
 | `Nantuc.Samples.Minimal` | Hello world, `TryRegisterDevice` + `TryGetDeviceContext` + `ProcessorFault`, порты `0x10`/`0x12`, `QueuedIOStream` | [README](samples/Nantuc.Samples.Minimal/README.ru.md) |
 | `Nantuc.Samples.Scratch` | `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE-цикл, ANSI-рендер; тест аллокатора (`Libraries.alloc_minic`) | [README](samples/Nantuc.Samples.Scratch/README.ru.md) |
-| `Nantuc.Benchmarks` | Ручной бенчмарк 14 MiniC-кейсов: MIPS, стабильность, перцентили, CV, JIT-impact | [README](samples/Nantuc.Benchmarks/README.ru.md) |
-| `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet-бенчмарк 14 MiniC-кейсов: время, аллокации, статистика, артефакты | [README](samples/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md) |
+| `Nantuc.Benchmarks` | Ручной бенчмарк 14 MiniC-кейсов: MIPS, стабильность, перцентили, CV, JIT-impact | [README](benchmarks/Nantuc.Benchmarks/README.ru.md) |
+| `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet-бенчмарк 14 MiniC-кейсов: время, аллокации, статистика, артефакты | [README](benchmarks/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md) |
+| `OtherLangs` | Сравнение с 10 другими языками на тех же 14 MiniC-кейсах: свой процесс, свой раннер, сводный `results.json`/`results.csv` | [README](benchmarks/OtherLangs/README.ru.md) |
 | `Nantuc.CLI` | `nantuc`: `compile`/`run`/`disasm`/`lib`/`help`, установка как .NET global tool | [README](src/Nantuc.CLI/README.ru.md) |
 
 Дополнительные примеры (полный цикл с диагностикой, пошаговая отладка, своя оптимизация, Pause/Resume) — в README соответствующих модулей (`VmApplication`, `VmApplication.Extensions`, `CLI`).
@@ -336,6 +337,5 @@ dotnet test -c Release
 - WASM-ограничения: [`docs/wasm.ru.md`](docs/wasm.ru.md)
 - Встроенные библиотеки MiniC/NANASM: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)
 - CLI: [`src/Nantuc.CLI/README.ru.md`](src/Nantuc.CLI/README.ru.md)
+- Сравнение с другими языками (OtherLangs): [`benchmarks/OtherLangs/README.ru.md`](benchmarks/OtherLangs/README.ru.md)
 - README модулей: см. столбец «README» в разделе [Модули и NuGet](#модули-и-nuget)
-
----

@@ -1,0 +1,25 @@
+[package]
+name = "nantuc-benchmarks"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+publish = false
+description = "Nantuc benchmark cases ported to Rust"
+license = "Apache-2.0"
+
+# Один бинарь — ./main.rs. Никаких lib, tests, benches.
+[[bin]]
+name = "benchmarks"
+path = "main.rs"
+
+[profile.release]
+opt-level = 3
+lto = "fat"          # межмодульная оптимизация; для одного файла даёт мало, но полезно для честного baseline
+codegen-units = 1    # одна единица кодогенерации — лучше оптимизация, чуть медленнее сборка
+panic = "abort"      # в бенчмарке панику ловить некуда; убирает раскрутку стека
+overflow-checks = false
+debug = false
+strip = "symbols"    # не влияет на скорость, но бинарь меньше
+
+[profile.dev]
+opt-level = 1        # чтобы debug-запуск не был совсем уж бесполезным

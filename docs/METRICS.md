@@ -12,4 +12,4 @@
 | `Nantuc.CLI (Release)` | 78 | 188 | 1 | 74 | 865 | 263 |
 | `Nantuc.Tests (Release)` | 75 | 146 | 3 | 83 | 1765 | 646 |
 | `Nantuc.Samples.Scratch (Release)` | 70 | 61 | 2 | 49 | 533 | 139 |
-| `Nantuc.Samples.Minimal (Release)` | 41 | 16 | 1 | 29 | 55 | 40 |
+| `Nantuc.Samples.Minimal (Release)` | 41 | 16 | 1 | 29 | 56 | 40 |

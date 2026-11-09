@@ -10,6 +10,12 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.11.0] - 2026-11-09
+
+### Added
+- `ROADMAP.md`
+- benchmarks comparing `Nantuc MiniC` and `Nantuc VM` against other languages and their computation speed
+
 ## [0.10.0] - 2026-11-08
 
 ### Added

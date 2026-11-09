@@ -10,6 +10,12 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.11.0] - 2026-11-09 
+
+### Добавлено
+- `ROADMAP.md`
+- бенчмарки сравнения `Nantuc MiniC` и `Nantuc VM` с другими языками и их скоростью вычислений
+
 ## [0.10.0] - 2026-11-08
 
 ### Добавлено
@@ -41,7 +47,7 @@
 ### Добавлено
 - новые std библиотеки в `Nantuc.VmApplication.Extensions.StdLibraries.Libraries`: `imath`, `bitops`, `ovf`
 - добавлен тест на аллокатор из `std`
-- 
+ 
 ### Изменено
 - **BREAKING:** интерфейс `ITimerSimulationResult` заменен на `readonly record struct TimeSimulationResult(TimeSpan Elapsed, long Steps)` все места с старой сематикой заменены на новую
 

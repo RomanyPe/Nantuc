@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "languages": [
+    {
+      "id": "python",
+      "name": "Python (CPython)",
+      "category": "scripting",
+      "run": ["python", "benchmarks.py"],
+      "cwd": "python"
+    },
+    {
+      "id": "lua",
+      "name": "Lua (PUC)",
+      "category": "scripting",
+      "run": ["lua", "benchmarks.lua"],
+      "cwd": "lua"
+    },
+    {
+      "id": "luajit",
+      "name": "LuaJIT",
+      "category": "jit",
+      "run": ["luajit", "benchmarks.lua"],
+      "cwd": "luajit"
+    },
+    {
+      "id": "ruby",
+      "name": "Ruby (MRI)",
+      "category": "scripting",
+      "run": ["ruby", "benchmarks.rb"],
+      "cwd": "ruby"
+    },
+    {
+      "id": "javascript",
+      "name": "JavaScript (Node.js / V8)",
+      "category": "jit",
+      "run": ["node", "benchmarks.js"],
+      "cwd": "javascript"
+    }
+  ]
+}
