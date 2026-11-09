@@ -158,7 +158,7 @@ The public API of `Nantuc.VmApplication` follows the “Try + IdState + Processo
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **do not rely on `default(IdState) == Valid`** — this has changed.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. On success `Status == EndProgramm`; on failure — `DivOnZero`/`SegmentationFault`/… with exact `IP` and `OpCode`.
 - **`IProcessorFaultPolicy`** — used **inside** the VM; the return from `Run`/`DebugRun` is already `ProcessorFault`, no separate policy is needed.
-- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`Nantuc.VmApplication.Extensions/README.md`](src/Nantuc.VmApplication.Extensions/README.md#отладчик).
+- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`src/Nantuc.VmApplication.Extension/README.md`](src/Nantuc.VmApplication.Extension/README.md#debugger).
 
 ## Architecture
 
@@ -333,7 +333,6 @@ See [`LICENSE`](LICENSE) in the repository root.
 - Bytecode specification: [`docs/bytecode.md`](docs/bytecode.md)
 - Error code reference: [`docs/error-codes.md`](docs/error-codes.md)
 - Metrics: [`docs/METRICS.md`](docs/METRICS.md)
-- WASM limitations: [`docs/wasm.md`](docs/wasm.md)
 - Built-in MiniC/NANASM libraries: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md)
 - CLI: [`src/Nantuc.CLI/README.md`](src/Nantuc.CLI/README.md)
 - Comparison with other languages (OtherLangs): [`benchmarks/OtherLangs/README.md`](benchmarks/OtherLangs/README.md)
