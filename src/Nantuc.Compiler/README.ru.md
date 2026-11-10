@@ -17,19 +17,19 @@
 
 ## Об этом модуле
 
-`Nantuc.Compiler` — это frontend и backend компилятора платформы Nantuc. Frontend принимает исходник на MiniC (подмножество C: целочисленные типы, `struct`, указатели, массивы, `sizeof`, `asm`-блоки, **`const`-квалификаторы** **[NEW]**), строит AST и генерирует байткод через двухступенчатую схему: кодогенератор → ассемблер → 32-битные слова ISA. Backend — двухуровневый: либо прямая запись в `MemoryStream` (`Assembler`), либо построение списка IR-инструкций (`ILAssembler`) с возможностью peephole-оптимизаций.
+`Nantuc.Compiler` — это frontend и backend компилятора платформы Nantuc. Frontend принимает исходник на MiniC (подмножество C: целочисленные типы, `struct`, указатели, массивы, `sizeof`, `asm`-блоки, **`const`-квалификаторы** **[NEW]**), строит AST и генерирует байткод через двухступенчатую схему: кодогенератор → ассемблер → 32-битные слова ISA. Backend — двухуровневый: либо прямая запись в `MemoryStream` (`Assembler`), либо построение списка IR-инструкций (`IRAssembler`) с возможностью IR-оптимизаций.
 
 Модуль зависит от `Common` (`OpCode`/`RegType`/`OpCodeSize`/`InstructionDecoder`), `Contracts` (`OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`) и `Diagnostics` (`ThrowCompiler`/`ErrorCode`, **`DiagnosticData`** **[NEW]**). Сам по себе `unsafe`-кода не содержит — `stackalloc` только в `Assembler.Align8` (0–7 байт, WASM-safe).
 
 Ключевые роли модуля:
 - Frontend: `Lexer`, `Parser`, `ASTNode`-иерархия (28 типов), `MiniCLanguageDefinition`, **`TokenTypeExtension`** **[NEW]**.
 - Кодогенератор: `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator` (жадная раскраска интерференционного графа), `FunctionContext`, `VariableAccessor`.
-- Ассемблер: `AssemblerBase` (абстракция), `Assembler` (прямой), `ILAssembler` (IR), `AssemblerParser`, `InstructionEncoder`, `AsmExtensions`.
+- Ассемблер: `AssemblerBase` (абстракция), `Assembler` (прямой), `IRAssembler` (IR), `AssemblerParser`, `InstructionEncoder`, `AsmExtensions`.
   **`AssemblerParser` поддерживает секции `.data`/`.text` и директивы данных** (`.byte`, `.word`, `.dword`, `.quad`, `.ascii`, `.asciz`, `.zero`).
-- Оптимизации: `AstOptimizer`, `PeepholeOptimizer` — каркас с интерфейсами `IAstOptimizationRule`/`IPeepholeRule`; **конкретных правил в этой партии нет**.
+- Оптимизации: `AstOptimizer`, `IROptimizer` — каркас с интерфейсами `IAstOptimizationRule`/`IOptimizerIRRule`; **конкретных правил в этой партии нет**.
 - Раскладка структур: `StructLayout`, `FieldInfo` — выравнивание полей по 8 байт, `Resolve` с итеративным разрешением зависимостей.
 
-> **XML-документация фрагментарна.** Полностью документированы `AssemblerParser` (шапка класса), `Assembler` (частично), `IPeepholeRule`, `IAstOptimizationRule`. Без `///` — вся AST-иерархия (28 типов, только inline `//`-комментарии в шапке файла), `Lexer`, `Parser`, `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator`, `CodeGenUtils`, `GlobalMemoryManager`, `VariableAccessor`, `AsmLanguageDefinition`. Подробности и дефекты — в разделе [Что исправить](#что-исправить).
+> **XML-документация фрагментарна.** Полностью документированы `AssemblerParser` (шапка класса), `Assembler` (частично), `IOptimizerIRRule`, `IAstOptimizationRule`. Без `///` — вся AST-иерархия (28 типов, только inline `//`-комментарии в шапке файла), `Lexer`, `Parser`, `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator`, `CodeGenUtils`, `GlobalMemoryManager`, `VariableAccessor`, `AsmLanguageDefinition`. Подробности и дефекты — в разделе [Что исправить](#что-исправить).
 
 ## Дерево локального проекта
 
@@ -62,7 +62,7 @@ Nantuc.Compiler/
 │   └── Optimizators/                  # namespace Nantuc.Compiler.C.Optimizators
 │       ├── AstOptimizer.cs            # AstOptimizer + OptimizationResult
 │       ├── IAstOptimizationRule.cs
-│       └── ILogOptimization.cs
+│       └── IRogOptimization.cs
 │
 └── ASM/                               # Backend (namespace Nantuc.Compiler.ASM)
     ├── Assembler.cs                    # прямая запись в MemoryStream
@@ -75,9 +75,9 @@ Nantuc.Compiler/
     │
     ├── IR/
     │   ├── AsmInstruction.cs           # AsmItem, AsmLabel, AsmData, AsmInstruction
-    │   ├── ILAssembler.cs              # IR-сборщик, двухпроходный Build()
-    │   ├── IPeepholeRule.cs
-    │   └── PeepholeOptimizer.cs
+    │   ├── IRAssembler.cs              # IR-сборщик, двухпроходный Build()
+    │   ├── IOptimizerIRRule.cs
+    │   └── IROptimizer.cs
     │
     └── Utils/
         └── InstructionEncoder.cs       # Encode*, extension-блоки на RegType/OpCode/OpCodeSize
@@ -85,9 +85,9 @@ Nantuc.Compiler/
 ```
 
 Замечания по организации:
-- Frontend (`C/*`) знает про байткод через `OpCode`/`RegType`/`OpCodeSize`, но не про `Assembler`/`ILAssembler` — кодогенератор работает через `AssemblerBase`-extension-методы из `Utils/InstructionEncoder.cs`.
-- Два backend'а: `Assembler` (прямой, `MemoryStream` + `BinaryWriter`) и `ILAssembler` (список `AsmItem`). `AssemblerParser` работает с любым через `AssemblerBase`.
-- Оптимизации: `AstOptimizer` (AST-level) и `PeepholeOptimizer` (IR-level) — оба каркасы, ждут конкретных правил.
+- Frontend (`C/*`) знает про байткод через `OpCode`/`RegType`/`OpCodeSize`, но не про `Assembler`/`IRAssembler` — кодогенератор работает через `AssemblerBase`-extension-методы из `Utils/InstructionEncoder.cs`.
+- Два backend'а: `Assembler` (прямой, `MemoryStream` + `BinaryWriter`) и `IRAssembler` (список `AsmItem`). `AssemblerParser` работает с любым через `AssemblerBase`.
+- Оптимизации: `AstOptimizer` (AST-level) и `IROptimizer` (IR-level) — оба каркасы, ждут конкретных правил.
 - **`TokenTypeExtension.AsText`** — единственное место, где `TokenType` превращается в строку; используется везде в диагностике вместо `Enum.ToString()` (AOT-safe, без рефлексии, без боксинга).
 
 ## API
@@ -112,16 +112,16 @@ Nantuc.Compiler/
 | `GlobalMemoryManager` | `C.CodeGenerator` | `class` | `Allocate`/`Contains`/`GetInfo`/`GetLabel`; **`isConst`/`isPointedConst` в `Allocate`** [CONST] |
 | `VarLocation` / `RegisterAllocationResult` | `C.CodeGenerator` | `class` | Метаданные переменной; **`IsConst`/`IsPointedConst`** [CONST] |
 | `AstOptimizer` | `C.Optimizators` | `class` | `Add`/`Insert`/`Remove`/`Optimize(ProgramNode)` → `IEnumerable<IReadOnlyLogOptimization>` |
-| `IAstOptimizationRule` / `ILogOptimization` | `C.Optimizators` | `interface` | Контракт правила / контракт лога |
-| `OptimizationResult` | `C.Optimizators` | `class : ILogOptimization` | Простая реализация лога |
+| `IAstOptimizationRule` / `IRogOptimization` | `C.Optimizators` | `interface` | Контракт правила / контракт лога |
+| `OptimizationResult` | `C.Optimizators` | `class : IRogOptimization` | Простая реализация лога |
 | `AssemblerBase` | `ASM.Base` | `abstract class` | `EmitInstruction`/`EmitInstruction64`/`EmitJump`/`MarkLabel`/`EmitData`/`Build` |
 | `Assembler` | `ASM` | `class : AssemblerBase` | Прямая запись; `_patches` для меток |
 | `AssemblerParser` | `ASM` | `partial class` | Текст → байты; `Assemble(code, baseAddress, ThrowCompiler)`; секции `.data`/`.text` |
 | `AsmLanguageDefinition` | `ASM` | `static class` | `Mnemonics`/`Registers` (`FrozenSet`), `GetMnemonicRegex`/`GetRegisterRegex` |
-| `ILAssembler` | `ASM.IR` | `class : AssemblerBase` | IR-сборщик: `GetItems()`, двухпроходный `Build()` |
+| `IRAssembler` | `ASM.IR` | `class : AssemblerBase` | IR-сборщик: `GetItems()`, двухпроходный `Build()` |
 | `AsmItem`/`AsmLabel`/`AsmData`/`AsmInstruction` | `ASM.IR` | `class` | IR-элементы; `AsmInstruction` разбирает `raw` через `InstructionDecoder` |
-| `IPeepholeRule` | `ASM.IR` | `interface` | `TryOptimize(items, index, passCount, out newIndex)` |
-| `PeepholeOptimizer` | `ASM.IR` | `class` | `Optimize(items, maxPasses)` до неподвижной точки |
+| `IOptimizerIRRule` | `ASM.IR` | `interface` | `TryOptimize(items, index, passCount, out newIndex)` |
+| `IROptimizer` | `ASM.IR` | `class` | `Optimize(items, maxPasses)` до неподвижной точки |
 | `InstructionEncoder` | `ASM.Utils` | `static class` | `Encode`/`EncodeR`/`EncodeI`/`EncodeU`/`EncodeJ`, `Decode`, extension-блоки |
 | `AsmExtensions` | `ASM.Utils` | `static class` | `EmitMov`/`EmitAdd`/`EmitLdi`/`EmitJmp`/`EmitLoad`/`EmitStore`/… на `AssemblerBase` |
 
@@ -196,7 +196,7 @@ Nantuc.Compiler/
 - `EmitData(string, byte[])` — `Align8()`, `MarkLabel`, запись.
 - `Build()` — патчит все `_patches` абсолютными адресами (`_baseAddress + targetPos`), возвращает `byte[]`.
 
-**`ILAssembler`** — список `AsmItem`:
+**`IRAssembler`** — список `AsmItem`:
 - `EmitInstruction64(uint, ulong)` проверяет `HasNeed64IntData(op)` — если нет, бросает `Asm_InvalidInstruction`.
 - `EmitJump(uint, string)` → `AsmInstruction` с `TargetLabel`.
 - `EmitData` добавляет пустой `AsmData(alignment: 8)` (для выравнивания перед меткой) + `MarkLabel` + `AsmData(data, alignment: 1)`.
@@ -218,7 +218,7 @@ Nantuc.Compiler/
 
 **`AstOptimizer`** — `Add`/`Insert`/`Remove`/`RemoveAt`, `Count`, `GetType(i)`. `Optimize(program)` возвращает `IEnumerable<IReadOnlyLogOptimization>` — по одному на правило. Правил в этой партии нет.
 
-**`PeepholeOptimizer`** — `Optimize(items, maxPasses = 5)` — цикл до неподвижной точки. Пропускает `AsmLabel`, применяет первое подходящее правило, `i = nextIndex`.
+**`IROptimizer`** — `Optimize(items, maxPasses = 5)` — цикл до неподвижной точки. Пропускает `AsmLabel`, применяет первое подходящее правило, `i = nextIndex`.
 
 ## Примеры для API
 
@@ -246,11 +246,11 @@ var program = new Parser(tokens, throwCompiler).Parse();
 new AstOptimizer().Optimize(program);
 
 var structTable = StructLayout.Resolve(program.StructNodes, throwCompiler);
-var asm = new ILAssembler(baseAddress: 0x1000, throwCompiler);
+var asm = new IRAssembler(baseAddress: 0x1000, throwCompiler);
 new FunctionGenerator(asm, structTable, throwCompiler).Generate(program);
 
 var items = asm.GetItems();
-new PeepholeOptimizer().Optimize(items);
+new IROptimizer().Optimize(items);
 
 byte[] bytecode = asm.Build();
 ```
@@ -337,14 +337,14 @@ byte[] bytes = asm.Build();
 Средняя. Пользователь MiniC работает с компилятором через `VmApplication` (например, `VmApplication.Compile(source)`), а не напрямую с `Nantuc.Compiler`. Но автор языка/расширений работает именно здесь.
 
 - Автор нового синтаксиса — `Lexer`/`Parser`/`ASTNode`.
-- Автор оптимизаций — `IAstOptimizationRule`/`IPeepholeRule`.
+- Автор оптимизаций — `IAstOptimizationRule`/`IOptimizerIRRule`.
 - Автор нового backend'а — `AssemblerBase` (реализовать `Build`, `EmitInstruction64` и т.д.).
 - Автор нового target'а ISA — `InstructionEncoder` + `AsmExtensions`.
 - Автор NANASM-скриптов — `AssemblerParser` с секциями `.data`/`.text`.
 
 **Что стоит делать:**
-- Использовать `ILAssembler` для production-пайплайна (двухпроходный, поддерживает peephole), `Assembler` — только для тестов/отладки.
-- Пользовательские оптимизации — через `Add` в `AstOptimizer`/`PeepholeOptimizer`; правила должны быть идемпотентны (`Clear()` вызывается в начале каждого `Optimize`).
+- Использовать `IRAssembler` для production-пайплайна (двухпроходный, поддерживает IR), `Assembler` — только для тестов/отладки.
+- Пользовательские оптимизации — через `Add` в `AstOptimizer`/`IROptimizer`; правила должны быть идемпотентны (`Clear()` вызывается в начале каждого `Optimize`).
 - Для inline-asm использовать `AsmLanguageDefinition.Mnemonics`/`Registers` как источник истины.
 - Для статических данных в NANASM — `.data` + директивы (`.asciz`, `.zero`, `.quad`, …).
 - **`const` — использовать как гарантию неизменяемости в API и внутренних данных** (см. раздел `const`).
@@ -407,7 +407,7 @@ FunctionGenerator.Generate(program)
   └── EmitData для глобалов и pseudo-globals
   │
   ▼
-AssemblerBase (Assembler | ILAssembler)
+AssemblerBase (Assembler | IRAssembler)
   │
   ▼
 byte[] (32-битные слова ISA)
@@ -545,13 +545,13 @@ public readonly record struct DiagnosticData
 
 **Итог:** `DiagnosticData` полностью AOT-safe для всех текущих вызовов `ThrowCompiler.Throw`.
 
-### `Assembler` vs `ILAssembler`
+### `Assembler` vs `IRAssembler`
 
-| | `Assembler` | `ILAssembler` |
+| | `Assembler` | `IRAssembler` |
 |---|---|---|
 | Хранение | `MemoryStream` + `BinaryWriter` | `List<AsmItem>` |
 | Патч меток | `_patches` в `Build()` | `labelAddresses` в первом проходе `Build()` |
-| Peephole | ❌ | ✅ |
+| IR | ❌ | ✅ |
 | Проверка `HasNeed64IntData` | ❌ | ✅ |
 | Валидация дублей меток | ✅ | ✅ |
 | Двухпроходный Build | ❌ | ✅ |
@@ -622,7 +622,7 @@ public readonly record struct DiagnosticData
 ### Дом
 
 14. **[Дом] `Nantuc.Compiler.C.Optimizators` — namespace с опечаткой.**  
-    Файлы: `AstOptimizer.cs`, `IAstOptimizationRule.cs`, `ILogOptimization.cs`. Должно быть `Optimizers` (или `Optimizations`). Публичная поверхность.  
+    Файлы: `AstOptimizer.cs`, `IAstOptimizationRule.cs`, `IRogOptimization.cs`. Должно быть `Optimizers` (или `Optimizations`). Публичная поверхность.  
     Фикс: переименовать (breaking change) или оставить с `<remarks>`.
 
 15. **[Дом] `AsmLanguageDefinition` и `MiniCLanguageDefinition` — параллельные словари.**  
@@ -675,7 +675,7 @@ public readonly record struct DiagnosticData
 
 - `InstructionEncoder` — extension-блоки на `OpCode`/`RegType`/`OpCodeSize` + `AsmExtensions` на `AssemblerBase`.
 
-- `ILAssembler` — двухпроходный `Build()` с предварительным вычислением `labelAddresses`, поддержка peephole.
+- `IRAssembler` — двухпроходный `Build()` с предварительным вычислением `labelAddresses`, поддержка IR.
 
 - `AssemblerParser.GetRexExtensionAsm()` — `[GeneratedRegex]` (AOT-safe), нормализация `LOAD . S8` → `LOAD.S8`.
 

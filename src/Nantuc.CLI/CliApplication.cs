@@ -5,15 +5,15 @@ namespace Nantuc.CLI;
 
 public sealed class CliApplication
 {
-    private readonly ILibraryFileService _fileService;
+    private readonly IRibraryFileService _fileService;
     private readonly IProjectFilesConfig _projectConfig;
     private readonly TextWriter _out;
     private readonly TextWriter _error;
 
-    private CliApplication(ILibraryFileService fs, IProjectFilesConfig cfg, TextWriter @out, TextWriter err)
+    private CliApplication(IRibraryFileService fs, IProjectFilesConfig cfg, TextWriter @out, TextWriter err)
         => (_fileService, _projectConfig, _out, _error) = (fs, cfg, @out, err);
 
-    public static CliApplication Create(ILibraryFileService fileService, IProjectFilesConfig projectConfig,
+    public static CliApplication Create(IRibraryFileService fileService, IProjectFilesConfig projectConfig,
                                         TextWriter output, TextWriter error)
         => new(fileService, projectConfig, output, error);
 
@@ -89,7 +89,7 @@ public sealed class CliApplication
             return -4;
         }
 
-        if (!RunCommand.TryCreate(args, _fileService, _error, out var cmd))
+        if (!RunCommand.TryCreate(args, _fileService, _fileService.FileSystem, _error, out var cmd))
         {
             _error.WriteLine("run: invalid arguments");
             return -2;

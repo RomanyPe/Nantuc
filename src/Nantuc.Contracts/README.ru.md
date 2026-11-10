@@ -211,8 +211,8 @@ if (!policy.ShouldContinue(in fault))
 
 ```csharp
 // Валидный id
-var id = new OptimizationId("peephole");
-Console.WriteLine(id.Value);      // "peephole"
+var id = new OptimizationId("IR");
+Console.WriteLine(id.Value);      // "IR"
 Console.WriteLine(id.IsValid);    // true
 
 // Парсинг пользовательского ввода

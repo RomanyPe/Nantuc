@@ -65,7 +65,7 @@ host.Project.SaveFileProject("main.minic", source1);
 host.Project.SaveFileInclude("heap.nanasm", Libraries.heap_nanasm);
 host.Project.SaveFileInclude("alloc.minic", Libraries.alloc_minic);
 
-var resCompile = host.Project.CompileToIL(
+var resCompile = host.Project.CompileToIR(
     baseAddress: 0,
     optimize: true).Build();
 

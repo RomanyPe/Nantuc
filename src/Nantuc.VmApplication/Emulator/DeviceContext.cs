@@ -86,6 +86,8 @@ public class DeviceContext
     public void Stop()
     {
         _device.Stop();
+        if (_mode == Mode.Step)
+            _device.NextStepProcessor(null); // дать процессору увидеть StopBySystem
         SetNoneMode();
     }
 
@@ -121,7 +123,7 @@ public class DeviceContext
             error = null;
             return true;
         }
-        error = $"Failed to load the program: memory out of bounds (loadAddress + {program.Length} > RAM) or other unexpected error.";
+        error = $"Failed to load the program: memory out of bounds ({loadAddress} + {program.Length} > RAM) or other unexpected error.";
         return false;
     }
 
@@ -136,15 +138,20 @@ public class DeviceContext
         ThrowIfRunning();
         ThrowByMode(Mode.Continuous);
 
-        opt ??= LaunchOptions.Default;
-        var fault = _device.Run(opt.StartAddress,
-            opt.StepLimit,
-            opt.ShowTimer,
-            opt.OnLaunch,
-            opt.OnEnd);
-
-        SetNoneMode();
-        return fault;
+        try
+        {
+            opt ??= LaunchOptions.Default;
+            return _device.Run(
+                opt.StartAddress, 
+                opt.StepLimit,
+                opt.ShowTimer, 
+                opt.OnLaunch,
+                opt.OnEnd);
+        }
+        finally
+        {
+            SetNoneMode();
+        }
     }
 
     /// <summary>
@@ -157,15 +164,20 @@ public class DeviceContext
     {
         ThrowIfRunning();
         ThrowByMode(Mode.Continuous);
-        opt ??= LaunchOptionsDebug.Default;
-        var fault = _device.DebugRun(opt.StartAddress,
-                         opt.StepLimit,
-                         opt.DelayMs,
-                         opt.OnLaunch,
-                         opt.OnStep,
-                         opt.OnEnd);
-        SetNoneMode();
-        return fault;
+        try
+        {
+            opt ??= LaunchOptionsDebug.Default;
+            return _device.DebugRun(opt.StartAddress,
+                             opt.StepLimit,
+                             opt.DelayMs,
+                             opt.OnLaunch,
+                             opt.OnStep,
+                             opt.OnEnd);
+        }
+        finally
+        { 
+            SetNoneMode();
+        }
     }
 
     /// <summary>

@@ -17,19 +17,19 @@
 
 ## About this module
 
-`Nantuc.Compiler` is the frontend and backend of the Nantuc platform compiler. The frontend accepts MiniC source (a subset of C: integer types, `struct`, pointers, arrays, `sizeof`, `asm` blocks, **`const` qualifiers** **[NEW]**), builds an AST and generates bytecode through a two-stage scheme: code generator → assembler → 32-bit ISA words. The backend is two-level: either direct writing to a `MemoryStream` (`Assembler`) or building a list of IR instructions (`ILAssembler`) with peephole optimization capability.
+`Nantuc.Compiler` is the frontend and backend of the Nantuc platform compiler. The frontend accepts MiniC source (a subset of C: integer types, `struct`, pointers, arrays, `sizeof`, `asm` blocks, **`const` qualifiers** **[NEW]**), builds an AST and generates bytecode through a two-stage scheme: code generator → assembler → 32-bit ISA words. The backend is two-level: either direct writing to a `MemoryStream` (`Assembler`) or building a list of IR instructions (`IRAssembler`) with IR optimization capability.
 
 The module depends on `Common` (`OpCode`/`RegType`/`OpCodeSize`/`InstructionDecoder`), `Contracts` (`OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`) and `Diagnostics` (`ThrowCompiler`/`ErrorCode`, **`DiagnosticData`** **[NEW]**). It contains no `unsafe` code itself — `stackalloc` only in `Assembler.Align8` (0–7 bytes, WASM-safe).
 
 Key roles of the module:
 - Frontend: `Lexer`, `Parser`, `ASTNode` hierarchy (28 types), `MiniCLanguageDefinition`, **`TokenTypeExtension`** **[NEW]**.
 - Code generator: `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator` (greedy coloring of the interference graph), `FunctionContext`, `VariableAccessor`.
-- Assembler: `AssemblerBase` (abstraction), `Assembler` (direct), `ILAssembler` (IR), `AssemblerParser`, `InstructionEncoder`, `AsmExtensions`.
+- Assembler: `AssemblerBase` (abstraction), `Assembler` (direct), `IRAssembler` (IR), `AssemblerParser`, `InstructionEncoder`, `AsmExtensions`.
   **`AssemblerParser` supports `.data`/`.text` sections and data directives** (`.byte`, `.word`, `.dword`, `.quad`, `.ascii`, `.asciz`, `.zero`).
-- Optimizations: `AstOptimizer`, `PeepholeOptimizer` — a framework with `IAstOptimizationRule`/`IPeepholeRule` interfaces; **there are no concrete rules in this batch**.
+- Optimizations: `AstOptimizer`, `IROptimizer` — a framework with `IAstOptimizationRule`/`IOptimizerIRRule` interfaces; **there are no concrete rules in this batch**.
 - Struct layout: `StructLayout`, `FieldInfo` — field alignment to 8 bytes, `Resolve` with iterative dependency resolution.
 
-> **XML documentation is fragmentary.** `AssemblerParser` (class header), `Assembler` (partially), `IPeepholeRule`, `IAstOptimizationRule` are fully documented. Without `///` — the entire AST hierarchy (28 types, only inline `//` comments in the file header), `Lexer`, `Parser`, `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator`, `CodeGenUtils`, `GlobalMemoryManager`, `VariableAccessor`, `AsmLanguageDefinition`. Details and defects — in the [What to fix](#what-to-fix) section.
+> **XML documentation is fragmentary.** `AssemblerParser` (class header), `Assembler` (partially), `IOptimizerIRRule`, `IAstOptimizationRule` are fully documented. Without `///` — the entire AST hierarchy (28 types, only inline `//` comments in the file header), `Lexer`, `Parser`, `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator`, `CodeGenUtils`, `GlobalMemoryManager`, `VariableAccessor`, `AsmLanguageDefinition`. Details and defects — in the [What to fix](#what-to-fix) section.
 
 ## Local project tree
 
@@ -62,7 +62,7 @@ Nantuc.Compiler/
 │   └── Optimizators/                  # namespace Nantuc.Compiler.C.Optimizators
 │       ├── AstOptimizer.cs            # AstOptimizer + OptimizationResult
 │       ├── IAstOptimizationRule.cs
-│       └── ILogOptimization.cs
+│       └── IRogOptimization.cs
 │
 └── ASM/                               # Backend (namespace Nantuc.Compiler.ASM)
     ├── Assembler.cs                    # direct writing to MemoryStream
@@ -75,9 +75,9 @@ Nantuc.Compiler/
     │
     ├── IR/
     │   ├── AsmInstruction.cs           # AsmItem, AsmLabel, AsmData, AsmInstruction
-    │   ├── ILAssembler.cs              # IR collector, two-pass Build()
-    │   ├── IPeepholeRule.cs
-    │   └── PeepholeOptimizer.cs
+    │   ├── IRAssembler.cs              # IR collector, two-pass Build()
+    │   ├── IOptimizerIRRule.cs
+    │   └── IROptimizer.cs
     │
     └── Utils/
         └── InstructionEncoder.cs       # Encode*, extension blocks on RegType/OpCode/OpCodeSize
@@ -85,9 +85,9 @@ Nantuc.Compiler/
 ```
 
 Organization notes:
-- The frontend (`C/*`) knows about bytecode through `OpCode`/`RegType`/`OpCodeSize`, but not about `Assembler`/`ILAssembler` — the code generator works through `AssemblerBase` extension methods from `Utils/InstructionEncoder.cs`.
-- Two backends: `Assembler` (direct, `MemoryStream` + `BinaryWriter`) and `ILAssembler` (list of `AsmItem`). `AssemblerParser` works with either through `AssemblerBase`.
-- Optimizations: `AstOptimizer` (AST-level) and `PeepholeOptimizer` (IR-level) — both frameworks, awaiting concrete rules.
+- The frontend (`C/*`) knows about bytecode through `OpCode`/`RegType`/`OpCodeSize`, but not about `Assembler`/`IRAssembler` — the code generator works through `AssemblerBase` extension methods from `Utils/InstructionEncoder.cs`.
+- Two backends: `Assembler` (direct, `MemoryStream` + `BinaryWriter`) and `IRAssembler` (list of `AsmItem`). `AssemblerParser` works with either through `AssemblerBase`.
+- Optimizations: `AstOptimizer` (AST-level) and `IROptimizer` (IR-level) — both frameworks, awaiting concrete rules.
 - **`TokenTypeExtension.AsText`** — the only place where `TokenType` is turned into a string; used everywhere in diagnostics instead of `Enum.ToString()` (AOT-safe, no reflection, no boxing).
 
 ## API
@@ -112,16 +112,16 @@ Organization notes:
 | `GlobalMemoryManager` | `C.CodeGenerator` | `class` | `Allocate`/`Contains`/`GetInfo`/`GetLabel`; **`isConst`/`isPointedConst` in `Allocate`** [CONST] |
 | `VarLocation` / `RegisterAllocationResult` | `C.CodeGenerator` | `class` | Variable metadata; **`IsConst`/`IsPointedConst`** [CONST] |
 | `AstOptimizer` | `C.Optimizators` | `class` | `Add`/`Insert`/`Remove`/`Optimize(ProgramNode)` → `IEnumerable<IReadOnlyLogOptimization>` |
-| `IAstOptimizationRule` / `ILogOptimization` | `C.Optimizators` | `interface` | Rule contract / log contract |
-| `OptimizationResult` | `C.Optimizators` | `class : ILogOptimization` | Simple log implementation |
+| `IAstOptimizationRule` / `IRogOptimization` | `C.Optimizators` | `interface` | Rule contract / log contract |
+| `OptimizationResult` | `C.Optimizators` | `class : IRogOptimization` | Simple log implementation |
 | `AssemblerBase` | `ASM.Base` | `abstract class` | `EmitInstruction`/`EmitInstruction64`/`EmitJump`/`MarkLabel`/`EmitData`/`Build` |
 | `Assembler` | `ASM` | `class : AssemblerBase` | Direct writing; `_patches` for labels |
 | `AssemblerParser` | `ASM` | `partial class` | Text → bytes; `Assemble(code, baseAddress, ThrowCompiler)`; `.data`/`.text` sections |
 | `AsmLanguageDefinition` | `ASM` | `static class` | `Mnemonics`/`Registers` (`FrozenSet`), `GetMnemonicRegex`/`GetRegisterRegex` |
-| `ILAssembler` | `ASM.IR` | `class : AssemblerBase` | IR collector: `GetItems()`, two-pass `Build()` |
+| `IRAssembler` | `ASM.IR` | `class : AssemblerBase` | IR collector: `GetItems()`, two-pass `Build()` |
 | `AsmItem`/`AsmLabel`/`AsmData`/`AsmInstruction` | `ASM.IR` | `class` | IR elements; `AsmInstruction` parses `raw` via `InstructionDecoder` |
-| `IPeepholeRule` | `ASM.IR` | `interface` | `TryOptimize(items, index, passCount, out newIndex)` |
-| `PeepholeOptimizer` | `ASM.IR` | `class` | `Optimize(items, maxPasses)` to a fixed point |
+| `IOptimizerIRRule` | `ASM.IR` | `interface` | `TryOptimize(items, index, passCount, out newIndex)` |
+| `IROptimizer` | `ASM.IR` | `class` | `Optimize(items, maxPasses)` to a fixed point |
 | `InstructionEncoder` | `ASM.Utils` | `static class` | `Encode`/`EncodeR`/`EncodeI`/`EncodeU`/`EncodeJ`, `Decode`, extension blocks |
 | `AsmExtensions` | `ASM.Utils` | `static class` | `EmitMov`/`EmitAdd`/`EmitLdi`/`EmitJmp`/`EmitLoad`/`EmitStore`/… on `AssemblerBase` |
 
@@ -196,7 +196,7 @@ Specifics:
 - `EmitData(string, byte[])` — `Align8()`, `MarkLabel`, write.
 - `Build()` — patches all `_patches` with absolute addresses (`_baseAddress + targetPos`), returns `byte[]`.
 
-**`ILAssembler`** — list of `AsmItem`:
+**`IRAssembler`** — list of `AsmItem`:
 - `EmitInstruction64(uint, ulong)` checks `HasNeed64IntData(op)` — if not, throws `Asm_InvalidInstruction`.
 - `EmitJump(uint, string)` → `AsmInstruction` with `TargetLabel`.
 - `EmitData` adds an empty `AsmData(alignment: 8)` (for alignment before the label) + `MarkLabel` + `AsmData(data, alignment: 1)`.
@@ -218,7 +218,7 @@ Specifics:
 
 **`AstOptimizer`** — `Add`/`Insert`/`Remove`/`RemoveAt`, `Count`, `GetType(i)`. `Optimize(program)` returns `IEnumerable<IReadOnlyLogOptimization>` — one per rule. There are no rules in this batch.
 
-**`PeepholeOptimizer`** — `Optimize(items, maxPasses = 5)` — loop to a fixed point. Skips `AsmLabel`, applies the first matching rule, `i = nextIndex`.
+**`IROptimizer`** — `Optimize(items, maxPasses = 5)` — loop to a fixed point. Skips `AsmLabel`, applies the first matching rule, `i = nextIndex`.
 
 ## API examples
 
@@ -246,11 +246,11 @@ var program = new Parser(tokens, throwCompiler).Parse();
 new AstOptimizer().Optimize(program);
 
 var structTable = StructLayout.Resolve(program.StructNodes, throwCompiler);
-var asm = new ILAssembler(baseAddress: 0x1000, throwCompiler);
+var asm = new IRAssembler(baseAddress: 0x1000, throwCompiler);
 new FunctionGenerator(asm, structTable, throwCompiler).Generate(program);
 
 var items = asm.GetItems();
-new PeepholeOptimizer().Optimize(items);
+new IROptimizer().Optimize(items);
 
 byte[] bytecode = asm.Build();
 ```
@@ -337,14 +337,14 @@ byte[] bytes = asm.Build();
 Medium. The MiniC user works with the compiler through `VmApplication` (e.g., `VmApplication.Compile(source)`), not directly with `Nantuc.Compiler`. But the language/extension author works exactly here.
 
 - Author of new syntax — `Lexer`/`Parser`/`ASTNode`.
-- Author of optimizations — `IAstOptimizationRule`/`IPeepholeRule`.
+- Author of optimizations — `IAstOptimizationRule`/`IOptimizerIRRule`.
 - Author of a new backend — `AssemblerBase` (implement `Build`, `EmitInstruction64`, etc.).
 - Author of a new ISA target — `InstructionEncoder` + `AsmExtensions`.
 - Author of NANASM scripts — `AssemblerParser` with `.data`/`.text` sections.
 
 **What you should do:**
-- Use `ILAssembler` for the production pipeline (two-pass, supports peephole); `Assembler` — only for tests/debugging.
-- Custom optimizations — via `Add` in `AstOptimizer`/`PeepholeOptimizer`; rules must be idempotent (`Clear()` is called at the start of each `Optimize`).
+- Use `IRAssembler` for the production pipeline (two-pass, supports IR); `Assembler` — only for tests/debugging.
+- Custom optimizations — via `Add` in `AstOptimizer`/`IROptimizer`; rules must be idempotent (`Clear()` is called at the start of each `Optimize`).
 - For inline asm use `AsmLanguageDefinition.Mnemonics`/`Registers` as the source of truth.
 - For static data in NANASM — `.data` + directives (`.asciz`, `.zero`, `.quad`, …).
 - **`const` — use as a guarantee of immutability in APIs and internal data** (see the `const` section).
@@ -407,7 +407,7 @@ FunctionGenerator.Generate(program)
   └── EmitData for globals and pseudo-globals
   │
   ▼
-AssemblerBase (Assembler | ILAssembler)
+AssemblerBase (Assembler | IRAssembler)
   │
   ▼
 byte[] (32-bit ISA words)
@@ -545,13 +545,13 @@ Remaining reflection-adjacent places in the BCL (not in this module):
 
 **Bottom line:** `DiagnosticData` is fully AOT-safe for all current `ThrowCompiler.Throw` calls.
 
-### `Assembler` vs `ILAssembler`
+### `Assembler` vs `IRAssembler`
 
-| | `Assembler` | `ILAssembler` |
+| | `Assembler` | `IRAssembler` |
 |---|---|---|
 | Storage | `MemoryStream` + `BinaryWriter` | `List<AsmItem>` |
 | Label patching | `_patches` in `Build()` | `labelAddresses` in the first pass of `Build()` |
-| Peephole | ❌ | ✅ |
+| IR | ❌ | ✅ |
 | `HasNeed64IntData` check | ❌ | ✅ |
 | Duplicate label validation | ✅ | ✅ |
 | Two-pass Build | ❌ | ✅ |
@@ -622,7 +622,7 @@ In descending order of importance. `[WASM]` — risks for browser-WASM/AOT; `[AP
 ### Housekeeping
 
 14. **[Housekeeping] `Nantuc.Compiler.C.Optimizators` — namespace with a typo.**  
-    Files: `AstOptimizer.cs`, `IAstOptimizationRule.cs`, `ILogOptimization.cs`. Should be `Optimizers` (or `Optimizations`). Public surface.  
+    Files: `AstOptimizer.cs`, `IAstOptimizationRule.cs`, `IRogOptimization.cs`. Should be `Optimizers` (or `Optimizations`). Public surface.  
     Fix: rename (breaking change) or leave with `<remarks>`.
 
 15. **[Housekeeping] `AsmLanguageDefinition` and `MiniCLanguageDefinition` — parallel dictionaries.**  
@@ -675,7 +675,7 @@ In descending order of importance. `[WASM]` — risks for browser-WASM/AOT; `[AP
 
 - `InstructionEncoder` — extension blocks on `OpCode`/`RegType`/`OpCodeSize` + `AsmExtensions` on `AssemblerBase`.
 
-- `ILAssembler` — two-pass `Build()` with precomputed `labelAddresses`, peephole support.
+- `IRAssembler` — two-pass `Build()` with precomputed `labelAddresses`, IR support.
 
 - `AssemblerParser.GetRexExtensionAsm()` — `[GeneratedRegex]` (AOT-safe), normalization of `LOAD . S8` → `LOAD.S8`.
 

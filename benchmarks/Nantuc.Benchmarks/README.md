@@ -71,7 +71,7 @@ Test programs (`public const string` in `SourceCasesMiniC.cs`):
 | `callMc` | `Call` | Function call `sum(r0, r1)` in a loop, 3M iterations |
 | `mathMc` | `Math` | `ADD` + `DEC` + loop, 3M iterations |
 | `aluTput1Mc` | `AluTput1` | 4× `ADD` into one register (r0), 800K iterations |
-| `aluTput4Mc` | `AluTput4` | 4× `ADD` into different registers (ILP), 800K iterations |
+| `aluTput4Mc` | `AluTput4` | 4× `ADD` into different registers (IRP), 800K iterations |
 | `aluTputMixedMc` | `AluTputMixed` | `ADD`/`SUB`/`AND`/`OR` into different registers, 800K iterations |
 | `memoryMc` | `Memory` | Filling `arr[25000]` + summation, 20× |
 | `bitOpsMc` | `BitOps` | `SHR`/`AND`/`OR`/`XOR`, 3M iterations |
@@ -98,7 +98,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
     public double StepsVariance { get; }    // variance of StepsLogs (extension)
     public CompilationResult? Program { get; private set; }
 
-    public bool TryPrepare();        // CompileToIL(SourceLanguage.C, optimize: true) → TryLoadProgram
+    public bool TryPrepare();        // CompileToIR(SourceLanguage.C, optimize: true) → TryLoadProgram
     public void RunOnce();           // Launch(MipsLogs, ElapsedLog, StepsLogs, ctx)
     public void Warmup();            // Launch([], [], [], ctx) — log discarded
     public static void Launch(List<double> mips, List<double> elapsed,
@@ -106,7 +106,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
 }
 ```
 
-`TryPrepare` uses `_host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. Loading into the device is done via `ctx.TryLoadProgram(res.Program, 0, out string? errorMath)`. The peephole optimizer is not applied (see [Special notes](#special-notes)).
+`TryPrepare` uses `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. Loading into the device is done via `ctx.TryLoadProgram(res.Program, 0, out string? errorMath)`. The IR optimizer is not applied (see [Special notes](#special-notes)).
 
 `Launch` runs `ctx.Run(new LaunchOptions(ShowTimer: true, OnEnd: ...))`. In `OnEnd`, `Mips = Steps / Elapsed.TotalSeconds / 1e6` is computed and added to three lists.
 
@@ -232,21 +232,21 @@ if (runner.Program is { } comp)
 **What you should not do:**
 - Run the benchmark in CI/headless — `Console.ReadLine()` at the end of `Main` will block the process, and `Console.Clear()` may throw.
 - Compare MIPS across machines — core affinity, frequency, JIT, GC, and thermal throttling have a strong impact. Compare only within one session.
-- Expect `optimize: true` in `BenchRunner.TryPrepare` to have the same effect as AST optimizations + peephole for ASM: for MiniC, `optimize: true` enables AST optimizations, but peephole (`VmPeepholeOptimizer.AddStdRules`) is not called automatically.
+- Expect `optimize: true` in `BenchRunner.TryPrepare` to have the same effect as AST optimizations + IR for ASM: for MiniC, `optimize: true` enables AST optimizations, but IR (`VmIROptimizer.AddStdRules`) is not called automatically.
 - Use `PeakMips` as the only metric — it takes `Min(Elapsed)`, which is sensitive to outliers. `TrimmedMean10` from `MipsLogs` is more reliable.
 
 ## Special notes
 
 ### `optimize: true` for MiniC
 
-`BenchRunner.TryPrepare` calls `_host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. For MiniC sources, `optimize: true` enables compiler AST optimizations but **does not** enable peephole: nobody calls `VmPeepholeOptimizer.AddStdRules`, and `OptimizationIL(..., peepholeOptimizationCount)` is not used in `BenchRunner`/`Program`. Therefore, all 14 cases are AST-optimized but not peephole-optimized code.
+`BenchRunner.TryPrepare` calls `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. For MiniC sources, `optimize: true` enables compiler AST optimizations but **does not** enable IR: nobody calls `VmIROptimizer.AddStdRules`, and `OptimizationIR(..., IROptimizationCount)` is not used in `BenchRunner`/`Program`. Therefore, all 14 cases are AST-optimized but not IR-optimized code.
 
-If you want to compare “with peephole vs without”, you need to do it explicitly:
+If you want to compare “with IR vs without”, you need to do it explicitly:
 
 ```csharp
-host.Project.Optimizator.VMPeepholeOptimizer.AddStdRules();
-var il = host.Project.CompileToIL(text, ProjectBuilder.BaseAddressProgram, optimize: false, SourceLanguage.C);
-il = host.Project.OptimizationIL(il, peepholeOptimizationCount: 5);
+host.Project.Optimizator.VMIROptimizer.AddStdRules();
+var il = host.Project.CompileToIR(text, ProjectBuilder.BaseAddressProgram, optimize: false, SourceLanguage.C);
+il = host.Project.OptimizationIR(il, IROptimizationCount: 5);
 var comp = il.Build();
 ```
 
@@ -342,9 +342,9 @@ In descending order of severity. File/method references.
     If loading fails, `Program` is already set while `IsPrepared = false`. If the calling code looks at `Program`, it will see a “successful” compilation even though the program was not loaded.  
     Fix: set `Program = res` after successful loading. Or document that `Program` is the compilation result, not the load result.
 
-11. **`BenchRunner.TryPrepare` — hardcoded `optimize: true` and no peephole.**  
+11. **`BenchRunner.TryPrepare` — hardcoded `optimize: true` and no IR.**  
     File: `BenchRunner.cs`, `TryPrepare` + `BenchCase.cs`.  
-    `optimize: true` is hardcoded, and `BenchCase` does not allow comparison with `optimize: false`. In addition, peephole is not called (see [Special notes](#special-notes)).  
-    Fix: add an `OptimizeAst` flag to `BenchCase` (default `true`) and, optionally, `RunPeephole` — so that the effect of optimizations can be measured, not just a “raw” run.
+    `optimize: true` is hardcoded, and `BenchCase` does not allow comparison with `optimize: false`. In addition, IR is not called (see [Special notes](#special-notes)).  
+    Fix: add an `OptimizeAst` flag to `BenchCase` (default `true`) and, optionally, `RunIR` — so that the effect of optimizations can be measured, not just a “raw” run.
 
 ---

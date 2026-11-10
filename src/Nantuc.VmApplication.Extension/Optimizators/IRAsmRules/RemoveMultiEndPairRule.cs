@@ -8,9 +8,9 @@ namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 /// Удаляет дублирующиеся инструкции END в конце программы,
 /// оставляя только одну.
 /// </summary>
-public sealed class RemoveMultiEndPairRule : IPeepholeRule
+public sealed class RemoveMultiEndPairRule : IOptimizerIRRule
 {
-    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.RemoveMultiEnd);
+    private readonly IRLog log = new(IROptimizerExtension.RemoveMultiEnd);
 
     public IReadOnlyLogOptimization GetLogs() => log;
     public void Clear() => log.Clear();

@@ -1,6 +1,6 @@
 ﻿﻿# Nantuc.VmApplication.Extensions — README
 
-> Расширения к основному API: дизассемблер, отладчик, I/O-устройства, стандартные оптимизации (AST и peephole), утилиты компиляции «одной строкой», встроенные библиотеки MiniC/NANASM.
+> Расширения к основному API: дизассемблер, отладчик, I/O-устройства, стандартные оптимизации (AST и IR), утилиты компиляции «одной строкой», встроенные библиотеки MiniC/NANASM.
 > Зависит от `[Nantuc.VmApplication]` (транзитивно — от `Diagnostics`, `Kernel`, `Contracts`, `Common`; напрямую из `Common` используется `OpCode`, `AlignUp`, `InstructionDecoder`).
 > `[← Корень](../README.ru.md) · [VmApplication](../../src/Nantuc.VmApplication/README.ru.md) · [Diagnostics](../../src/Nantuc.Diagnostics/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Common](../../src/Nantuc.Kernel.Common/README.ru.md) · [Contracts](../../src/Nantuc.Kernel.Contracts/README.ru.md) · [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.ru.md) · [STDLIBRARIES](STDLIBRARIES.ru.md)`
 
@@ -21,12 +21,12 @@
 - **Дизассемблер** (`Disassembler`/`StringDisassembler`/`InstructionFormatter`): разбор `CompilationResult.Program` на `DecodedInstruction[]` + `DecodedDataChunk[]` и текстовая форма (как `objdump`).
 - **Отладчик** (`Debugger`): пошаговое исполнение поверх `DeviceContext` — `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, точки останова, best-effort стек вызовов, чтение RAM (`ReadUInt16/32/64`, `ReadCString`), дизассемблирование текущей инструкции через `StringDisassembler`. Не использует `AsRawDevice` и `unsafe` — только публичный API `DeviceContext`/`ProcessorSnapshot`.
 - **I/O-устройства** (`NumericIOStream`, `SynchronousIOStream`, `QueuedIOStream`): вывод байтов/UTF-8/UTF-16 из VM в `TextWriter`. Плюс `PortCharEncoding` и `OutputPortLayout` (раскладка 8-байтного окна).
-- **Стандартные оптимизации**: AST-правила (`FoldConstants`, `PropagateConstants`, `RemoveUnusedVariables`, `RemoveUnreachableCode`, `InlineSmallVoidFunctions`) и peephole-правила (`ConstantFolding`, `RemoveNoopMov`, `RemovePushPopPair`, `RemoveSwapMovPair`, `RemoveJumpToNextLabel`, `RemoveMultiEnd`).
-- **Утилиты компиляции** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIL("int main(){}", 0, true, SourceLanguage.C)` и `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — одна строка вместо пайплайна. `RunAndKeep`/`RunOnce`/`RunAndCleanup` умеют регистрировать UART через `QueuedIOStream`, если передан `output`.
+- **Стандартные оптимизации**: AST-правила (`FoldConstants`, `PropagateConstants`, `RemoveUnusedVariables`, `RemoveUnreachableCode`, `InlineSmallVoidFunctions`) и IR-правила (`ConstantFolding`, `RemoveNoopMov`, `RemovePushPopPair`, `RemoveSwapMovPair`, `RemoveJumpToNextLabel`, `RemoveMultiEnd`).
+- **Утилиты компиляции** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIR("int main(){}", 0, true, SourceLanguage.C)` и `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — одна строка вместо пайплайна. `RunAndKeep`/`RunOnce`/`RunAndCleanup` умеют регистрировать UART через `QueuedIOStream`, если передан `output`.
 - **Встроенные библиотеки** (`Libraries`): строковые константы `heap_nanasm`, `alloc_minic`, `io_nanasm`, `print_minic`, `imath_minic`, `bitops_minic`, `ovf_minic` для `#include`. Подробнее — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
 - **RAM-утилиты** (`DeviceContextExtensions`): `GetRamAsNewArray` / `GetAllRamAsNewArray`, `CopyRamTo` в `Span<byte>` / `byte[]` / `Memory<byte>` / `Stream`, `ReadRam<T>` / `CopyRamTo<T>` для `unmanaged`-типов, `TryCopyRamTo` без исключений — читать RAM **остановленной** VM (все, кроме `TryCopyRamTo`, бросают `InvalidOperationException` при `ctx.IsRunning`).
 - **Bytecode-утилиты** (`BytecodeExtension`): `GetOpCodeSafety` / `GetUnsafeOpCodes` — статический разбор `CompilationResult.Program` на наличие `*_UNSAFE` опкодов (`OpCodeSafety.Safe`/`HasUnsafe`/`Unknown`) и поиск их местоположений (`UnsafeOpCodeLocation(OpCode, Offset, Ip)`). Полезно для проверки недоверенного кода перед запуском и для проверки результата `ReplaceSafeMemAccessWithUnsafeRule`.
-Ключевая идея — не менять контракт `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IPeepholeRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`, отладчик работает через `DeviceContext.RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. Никаких новых интерфейсов в `Kernel.Contracts`.
+Ключевая идея — не менять контракт `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IOptimizerIRRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`, отладчик работает через `DeviceContext.RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. Никаких новых интерфейсов в `Kernel.Contracts`.
 
 ## Дерево локального проекта
 
@@ -62,12 +62,12 @@ Nantuc.VmApplication.Extensions/
 │   └── SynchronousIOStream.cs                # синхронный: пишет символы
 ├── Host/
 │   ├── HostExtensions.cs                     # RunOutcome + RunAndKeep / RunAndCleanup / RunOnce (+ UART через QueuedIOStream, если output != null)
-│   └── ProjectExtension.cs                   # Compile/CompileToIL по строке/строкам + SaveFileInclude/SaveFileProject + LoggingFaultPolicyMinimal
+│   └── ProjectExtension.cs                   # Compile/CompileToIR по строке/строкам + SaveFileInclude/SaveFileProject + LoggingFaultPolicyMinimal
 ├── StdLibraries/
 │   └── Libraries.cs                          # static class Libraries: heap_nanasm, alloc_minic, io_nanasm, print_minic, imath_minic, bitops_minic, ovf_minic
 └── Optimizators/
     ├── AstOptimizerExtension.cs              # extension(VmAstOptimizer).AddStdRules() + WithASTNodePrefix + OptimizationId-константы
-    ├── PeepholeOptimizerExtension.cs         # extension(VmPeepholeOptimizer).AddStdRules() + WithPeepholePrefix / WithRule + OptimizationId-константы + PeepholeLog
+    ├── IROptimizerExtension.cs         # extension(VmIROptimizer).AddStdRules() + WithIRPrefix / WithRule + OptimizationId-константы + IRLog
     ├── AstRules/
     │   ├── FoldConstantsRule.cs
     │   ├── InlineSmallVoidFunctionsRule.cs
@@ -87,10 +87,10 @@ Nantuc.VmApplication.Extensions/
 Замечания по организации:
 - Папка и namespace — `StdLibraries`, файл и публичный класс — `Libraries`. Исторически папка называлась `Librares`, в старых доках встречалось `Librare` — обе опечатки исправлены. Namespace `Nantuc.VmApplication.Extensions.StdLibraries`, класс `Libraries`.
 - `ProjectExtension.cs` содержит `LoggingFaultPolicyMinimal` — класс не про расширения проекта, а про политику fault'ов. Логичнее вынести в `Host/`.
-- `AstOptimizerExtension.cs` и `PeepholeOptimizerExtension.cs` содержат не только extension-методы, но и `OptimizationId`-константы. Они — часть публичного контракта: по этим ID вы ищете логи в `OptimizationResultLog`.
+- `AstOptimizerExtension.cs` и `IROptimizerExtension.cs` содержат не только extension-методы, но и `OptimizationId`-константы. Они — часть публичного контракта: по этим ID вы ищете логи в `OptimizationResultLog`.
 - `Diagnostics/DiagnosticsCompilerExtension.cs` — расширение над `IReadOnlyDictionary<ErrorCode, string>` (`ValidateAllCodesCovered`/`TryValidateAllCodesCovered`). По changelog 0.7.2 эти методы помечены как удалённые; в коде файл пока присутствует — см. [Что исправить](#что-исправить), п.3.
 - `Debugging/` — новый слой поверх `DeviceContext`, не меняет `Nantuc.VmApplication`. Отладчик не потокобезопасен (кроме `RequestStop`), что совпадает с моделью `DeviceContext`. Стек вызовов восстанавливается эвристически — VM не хранит frame pointer. Подробности — в [Особенная информация](#особенная-информация).
-- `Bytecode/` — статический разбор `CompilationResult.Program`, не трогает `DeviceContext`/`VmEmulator`. `IsUnsafeOpcode` — тот же набор, что использует `ReplaceSafeMemAccessWithUnsafeRule`, поэтому модуль можно использовать для верификации результата peephole-правила (после применения — все `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` заменены на `*_UNSAFE`).
+- `Bytecode/` — статический разбор `CompilationResult.Program`, не трогает `DeviceContext`/`VmEmulator`. `IsUnsafeOpcode` — тот же набор, что использует `ReplaceSafeMemAccessWithUnsafeRule`, поэтому модуль можно использовать для верификации результата IR-правила (после применения — все `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` заменены на `*_UNSAFE`).
 - `Host/HostExtensions.cs` — `RunAndKeep` в текущей версии использует только safe-API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`), без `!`. Побочный эффект: при ошибке регистрации/загрузки возвращается `RunOutcome` с `Device == null`, а не NRE. UART регистрируется на `sector + 1`, если передан `output`.
 
 ## API
@@ -196,7 +196,7 @@ public enum DebugStopReason
     StepComplete,      // выполнена одна инструкция (Step/StepOver/StepOut)
     Breakpoint,        // сработала точка останова
     Completed,         // программа выполнила END
-    Faulted,           // BiosStatus != EndProgramm и != Success
+    Faulted,           // BiosStatus != EndProgram и != Success
     Sleeping,          // HALT
     StepLimit,         // достигнут лимит в Continue
     UserStop,          // RequestStop()
@@ -374,30 +374,30 @@ public static readonly OptimizationId VariableRemoved;      // astnode-opt.remov
 5. `InlineSmallVoidFunctionsRule` — инлайнит `void`-функции с `CountStatements(body) ≤ 10` (считая вложенные), без прямой self-recursion (`!ContainsCallTo(body, name)`). Взаимная рекурсия двух кандидатов (`A` вызывает `B`, `B` вызывает `A`) **не** отсеивается — возможна дублирующая экспансия, но не бесконечная (один проход). Тела `main` не инлайнятся.
 6. `RemoveUnreachableCodeRule` — ещё раз (после инлайна). См. [Что исправить](#что-исправить), п. 9.
 
-**`PeepholeOptimizerExtension`**:
+**`IROptimizerExtension`**:
 
 ```csharp
-extension(VmPeepholeOptimizer peephole)
+extension(VmIROptimizer IR)
 {
-    public VmPeepholeOptimizer AddStdRules();
+    public VmIROptimizer AddStdRules();
 }
 
 extension(OptimizationId id)
 {
-    public OptimizationId WithPeepholePrefix();    // префикс "peephole."
+    public OptimizationId WithIRPrefix();    // префикс "IR."
     public OptimizationId WithRule();              // суффикс "-rule"
 }
 
-public static readonly OptimizationId ConstantFolding;          // peephole.constant-folding
-public static readonly OptimizationId RemoveJumpToNextLabel;    // peephole.remove-jump-to-next-label
-public static readonly OptimizationId RemoveMultiEnd;           // peephole.remove-multi-end
-public static readonly OptimizationId RemoveNoopMove;           // peephole.remove-noop-mov
-public static readonly OptimizationId RemovePushPop;            // peephole.remove-push-pop
-public static readonly OptimizationId RemoveSwapMov;            // peephole.remove-swap-mov
-public static readonly OptimizationId ReplaceSafeAccess;        // peephole.replace-safe-mem-acces-with-unsafe
+public static readonly OptimizationId ConstantFolding;          // IR.constant-folding
+public static readonly OptimizationId RemoveJumpToNextLabel;    // IR.remove-jump-to-next-label
+public static readonly OptimizationId RemoveMultiEnd;           // IR.remove-multi-end
+public static readonly OptimizationId RemoveNoopMove;           // IR.remove-noop-mov
+public static readonly OptimizationId RemovePushPop;            // IR.remove-push-pop
+public static readonly OptimizationId RemoveSwapMov;            // IR.remove-swap-mov
+public static readonly OptimizationId ReplaceSafeAccess;        // IR.replace-safe-mem-acces-with-unsafe
 ```
 
-Стандартные peephole-правила (`AddStdRules`):
+Стандартные IR-правила (`AddStdRules`):
 1. `RemoveNoopMovRule` — `MOV rX, rX` (не сразу после метки).
 2. `RemovePushPopPairRule` — `PUSH rX; POP rX` (ни `PUSH`, ни `POP` не сразу после метки).
 3. `RemoveSwapMovPairRule` — `MOV rA, rB; MOV rB, rA` (не сразу после метки). См. примечание в [Что исправить](#что-исправить), п. 15: при типичной семантике `MOV dst, src` паттерн не является no-op, правило сохраняется для обратной совместимости и должно быть проверено на реальной семантике `OpCode.MOV`.
@@ -408,7 +408,7 @@ public static readonly OptimizationId ReplaceSafeAccess;        // peephole.repl
 **`ReplaceSafeMemAccessWithUnsafeRule`** — **не входит** в `AddStdRules`, добавляется вручную:
 
 ```csharp
-public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
+public sealed class ReplaceSafeMemAccessWithUnsafeRule : IOptimizerIRRule
 {
     public RamSize SizeRam { get; set; } = RamSize.B128;   // дефолт
 }
@@ -421,10 +421,10 @@ public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
 
 Дефолт `RamSize.B128` (128 байт) — **заниженный**, правило сработает только на самых маленьких адресах, если `SizeRam` не выставлен под реальный размер RAM у `Device`. См. [Что исправить](#что-исправить).
 
-**`PeepholeLog`**:
+**`IRLog`**:
 
 ```csharp
-public class PeepholeLog(OptimizationId id) : ILogOptimization
+public class IRLog(OptimizationId id) : IRogOptimization
 {
     public OptimizationId Id => id;                  // без дополнительного префикса
     public void Append(int passCount, AsmItem item); // форматирует AsmItem в строку
@@ -441,11 +441,11 @@ public class PeepholeLog(OptimizationId id) : ILogOptimization
 ```csharp
 extension(VmHostProject proj)
 {
-    public CompilationToILResult CompileToIL(ulong baseAddress, bool optimize);
+    public CompilationToIRResult CompileToIR(ulong baseAddress, bool optimize);
     public CompilationResult    Compile(ulong baseAddress, bool optimize);
 
-    public CompilationToILResult CompileToIL(string source, ulong baseAddress, bool optimize, SourceLanguage language);
-    public CompilationToILResult CompileToIL(IEnumerable<string> sources, ulong baseAddress, bool optimize, SourceLanguage language);
+    public CompilationToIRResult CompileToIR(string source, ulong baseAddress, bool optimize, SourceLanguage language);
+    public CompilationToIRResult CompileToIR(IEnumerable<string> sources, ulong baseAddress, bool optimize, SourceLanguage language);
     public CompilationResult    Compile(string source, ulong baseAddress, bool optimize, SourceLanguage language);
     public CompilationResult    Compile(IEnumerable<string> sources, ulong baseAddress, bool optimize, SourceLanguage language);
 
@@ -487,7 +487,7 @@ extension(VmHost host)
 }
 ```
 
-- `RunAndKeep` — компилирует `source`, регистрирует VM (`DeviceSpec` с `RamSize.MB16` по умолчанию, если `ram == null`) на `sector`, грузит, запускает. Если передан `output != null`, дополнительно регистрирует `QueuedIOStream(output, encoding)` как устройство с именем `"{deviceName}-console"` на `sector + 1`; при ошибке регистрации UART VM откатывается. `Success` = `fault.Status == BiosStatus.EndProgramm` (а не «факт запуска»). Все операции — через safe-API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`): при провале возвращается `RunOutcome` с `Device == null`, `DeviceId == null`, `Success == false` и диагностикой в `Diagnostics`, без NRE и без исключений.
+- `RunAndKeep` — компилирует `source`, регистрирует VM (`DeviceSpec` с `RamSize.MB16` по умолчанию, если `ram == null`) на `sector`, грузит, запускает. Если передан `output != null`, дополнительно регистрирует `QueuedIOStream(output, encoding)` как устройство с именем `"{deviceName}-console"` на `sector + 1`; при ошибке регистрации UART VM откатывается. `Success` = `fault.Status == BiosStatus.EndProgram` (а не «факт запуска»). Все операции — через safe-API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`): при провале возвращается `RunOutcome` с `Device == null`, `DeviceId == null`, `Success == false` и диагностикой в `Diagnostics`, без NRE и без исключений.
 - `RunAndCleanup` — `RunAndKeep` + `UnregisterDevice`. Возвращает `Success`.
 - `RunOnce` — `RunAndKeep` + `UnregisterDevice`, возвращает `RunOutcome` с `Device = null, DeviceId = null`.
 
@@ -749,20 +749,20 @@ using Nantuc.VmApplication.Extensions.Optimizators;
 
 host.Project.Optimizator.VMAstOptimizer.AddStdRules();
 
-var comp = host.Project.CompileToIL(sources, 0, optimize: true).Build();
+var comp = host.Project.CompileToIR(sources, 0, optimize: true).Build();
 if (comp.OptimizationResultLog is { } logs)
     foreach (var (id, log) in logs.Logs)
         foreach (var e in log.GetLogs())
             Console.WriteLine($"[{id}] pass {e.Pass}: {e.Message}");
 ```
 
-**Стандартные peephole-оптимизации:**
+**Стандартные IR-оптимизации:**
 
 ```csharp
-host.Project.Optimizator.VMPeepholeOptimizer.AddStdRules();
+host.Project.Optimizator.VMIROptimizer.AddStdRules();
 
-var il = host.Project.CompileToIL(sources, 0, optimize: false);
-il = host.Project.OptimizationIL(il, peepholeOptimizationCount: 5);
+var il = host.Project.CompileToIR(sources, 0, optimize: false);
+il = host.Project.OptimizationIR(il, IROptimizationCount: 5);
 var comp = il.Build();
 ```
 
@@ -789,7 +789,7 @@ if (outcome.Success)
     var regs = outcome.Device!.GetRegistersSnapshot();
     Console.WriteLine($"r0={regs[RegType.r0]}, steps={outcome.StepCount}");
 
-    if (outcome.FaultInfo.Status != BiosStatus.EndProgramm)
+    if (outcome.FaultInfo.Status != BiosStatus.EndProgram)
         Console.Error.WriteLine($"VM fault: {outcome.FaultInfo.Status} " +
                                 $"at IP=0x{outcome.FaultInfo.InstructionPointer:X}");
 }
@@ -859,8 +859,8 @@ switch (comp.GetOpCodeSafety())
 **Проверка результата `ReplaceSafeMemAccessWithUnsafeRule`:**
 
 ```csharp
-host.Project.Optimizator.VMPeepholeOptimizer.AddStdRules();
-// … собрать IL с peephole …
+host.Project.Optimizator.VMIROptimizer.AddStdRules();
+// … собрать IR с IR …
 var comp = il.Build();
 
 if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
@@ -879,7 +879,7 @@ if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
 - Для сохранения RAM — `GetRamAsNewArray` (снимок) и `CopyRamTo` (в готовый `Span<byte>`).
 - Выставлять `ReplaceSafeMemAccessWithUnsafeRule.SizeRam` под реальный размер RAM у `Device`.
 - `SaveFileProject`/`SaveFileInclude` — с проверкой `localPath` на отсутствие `..`.
-- Своим оптимизационным правилам — присваивать `OptimizationId` через `WithPeepholePrefix()` / `WithRule()` / `WithASTNodePrefix()`, чтобы префикс совпадал со встроенными.
+- Своим оптимизационным правилам — присваивать `OptimizationId` через `WithIRPrefix()` / `WithRule()` / `WithASTNodePrefix()`, чтобы префикс совпадал со встроенными.
 - Для отладки — `Debugger` поверх `DeviceContext`: `dbg.Load(program)` → `dbg.Step()`/`StepOver()`/`StepOut()`/`Continue()`, `dbg.AddBreakpoint(addr)`, `dbg.CurrentInstruction`, `dbg.GetCallStack()`. Для останова длинного прогона — `dbg.RequestStop()` из другого потока.
 - Для отладки в IDE — подписаться на `dbg.Stopped`, чтобы обновлять панель регистров/стека/RAM на каждом останове.
 - Для «догнать до конца» (например, CI-прогон) — `dbg.RunToEnd(stepLimit: N)`, не `Continue` (последний застрянет на первой точке останова).
@@ -891,8 +891,8 @@ if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
 - Вызывать `RunAndKeep` несколько раз на одном `VmHost` с тем же `sector` — сектор будет занят. Используйте `sector:` явно или `RunOnce`.
 - Вызывать `RunAndKeep` несколько раз на одном `VmHost` с `output != null` без `UnregisterDevice` — сектор `sector + 1` тоже будет занят UART'ом.
 - Использовать `RunAndKeep` для недоверенного кода — он регистрирует VM на указанном секторе без sandbox'а.
-- Полагаться на `AddStdRules` для peephole — `ReplaceSafeMemAccessWithUnsafeRule` **не** добавляется автоматически.
-- Ожидать, что `RunOutcome.Success` отражает только факт запуска — `Success == (fault.Status == BiosStatus.EndProgramm)`, т.е. программа действительно дошла до `END`. Runtime-фолты видны и в `Success`, и в `FaultInfo`.
+- Полагаться на `AddStdRules` для IR — `ReplaceSafeMemAccessWithUnsafeRule` **не** добавляется автоматически.
+- Ожидать, что `RunOutcome.Success` отражает только факт запуска — `Success == (fault.Status == BiosStatus.EndProgram)`, т.е. программа действительно дошла до `END`. Runtime-фолты видны и в `Success`, и в `FaultInfo`.
 - Использовать `Libraries.alloc_minic` как «эталон» — там всё ещё глобалы как легаси (workaround больше не нужен, но код пока не упрощён), и в `free` есть баг (см. [Что исправить](#что-исправить), п. 14).
 - Вызывать `Step`/`Continue`/`Load` из разных потоков на одном `Debugger` — не потокобезопасно (кроме `RequestStop`). Модель — та же, что у `DeviceContext`.
 - Ожидать точного стека вызовов от `GetCallStack()` — VM не хранит frame pointer, восстановление эвристическое; возможны ложные срабатывания.
@@ -981,7 +981,7 @@ VM не хранит frame pointer и не ведёт отдельный call st
 
 ### `RunOutcome.FaultInfo` и `Success`
 
-`FaultInfo` — это `ProcessorFault` из `ctx.Run(new LaunchOptions(StartAddress: 0))`. `Success` в `RunAndKeep` — это `fault.Status == BiosStatus.EndProgramm`, а не «факт запуска» и не «успех компиляции». При провале компиляции/регистрации/загрузки `RunOutcome.Success == false`, `Device == null`, `FaultInfo == default(ProcessorFault)`, а причина — в `Diagnostics`. Важно: `_faultData` в `Processor` не сбрасывается в `LaunchProgramm` — второй `Run` на том же `Device` может вернуть fault от первого, если первый был падением.
+`FaultInfo` — это `ProcessorFault` из `ctx.Run(new LaunchOptions(StartAddress: 0))`. `Success` в `RunAndKeep` — это `fault.Status == BiosStatus.EndProgram`, а не «факт запуска» и не «успех компиляции». При провале компиляции/регистрации/загрузки `RunOutcome.Success == false`, `Device == null`, `FaultInfo == default(ProcessorFault)`, а причина — в `Diagnostics`. Важно: `_faultData` в `Processor` не сбрасывается в `LaunchProgramm` — второй `Run` на том же `Device` может вернуть fault от первого, если первый был падением.
 
 ### `BytecodeExtension`: усечённая программа и `fullyScanned`
 

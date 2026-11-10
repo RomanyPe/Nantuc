@@ -13,8 +13,8 @@ namespace Nantuc.VmApplication.Emulator;
 public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
 {
     private readonly Kernel.Utilites.Emulator _emulator = emulator;
-    internal PortBus AsPortBus => _emulator.PortBus;
-
+    internal PortBus RawPortBus => _emulator.PortBus;
+    internal Kernel.Utilites.Emulator RawEmulator => _emulator;
     /// <summary>
     /// Интерфейс шины портов
     /// </summary>

@@ -166,7 +166,7 @@
 | Опкод | Действие |
 |-------|----------|
 | `NOP` | пустая операция, `rIP` уже сдвинут на 4 |
-| `END` | `IsRunning = false`; возвращается `BiosStatus.EndProgramm`; далее — `IProcessorFaultPolicy.ShouldContinue`, её ответ перезаписывает `IsRunning` |
+| `END` | `IsRunning = false`; возвращается `BiosStatus.EndProgram`; далее — `IProcessorFaultPolicy.ShouldContinue`, её ответ перезаписывает `IsRunning` |
 
 ### 5.2. Пересылки и загрузка-сохранение
 
@@ -348,7 +348,7 @@
 | 0  | `Success` | успех (default, безопасное значение) |
 | 1  | `SegmentationFault` | выход за границы ОЗУ / коллизия стека и кучи |
 | 2  | `AlignmentFault` | неверное выравнивание адреса |
-| 3  | `EndProgramm` | штатное завершение (`END`) |
+| 3  | `EndProgram` | штатное завершение (`END`) |
 | 4  | `HostStopped` | остановка со стороны хоста (`Stop`) |
 | 5  | `NotImplementedOpCode` | опкод не имеет обработчика |
 | 6  | `NullDeviceInput` | нет устройства ввода |
@@ -360,7 +360,7 @@
 
 ### 8.2. `ProcessorFault`
 
-При получении статуса ≠ `Success` (включая «штатные» `EndProgramm`, `HostStopped`, `InfinityLoop`) формируется снимок:
+При получении статуса ≠ `Success` (включая «штатные» `EndProgram`, `HostStopped`, `InfinityLoop`) формируется снимок:
 
 ```csharp
 ProcessorFault(BiosStatus Status,
@@ -373,7 +373,7 @@ ProcessorFault(BiosStatus Status,
 - `OpCode` — реальный опкод; значение `OpCode.NOP` (0) зарезервировано под «неизвестно/нет опкода» (спорное решение, но зафиксировано).
 - `FaultData` — контекст: адрес памяти, номер порта, опкод и т.п.
 
-Далее вызывается `IProcessorFaultPolicy.ShouldContinue(fault)`; её ответ записывается в `IsRunning`. Политика **обязана** различать «настоящие ошибки» и «штатные» `EndProgramm`/`HostStopped`/`InfinityLoop`.
+Далее вызывается `IProcessorFaultPolicy.ShouldContinue(fault)`; её ответ записывается в `IsRunning`. Политика **обязана** различать «настоящие ошибки» и «штатные» `EndProgram`/`HostStopped`/`InfinityLoop`.
 
 ---
 
@@ -502,7 +502,7 @@ raw = 0x08 | (1 << 8) | (2 << 13) = 0x00004108
 3. **Проверка границ в `MemoryBus`**: `address + N <= Length` реализована как `address <= Length - N`; при `Length < N` возможен `underflow` (в эталоне исключён, т.к. `Length ≥ 64`).
 4. **Чтение immediate использует `ReadInt64LEUnSafe`**, т.е. unaligned. На платформах, где unaligned-чтение не поддерживается аппаратно, требуется 8-байтное выравнивание адреса загрузки программы.
 5. **`WAKE` как инструкция в теле — no-op.** Пробуждение из `HALT` возможно только через `EnqueueExternalCommand(OpCode.WAKE)` или `PortBus.WakeProcessor`.
-6. **`END` не гарантирует остановку**: `IsRunning = false` выставляется, но затем перезаписывается ответом `IProcessorFaultPolicy.ShouldContinue(...)`. Политика должна вернуть `false` для `EndProgramm`.
+6. **`END` не гарантирует остановку**: `IsRunning = false` выставляется, но затем перезаписывается ответом `IProcessorFaultPolicy.ShouldContinue(...)`. Политика должна вернуть `false` для `EndProgram`.
 7. **`InstructionLOAD`/`InstructionSTORE` не возвращают `AlignmentFault` для невалидного `OpCodeSize`** (там `default` → `SegmentationFault` у LOAD и `AlignmentFault` у STORE); на практике `OpCodeSize` имеет ровно 4 значения — `default` недостижим.
 8. **`HasNeed64IntData`** устойчив к смене базового типа `OpCode` на знаковый: проверка `(uint)opCode > (uint)OpCode.MOD`, затем индексация в `_has[0..42]`.
 9. **`OpCode.NOP` = 0 используется как маркер «неизвестного опкода»** в `ProcessorFault` (`ProcessSimulationStatusSlow`). Это спорное соглашение; при появлении реального NOP-сбоя отличить его от «пустого» значения будет невозможно.

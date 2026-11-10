@@ -4,9 +4,9 @@ using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 
-public sealed class RemovePushPopPairRule : IPeepholeRule
+public sealed class RemovePushPopPairRule : IOptimizerIRRule
 {
-    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.RemovePushPop);
+    private readonly IRLog log = new(IROptimizerExtension.RemovePushPop);
 
     public IReadOnlyLogOptimization GetLogs() => log;
     public void Clear() => log.Clear();

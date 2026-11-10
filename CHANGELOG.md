@@ -2,13 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Order of sections within a version:
 **Added → Changed → Deprecated → Removed → Fixed → Documentation**.
 
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
+
+## [0.12.0] - 2026-11-10
+
+### Changed
+- **BREAKING:** renamed class `ILAssembler` -> `IRAssembler`
+- **BREAKING:** renamed types `Peephole*` -> `IR*`
+- refactored the `RamFileService` class; it now better emulates a real file system but is still considered a Mock class
+
+### Added
+- `VmCompilerOptimizatorExtension` class — allows extracting IR and AST optimizers from `VmCompilerOptimizator` from the `Nantuc.Compiler` layer
+- added RAM and register dump flags for the CLI `run` command
+- `try - finally` block for `DeviceContext.Run` and `DeviceContext.DebugRun` to correctly return from the running state to the non-running state
 
 ## [0.11.0] - 2026-11-09
 

@@ -18,7 +18,7 @@ public class FoldConstantsRule : IAstOptimizationRule
         return log;
     }
 
-    private void FoldConstants(ProgramNode program, ILogOptimization log)
+    private void FoldConstants(ProgramNode program, IRogOptimization log)
     {
         foreach (var func in program.FunctionNodes)
         {
@@ -27,7 +27,7 @@ public class FoldConstantsRule : IAstOptimizationRule
         }
     }
 
-    private void FoldConstantsInBlock(BlockNode block, ILogOptimization log)
+    private void FoldConstantsInBlock(BlockNode block, IRogOptimization log)
     {
         foreach (var stmt in block.Statements)
         {
@@ -67,7 +67,7 @@ public class FoldConstantsRule : IAstOptimizationRule
         }
     }
 
-    private ASTNode? FoldConstantsInExpr(ASTNode? node, ILogOptimization log)
+    private ASTNode? FoldConstantsInExpr(ASTNode? node, IRogOptimization log)
     {
         if (node == null) return null;
 

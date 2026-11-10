@@ -148,6 +148,7 @@ public sealed class Device : IPortController
         ulong startIndex = start;
         stepCounter = 0;
 
+        _processor.Reset();
         _processor.LaunchProgramm(startIndex);
 
         Stopwatch? sw = snowTimer ? Stopwatch.StartNew() : null;

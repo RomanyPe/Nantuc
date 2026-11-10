@@ -26,7 +26,7 @@
 /// <param name="Status">
 /// Последний статус системы — причина остановки. Может быть как настоящей ошибкой
 /// (<see cref="BiosStatus.SegmentationFault"/>, <see cref="BiosStatus.DivOnZero"/> и т.п.),
-/// так и «не-ошибочным» кодом (<see cref="BiosStatus.EndProgramm"/>, <see cref="BiosStatus.InfinityLoop"/>),
+/// так и «не-ошибочным» кодом (<see cref="BiosStatus.EndProgram"/>, <see cref="BiosStatus.InfinityLoop"/>),
 /// которые проходят через тот же путь обработки.
 /// </param>
 /// <param name="FaultData">

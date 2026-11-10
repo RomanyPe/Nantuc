@@ -13,7 +13,7 @@ public sealed class MonochromeMonitor : PortControlBase
     public const int REG_FRAME = 6;
 
     public const byte CMD_CLEAR = 1;
-    public const byte CMD_FILL = 2;
+    public const byte CMD_FIRL = 2;
     public const byte CMD_FLUSH = 3;
     public const byte CMD_HOME = 4;
 
@@ -68,7 +68,7 @@ public sealed class MonochromeMonitor : PortControlBase
                         Array.Clear(_fb);
                         _cx = _cy = 0;
                         break;
-                    case CMD_FILL:
+                    case CMD_FIRL:
                         Array.Fill(_fb, _pixel);
                         break;
                     case CMD_HOME:

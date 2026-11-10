@@ -87,7 +87,7 @@ public class NantucBenchmarks
 - `[ParamsSource]` — BenchmarkDotNet переберёт все кейсы из `SourceCasesMiniC.AllCases`.
 - `GlobalSetup`:
   - создаёт `VmHost` и регистрирует устройство;
-  - компилирует `Case.ProgramText` через `CompileToIL(..., optimize: true, SourceLanguage.C)`;
+  - компилирует `Case.ProgramText` через `CompileToIR(..., optimize: true, SourceLanguage.C)`;
   - при ошибке компиляции бросает `InvalidOperationException` с перечнем ошибок;
   - загружает программу через `ctx.TryLoadProgram(res.Program, 0, out error)`;
   - вызывает `GC.Collect(2, GCCollectionMode.Forced, true)` и `GC.WaitForPendingFinalizers()`.
@@ -148,7 +148,7 @@ internal static class SourceCasesMiniC
 | `Call` | Вызов функции `sum(r0, r1)` в цикле (3M итераций) |
 | `Math` | `ADD` + `DEC` + `TEST` + `JNZ` (3M итераций) |
 | `AluTput1` | 4× `ADD` в один регистр + цикл (800K итераций) |
-| `AluTput4` | 4× `ADD` в разные регистры (ILP) + цикл (800K итераций) |
+| `AluTput4` | 4× `ADD` в разные регистры (IRP) + цикл (800K итераций) |
 | `AluTputMixed` | `ADD`/`SUB`/`AND`/`OR` в разные регистры (800K итераций) |
 | `Memory` | Заполнение массива `int[25000]` и суммирование, 20 повторов |
 | `BitOps` | `SHR`/`AND`/`OR`/`XOR` (3M итераций) |
@@ -239,7 +239,7 @@ var summary = BenchmarkRunner.Run<NantucBenchmarks>();
 
 ### `optimize: true` для MiniC
 
-В отличие от ASM-бенчмарка, здесь `CompileToIL(..., optimize: true, SourceLanguage.C)` действительно включает AST-оптимизации, так как язык — C (MiniC). Это корректно.
+В отличие от ASM-бенчмарка, здесь `CompileToIR(..., optimize: true, SourceLanguage.C)` действительно включает AST-оптимизации, так как язык — C (MiniC). Это корректно.
 
 ### `GC.Collect` в `GlobalSetup`
 

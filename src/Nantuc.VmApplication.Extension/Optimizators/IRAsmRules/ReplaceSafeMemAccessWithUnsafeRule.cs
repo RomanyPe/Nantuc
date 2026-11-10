@@ -6,9 +6,9 @@ using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 
-public sealed class ReplaceSafeMemAccessWithUnsafeRule : IPeepholeRule
+public sealed class ReplaceSafeMemAccessWithUnsafeRule : IOptimizerIRRule
 {
-    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.ReplaceSafeAccess);
+    private readonly IRLog log = new(IROptimizerExtension.ReplaceSafeAccess);
 
     public IReadOnlyLogOptimization GetLogs() => log;
 

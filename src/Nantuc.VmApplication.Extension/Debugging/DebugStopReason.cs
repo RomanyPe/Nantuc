@@ -17,7 +17,7 @@ public enum DebugStopReason
     /// <summary>Программа выполнила <c>END</c> и завершилась штатно.</summary>
     Completed,
 
-    /// <summary>Программа упала (<c>BiosStatus</c> — не <c>EndProgramm</c> и не <c>Success</c>).</summary>
+    /// <summary>Программа упала (<c>BiosStatus</c> — не <c>EndProgram</c> и не <c>Success</c>).</summary>
     Faulted,
 
     /// <summary>Программа выполнила <c>HALT</c> и ждёт пробуждения.</summary>

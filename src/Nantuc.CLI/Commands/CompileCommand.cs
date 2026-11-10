@@ -42,7 +42,7 @@ public class CompileCommand(bool needOpt, string pathToSave, IFileService fileSe
         {
             opt = new();
             opt.VmAstOptimizer.AddStdRules();
-            opt.VmPeepholeOptimizer.AddStdRules();
+            opt.VmIROptimizer.AddStdRules();
         }
 
         var proj = new VmHostProjectBuilder()
@@ -54,8 +54,8 @@ public class CompileCommand(bool needOpt, string pathToSave, IFileService fileSe
         CompilationResult code;
         if (needOpt)
         {
-            var res = proj.CompileToIL(ProjectBuilder.BaseAddressProgram, needOpt);
-            res = proj.OptimizationIL(res, 5);
+            var res = proj.CompileToIR(ProjectBuilder.BaseAddressProgram, needOpt);
+            res = proj.OptimizationIR(res, 5);
             code = res.Build();
         }
         else

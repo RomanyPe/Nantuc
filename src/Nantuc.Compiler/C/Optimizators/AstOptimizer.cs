@@ -4,7 +4,7 @@ using Nantuc.Contracts;
 namespace Nantuc.Compiler.C.Optimizators;
 
 
-public class OptimizationResult(OptimizationId type) : ILogOptimization
+public class OptimizationResult(OptimizationId type) : IRogOptimization
 {
     private readonly List<OptimizationLogEntry> _entries = [];
     public OptimizationId Id => type;

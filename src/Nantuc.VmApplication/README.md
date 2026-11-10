@@ -1,43 +1,43 @@
 # Nantuc.VmApplication — README
 
-> The main API of the platform: compiling a project to bytecode, running the VM, managing devices, and step-by-step execution.  
+> The platform's primary API: compiling a project to bytecode, running the VM, managing devices, and step-by-step execution.  
 > The only module intended for embedding Nantuc into an application (IDE, REPL, CI, game host).  
 > Depends on `[Kernel](../../src/Nantuc.Kernel/README.md)`, `[Contracts](../../src/Nantuc.Contracts/README.md)`, and `[Compiler](../../src/Nantuc.Compiler/README.md)`.  
 > `[← Root](../README.md) · [Common](../../src/Nantuc.Common/README.md) · [Contracts](../../src/Nantuc.Contracts/README.md) · [Diagnostics](../Nantuc.Diagnostics/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md) · [Compiler](../../src/Nantuc.Compiler/README.md)`
 
-## Table of contents
-- [About this module](#about-this-module)
-- [Local project tree](#local-project-tree)
+## Table of Contents
+- [About This Module](#about-this-module)
+- [Local Project Tree](#local-project-tree)
 - [API](#api)
-- [API examples](#api-examples)
-- [How close the module is to the user](#how-close-the-module-is-to-the-user)
-- [What was fixed in this version](#what-was-fixed-in-this-version)
-- [Special information](#special-information)
-- [Desync with the previous README version](#desync-with-the-previous-readme-version)
+- [API Examples](#api-examples)
+- [Module's Proximity to the User](#modules-proximity-to-the-user)
+- [What Was Fixed in This Version](#what-was-fixed-in-this-version)
+- [Special Information](#special-information)
+- [Desync With the Previous README Version](#desync-with-the-previous-readme-version)
 
-## About this module
+## About This Module
 
-`Nantuc.VmApplication` is a facade over two subsystems: the compiler (`Nantuc.Compiler`) and the runtime (`Nantuc.Kernel`). All kernel types that the user "should not" see (`Processor`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Assembler`) are hidden behind a thin layer of wrappers. The user works with five main abstractions:
+`Nantuc.VmApplication` — a facade over two subsystems: the compiler (`Nantuc.Compiler`) and the runtime (`Nantuc.Kernel`). All kernel types that the user "shouldn't" see (`Processor`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Assembler`) are hidden behind a thin layer of wrappers. The user works with five main abstractions:
 
-- `VmHost` — "all in one": project (`VmHostProject`) + emulator (`VmEmulator`). Created via `VmHostFactory.CreateDefault()`.
-- `VmHostProject` — compilation: `GetSourceFiles()` → `Compile()` / `CompileToIL()` → `CompilationResult` / `CompilationToILResult`. Configured via `CompilerContext` (built by `VmHostProjectBuilder`).
+- `VmHost` — "all in one": the project (`VmHostProject`) + the emulator (`VmEmulator`). Created via `VmHostFactory.CreateDefault()`.
+- `VmHostProject` — compilation: `GetSourceFiles()` → `Compile()` / `CompileToIR()` → `CompilationResult` / `CompilationToIRResult`. Configured via `CompilerContext` (built by `VmHostProjectBuilder`).
 - `CompilerContext` — an immutable snapshot of the compiler configuration: `Optimizator` + `Paths` + `FileService` + `ThrowCompiler`.
-- `VmEmulator` — execution: device registration, including VMs (`DeviceSpec`), issuing `DeviceContext`, access to `IPortBus`. Configured via `VmEmulatorBuilder`.
-- `DeviceContext` — control of a specific VM: `LoadProgram`, `Run`, `RunStepMode`/`SingleStep`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, modes (Step/Continuous/None).
+- `VmEmulator` — execution: registering devices, including a VM (`DeviceSpec`), providing `DeviceContext`, access to `IPortBus`. Configured via `VmEmulatorBuilder`.
+- `DeviceContext` — managing a specific VM: `LoadProgram`, `Run`, `RunStepMode`/`SingleStep`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, modes (Step/Continuous/None).
 
-A key architectural feature: a VM is also a device on the port bus. `VmEmulator.TryRegisterDevice(DeviceSpec, sector)` creates a `Device` from the kernel and registers it as an `IPortController`. A single emulator can hold multiple VMs, and they communicate through ports like ordinary devices (VM composition inside VM). `DeviceContext` is a convenient window into a specific `Device` without direct access to `Nantuc.Kernel`.
+Key architectural feature: the VM is also a device on the port bus. `VmEmulator.TryRegisterDevice(DeviceSpec, sector)` creates a `Device` from the kernel and registers it as an `IPortController`. A single emulator can hold multiple VMs, and they communicate via ports like ordinary devices (VM composition inside a VM). `DeviceContext` is a convenient window into a specific `Device` without direct access to `Nantuc.Kernel`.
 
-The module targets `net10.0`
+The module targets `net10.0`.
 
 The API follows the "Try + IdState + ProcessorFault" pattern:
-- `TryRegisterDevice` / `TryGetDeviceContext` — without `!` and magic `-1..-4`.
-- `IdState` — classification of `TryRegisterDevice` returns.
-- `Run` / `DebugRun` → `ProcessorFault` — a completion status instead of a manual `IProcessorFaultPolicy`.
+- `TryRegisterDevice` / `TryGetDeviceContext` — no `!` and no magic `-1..-4`.
+- `IdState` — classification of `TryRegisterDevice` return values.
+- `Run` / `DebugRun` → `ProcessorFault` — completion status instead of manual `IProcessorFaultPolicy`.
 - `TryLoadProgram` — safe loading without exceptions.
 - `GetLastFault` — access to the last `ProcessorFault` without `AsRawDevice`.
 - `ThrowCompiler` (in `CompilerContext`) — a unified compiler exception policy via `IErrorMessageProvider`.
 
-## Local project tree
+## Local Project Tree
 
 Namespaces correspond to folders:
 
@@ -47,8 +47,9 @@ Nantuc.VmApplication/
 ├── VmHost.cs                           # record VmHost(Project, Emulator) : IDisposable
 ├── VmHostFactory.cs                    # CreateDefault(...) with optimizator and provider
 ├── Default/
-│   ├── DefaultFileService.cs           # IFileService over the real file system
-│   └── RamFileService.cs               # IFileService in memory
+│   ├── DefaultFileService.cs           # IFileService over the real FS
+│   └── RamFileService.cs               # IFileService in memory (in-memory)
+│                                       # + path canonicalization as in the real FS
 ├── Emulator/                           (namespace Nantuc.VmApplication.Emulator)
 │   ├── Abstraction/PortControlBase.cs  # abstract IPortController + Interlocked.Dispose
 │   ├── DeviceContext.cs                # window into Device: Run/Step/Load/Ports/Registers/GetLastFault/Pause/Resume
@@ -58,7 +59,7 @@ Nantuc.VmApplication/
 │   └── VmEmulatorBuilder.cs            # fluent: WithPortBusSize / WithPortsPerDevice
 ├── Project/                            (namespace Nantuc.VmApplication.Project)
 │   ├── CompilationResult.cs            # byte[] + section metrics + errors
-│   ├── CompilationToILResult.cs        # ILAssembler + Build() → CompilationResult
+│   ├── CompilationToIRResult.cs        # IRAssembler + Build() → CompilationResult
 │   ├── CompilerContext.cs              # record: Optimizator + Paths + FileService + ThrowCompiler
 │   ├── IFileService.cs                 # FS abstraction
 │   ├── IProjectFilesConfig.cs          # paths + extensions; static Default
@@ -67,24 +68,17 @@ Nantuc.VmApplication/
 │   ├── SourceFile.cs                   # record struct (Name, Content, Language)
 │   ├── SourceLanguage.cs               # enum { Asm, C, None }
 │   ├── VmAstOptimizer.cs               # wrapper over AstOptimizer
-│   ├── VmCompilerOptimizator.cs        # AstOptimizer + PeepholeOptimizer + wrappers
-│   ├── VmHostProject.cs                # GetSourceFiles / Compile / CompileToIL / OptimizationIL
+│   ├── VmCompilerOptimizator.cs        # AstOptimizer + IROptimizer + wrappers
+│   ├── VmHostProject.cs                # GetSourceFiles / Compile / CompileToIR / OptimizationIR
 │   ├── VmHostProjectBuilder.cs         # WithPaths / WithFileService / WithOptimizator / WithThrowProvider / Build
-│   └── VmPeepholeOptimizer.cs          # wrapper over PeepholeOptimizer
+│   └── VmIROptimizer.cs          # wrapper over IROptimizer
 └── Unsafe/                             (namespace Nantuc.VmApplication.Unsafe)
     ├── CompilationResultUnsafeExtension.cs # Assembler extension prop
     ├── DeviceContextUnsafeExtensions.cs     # AsRawDevice()
-    ├── VmEmulatorUnsafeExtension.cs         # GetRawPortBus()
-    └── VmPtojectUnsafeExtension.cs          # CustomCompile<TAssembler,TResult>(...) — wrapper over CompileInternal
+    ├── VmEmulatorUnsafeExtension.cs         # GetRawPortBus() GetRawEmulator
+    ├── VmCompilerOptimizatorExtension.cs
+    └── VmPojectUnsafeExtension.cs          # CustomCompile<TAssembler,TResult>(...) — wrapper over CompileInternal
 ```
-
-Organization notes:
-- `CompilerContext` — a new immutable record, the only way to configure `VmHostProject`.
-- `SnapshotRegisters` was moved to a separate file `Emulator/SnapshotRegisters.cs`.
-- `DeviceView.cs` was deleted (dead code).
-- `VmCompilerOptimizator` properties renamed: `VmAstOptimizer` (was `VMAstOptimizer`) and `VmPeepholeOptimizer` (was `VMPeepholeOptimizer`).
-- In `Unsafe/` there are four extensions (not one), including `VmPtojectUnsafeExtension` — with a typo in the class name, but that is how it is in the code.
-
 ## API
 
 ### VmHost and VmHostFactory — entry point
@@ -104,7 +98,7 @@ public static class VmHostFactory
 }
 ```
 
-`CreateDefault` is the simplest entry point:
+`CreateDefault` — the simplest entry point:
 
 ```csharp
 using var host = VmHostFactory.CreateDefault();
@@ -112,13 +106,13 @@ using var host = VmHostFactory.CreateDefault();
 
 Optional parameters:
 - `projectConfig` — paths and extensions (`IProjectFilesConfig.Default`).
-- `fileService` — `RamFileService` by default, `DefaultFileService` — for the real file system.
-- `optimizator` — a prepared `VmCompilerOptimizator` with rules. If `null` — `VmHostProjectBuilder.Build()` creates a new `VmCompilerOptimizator()` (`?? new()`).
+- `fileService` — `RamFileService` by default (in-memory, emulates the path semantics of the real FS: both separators, `.`/`..`, case-insensitive by default); `DefaultFileService` — for the real FS.
+- `optimizator` — a ready-made `VmCompilerOptimizator` with rules. If `null` — `VmHostProjectBuilder.Build()` will create a new `VmCompilerOptimizator()` (`?? new()`).
 - `provider` — `IErrorMessageProvider?`, wrapped into `ThrowCompiler` inside `VmHostProjectBuilder`.
-- `portBusSize` — the size of the port space (`PortSize.KB64`).
-- `portsPerDevice` — the size of the port block per device (`DevicePortSize.B16`).
+- `portBusSize` — size of the port space (`PortSize.KB64`).
+- `portsPerDevice` — size of the port block per device (`DevicePortSize.B16`).
 
-`VmHost.Dispose()` frees only `Emulator` (inside — `Utilites.Emulator.Dispose`), not `Project` — `VmHostProject` is not `IDisposable`.
+`VmHost.Dispose()` releases only `Emulator` (internally `Utilites.Emulator.Dispose`), but not `Project` — `VmHostProject` is not `IDisposable`.
 
 ### VmEmulator and VmEmulatorBuilder — execution
 
@@ -160,13 +154,13 @@ public class VmEmulatorBuilder
 }
 ```
 
-Two ways to register:
-- `RegisterDevice` — returns an `int` (the ID on success, `-1..-4` on error). For code that already works with `int`.
-- `TryRegisterDevice` — returns `IdState` (`Valid`/`NotAssigned`/`OutOfRange`/`NoFreeSlot`/`Rejected`) and `out int id`. **Recommended** for new code.
+Two registration methods:
+- `RegisterDevice` — returns `int` (ID on success, `-1..-4` on error). For code that already works with `int`.
+- `TryRegisterDevice` — returns `IdState` (`Valid`/`NotAssigned`/`OutOfRange`/`NoFreeSlot`/`Rejected`) and `out int id`. **Recommended method** for new code.
 
-`TryGetDeviceContext` is a safe variant of `GetDeviceContext` without `!`: returns `bool` and `[NotNullWhen(true)] out DeviceContext?`.
+`TryGetDeviceContext` — a safe variant of `GetDeviceContext` without `!`: returns `bool` and `[NotNullWhen(true)] out DeviceContext?`.
 
-### VmHostProject, CompilerContext, and VmHostProjectBuilder — compilation
+### VmHostProject, CompilerContext and VmHostProjectBuilder — compilation
 
 ```csharp
 public sealed record class CompilerContext(
@@ -189,8 +183,8 @@ public sealed class VmHostProject(CompilerContext ctx)
     public IEnumerable<SourceFile> GetSourceFiles();
 
     public CompilationResult     Compile(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize);
-    public CompilationToILResult CompileToIL(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize);
-    public CompilationToILResult OptimizationIL(CompilationToILResult res, int peepholeOptimizationCount);
+    public CompilationToIRResult CompileToIR(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize);
+    public CompilationToIRResult OptimizationIR(CompilationToIRResult res, int IROptimizationCount);
 }
 
 public class VmHostProjectBuilder
@@ -204,15 +198,15 @@ public class VmHostProjectBuilder
 ```
 
 - `CompilerContext` — the only constructor argument of `VmHostProject`. Assembled by `VmHostProjectBuilder.Build()`.
-- `Compile` — one-stage assembly: `Assembler` (direct emit) → `byte[]`.
-- `CompileToIL` — two-stage: `ILAssembler` (list of `AsmItem`) → `CompilationToILResult`, then `OptimizationIL(result, maxPasses)` runs peephole and `result.Build()` assembles the bytes.
+- `Compile` — single-stage build: `Assembler` (direct emit) → `byte[]`.
+- `CompileToIR` — two-stage: `IRAssembler` (list of `AsmItem`) → `CompilationToIRResult`, then `OptimizationIR(result, maxPasses)` runs the IR and `result.Build()` assembles the bytes.
 - `optimize: true` — enables AST optimizations from `Optimizator.VmAstOptimizer`. Logs are collected in `OptimizationResultLog`.
 - `GetSourceFiles` — reads all `.c`/`.minic`/`.asm`/`.nanasm` from `FileService.GetNameFiles(Paths)`.
 - `WithThrowProvider` — optional exception policy (`IErrorMessageProvider?`), wrapped into `ThrowCompiler`.
 
 `VmHostProject` exposes static regexes for syntax highlighting: `AsmMnemonics`, `AsmRegisters`, `MiniCMnemonics`.
 
-### DeviceContext — VM control
+### DeviceContext — VM management
 
 ```csharp
 public class DeviceContext
@@ -267,7 +261,7 @@ Capabilities:
 - `Pause()` / `Resume()` — queue external commands `OpCode.HALT` / `OpCode.WAKE`; can be called from another thread (queue-based).
 - `GetLastFault()` — public access to the last `ProcessorFault` without `AsRawDevice`.
 
-`Run` and `DebugRun` return a `ProcessorFault` — on success `BiosStatus.EndProgramm`, on failure — the status with `InstructionPointer`/`OpCode`.
+`Run` and `DebugRun` return `ProcessorFault` — on success `BiosStatus.EndProgram`, on failure — the status with `InstructionPointer`/`OpCode`.
 
 Modes (`DeviceContext.Mode` — private enum):
 
@@ -314,18 +308,18 @@ public readonly struct CompilationResult
 }
 ```
 
-`Success` requires `Program != null` — otherwise `CompilationResult(new List<string>())` would give `Success == true` with `Program == null` and an NRE in `TryLoadProgram`.
+`Success` requires `Program != null` — otherwise `CompilationResult(new List<string>())` would yield `Success == true` with `Program == null` and an NRE in `TryLoadProgram`.
 
 ```csharp
-public readonly record struct CompilationToILResult
+public readonly record struct CompilationToIRResult
 {
-    internal readonly ILAssembler? Assembler;
+    internal readonly IRAssembler? Assembler;
     public IReadOnlyList<string>? Errors { get; }
     public OptimizationResultLog? OptimizationResultLog { get; }
 
-    public CompilationToILResult(IReadOnlyList<string>? errors);
-    public CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog);
-    public CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors);
+    public CompilationToIRResult(IReadOnlyList<string>? errors);
+    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog);
+    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors);
 
     public CompilationResult Build();
 }
@@ -344,18 +338,22 @@ public interface IFileService
 }
 ```
 
-- `DefaultFileService` — the real file system.
-- `RamFileService` — in-memory. `Combine` uses `Path.Combine`, `GetNameFiles`/`Ext` — `StringComparison.Ordinal`.
+- `DefaultFileService` — the real FS.
+- `RamFileService` — in-memory, emulating the behavior of the real FS **within the `IFileService` contract** (there are no write/delete/create-directory operations — they aren't in the interface either).
+  - `Combine` = `Path.Combine` + canonicalization: both separators (`\` and `/`) are normalized to one, `.` and `..` are resolved, repeated and trailing separators are removed; the absoluteness marker (`/`, `C:`) is preserved.
+  - `Exist` / `ReadFile` / `SaveFile` operate on the canonical path: `src\main.c`, `src/main.c`, `./src//main.c`, `src/sub/../main.c` — all the same file. Absolute and relative paths (`/file.c` vs `file.c`) are **different** files.
+  - Path comparison is case-insensitive by default (like Windows). Constructor: `new RamFileService(caseSensitive: true)` — for case-sensitive mode; `separator` — to choose the separator character in canonical paths.
+  - `GetNameFiles`: `IncludePath` from the config is canonicalized before comparison, `StartsWith` uses the same `StringComparison` as the dictionary. Extensions (`ExtensionsAsm` / `ExtensionsMiniC`) are compared via `StringComparison.Ordinal` (as in the original — `main.MINIC` is not considered `.minic`).
+  - Directories exist implicitly: `SaveFile("a/b/c.c", ...)` implies `a/` and `a/b/`. There is no separate `CreateDirectory` — the contract doesn't require it.
 
 `IProjectFilesConfig` — `BaseDirectory`, `ProjectPath`, `IncludePath`, `ExtensionsAsm`, `ExtensionsMiniC`, `static Default`.
-
 ### Optimizers
 
 ```csharp
 public sealed class VmCompilerOptimizator
 {
     public VmAstOptimizer VmAstOptimizer { get; }
-    public VmPeepholeOptimizer VmPeepholeOptimizer { get; }
+    public VmIROptimizer VmIROptimizer { get; }
 }
 
 public sealed class VmAstOptimizer
@@ -368,26 +366,26 @@ public sealed class VmAstOptimizer
     public OptimizationId GetType(int i);
 }
 
-public sealed class VmPeepholeOptimizer
+public sealed class VmIROptimizer
 {
     public int Count { get; }
-    public void Add(IPeepholeRule rule);
-    public void Insert(int index, IPeepholeRule item);
-    public void Remove(IPeepholeRule item);
+    public void Add(IOptimizerIRRule rule);
+    public void Insert(int index, IOptimizerIRRule item);
+    public void Remove(IOptimizerIRRule item);
     public void RemoveAt(int index);
 }
 ```
 
-`VmCompilerOptimizator` is a container created in `VmHostFactory.CreateDefault` (if not passed) and available via `host.Project.Optimizator`. Both rule lists are empty by default.
+`VmCompilerOptimizator` — a container, created in `VmHostFactory.CreateDefault` (if not passed) and available via `host.Project.Optimizator`. Both rule lists are empty by default.
 
 ### Unsafe extensions
 
 ```csharp
 public static class CompilationResultUnsafeExtension
 {
-    extension(CompilationToILResult il)
+    extension(CompilationToIRResult il)
     {
-        public ILAssembler? Assembler => il.Assembler;
+        public IRAssembler? Assembler => il.Assembler;
     }
 }
 
@@ -404,10 +402,11 @@ public static class VmEmulatorUnsafeExtension
     extension(VmEmulator vm)
     {
         public PortBus GetRawPortBus();
+        public Kernel.Utilites.Emulator GetRawEmulator();
     }
 }
 
-public static class VmPtojectUnsafeExtension
+public static class VmPojectUnsafeExtension
 {
     extension(VmHostProject proj)
     {
@@ -420,11 +419,20 @@ public static class VmPtojectUnsafeExtension
             where TAssembler : AssemblerBase;
     }
 }
+
+public static class VmCompilerOptimizatorExtension
+{
+    extension(VmCompilerOptimizator opt)
+    {
+        public IROptimizer RawIROptimizer;
+        public AstOptimizer RawAstOptimizer;
+    }
+}
 ```
 
-For cases when the wrapper is not enough: direct access to `Device`/`PortBus`/`ILAssembler`/`CompileInternal`. Use with caution: after `AsRawDevice()` you hold a reference to `Device`, and its `Dispose` is no longer controlled by `VmEmulator`. The class name `VmPtojectUnsafeExtension` contains a typo (kept for backward compatibility).
+For cases where a wrapper isn't enough: direct access to `Device`/`PortBus`/`IRAssembler`/`CompileInternal`. Use with caution: after `AsRawDevice()` you hold a reference to `Device`, and its `Dispose` is no longer controlled by `VmEmulator`. The class name `VmPojectUnsafeExtension` contains a typo (preserved for backward compatibility).
 
-## API examples
+## API Examples
 
 **Full cycle with the safe API:**
 
@@ -470,7 +478,7 @@ if (!vm.TryLoadProgram(compilation.Program!, loadAddress: 0, out var error))
 ProcessorFault fault = vm.Run(new LaunchOptions(ShowTimer: true,
     OnEnd: r => Console.WriteLine($"steps={r?.Steps} elapsed={r?.Elapsed}")));
 
-if (fault.Status != BiosStatus.EndProgramm)
+if (fault.Status != BiosStatus.EndProgram)
     Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");
 
 // The last fault can also be obtained after Run
@@ -491,13 +499,13 @@ vm.Resume();    // OpCode.WAKE
 runner.Wait();
 ```
 
-**Compilation via IL with optimizations:**
+**Compilation via IR with optimizations:**
 
 ```csharp
 var sources = host.Project.GetSourceFiles();
-var il = host.Project.CompileToIL(sources, baseAddress: 0, optimize: true);
+var il = host.Project.CompileToIR(sources, baseAddress: 0, optimize: true);
 
-il = host.Project.OptimizationIL(il, peepholeOptimizationCount: 5);
+il = host.Project.OptimizationIR(il, IROptimizationCount: 5);
 
 var result = il.Build();
 if (result.Success)
@@ -514,13 +522,19 @@ if (result.OptimizationResultLog is { } logs)
 ```csharp
 using Nantuc.VmApplication.Default;
 
+// Case sensitivity is false by default (as on Windows);
+// separator — the character that will be used in canonical paths.
 var fs = new RamFileService();
-fs.SaveFile("main.c", "int main() { int x = 21; return x * 2; }");
+fs.SaveFile(@"src\main.c", "int main() { int x = 21; return x * 2; }");
+
+// The same file via a different path — thanks to canonicalization:
+fs.Exist("src/main.c");        // true
+fs.Exist("./src//main.c");     // true
+fs.Exist("src/sub/../main.c"); // true
 
 using var host = VmHostFactory.CreateDefault(fileService: fs);
 
-var result = host.Project.Compile(host.Project.GetSourceFiles(), 0, optimize: false);
-```
+var result = host.Project.Compile(host.Project.GetSourceFiles(), 0, optimize: false);```
 
 **Step-by-step execution:**
 
@@ -547,7 +561,7 @@ if (before != after)
     Console.WriteLine($"IP: 0x{before[RegType.rIP]:X} -> 0x{after[RegType.rIP]:X}");
 ```
 
-**Registering your own device (UART):**
+**Registering a custom device (UART):**
 
 ```csharp
 using Nantuc.VmApplication.Emulator.Abstraction;
@@ -565,7 +579,7 @@ var uart = new UartController();
 var state = host.Emulator.TryRegisterDevice(uart, name: "UART0", sector: 1, out _);
 ```
 
-**Your own AST optimization rule:**
+**Custom AST optimization rule:**
 
 ```csharp
 using Nantuc.Compiler.C.Optimizators;
@@ -590,7 +604,7 @@ optimizator.VmAstOptimizer.Add(new MyRule());
 using var host = VmHostFactory.CreateDefault(optimizator: optimizator);
 ```
 
-**Your own compiler exception policy:**
+**Custom compiler exception policy:**
 
 ```csharp
 using Nantuc.Diagnostics;
@@ -598,7 +612,7 @@ using Nantuc.Diagnostics;
 IErrorMessageProvider myProvider = /* ... */;
 using var host = VmHostFactory.CreateDefault(provider: myProvider);
 
-// or via the builder
+// or via builder
 var project = new VmHostProjectBuilder()
     .WithPaths(IProjectFilesConfig.Default)
     .WithFileService(new RamFileService())
@@ -606,62 +620,40 @@ var project = new VmHostProjectBuilder()
     .Build();
 ```
 
-## How close the module is to the user
+## Module's Proximity to the User
 
-Maximum. This is the main API of the platform. After compilation, the MiniC/NANASM user works with exactly `DeviceContext`/`VmHost`, not with the kernel directly.
+Maximum. This is the platform's primary API. After compilation, a MiniC/NANASM user works with `DeviceContext`/`VmHost`, not directly with the kernel.
 
 **Who uses what:**
-- The end user of the language — runs a ready-made `.nbin` via `DeviceContext.Run`/`RunStepMode`/`DebugRun`.
-- The IDE/REPL/CI author — `VmHostProject.Compile`/`CompileToIL`, `GetSourceFiles`, `OptimizationResultLog`, `SnapshotRegisters`, `Pause`/`Resume`.
-- The game/application author — `VmHostFactory.CreateDefault`, `DeviceContext`, `PortControlBase`, `LaunchOptions`.
-- The compiler extension author — `VmAstOptimizer.Add`/`VmPeepholeOptimizer.Add`, `VmCompilerOptimizator`.
-- The author of a custom exception policy — `IErrorMessageProvider` + `WithThrowProvider`/`CreateDefault(provider:)`.
+- End user of the language — runs a ready-made `.nbin` via `DeviceContext.Run`/`RunStepMode`/`DebugRun`.
+- IDE/REPL/CI author — `VmHostProject.Compile`/`CompileToIR`, `GetSourceFiles`, `OptimizationResultLog`, `SnapshotRegisters`, `Pause`/`Resume`.
+- Game/application author — `VmHostFactory.CreateDefault`, `DeviceContext`, `PortControlBase`, `LaunchOptions`.
+- Compiler extension author — `VmAstOptimizer.Add`/`VmIROptimizer.Add`, `VmCompilerOptimizator`.
+- Custom exception policy author — `IErrorMessageProvider` + `WithThrowProvider`/`CreateDefault(provider:)`.
 
 **What you should do:**
-- Always `using var host = VmHostFactory.CreateDefault(...)` — `Dispose` frees the native buffers of all VMs.
+- Always `using var host = VmHostFactory.CreateDefault(...)` — `Dispose` releases the native buffers of all VMs.
 - Check `compilation.Success` before `TryLoadProgram` — `Success` also requires `Program != null`.
 - Use `TryRegisterDevice` (returns `IdState` + `out int id`) instead of `RegisterDevice` — unified diagnostics.
 - Use `TryGetDeviceContext` instead of `GetDeviceContext(id)!`.
 - For safe loading — `TryLoadProgram` (no exceptions).
-- Read the `ProcessorFault` from `Run`/`DebugRun` or via `GetLastFault()` — this is the correct way to learn the completion status.
-- For WASM/browser — `RamFileService` + `CompileToIL` + `Build`, without `DefaultFileService`.
+- Read `ProcessorFault` from `Run`/`DebugRun` or via `GetLastFault()` — this is the correct way to learn the completion status.
+- For WASM/browser — `RamFileService` (or `DefaultFileService`, but it's slower) + `CompileToIR` + `Build`.
 - To stop a long run from another thread — `Pause()`/`Resume()`.
 
 **What you should not do:**
-- Create multiple `VmHost` instances in one process without need — each holds its own `PortBus` and `ManagerDevices`.
-- Keep a `DeviceContext` after `host.Dispose()` — inside there is a `Device` that has already been freed.
+- Create multiple `VmHost` instances in one process unnecessarily — each holds its own `PortBus` and `ManagerDevices`.
+- Hold a `DeviceContext` after `host.Dispose()` — inside it there's a `Device` that has already been released.
 - Call `Run` without stopping the previous run — `ThrowByMode` will throw `InvalidOperationException`.
-- Use `DeviceContextUnsafeExtensions.AsRawDevice()` without a strong need.
-- Rely on `GetLastFault()` as "the result of the last step" — `_faultData` is not updated every iteration (for optimization) and is not reset in `LaunchProgramm`. See [Special information](#special-information).
-- Pass `null` to `WithOptimizator` — this is allowed (a new `VmCompilerOptimizator` will be created), but it is better to control it explicitly.
+- Use `DeviceContextUnsafeExtensions.AsRawDevice()` without a pressing need.
+- Rely on `GetLastFault()` as the "result of the last step" — `_faultData` is not updated every iteration (for optimization) and is not reset in `LaunchProgramm`. See [Special Information](#special-information).
+- Pass `null` to `WithOptimizator` — this is acceptable (a new `VmCompilerOptimizator` will be created), but it's better to control it explicitly.
 
-## What was fixed in this version
-
-Compared to the previous snapshot of `Nantuc.VmApplication`:
-
-- **`CompilerContext`** — a new record; `VmHostProject` now accepts only `CompilerContext`.
-- **`VmHostProject`** — added the public property `ThrowCompilerPolicy`.
-- **`VmHostProjectBuilder`** — added `WithThrowProvider(IErrorMessageProvider?)`; `WithOptimizator` accepts `VmCompilerOptimizator?`.
-- **`VmHostFactory.CreateDefault`** — added the parameter `IErrorMessageProvider? provider = null` (4th, before `portBusSize`).
-- **`DeviceContext`** — added `Pause()` (OpCode.HALT) and `Resume()` (OpCode.WAKE); `SingleStep`/`MultiStep` accept `Action<ProcessorSnapshot>?`; `LoadProgram` accepts `ReadOnlySpan<byte>`; `TryFastLoadProgram` → `TryLoadProgram`; added `GetLastFault()`.
-- **`LaunchOptions.OnEnd`** — `Action<TimeSimulationResult>?`; 
-- **`LaunchOptionsDebug.OnStep`** — `Action<ProcessorSnapshot>?`.
-- **`SnapshotRegisters`** — moved to a separate file; `Count` became `const int = 32`; `GetHashCode` is consistent with `Equals`.
-- **`CompilationResult.Success`** requires `Program != null`.
-- **`CompilationToILResult(ILAssembler?, OptimizationResultLog?)`** — the constructor is public.
-- **`ProjectBuilder.ReadInclude`** throws `CodeException(ErrorCode.Parser_IncludeAmbiguous, ...)` for a path conflict.
-- **`VmHostProject.CompileInternal`** on error returns `res` and `ex.ToString()` (with stack trace).
-- **`VmHostProject.OptimizationIL`** on error preserves the `OptimizationResultLog` from the original result.
-- **`VmCompilerOptimizator`** — properties renamed: `VMAstOptimizer` → `VmAstOptimizer`, `VMPeepholeOptimizer` → `VmPeepholeOptimizer`.
-- **`RamFileService.Combine`** — `Path.Combine` instead of `"\\"`, `GetNameFiles`/`Ext` — `StringComparison.Ordinal`.
-- **Unsafe extensions**: `CompilationResultUnsafeExtension` (`Assembler`), `VmEmulatorUnsafeExtension.GetRawPortBus()`, `VmPtojectUnsafeExtension.CustomCompile<TAssembler,TResult>(...)` (wrapper over `CompileInternal`).
-- **XML documentation** added on public members (previously noted as missing).
-
-## Special information
+## Special Information
 
 ### Why the VM is a device
 
-`VmEmulator.TryRegisterDevice(DeviceSpec, sector)` creates a `BiosSystem.Device` and registers it as an `IPortController` in `PortBus`. `Device` implements `IPortController` (for the external port bus) and holds its own `PortBus` (the VM's internal bus). An external VM can send `OUT`/`IN` over the sector of an internal VM — and vice versa. `DeviceContext.ReadPort(offset)` reads the VM's own ports.
+`VmEmulator.TryRegisterDevice(DeviceSpec, sector)` creates a `BiosSystem.Device` and registers it as an `IPortController` in `PortBus`. `Device` implements `IPortController` (for the external port bus) and holds its own `PortBus` (the VM's internal bus). An external VM can send `OUT`/`IN` over the sector of the internal VM — and vice versa. `DeviceContext.ReadPort(offset)` reads the VM's own ports.
 
 ### `DeviceContext` modes
 
@@ -672,27 +664,33 @@ Inside `DeviceContext` — `private enum Mode { Step, Continuous, None }` and `v
 - `EndStepMode` → `ThrowIfNotStepMode` → `Device.Stop()` + one `NextStepProcessor(null)` + `SetNoneMode()`.
 - `Stop` → `Device.Stop()` + `SetNoneMode()` — can be called from any mode.
 
-`Stop`, `Pause`, `Resume` can be called from another thread (`Pause`/`Resume` enqueue the command via `EnqueueExternalCommand`). `Run`/`Step` — single-threaded.
+`Stop`, `Pause`, `Resume` can be called from another thread (`Pause`/`Resume` enqueue a command into `EnqueueExternalCommand`). `Run`/`Step` — single-threaded.
 
 ### Bytecode: `baseAddress` and `StartAdress`
 
-`CompilationResult.StartAdress` is the `baseAddress` passed to `Compile`/`CompileToIL`. By default `ProjectBuilder.BaseAddressProgram = 0x00`. `Compile` does not automatically set `StartAdress` in `LoadProgram` — `LoadProgram` copies the bytes at `loadAddress`, and `LaunchOptions.StartAddress` — where to start execution.
+`CompilationResult.StartAdress` is the `baseAddress` passed to `Compile`/`CompileToIR`. By default `ProjectBuilder.BaseAddressProgram = 0x00`. `Compile` does not set `StartAdress` in `LoadProgram` automatically — `LoadProgram` copies the bytes to `loadAddress`, and `LaunchOptions.StartAddress` is where execution starts.
 
 ### Include resolution
 
-`ProjectBuilder.Build` resolves `#include "file"` from two places: `Paths.ProjectPath` and `Paths.IncludePath`. If the file exists in both — `CodeException(ErrorCode.Parser_IncludeAmbiguous, ...)`; `FileNotFoundException` if the file is not found anywhere. Included `.c`/`.minic` are parsed into an AST, `.asm`/`.nanasm` are assembled directly (with a `processed` check for cycles).
+`ProjectBuilder.Build` resolves `#include "file"` from two places: `Paths.ProjectPath` and `Paths.IncludePath`. If the file exists in both — `CodeException(ErrorCode.Parser_IncludeAmbiguous, ...)`; `FileNotFoundException` if the file isn't found anywhere. Included `.c`/`.minic` files are parsed into an AST, `.asm`/`.nanasm` are assembled directly (with a `processed` check against cycles).
 
-### Thread safety
+### Thread-safety
 
-`DeviceContext` is not thread-safe, except `Stop`, `Pause`, `Resume`. `SnapshotRegisters` — a `readonly struct` with a copy of the registers. `VmHostProject.Compile`/`CompileToIL` — not thread-safe (shared `_optimizator.AstOptimizer`). `VmEmulator.GetDeviceContext`/`RegisterDevice`/`UnregisterDevice` — not thread-safe.
+`DeviceContext` is not thread-safe except for `Stop`, `Pause`, `Resume`. `SnapshotRegisters` is a `readonly struct` with a copy of the registers. `VmHostProject.Compile`/`CompileToIR` are not thread-safe (shared `_optimizator.AstOptimizer`). `VmEmulator.GetDeviceContext`/`RegisterDevice`/`UnregisterDevice` are not thread-safe.
 
 ### `ProcessorFault` from `Run`/`DebugRun`/`GetLastFault`
 
-`Run` and `DebugRun` return a `ProcessorFault` from `_device.Run(...)`/`_device.DebugRun(...)`. `GetLastFault()` is public access to `_faultData` in `Processor`. Important: `_faultData` is not reset in `LaunchProgramm` (`[Nantuc.Kernel](../../src/Nantuc.Kernel/README.md)`, [What to fix, item 2](../../src/Nantuc.Kernel/README.md#what-to-fix)) — a second `Run` may return the fault from the first. The XML doc on `GetLastFault` reflects this: "Not updated every iteration for optimization".
+`Run` and `DebugRun` return the `ProcessorFault` from `_device.Run(...)`/`_device.DebugRun(...)`. `GetLastFault()` — public access to `_faultData` in `Processor`. Important: `_faultData` is not reset in `LaunchProgramm` (`[Nantuc.Kernel](../../src/Nantuc.Kernel/README.md)`, [What to fix, item 2](../../src/Nantuc.Kernel/README.md#what-to-fix)) — a second `Run` may return the fault from the first. The XML-doc on `GetLastFault` reflects this: "Not updated every iteration for the sake of optimizations".
+
+### `RamFileService` — a mock, not a full FS
+
+`RamFileService` implements **only** the `IFileService` contract. There are no `Delete`/`CreateDirectory`/`Move`/`Copy` operations either in the interface or in the class — adding them without a corresponding contract extension would violate the principle "the implementation doesn't do more than it promises", and tests for "dead" methods wouldn't validate production scenarios. If writing/deletion is needed in the future — first extend `IFileService` (or add `IWritableFileService : IFileService`), then implement it in both classes.
+
+Known limitation of `GetNameFiles`: `IncludePath` is compared via `StartsWith` **without checking the path boundary**, so `IncludePath = /base/include` erroneously excludes `/base/include2/file.c`. The fix is to check the character following the prefix (`/` or `\`).
 
 ### Platform limitations
 
-- `net10.0`, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — because of `Kernel`, but there is no `unsafe` code in the module itself.
+- `net10.0`, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — because of `Kernel`, but there is no unsafe code in the module itself.
 - `[InlineArray]` in `SnapshotRegisters` — C# 12+, works in AOT/WASM.
-- `DefaultFileService` uses `Directory.EnumerateFiles`/`File.ReadAllText` — works in WASM, but is slow. For WASM — `RamFileService`.
-- `Thread.Sleep(delay)` in `DeviceContext.DebugRun` (via `Device.DebugRun`) — in WASM either a no-op or `PlatformNotSupportedException`.
+- `DefaultFileService` uses `Directory.EnumerateFiles`/`File.ReadAllText` — works in WASM, but slowly. For WASM — `RamFileService` (in-memory, no I/O, with the same path rules: separator unification, `.`/`..`, case-insensitivity by default).
+- `Thread.Sleep(delay)` in `DeviceContext.DebugRun` (via `Device.DebugRun`) — in WASM either a no-op or a `PlatformNotSupportedException`.

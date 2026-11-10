@@ -26,7 +26,7 @@ public class VMHostTests
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
-        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
+        var comp = host.Project.CompileToIR(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
@@ -116,7 +116,7 @@ public class VMHostTests
             LDI r4, 4
             END
             """;
-        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
+        var comp = host.Project.CompileToIR(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
@@ -151,7 +151,7 @@ public class VMHostTests
             LDI r4, 4
             END
             """;
-        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
+        var comp = host.Project.CompileToIR(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
@@ -175,7 +175,7 @@ public class VMHostTests
             LDI r4, 4
             END
             """;
-        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
+        var comp = host.Project.CompileToIR(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
@@ -193,7 +193,7 @@ public class VMHostTests
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
         string program = "LDI r1, 1\nEND";
-        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
+        var comp = host.Project.CompileToIR(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
@@ -224,7 +224,7 @@ public class VMHostTests
             OUT r1, r2
             END
             """;
-        var comp = host.Project.CompileToIL(program, 0, false, SourceLanguage.Asm).Build();
+        var comp = host.Project.CompileToIR(program, 0, false, SourceLanguage.Asm).Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 

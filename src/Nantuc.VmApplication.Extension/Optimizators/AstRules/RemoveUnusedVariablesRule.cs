@@ -15,7 +15,7 @@ public class RemoveUnusedVariablesRule : IAstOptimizationRule
         return log;
     }
 
-    private static void RemoveUnusedVariables(ProgramNode program, ILogOptimization log)
+    private static void RemoveUnusedVariables(ProgramNode program, IRogOptimization log)
     {
         foreach (var func in program.FunctionNodes)
         {
@@ -106,7 +106,7 @@ public class RemoveUnusedVariablesRule : IAstOptimizationRule
         }
     }
 
-    private static void RemoveUnusedFromBlock(BlockNode block, HashSet<string> used, ILogOptimization log)
+    private static void RemoveUnusedFromBlock(BlockNode block, HashSet<string> used, IRogOptimization log)
     {
         var newStatements = new List<ASTNode>();
         foreach (var stmt in block.Statements)

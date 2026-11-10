@@ -70,9 +70,9 @@ dotnet tool uninstall --global Nantuc.Cli
 
 ## Key components
 
-- **`CliApplication`** — the central command dispatcher. It receives an `ILibraryFileService`, an `IProjectFilesConfig`, and two `TextWriter` instances (output and error). In `Run`, it parses the first argument as the command name and passes the remaining arguments to the corresponding handler.
+- **`CliApplication`** — the central command dispatcher. It receives an `IRibraryFileService`, an `IProjectFilesConfig`, and two `TextWriter` instances (output and error). In `Run`, it parses the first argument as the command name and passes the remaining arguments to the corresponding handler.
 - **`ProjectsPathsConfig`** — an implementation of `IProjectFilesConfig`. It defines `BaseDirectory` (the current working directory), `ProjectPath` (same as `BaseDirectory`), `IncludePath` (set at construction; defaults to `AppContext.BaseDirectory/include`), and the extension lists for assembler and MiniC sources.
-- **`FileSystemLibraryFileService`** — an implementation of `ILibraryFileService` on top of `IFileSystem`. It provides reading/writing of project files and includes, as well as library management (add, remove, existence check, list).
+- **`FileSystemLibraryFileService`** — an implementation of `IRibraryFileService` on top of `IFileSystem`. It provides reading/writing of project files and includes, as well as library management (add, remove, existence check, list).
 - **`CLIHelper`** — a set of static utilities for argument parsing: flag detection (`HaveFlag`), value extraction by flag (`TryGetArgByFlag`), and string-to-bytes conversion (`GetBytesFromText`).
 - **Commands** (`CompileCommand`, `RunCommand`, `DisassembleCommand`, `LibCommand`, `ErrorCommand`) — encapsulate the logic of a specific scenario. Each command has a static `TryCreate` method (except `ErrorCommand`) that validates required arguments and creates an instance, or returns `false` and writes an error message.
 - **`Program.cs`** — assembles the application: creates a `RealFileSystem`, a `ProjectsPathsConfig` with the `include` path next to the executable, a `FileSystemLibraryFileService`, and runs `CliApplication`.
@@ -89,11 +89,11 @@ Compiles the project into a binary file `program.bin` and saves it to the specif
 - `-s`, `-sv`, `-save <dir>` — the directory where `program.bin` will be written.
 
 **Optional options:**
-- `-o`, `-opt` — enable optimizations (AST + peephole).
+- `-o`, `-opt` — enable optimizations (AST + IR).
 
 **Behavior:**
 - Without the optimization flag, `Compile` is called and the result is saved as-is.
-- With the optimization flag, `CompileToIL` is called, then `OptimizationIL` (5 passes) and `Build`.
+- With the optimization flag, `CompileToIR` is called, then `OptimizationIR` (5 passes) and `Build`.
 - On compilation errors, prints them to the error stream and returns code `-1`.
 
 **Example:**
@@ -116,12 +116,14 @@ Loads a binary file into the virtual machine emulator and executes it.
 - `-dps`, `-device-per-port`, `-device-on-port <size>` — ports per device (default `16B`). Valid values: `8B` … `256B`.
 - `-l`, `-limit <N>` — maximum number of execution steps (default: unlimited).
 - `-t`, `-timer`, `-lt` — print elapsed time and step count when the program finishes.
+- `-dm`, `-dumbm`, `-dumb-memory <path-file>` — create a memory dump file; creates a folder at `<path-file>`, and inside it creates a file `dumb-memory-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.bin` containing only the information bytes
+- `-dr`, `-dumbr`, `-dumb-registers <path-file>` — create a register dump file; creates a folder at `<path-file>`, and inside it creates a file `dumb-registers-{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.txt` containing text in the form `r0: 0\n`
 
 **Behavior:**
 - Creates a `VmEmulatorBuilder` and configures port and RAM sizes.
 - Registers the VM device (`DeviceSpec.Create(ram)`) and the I/O device `SynchronousIOStream`.
 - Loads the program at address 0. On load failure, prints a message and returns `-1`.
-- Runs the program with `LaunchOptions`. If the termination status is not `EndProgramm`, prints fault information.
+- Runs the program with `LaunchOptions`. If the termination status is not `EndProgram`, prints fault information.
 - Returns the value of register `r0` as an integer.
 
 **Example:**
@@ -230,4 +232,4 @@ nantuc help
 - **Project and includes** — when reading a file, `FileSystemLibraryFileService` first looks in `IncludePath`, then in `ProjectPath` (the current working directory).
 - **Encoding** — project and include files are read and written in UTF-8. Binary images are converted to/from strings using Latin1 encoding (byte-for-byte correspondence).
 - **Return codes** — commands return `0` on success and negative values on errors (e.g., `-1` on compilation or execution failure, `-2` on invalid arguments, `-3` on an unknown command). `lib exist` returns `1` if the include is not found (this is a check result, not an error).
-- **Optimization** — with `compile -o`, a `VmCompilerOptimizator` is used with the standard AST and peephole rule sets, followed by 5 passes of `OptimizationIL`.
+- **Optimization** — with `compile -o`, a `VmCompilerOptimizator` is used with the standard AST and IR rule sets, followed by 5 passes of `OptimizationIR`.

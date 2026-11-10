@@ -9,15 +9,15 @@ namespace Nantuc.VmApplication.Project;
 public sealed class VmCompilerOptimizator
 {
     internal AstOptimizer AstOptimizer { get; }
-    internal PeepholeOptimizer PeepholeOptimizer { get; }
-    public VmPeepholeOptimizer VmPeepholeOptimizer { get; }
+    internal IROptimizer IROptimizer { get; }
+    public VmIROptimizer VmIROptimizer { get; }
     public VmAstOptimizer VmAstOptimizer { get; }
 
     public VmCompilerOptimizator()
     {
         AstOptimizer = new();
-        PeepholeOptimizer = new();
+        IROptimizer = new();
         VmAstOptimizer = new(AstOptimizer);
-        VmPeepholeOptimizer = new(PeepholeOptimizer);
+        VmIROptimizer = new(IROptimizer);
     }
 }

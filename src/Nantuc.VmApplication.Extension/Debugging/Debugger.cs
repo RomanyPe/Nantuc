@@ -435,7 +435,7 @@ public sealed class Debugger : IDisposable
         if (!snapshot.IsRunning)
         {
             var fault = _context.GetLastFault();
-            return fault.Status == BiosStatus.EndProgramm || fault.Status == BiosStatus.Success
+            return fault.Status == BiosStatus.EndProgram || fault.Status == BiosStatus.Success
                 ? MakeStop(DebugStopReason.Completed, snapshot)
                 : MakeStop(DebugStopReason.Faulted, snapshot);
         }

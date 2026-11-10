@@ -56,7 +56,7 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
 
         if (comp.Success)
         {
-            _outPut.WriteLine("Expected compilation to FAIL, but it succeeded:");
+            _outPut.WriteLine("Expected compilation to FAIR, but it succeeded:");
             _outPut.WriteLine(program);
             _outPut.WriteLine("--- NANASM ---");
             _outPut.WriteLine(comp.DisassembleToString());

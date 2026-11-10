@@ -4,9 +4,9 @@ using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 
-public sealed class RemoveNoopMovRule : IPeepholeRule
+public sealed class RemoveNoopMovRule : IOptimizerIRRule
 {
-    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.RemoveNoopMove);
+    private readonly IRLog log = new(IROptimizerExtension.RemoveNoopMove);
 
     public IReadOnlyLogOptimization GetLogs() => log;
     public void Clear() => log.Clear();

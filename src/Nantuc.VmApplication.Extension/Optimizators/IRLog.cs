@@ -1,8 +1,5 @@
-﻿using Nantuc.Compiler.ASM;
-using Nantuc.Compiler.ASM.IR;
+﻿using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.C.Optimizators;
-using Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
-using Nantuc.VmApplication.Project;
 using System.Text;
 using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Common;
@@ -10,46 +7,7 @@ using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators;
 
-public static class PeepholeOptimizerExtension
-{
-    extension(VmPeepholeOptimizer peephole)
-    {
-        public VmPeepholeOptimizer AddStdRules()
-        {
-            peephole.Add(new RemoveNoopMovRule());
-            peephole.Add(new RemovePushPopPairRule());
-            peephole.Add(new RemoveSwapMovPairRule());
-            peephole.Add(new RemoveJumpToNextLabelRule());
-            peephole.Add(new ConstantFoldingRule());
-            peephole.Add(new RemoveMultiEndPairRule());
-            return peephole;
-        }
-    }
-    extension(OptimizationId id)
-    {
-        public OptimizationId WithPeepholePrefix()
-        {
-            return new OptimizationId("peephole." + id.Value);
-        }
-        public OptimizationId WithRule()
-        {
-            return new OptimizationId(id.Value + "-rule");
-        }
-    }
-
-    private static OptimizationId Peephole(string value) => new OptimizationId(value).WithPeepholePrefix();
-
-    public static readonly OptimizationId ConstantFolding = Peephole("constant-folding");
-    public static readonly OptimizationId RemoveJumpToNextLabel = Peephole("remove-jump-to-next-label");
-    public static readonly OptimizationId RemoveMultiEnd = Peephole("remove-multi-end");
-    public static readonly OptimizationId RemoveNoopMove = Peephole("remove-noop-mov");
-    public static readonly OptimizationId RemovePushPop = Peephole("remove-push-pop");
-    public static readonly OptimizationId RemoveSwapMov = Peephole("remove-swap-mov");
-    public static readonly OptimizationId ReplaceSafeAccess = Peephole("replace-safe-mem-acces-with-unsafe");
-}
-
-
-public class PeepholeLog(OptimizationId id) : ILogOptimization
+public class IRLog(OptimizationId id) : IRogOptimization
 {
     private readonly List<OptimizationLogEntry> _entries = [];
 
@@ -73,7 +31,10 @@ public class PeepholeLog(OptimizationId id) : ILogOptimization
             sb.Append(opName);
 
             // Суффикс размера для инструкций работы с памятью
-            if (inst.OpCode is OpCode.LOAD or OpCode.STORE or OpCode.LOAD_IND or OpCode.STORE_IND)
+            if (inst.OpCode is OpCode.LOAD or OpCode.STORE 
+                or OpCode.LOAD_IND or OpCode.STORE_IND 
+                or OpCode.STORE_UNSAFE or OpCode.STORE_IND_UNSAFE
+                or OpCode.LOAD_UNSAFE or OpCode.LOAD_IND_UNSAFE)
                 sb.Append('.').Append(inst.Size.SizeName());
 
             sb.Append(' ');
@@ -99,6 +60,10 @@ public class PeepholeLog(OptimizationId id) : ILogOptimization
                     return sb.Append(inst.FirstReg).ToString();
 
                 // Два регистра (обычные)
+                case OpCode.CMP:
+                case OpCode.TEST:
+                case OpCode.MOD:
+                case OpCode.SHL:
                 case OpCode.MOV:
                 case OpCode.ADD:
                 case OpCode.SUB:
@@ -113,6 +78,8 @@ public class PeepholeLog(OptimizationId id) : ILogOptimization
                     return sb.Append(inst.FirstReg).Append(", ").Append(inst.SecondReg).ToString();
 
                 // Два регистра (с размером)
+                case OpCode.STORE_IND_UNSAFE:
+                case OpCode.LOAD_IND_UNSAFE:
                 case OpCode.LOAD_IND:
                 case OpCode.STORE_IND:
                     return sb.Append(inst.FirstReg).Append(", ").Append(inst.SecondReg).ToString();
@@ -124,6 +91,8 @@ public class PeepholeLog(OptimizationId id) : ILogOptimization
                     return sb.ToString();
 
                 // LOAD/STORE: регистр, адрес (immediate/метка)
+                case OpCode.LOAD_UNSAFE:
+                case OpCode.STORE_UNSAFE:
                 case OpCode.LOAD:
                 case OpCode.STORE:
                     sb.Append(inst.FirstReg).Append(", ");

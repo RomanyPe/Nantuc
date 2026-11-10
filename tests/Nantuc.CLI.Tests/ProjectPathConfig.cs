@@ -1,7 +1,6 @@
 ﻿using Nantuc.VmApplication.Project;
 
-namespace TestsCLI;
-
+namespace Nantuc.CLI.Tests;
 
 public class ProjectPathConfig(string baseDirectory, string includePath) : IProjectFilesConfig
 {

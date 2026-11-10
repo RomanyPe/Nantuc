@@ -54,7 +54,7 @@ int main() {
 }
 """;
 
-    // 4 ADD в разные регистры (ILP-дружественный).
+    // 4 ADD в разные регистры (IRP-дружественный).
     public const string aluTput4Mc =
     """
 int main() {

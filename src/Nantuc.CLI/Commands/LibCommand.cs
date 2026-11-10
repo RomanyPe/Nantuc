@@ -1,8 +1,8 @@
 ﻿namespace Nantuc.CLI.Commands;
 
-public sealed class LibCommand(ILibraryFileService fileService, TextWriter output, TextWriter error)
+public sealed class LibCommand(IRibraryFileService fileService, TextWriter output, TextWriter error)
 {
-    private readonly ILibraryFileService _fileService = fileService;
+    private readonly IRibraryFileService _fileService = fileService;
     private readonly TextWriter _output = output;
     private readonly TextWriter _error = error;
 

@@ -38,7 +38,7 @@ public class NantucBenchmarks
 
         // Компиляция и загрузка — вне замера
         var res = _host.Project
-            .CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.C)
+            .CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.C)
             .Build();
 
         if (!res.Success)

@@ -11,18 +11,18 @@ public static class CLIHelper
         return false;
     }
 
-    public static bool TryGetArgByFlag(ReadOnlySpan<string> flags, ReadOnlySpan<string> args, [NotNullWhen(true)] out string? path)
+    public static bool TryGetArgByFlag(ReadOnlySpan<string> flags, ReadOnlySpan<string> args, [NotNullWhen(true)] out string? arg)
     {
         foreach (string item in flags)
         {
             int i = args.IndexOf(item);
             if (i >= 0 && i + 1 < args.Length)
             {
-                path = args[i + 1];
+                arg = args[i + 1];
                 return true;
             }
         }
-        path = null;
+        arg = null;
         return false;
     }
 

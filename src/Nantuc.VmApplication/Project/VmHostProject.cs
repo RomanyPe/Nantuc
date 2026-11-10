@@ -128,33 +128,33 @@ public sealed class VmHostProject(CompilerContext ctx)
     }
 
     /// <summary>
-    /// Применяет Peephole-оптимизации к результату компиляции в IL.
+    /// Применяет IR-оптимизации к результату компиляции в IR.
     /// </summary>
-    /// <param name="res">Результат компиляции в IL.</param>
-    /// <param name="peepholeOptimizationCount">Количество циклов Peephole-оптимизаций.</param>
+    /// <param name="res">Результат компиляции в IR.</param>
+    /// <param name="IROptimizationCount">Количество циклов IR-оптимизаций.</param>
     /// <returns>
-    /// Новый <see cref="CompilationToILResult"/>, ссылающийся на исходный
+    /// Новый <see cref="CompilationToIRResult"/>, ссылающийся на исходный
     /// <paramref name="res"/>.
     /// </returns>
     /// <remarks>
     /// <para>
     /// Если в <paramref name="res"/> уже есть ошибки
-    /// (<see cref="CompilationToILResult.Errors"/> непуст) или ассемблер
+    /// (<see cref="CompilationToIRResult.Errors"/> непуст) или ассемблер
     /// отсутствует, метод возвращает <paramref name="res"/> без изменений.
     /// </para>
     /// <para>
-    /// Если <see cref="CompilationToILResult.OptimizationResultLog"/> у
+    /// Если <see cref="CompilationToIRResult.OptimizationResultLog"/> у
     /// <paramref name="res"/> уже задан, он <b>мутируется</b> (дополняется
-    /// результатом Peephole-оптимизации), а не копируется. При необходимости
+    /// результатом IR-оптимизации), а не копируется. При необходимости
     /// сохранить исходный лог передавайте копию.
     /// </para>
     /// <para>
     /// Исключения при оптимизации не пробрасываются: возвращается новый
-    /// <see cref="CompilationToILResult"/> с <see langword="null"/> вместо
+    /// <see cref="CompilationToIRResult"/> с <see langword="null"/> вместо
     /// ассемблера и текстом исключения в ошибках.
     /// </para>
     /// </remarks>
-    public CompilationToILResult OptimizationIL(CompilationToILResult res, int peepholeOptimizationCount)
+    public CompilationToIRResult OptimizationIR(CompilationToIRResult res, int IROptimizationCount)
     {
         if (res.Errors is { Count: > 0 })
             return res;
@@ -166,43 +166,43 @@ public sealed class VmHostProject(CompilerContext ctx)
         OptimizationResultLog? resOpt = null;
         try
         {
-            var log = Optimizator.PeepholeOptimizer.Optimize(asm.GetItems(), peepholeOptimizationCount);
+            var log = Optimizator.IROptimizer.Optimize(asm.GetItems(), IROptimizationCount);
             resOpt = res.OptimizationResultLog ?? new OptimizationResultLog();
             resOpt.AddRange(log);
 
-            return new CompilationToILResult(asm, resOpt);
+            return new CompilationToIRResult(asm, resOpt);
         }
         catch (Exception ex)
         {
-            return new CompilationToILResult(null, resOpt, [ex.Message]);
+            return new CompilationToIRResult(null, resOpt, [ex.Message]);
         }
     }
 
     /// <summary>
-    /// Компилирует исходные файлы в IL-ассемблер.
+    /// Компилирует исходные файлы в IR-ассемблер.
     /// </summary>
     /// <param name="files">Исходные файлы проекта.</param>
     /// <param name="baseAddress">Стартовый адрес.</param>
     /// <param name="optimize">Нужны ли оптимизации AST.</param>
     /// <returns>
-    /// <see cref="CompilationToILResult"/>. При ошибке компиляции —
+    /// <see cref="CompilationToIRResult"/>. При ошибке компиляции —
     /// с <see langword="null"/> вместо ассемблера и текстом исключения
-    /// в <see cref="CompilationToILResult.Errors"/>.
+    /// в <see cref="CompilationToIRResult.Errors"/>.
     /// </returns>
     /// <remarks>
     /// Исключения компиляции перехватываются внутри
     /// <see cref="CompileInternal{TAssembler,TResult}"/> и возвращаются
     /// в результате, а не пробрасываются наружу. Проверяйте
-    /// <see cref="CompilationToILResult.Errors"/>.
+    /// <see cref="CompilationToIRResult.Errors"/>.
     /// </remarks>
-    public CompilationToILResult CompileToIL(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize)
+    public CompilationToIRResult CompileToIR(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize)
     {
         return CompileInternal(
             baseAddress,
             optimize,
             files,
-            baseAddr => new ILAssembler(baseAddr, ThrowCompilerPolicy),
-            (assembler, log, errors) => new CompilationToILResult(assembler, log, errors));
+            baseAddr => new IRAssembler(baseAddr, ThrowCompilerPolicy),
+            (assembler, log, errors) => new CompilationToIRResult(assembler, log, errors));
     }
 
     /// <summary>
@@ -222,7 +222,7 @@ public sealed class VmHostProject(CompilerContext ctx)
     /// в результате, а не пробрасываются наружу.
     /// </para>
     /// <para>
-    /// В отличие от <see cref="CompileToIL"/>, при ошибке
+    /// В отличие от <see cref="CompileToIR"/>, при ошибке
     /// лог оптимизаций в результат не попадает: создаётся
     /// <see cref="CompilationResult"/> только с ошибками.
     /// </para>

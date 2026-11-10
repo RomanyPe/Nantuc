@@ -1,6 +1,6 @@
 ﻿using Xunit.Abstractions;
 
-namespace TestsCLI;
+namespace Nantuc.CLI.Tests;
 
 public class CLITest(ITestOutputHelper log)
 {
@@ -59,6 +59,26 @@ public class CLITest(ITestOutputHelper log)
         Assert.Contains("bogus", r.Stderr);
     }
 
+    [Fact]
+    public void Run_With_DumbArgs()
+    {
+        var ctx = new CliTestContext();
+        ctx.WriteProjectFile("prog.minic", "int main() { return 0; }");
+
+        var compile = ctx.Run("compile", "-s", "bin");
+        DumpOnFailure(compile.ExitCode == 0, log, compile);
+        Assert.Equal(0, compile.ExitCode);
+
+        var programPath = ctx.ProjectPath(ctx.FileSystem.Path.Combine("bin", "program.bin"));
+        var pathDumb = ctx.FileSystem.Path.Combine("bin", "dumb.bin");
+
+        var r = ctx.Run("run", "-p", programPath, "-dm", pathDumb);
+        DumpOnFailure(r.ExitCode == 0, log, r);
+        Assert.Equal(0, r.ExitCode);
+        Assert.True(
+            ctx.FileSystem.File.Exists(ctx.FileSystem.Path.Combine(ctx.Config.BaseDirectory, pathDumb)),
+            "не создан дамп памяти по -dm пути");
+    }
     [Fact]
     public void Run_MissingProgram_Returns_Error()
     {

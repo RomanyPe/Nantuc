@@ -8,7 +8,7 @@
 
 Вот объединённое описание:
 
-**Nantuc** — это мини-фреймворк и безопасный низкоуровневый скриптовый движок для .NET, предназначенный для случаев, когда нужен контроль уровня C, но коду нельзя доверять. Он включает C-подобный язык MiniC и ассемблер NANASM (текстовый и IL) с дизассемблером и пошаговой отладкой, а также полный конвейер: лексер, парсер, оптимизатор AST, генератор байткода, ассемблер и регистровую VM с памятью и портовой шиной. В состав входят устройства ввода-вывода, явные In/Out, API для встраивания, тонкий CLI (`nantuc`) и изоляция, благодаря которой падение скрипта не приводит к падению хоста.
+**Nantuc** — это мини-фреймворк и безопасный низкоуровневый скриптовый движок для .NET, предназначенный для случаев, когда нужен контроль уровня C, но коду нельзя доверять. Он включает C-подобный язык MiniC и ассемблер NANASM (текстовый и IR) с дизассемблером и пошаговой отладкой, а также полный конвейер: лексер, парсер, оптимизатор AST, генератор байткода, ассемблер и регистровую VM с памятью и портовой шиной. В состав входят устройства ввода-вывода, явные In/Out, API для встраивания, тонкий CLI (`nantuc`) и изоляция, благодаря которой падение скрипта не приводит к падению хоста.
 
 В репозитории: Hello world на MiniC, играбельная змейка, тест аллокатора и два бенчмарка VM.
 
@@ -86,7 +86,7 @@ if (uartState != IdState.Valid) { Console.Error.WriteLine($"register uart: {uart
 
 if (!host.Emulator.TryGetDeviceContext(vmId, out var vm)) { Console.Error.WriteLine("no ctx"); return; }
 
-var compilation = host.Project.CompileToIL(baseAddress: 0, optimize: true).Build();
+var compilation = host.Project.CompileToIR(baseAddress: 0, optimize: true).Build();
 if (!compilation.Success)
 {
     foreach (var e in compilation.Errors!) Console.Error.WriteLine(e);
@@ -100,7 +100,7 @@ if (!vm.TryLoadProgram(compilation.Program!, loadAddress: 0, out var error))
 }
 
 ProcessorFault fault = vm.Run(new LaunchOptions(ShowTimer: true));
-if (fault.Status != BiosStatus.EndProgramm)
+if (fault.Status != BiosStatus.EndProgram)
     Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");
 ```
 
@@ -132,14 +132,14 @@ nantuc lib exist print.minic
 ## Ключевые особенности
 
 - **Два языка**: MiniC (C-подобный: структуры, указатели, массивы, `const`, `sizeof`, inline `asm`, `extern`, `#include`) и NANASM (ассемблер с метками и размерными суффиксами). Спецификации — в [`Nantuc.Compiler/README.ru.md`](Nantuc.Compiler/README.ru.md).
-- **Компилятор с нуля**: лексер, рекурсивный парсер, AST, жадная раскраска регистров, кодогенерация в 32-битный байткод, AST- и peephole-оптимизации, `const`-correctness.
+- **Компилятор с нуля**: лексер, рекурсивный парсер, AST, жадная раскраска регистров, кодогенерация в 32-битный байткод, AST- и IR-оптимизации, `const`-correctness.
 - **VM с изолированным `unsafe`**: нативная RAM через `NativeMemory`, регистры в `InlineArray` (без аллокаций на шаг), порт-шина с маршрутизацией `address → (device, offset)`.
 - **Безопасный API**: `TryRegisterDevice`/`TryGetDeviceContext` вместо `id < 0` + `!`, `IdState` вместо магических `-1..-4`, `ProcessorFault` из `Run`/`DebugRun`, `TryLoadProgram` вместо исключений, `Pause()`/`Resume()` для управления из другого потока.
 - **Устройства как first-class**: VM сама является устройством (`IPortController`) — можно вкладывать VM друг в друга, подключать UART, мониторы, клавиатуры.
 - **Публичный API без хаков**: `VmHost` / `DeviceContext` / `VmHostProject` — весь unsafe и нативные буферы спрятаны в `Nantuc.Kernel`.
 - **Дизассемблер и отладчик**: секции кода/данных, текстовый и структурный вывод; `Debugger` поверх `DeviceContext` с `Step`/`StepOver`/`StepOut`/`Continue`/`RunToEnd`, точками останова, `RequestStop` из другого потока, best-effort стеком вызовов, чтением RAM.
 - **CLI `nantuc`**: тонкая обёртка над публичным API (`compile`, `run`, `disasm`, `lib`, `help`), без собственной логики компиляции/исполнения; ставится как .NET global tool (`Nantuc.CLI`).
-- **Стандартные оптимизации** (AST и peephole) и инфраструктура для своих правил.
+- **Стандартные оптимизации** (AST и IR) и инфраструктура для своих правил.
 - **Два бенчмарка**: ручной `Nantuc.Benchmarks` (MIPS, стабильность, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` на **14 MiniC-кейсах**. Рядом — `OtherLangs`: те же 14 кейсов на Python, Lua, LuaJIT, Ruby, JS, C, C++, C#, Java и Rust (отдельный раннер, [`benchmarks/OtherLangs/README.ru.md`](benchmarks/OtherLangs/README.ru.md)).
 
 ## Безопасный API
@@ -157,7 +157,7 @@ nantuc lib exist print.minic
 | Пошаговое исполнение | — | `Debugger` (в `VmApplication.Extensions`) поверх `RunStepMode`/`SingleStep` |
 
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **не полагайтесь на `default(IdState) == Valid`** — это изменилось.
-- **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. На успехе `Status == EndProgramm`; на падении — `DivOnZero`/`SegmentationFault`/… с точным `IP` и `OpCode`.
+- **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. На успехе `Status == EndProgram`; на падении — `DivOnZero`/`SegmentationFault`/… с точным `IP` и `OpCode`.
 - **`IProcessorFaultPolicy`** — используется **внутри** VM; возврат из `Run`/`DebugRun` — уже `ProcessorFault`, отдельная политика не нужна.
 - **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — не добавляет контрактов в `Kernel`/`VmApplication`, работает через публичный API. Подробности — в [`Nantuc.VmApplication.Extensions/README.ru.md`](src/Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
 
@@ -184,7 +184,7 @@ nantuc lib exist print.minic
 ┌──────────────────────────┐    ┌──────────────────────────────────────────────────┐
 │  Nantuc.Compiler         │    │  Nantuc.Kernel                                   │
 │  (MiniC + NANASM)        │    │  (Processor, MemoryBus, PortBus,                 │
-│  Assembler / ILAssembler │    │   Device, ManagerDevices)                        │
+│  Assembler / IRAssembler │    │   Device, ManagerDevices)                        │
 └──────────────────────────┘    └──────────────────────────────────────────────────┘
               │                                │
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -215,7 +215,7 @@ nantuc lib exist print.minic
 | `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorFaultPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.ru.md) |
 | `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | [README](src/Nantuc.Diagnostics/README.ru.md) |
 | `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | [README](src/Nantuc.Kernel/README.ru.md) |
-| `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `ILAssembler`, `AssemblerParser`, `PeepholeOptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.ru.md) |
+| `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.ru.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.ru.md) |
 | `Nantuc.VmApplication.Extensions` | Дизассемблер, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extensions/README.ru.md) |
 | `Nantuc.CLI` | CLI `nantuc`: `compile`, `run`, `disasm`, `lib`, `help`; ставится как .NET global tool | [README](src/Nantuc.CLI/README.ru.md) |

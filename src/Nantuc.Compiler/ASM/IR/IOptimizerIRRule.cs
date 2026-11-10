@@ -2,7 +2,7 @@
 
 namespace Nantuc.Compiler.ASM.IR;
 
-public interface IPeepholeRule
+public interface IOptimizerIRRule
 {
     /// <summary>
     /// Пытается применить правило, начиная с позиции index в списке items.

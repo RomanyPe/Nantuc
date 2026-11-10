@@ -166,7 +166,7 @@ An immediate operand is present **only** in opcodes marked `HasNeed64IntData = t
 | Opcode | Action |
 |--------|--------|
 | `NOP` | no operation, `rIP` has already advanced by 4 |
-| `END` | `IsRunning = false`; `BiosStatus.EndProgramm` is returned; then `IProcessorFaultPolicy.ShouldContinue` is called, and its response overwrites `IsRunning` |
+| `END` | `IsRunning = false`; `BiosStatus.EndProgram` is returned; then `IProcessorFaultPolicy.ShouldContinue` is called, and its response overwrites `IsRunning` |
 
 ### 5.2. Moves and load/store
 
@@ -348,7 +348,7 @@ The device implements `ReadPort(offset) → byte` and `WritePort(offset, value)`
 | 0  | `Success` | success (default, safe value) |
 | 1  | `SegmentationFault` | RAM out-of-bounds / stack-heap collision |
 | 2  | `AlignmentFault` | invalid address alignment |
-| 3  | `EndProgramm` | normal termination (`END`) |
+| 3  | `EndProgram` | normal termination (`END`) |
 | 4  | `HostStopped` | host-side stop (`Stop`) |
 | 5  | `NotImplementedOpCode` | opcode has no handler |
 | 6  | `NullDeviceInput` | no input device |
@@ -360,7 +360,7 @@ The device implements `ReadPort(offset) → byte` and `WritePort(offset, value)`
 
 ### 8.2. `ProcessorFault`
 
-When a status ≠ `Success` is received (including the "normal" `EndProgramm`, `HostStopped`, `InfinityLoop`), a snapshot is formed:
+When a status ≠ `Success` is received (including the "normal" `EndProgram`, `HostStopped`, `InfinityLoop`), a snapshot is formed:
 
 ```csharp
 ProcessorFault(BiosStatus Status,
@@ -373,7 +373,7 @@ ProcessorFault(BiosStatus Status,
 - `OpCode` — the actual opcode; the value `OpCode.NOP` (0) is reserved for "unknown/no opcode" (a controversial decision, but fixed).
 - `FaultData` — context: memory address, port number, opcode, etc.
 
-Then `IProcessorFaultPolicy.ShouldContinue(fault)` is called; its response is written to `IsRunning`. The policy **must** distinguish "real errors" from the "normal" `EndProgramm`/`HostStopped`/`InfinityLoop`.
+Then `IProcessorFaultPolicy.ShouldContinue(fault)` is called; its response is written to `IsRunning`. The policy **must** distinguish "real errors" from the "normal" `EndProgram`/`HostStopped`/`InfinityLoop`.
 
 ---
 
@@ -502,7 +502,7 @@ Bytes: 08 41 00 00
 3. **Bounds check in `MemoryBus`**: `address + N <= Length` is implemented as `address <= Length - N`; if `Length < N`, underflow is possible (ruled out in the reference because `Length ≥ 64`).
 4. **Immediate reading uses `ReadInt64LEUnSafe`**, i.e., unaligned. On platforms where unaligned reads are not supported by hardware, the program load address must be 8-byte aligned.
 5. **`WAKE` as an instruction in the body is a no-op.** Waking from `HALT` is possible only via `EnqueueExternalCommand(OpCode.WAKE)` or `PortBus.WakeProcessor`.
-6. **`END` does not guarantee stopping**: `IsRunning = false` is set, but then overwritten by the response of `IProcessorFaultPolicy.ShouldContinue(...)`. The policy must return `false` for `EndProgramm`.
+6. **`END` does not guarantee stopping**: `IsRunning = false` is set, but then overwritten by the response of `IProcessorFaultPolicy.ShouldContinue(...)`. The policy must return `false` for `EndProgram`.
 7. **`InstructionLOAD`/`InstructionSTORE` do not return `AlignmentFault` for an invalid `OpCodeSize`** (there `default` → `SegmentationFault` for LOAD and `AlignmentFault` for STORE); in practice `OpCodeSize` has exactly 4 values — `default` is unreachable.
 8. **`HasNeed64IntData`** is robust to changing the underlying `OpCode` type to signed: check `(uint)opCode > (uint)OpCode.MOD`, then index into `_has[0..42]`.
 9. **`OpCode.NOP` = 0 is used as the "unknown opcode" marker** in `ProcessorFault` (`ProcessSimulationStatusSlow`). This is a controversial convention; if a real NOP fault appears, it will be impossible to distinguish it from the "empty" value.

@@ -29,7 +29,9 @@ public class CliMessages
                                      8B 16B 32B 64B 128B 256B
           -l, -limit <N>             Max steps to execute (default: unlimited)
           -t, -timer, -lt            Print elapsed time when the program ends
-
+          -dm, -dumbm, -dumb-memory <file>     Save a memory dump to <file> when execution ends
+          -dr, -dumbr, -dumb-registers <file>  Save a register dump to <file> when execution ends
+                
         disasm options:
           -f, -file <file>           Program image to disassemble (required)
           -cs, -codes <N>            Number of bytes to disassemble (default: file size)

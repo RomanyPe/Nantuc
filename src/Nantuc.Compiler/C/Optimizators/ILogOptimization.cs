@@ -2,7 +2,7 @@
 
 namespace Nantuc.Compiler.C.Optimizators;
 
-public interface ILogOptimization : IReadOnlyLogOptimization
+public interface IRogOptimization : IReadOnlyLogOptimization
 {
     void Clear();
     void Append(int pass, string message);

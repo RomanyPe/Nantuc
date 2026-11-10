@@ -226,7 +226,7 @@ public sealed class Processor(MemoryBus ram,
         BiosStatus dat = opCode switch
         {
             OpCode.NOP => BiosStatus.Success,
-            OpCode.END => EndProgramm(),
+            OpCode.END => EndProgram(),
             OpCode.MOV => InstructionMOV(GetReg1(rawInst), GetReg2(rawInst)),
 
             OpCode.LOAD => InstructionLOAD(GetDataSizeCode(rawInst), GetReg1(rawInst), Get64IntData()),
@@ -411,10 +411,10 @@ public sealed class Processor(MemoryBus ram,
         return BiosStatus.Success;
     }
 
-    private BiosStatus EndProgramm()
+    private BiosStatus EndProgram()
     {
         Volatile.Write(ref _isRunning, false);
-        return BiosStatus.EndProgramm;
+        return BiosStatus.EndProgram;
     }
 
 

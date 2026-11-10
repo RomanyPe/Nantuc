@@ -2,7 +2,7 @@
 using System.Text;
 using Xunit.Abstractions;
 
-namespace TestsCLI;
+namespace Nantuc.CLI.Tests;
 
 public class DisassembleCommandTests(ITestOutputHelper log)
 {

@@ -84,7 +84,7 @@ if (args.Length >= 2 && args[0] == "-snake")
 | `var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);` | Политика, логирующая `[FAULT]` при падении и останавливающая симуляцию |
 | `DeviceSpec.Create(ramSize: RamSize.MB128, processorFaultPolicy: lfPolicy, name: "ConsoleVM")` | VM + политика fault'ов |
 | `QueuedIOStream(Console.Out, PortCharEncoding.Utf8)` | I/O на `sector 1` (не используется в `source1`) |
-| `CompileToIL(baseAddress: 0, optimize: true).Build()` | Компиляция всех файлов |
+| `CompileToIR(baseAddress: 0, optimize: true).Build()` | Компиляция всех файлов |
 | `RegisterDevice(spec, sector: 0)` / `RegisterDevice(ioDevice, "console", sector: 1)` | Регистрация VM и I/O |
 | `GetDeviceContext(deviceId)!` | `DeviceContext` для VM |
 | `TryLoadProgram(program, loadAddress: 0, out error)` → `Run()` | Загрузка и запуск |
@@ -114,7 +114,7 @@ public class SnakeGameOnNantuc(int period = 200)
 4. `DeviceSpec.Create(ramSize: RamSize.MB16, name: "SnakeVM")` → `RegisterDevice(handle, sector: 0)`.
 5. `RegisterDevice(monitor, name: "monitor", sector: 1)`.
 6. `GetDeviceContext(deviceId)!`.
-7. `CompileToIL(0, optimize: false).Build()`, `TryLoadProgram`.
+7. `CompileToIR(0, optimize: false).Build()`, `TryLoadProgram`.
 8. `inputThread` (background): `Console.ReadKey(intercept: true)` → стрелки в `1..4`, `Q`/`Escape` → `running = false; ctx.Stop()`. Пишет `portBus.WritePort(0, code)`.
 9. `Timer(..., null, 200, _period)` — `portBus.WakeProcessor(0)` каждые `_period` мс.
 10. `ctx.Run()` (блокируется до `Stop`).
@@ -136,7 +136,7 @@ public sealed class MonochromeMonitor : PortControlBase
     public const int REG_FRAME    = 6;
 
     public const byte CMD_CLEAR = 1;
-    public const byte CMD_FILL  = 2;
+    public const byte CMD_FIRL  = 2;
     public const byte CMD_FLUSH = 3;
     public const byte CMD_HOME  = 4;
 
@@ -276,7 +276,7 @@ var regs = deviceCtx.GetRegistersSnapshot();
 ulong ret = regs[RegType.r0];
 if (ret != 10)
 {
-    Console.Error.WriteLine($"Allocator test FAILED: r0={ret} (expected 10)");
+    Console.Error.WriteLine($"Allocator test FAIRED: r0={ret} (expected 10)");
     return;
 }
 Console.WriteLine("Allocator test PASSED");
@@ -375,7 +375,7 @@ var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);
    Console.WriteLine($"{RegType.r0.RegName()}: {regs[RegType.r0]}");
    ```
    `source1` возвращает `int` (`return s; // 10`), но `Run()` возвращает `ProcessorFault`, а не код возврата. Фактический результат — в `r0`, но `Program.cs` его только печатает, не сверяет. Тест «проходит» даже при `r0 != 10`.
-   Фикс: `if (regs[RegType.r0] != 10) { Console.Error.WriteLine($"FAILED: r0={regs[RegType.r0]} (expected 10)"); return; }` — например, сразу после `Run()`, до дампа.
+   Фикс: `if (regs[RegType.r0] != 10) { Console.Error.WriteLine($"FAIRED: r0={regs[RegType.r0]} (expected 10)"); return; }` — например, сразу после `Run()`, до дампа.
 
 4. **`SnakeGameOnNantuc` — `portBus.WritePort(0, code)` без проверки результата.**
    Файл: `SnakeGame/SnakeGameOnNantuc.cs`, строка `portBus.WritePort(0, code);` в `inputThread`.

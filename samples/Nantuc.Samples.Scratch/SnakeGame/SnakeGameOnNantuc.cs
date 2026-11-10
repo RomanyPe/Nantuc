@@ -32,7 +32,7 @@ public class SnakeGameOnNantuc(int period = 200)
         var portBus = host.Emulator.GetPortBus();
 
         // -------- компиляция --------
-        var res = host.Project.CompileToIL(baseAddress: 0, optimize: false).Build();
+        var res = host.Project.CompileToIR(baseAddress: 0, optimize: false).Build();
         if (!res.Success)
         {
             foreach (var e in res.Errors!) Console.WriteLine(e);

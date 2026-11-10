@@ -20,7 +20,7 @@
 `Nantuc.VmApplication` — фасад над двумя подсистемами: компилятором (`Nantuc.Compiler`) и рантаймом (`Nantuc.Kernel`). Все типы ядра, которые пользователю «не положено» видеть (`Processor`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Assembler`), спрятаны за тонким слоем обёрток. Пользователь работает с пятью основными абстракциями:
 
 - `VmHost` — «всё в одном»: проект (`VmHostProject`) + эмулятор (`VmEmulator`). Создаётся через `VmHostFactory.CreateDefault()`.
-- `VmHostProject` — компиляция: `GetSourceFiles()` → `Compile()` / `CompileToIL()` → `CompilationResult` / `CompilationToILResult`. Конфигурируется через `CompilerContext` (строится `VmHostProjectBuilder`).
+- `VmHostProject` — компиляция: `GetSourceFiles()` → `Compile()` / `CompileToIR()` → `CompilationResult` / `CompilationToIRResult`. Конфигурируется через `CompilerContext` (строится `VmHostProjectBuilder`).
 - `CompilerContext` — неизменяемый снимок конфигурации компилятора: `Optimizator` + `Paths` + `FileService` + `ThrowCompiler`.
 - `VmEmulator` — исполнение: регистрация устройств, включая VM (`DeviceSpec`), выдача `DeviceContext`, доступ к `IPortBus`. Настраивается через `VmEmulatorBuilder`.
 - `DeviceContext` — управление конкретной VM: `LoadProgram`, `Run`, `RunStepMode`/`SingleStep`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, режимы (Step/Continuous/None).
@@ -48,7 +48,8 @@ Nantuc.VmApplication/
 ├── VmHostFactory.cs                    # CreateDefault(...) с optimizator и provider
 ├── Default/
 │   ├── DefaultFileService.cs           # IFileService на реальной ФС
-│   └── RamFileService.cs               # IFileService в памяти
+│   └── RamFileService.cs               # IFileService в памяти (in-memory)
+│                                       # + канонизация путей как в реальной ФС
 ├── Emulator/                           (namespace Nantuc.VmApplication.Emulator)
 │   ├── Abstraction/PortControlBase.cs  # abstract IPortController + Interlocked.Dispose
 │   ├── DeviceContext.cs                # окно к Device: Run/Step/Load/Ports/Registers/GetLastFault/Pause/Resume
@@ -58,7 +59,7 @@ Nantuc.VmApplication/
 │   └── VmEmulatorBuilder.cs            # fluent: WithPortBusSize / WithPortsPerDevice
 ├── Project/                            (namespace Nantuc.VmApplication.Project)
 │   ├── CompilationResult.cs            # byte[] + метрики секций + ошибки
-│   ├── CompilationToILResult.cs        # ILAssembler + Build() → CompilationResult
+│   ├── CompilationToIRResult.cs        # IRAssembler + Build() → CompilationResult
 │   ├── CompilerContext.cs              # record: Optimizator + Paths + FileService + ThrowCompiler
 │   ├── IFileService.cs                 # FS-абстракция
 │   ├── IProjectFilesConfig.cs          # пути + расширения; static Default
@@ -67,24 +68,17 @@ Nantuc.VmApplication/
 │   ├── SourceFile.cs                   # record struct (Name, Content, Language)
 │   ├── SourceLanguage.cs               # enum { Asm, C, None }
 │   ├── VmAstOptimizer.cs               # обёртка AstOptimizer
-│   ├── VmCompilerOptimizator.cs        # AstOptimizer + PeepholeOptimizer + обёртки
-│   ├── VmHostProject.cs                # GetSourceFiles / Compile / CompileToIL / OptimizationIL
+│   ├── VmCompilerOptimizator.cs        # AstOptimizer + IROptimizer + обёртки
+│   ├── VmHostProject.cs                # GetSourceFiles / Compile / CompileToIR / OptimizationIR
 │   ├── VmHostProjectBuilder.cs         # WithPaths / WithFileService / WithOptimizator / WithThrowProvider / Build
-│   └── VmPeepholeOptimizer.cs          # обёртка PeepholeOptimizer
+│   └── VmIROptimizer.cs          # обёртка IROptimizer
 └── Unsafe/                             (namespace Nantuc.VmApplication.Unsafe)
     ├── CompilationResultUnsafeExtension.cs # Assembler extension prop
     ├── DeviceContextUnsafeExtensions.cs     # AsRawDevice()
-    ├── VmEmulatorUnsafeExtension.cs         # GetRawPortBus()
-    └── VmPtojectUnsafeExtension.cs          # CustomCompile<TAssembler,TResult>(...) — обёртка над CompileInternal
+    ├── VmEmulatorUnsafeExtension.cs         # GetRawPortBus() GetRawEmulator
+    ├── VmCompilerOptimizatorExtension.cs
+    └── VmPojectUnsafeExtension.cs          # CustomCompile<TAssembler,TResult>(...) — обёртка над CompileInternal
 ```
-
-Замечания по организации:
-- `CompilerContext` — новая неизменяемая запись, единственный способ сконфигурировать `VmHostProject`.
-- `SnapshotRegisters` вынесен в отдельный файл `Emulator/SnapshotRegisters.cs`.
-- `DeviceView.cs` удалён (мёртвый код).
-- `VmCompilerOptimizator` свойства переименованы: `VmAstOptimizer` (было `VMAstOptimizer`) и `VmPeepholeOptimizer` (было `VMPeepholeOptimizer`).
-- В `Unsafe/` четыре расширения (не одно), в т.ч. `VmPtojectUnsafeExtension` — с опечаткой в имени класса, но так в коде.
-
 ## API
 
 ### VmHost и VmHostFactory — точка входа
@@ -112,8 +106,7 @@ using var host = VmHostFactory.CreateDefault();
 
 Опциональные параметры:
 - `projectConfig` — пути и расширения (`IProjectFilesConfig.Default`).
-- `fileService` — `RamFileService` по умолчанию, `DefaultFileService` — для реальной ФС.
-- `optimizator` — готовый `VmCompilerOptimizator` с правилами. Если `null` — `VmHostProjectBuilder.Build()` создаст новый `VmCompilerOptimizator()` (`?? new()`).
+- `fileService` — `RamFileService` по умолчанию (in-memory, эмулирует семантику путей реальной ФС: оба разделителя, `.`/`..`, регистронезависимость по умолчанию); `DefaultFileService` — для реальной ФС.- `optimizator` — готовый `VmCompilerOptimizator` с правилами. Если `null` — `VmHostProjectBuilder.Build()` создаст новый `VmCompilerOptimizator()` (`?? new()`).
 - `provider` — `IErrorMessageProvider?`, оборачивается в `ThrowCompiler` внутри `VmHostProjectBuilder`.
 - `portBusSize` — размер порт-пространства (`PortSize.KB64`).
 - `portsPerDevice` — размер блока портов на устройство (`DevicePortSize.B16`).
@@ -189,8 +182,8 @@ public sealed class VmHostProject(CompilerContext ctx)
     public IEnumerable<SourceFile> GetSourceFiles();
 
     public CompilationResult     Compile(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize);
-    public CompilationToILResult CompileToIL(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize);
-    public CompilationToILResult OptimizationIL(CompilationToILResult res, int peepholeOptimizationCount);
+    public CompilationToIRResult CompileToIR(IEnumerable<SourceFile> files, ulong baseAddress, bool optimize);
+    public CompilationToIRResult OptimizationIR(CompilationToIRResult res, int IROptimizationCount);
 }
 
 public class VmHostProjectBuilder
@@ -205,7 +198,7 @@ public class VmHostProjectBuilder
 
 - `CompilerContext` — единственный аргумент конструктора `VmHostProject`. Собирается `VmHostProjectBuilder.Build()`.
 - `Compile` — одностадийная сборка: `Assembler` (прямой эмит) → `byte[]`.
-- `CompileToIL` — двухстадийная: `ILAssembler` (список `AsmItem`) → `CompilationToILResult`, затем `OptimizationIL(result, maxPasses)` прогоняет peephole и `result.Build()` собирает байты.
+- `CompileToIR` — двухстадийная: `IRAssembler` (список `AsmItem`) → `CompilationToIRResult`, затем `OptimizationIR(result, maxPasses)` прогоняет IR и `result.Build()` собирает байты.
 - `optimize: true` — включает AST-оптимизации из `Optimizator.VmAstOptimizer`. Логи собираются в `OptimizationResultLog`.
 - `GetSourceFiles` — читает все `.c`/`.minic`/`.asm`/`.nanasm` из `FileService.GetNameFiles(Paths)`.
 - `WithThrowProvider` — опциональная политика исключений (`IErrorMessageProvider?`), оборачивается в `ThrowCompiler`.
@@ -267,7 +260,7 @@ public record class LaunchOptionsDebug(
 - `Pause()` / `Resume()` — ставят в очередь внешние команды `OpCode.HALT` / `OpCode.WAKE`; могут вызываться из другого потока (queue-based).
 - `GetLastFault()` — публичный доступ к последнему `ProcessorFault` без `AsRawDevice`.
 
-`Run` и `DebugRun` возвращают `ProcessorFault` — на успехе `BiosStatus.EndProgramm`, на падении — статус с `InstructionPointer`/`OpCode`.
+`Run` и `DebugRun` возвращают `ProcessorFault` — на успехе `BiosStatus.EndProgram`, на падении — статус с `InstructionPointer`/`OpCode`.
 
 Режимы (`DeviceContext.Mode` — private enum):
 
@@ -317,15 +310,15 @@ public readonly struct CompilationResult
 `Success` требует `Program != null` — иначе `CompilationResult(new List<string>())` давал бы `Success == true` при `Program == null` и NRE в `TryLoadProgram`.
 
 ```csharp
-public readonly record struct CompilationToILResult
+public readonly record struct CompilationToIRResult
 {
-    internal readonly ILAssembler? Assembler;
+    internal readonly IRAssembler? Assembler;
     public IReadOnlyList<string>? Errors { get; }
     public OptimizationResultLog? OptimizationResultLog { get; }
 
-    public CompilationToILResult(IReadOnlyList<string>? errors);
-    public CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog);
-    public CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors);
+    public CompilationToIRResult(IReadOnlyList<string>? errors);
+    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog);
+    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors);
 
     public CompilationResult Build();
 }
@@ -345,17 +338,21 @@ public interface IFileService
 ```
 
 - `DefaultFileService` — реальная ФС.
-- `RamFileService` — in-memory. `Combine` использует `Path.Combine`, `GetNameFiles`/`Ext` — `StringComparison.Ordinal`.
+- `RamFileService` — in-memory, эмулирующий поведение реальной ФС **в рамках контракта `IFileService`** (операций записи/удаления/создания директорий нет — их нет и в интерфейсе).
+  - `Combine` = `Path.Combine` + канонизация: оба разделителя (`\` и `/`) сводятся к одному, разрешаются `.` и `..`, убираются повторные и хвостовые разделители; признак абсолютности (`/`, `C:`) сохраняется.
+  - `Exist` / `ReadFile` / `SaveFile` работают по каноническому пути: `src\main.c`, `src/main.c`, `./src//main.c`, `src/sub/../main.c` — один и тот же файл. Абсолютный и относительный пути (`/file.c` vs `file.c`) — **разные** файлы.
+  - Сравнение путей регистронезависимо по умолчанию (как Windows). Конструктор: `new RamFileService(caseSensitive: true)` — для регистрозависимого режима; `separator` — для выбора символа-разделителя в канонических путях.
+  - `GetNameFiles`: `IncludePath` из конфигурации канонизируется перед сравнением, `StartsWith` использует тот же `StringComparison`, что и словарь. Расширения (`ExtensionsAsm` / `ExtensionsMiniC`) сравниваются через `StringComparison.Ordinal` (как в оригинале — `main.MINIC` не считается `.minic`).
+  - Каталоги существуют неявно: `SaveFile("a/b/c.c", ...)` подразумевает `a/` и `a/b/`. Отдельного `CreateDirectory` нет — контракт этого не требует.
 
 `IProjectFilesConfig` — `BaseDirectory`, `ProjectPath`, `IncludePath`, `ExtensionsAsm`, `ExtensionsMiniC`, `static Default`.
-
 ### Оптимизаторы
 
 ```csharp
 public sealed class VmCompilerOptimizator
 {
     public VmAstOptimizer VmAstOptimizer { get; }
-    public VmPeepholeOptimizer VmPeepholeOptimizer { get; }
+    public VmIROptimizer VmIROptimizer { get; }
 }
 
 public sealed class VmAstOptimizer
@@ -368,12 +365,12 @@ public sealed class VmAstOptimizer
     public OptimizationId GetType(int i);
 }
 
-public sealed class VmPeepholeOptimizer
+public sealed class VmIROptimizer
 {
     public int Count { get; }
-    public void Add(IPeepholeRule rule);
-    public void Insert(int index, IPeepholeRule item);
-    public void Remove(IPeepholeRule item);
+    public void Add(IOptimizerIRRule rule);
+    public void Insert(int index, IOptimizerIRRule item);
+    public void Remove(IOptimizerIRRule item);
     public void RemoveAt(int index);
 }
 ```
@@ -385,9 +382,9 @@ public sealed class VmPeepholeOptimizer
 ```csharp
 public static class CompilationResultUnsafeExtension
 {
-    extension(CompilationToILResult il)
+    extension(CompilationToIRResult il)
     {
-        public ILAssembler? Assembler => il.Assembler;
+        public IRAssembler? Assembler => il.Assembler;
     }
 }
 
@@ -404,10 +401,11 @@ public static class VmEmulatorUnsafeExtension
     extension(VmEmulator vm)
     {
         public PortBus GetRawPortBus();
+        public Kernel.Utilites.Emulator GetRawEmulator();
     }
 }
 
-public static class VmPtojectUnsafeExtension
+public static class VmPojectUnsafeExtension
 {
     extension(VmHostProject proj)
     {
@@ -420,9 +418,18 @@ public static class VmPtojectUnsafeExtension
             where TAssembler : AssemblerBase;
     }
 }
+
+public static class VmCompilerOptimizatorExtension
+{
+    extension(VmCompilerOptimizator opt)
+    {
+        public IROptimizer RawIROptimizer;
+        public AstOptimizer RawAstOptimizer;
+    }
+}
 ```
 
-Для случаев, когда обёртки не хватает: прямой доступ к `Device`/`PortBus`/`ILAssembler`/`CompileInternal`. Использовать осторожно: после `AsRawDevice()` вы держите ссылку на `Device`, и его `Dispose` уже не контролируется `VmEmulator`. Имя класса `VmPtojectUnsafeExtension` содержит опечатку (сохранена для обратной совместимости).
+Для случаев, когда обёртки не хватает: прямой доступ к `Device`/`PortBus`/`IRAssembler`/`CompileInternal`. Использовать осторожно: после `AsRawDevice()` вы держите ссылку на `Device`, и его `Dispose` уже не контролируется `VmEmulator`. Имя класса `VmPojectUnsafeExtension` содержит опечатку (сохранена для обратной совместимости).
 
 ## Примеры для API
 
@@ -470,7 +477,7 @@ if (!vm.TryLoadProgram(compilation.Program!, loadAddress: 0, out var error))
 ProcessorFault fault = vm.Run(new LaunchOptions(ShowTimer: true,
     OnEnd: r => Console.WriteLine($"steps={r?.Steps} elapsed={r?.Elapsed}")));
 
-if (fault.Status != BiosStatus.EndProgramm)
+if (fault.Status != BiosStatus.EndProgram)
     Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");
 
 // Последний fault можно получить и после Run
@@ -491,13 +498,13 @@ vm.Resume();    // OpCode.WAKE
 runner.Wait();
 ```
 
-**Компиляция через IL с оптимизациями:**
+**Компиляция через IR с оптимизациями:**
 
 ```csharp
 var sources = host.Project.GetSourceFiles();
-var il = host.Project.CompileToIL(sources, baseAddress: 0, optimize: true);
+var il = host.Project.CompileToIR(sources, baseAddress: 0, optimize: true);
 
-il = host.Project.OptimizationIL(il, peepholeOptimizationCount: 5);
+il = host.Project.OptimizationIR(il, IROptimizationCount: 5);
 
 var result = il.Build();
 if (result.Success)
@@ -514,13 +521,19 @@ if (result.OptimizationResultLog is { } logs)
 ```csharp
 using Nantuc.VmApplication.Default;
 
+// Регистрозависимость по умолчанию false (как на Windows);
+// separator — символ, который будет использоваться в канонических путях.
 var fs = new RamFileService();
-fs.SaveFile("main.c", "int main() { int x = 21; return x * 2; }");
+fs.SaveFile(@"src\main.c", "int main() { int x = 21; return x * 2; }");
+
+// Тот же файл по другому пути — благодаря канонизации:
+fs.Exist("src/main.c");        // true
+fs.Exist("./src//main.c");     // true
+fs.Exist("src/sub/../main.c"); // true
 
 using var host = VmHostFactory.CreateDefault(fileService: fs);
 
-var result = host.Project.Compile(host.Project.GetSourceFiles(), 0, optimize: false);
-```
+var result = host.Project.Compile(host.Project.GetSourceFiles(), 0, optimize: false);```
 
 **Пошаговое исполнение:**
 
@@ -612,9 +625,9 @@ var project = new VmHostProjectBuilder()
 
 **Кто и что использует:**
 - Конечный пользователь языка — запускает готовый `.nbin` через `DeviceContext.Run`/`RunStepMode`/`DebugRun`.
-- Автор IDE/REPL/CI — `VmHostProject.Compile`/`CompileToIL`, `GetSourceFiles`, `OptimizationResultLog`, `SnapshotRegisters`, `Pause`/`Resume`.
+- Автор IDE/REPL/CI — `VmHostProject.Compile`/`CompileToIR`, `GetSourceFiles`, `OptimizationResultLog`, `SnapshotRegisters`, `Pause`/`Resume`.
 - Автор игры/приложения — `VmHostFactory.CreateDefault`, `DeviceContext`, `PortControlBase`, `LaunchOptions`.
-- Автор расширений к компилятору — `VmAstOptimizer.Add`/`VmPeepholeOptimizer.Add`, `VmCompilerOptimizator`.
+- Автор расширений к компилятору — `VmAstOptimizer.Add`/`VmIROptimizer.Add`, `VmCompilerOptimizator`.
 - Автор собственной политики исключений — `IErrorMessageProvider` + `WithThrowProvider`/`CreateDefault(provider:)`.
 
 **Что стоит делать:**
@@ -624,7 +637,7 @@ var project = new VmHostProjectBuilder()
 - Использовать `TryGetDeviceContext` вместо `GetDeviceContext(id)!`.
 - Для безопасной загрузки — `TryLoadProgram` (без исключений).
 - Читать `ProcessorFault` из `Run`/`DebugRun` или через `GetLastFault()` — это правильный способ узнать статус завершения.
-- Для WASM/браузера — `RamFileService` + `CompileToIL` + `Build`, без `DefaultFileService`.
+- Для WASM/браузера — `RamFileService` (или `DefaultFileService`, но он медленнее) + `CompileToIR` + `Build`.
 - Для остановки длинного прогона из другого потока — `Pause()`/`Resume()`.
 
 **Что не стоит делать:**
@@ -634,29 +647,6 @@ var project = new VmHostProjectBuilder()
 - Использовать `DeviceContextUnsafeExtensions.AsRawDevice()` без острой необходимости.
 - Полагаться на `GetLastFault()` как «результат последнего шага» — `_faultData` не обновляется каждую итерацию (для оптимизации) и не сбрасывается в `LaunchProgramm`. См. [Особенная информация](#особенная-информация).
 - Передавать `null` в `WithOptimizator` — это допустимо (создастся новый `VmCompilerOptimizator`), но лучше контролировать явно.
-
-## Что исправлено в этой версии
-
-По сравнению с прошлой фиксацией `Nantuc.VmApplication`:
-
-- **`CompilerContext`** — новая запись; `VmHostProject` теперь принимает только `CompilerContext`.
-- **`VmHostProject`** — добавлено публичное свойство `ThrowCompilerPolicy`.
-- **`VmHostProjectBuilder`** — добавлен `WithThrowProvider(IErrorMessageProvider?)`; `WithOptimizator` принимает `VmCompilerOptimizator?`.
-- **`VmHostFactory.CreateDefault`** — добавлен параметр `IErrorMessageProvider? provider = null` (4-м, перед `portBusSize`).
-- **`DeviceContext`** — добавлены `Pause()` (OpCode.HALT) и `Resume()` (OpCode.WAKE); `SingleStep`/`MultiStep` принимают `Action<ProcessorSnapshot>?`; `LoadProgram` принимает `ReadOnlySpan<byte>`; `TryFastLoadProgram` → `TryLoadProgram`; добавлен `GetLastFault()`.
-- **`LaunchOptions.OnEnd`** — `Action<TimeSimulationResult>?`; 
-- **`LaunchOptionsDebug.OnStep`** — `Action<ProcessorSnapshot>?`.
-- **`SnapshotRegisters`** — вынесен в отдельный файл; `Count` стал `const int = 32`; `GetHashCode` согласован с `Equals`.
-- **`CompilationResult.Success`** требует `Program != null`.
-- **`CompilationToILResult(ILAssembler?, OptimizationResultLog?)`** — конструктор публичный.
-- **`ProjectBuilder.ReadInclude`** для конфликта путей бросает `CodeException(ErrorCode.Parser_IncludeAmbiguous, ...)`.
-- **`VmHostProject.CompileInternal`** на ошибке возвращает `res` и `ex.ToString()` (со stack trace).
-- **`VmHostProject.OptimizationIL`** на ошибке сохраняет `OptimizationResultLog` из исходного результата.
-- **`VmCompilerOptimizator`** — свойства переименованы: `VMAstOptimizer` → `VmAstOptimizer`, `VMPeepholeOptimizer` → `VmPeepholeOptimizer`.
-- **`RamFileService.Combine`** — `Path.Combine` вместо `"\\"`, `GetNameFiles`/`Ext` — `StringComparison.Ordinal`.
-- **`DeviceView`** удалён.
-- **Unsafe-расширения**: `CompilationResultUnsafeExtension` (`Assembler`), `VmEmulatorUnsafeExtension.GetRawPortBus()`, `VmPtojectUnsafeExtension.CustomCompile<TAssembler,TResult>(...)` (обёртка над `CompileInternal`).
-- **XML-документация** добавлена на публичные члены (ранее отмеченные как отсутствующие).
 
 ## Особенная информация
 
@@ -677,7 +667,7 @@ var project = new VmHostProjectBuilder()
 
 ### Байткод: `baseAddress` и `StartAdress`
 
-`CompilationResult.StartAdress` — это `baseAddress`, переданный в `Compile`/`CompileToIL`. По умолчанию `ProjectBuilder.BaseAddressProgram = 0x00`. `Compile` не выставляет `StartAdress` в `LoadProgram` автоматически — `LoadProgram` копирует байты по `loadAddress`, а `LaunchOptions.StartAddress` — откуда начать исполнение.
+`CompilationResult.StartAdress` — это `baseAddress`, переданный в `Compile`/`CompileToIR`. По умолчанию `ProjectBuilder.BaseAddressProgram = 0x00`. `Compile` не выставляет `StartAdress` в `LoadProgram` автоматически — `LoadProgram` копирует байты по `loadAddress`, а `LaunchOptions.StartAddress` — откуда начать исполнение.
 
 ### Include resolution
 
@@ -685,15 +675,21 @@ var project = new VmHostProjectBuilder()
 
 ### Thread-safety
 
-`DeviceContext` не потокобезопасен, кроме `Stop`, `Pause`, `Resume`. `SnapshotRegisters` — `readonly struct` с копией регистров. `VmHostProject.Compile`/`CompileToIL` — не потокобезопасны (общий `_optimizator.AstOptimizer`). `VmEmulator.GetDeviceContext`/`RegisterDevice`/`UnregisterDevice` — не потокобезопасны.
+`DeviceContext` не потокобезопасен, кроме `Stop`, `Pause`, `Resume`. `SnapshotRegisters` — `readonly struct` с копией регистров. `VmHostProject.Compile`/`CompileToIR` — не потокобезопасны (общий `_optimizator.AstOptimizer`). `VmEmulator.GetDeviceContext`/`RegisterDevice`/`UnregisterDevice` — не потокобезопасны.
 
 ### `ProcessorFault` из `Run`/`DebugRun`/`GetLastFault`
 
 `Run` и `DebugRun` возвращают `ProcessorFault` из `_device.Run(...)`/`_device.DebugRun(...)`. `GetLastFault()` — публичный доступ к `_faultData` в `Processor`. Важно: `_faultData` не сбрасывается в `LaunchProgramm` (`[Nantuc.Kernel](../../src/Nantuc.Kernel/README.ru.md)`, [Что исправить, п.2](../../src/Nantuc.Kernel/README.ru.md#что-исправить)) — второй `Run` может вернуть fault от первого. XML-doc на `GetLastFault` это отражает: «Не обновляется каждую итерацию ради оптимизаций».
 
+### `RamFileService` — мок, а не полноценная ФС
+
+`RamFileService` реализует **только** контракт `IFileService`. Операций `Delete`/`CreateDirectory`/`Move`/`Copy` нет ни в интерфейсе, ни в классе — их добавление без соответствующего расширения контракта нарушило бы принцип «реализация не делает больше, чем обещает интерфейс», а тесты на «мёртвые» методы не валидировали бы продакшн-сценарии. Если в будущем понадобится запись/удаление — сначала расширьте `IFileService` (или добавьте `IWritableFileService : IFileService`), затем реализуйте в обоих классах.
+
+Известное ограничение `GetNameFiles`: `IncludePath` сравнивается через `StartsWith` **без проверки границы пути**, поэтому `IncludePath = /base/include` ошибочно исключает `/base/include2/file.c`. Исправление — проверка следующего символа после префикса (`/` или `\`).
+
 ### Ограничения платформ
 
 - `net10.0`, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — из-за `Kernel`, но в самом модуле unsafe-кода нет.
 - `[InlineArray]` в `SnapshotRegisters` — C# 12+, работает в AOT/WASM.
-- `DefaultFileService` использует `Directory.EnumerateFiles`/`File.ReadAllText` — в WASM работает, но медленно. Для WASM — `RamFileService`.
+- `DefaultFileService` использует `Directory.EnumerateFiles`/`File.ReadAllText` — в WASM работает, но медленно. Для WASM — `RamFileService` (in-memory, без I/O, с теми же правилами путей: унификация разделителей, `.`/`..`, регистронезависимость по умолчанию).
 - `Thread.Sleep(delay)` в `DeviceContext.DebugRun` (через `Device.DebugRun`) — в WASM либо no-op, либо `PlatformNotSupportedException`.

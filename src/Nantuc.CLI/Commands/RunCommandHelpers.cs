@@ -9,7 +9,7 @@ namespace Nantuc.CLI.Commands
             BiosStatus.Success => "Success",
             BiosStatus.SegmentationFault => "SegmentationFault",
             BiosStatus.AlignmentFault => "AlignmentFault",
-            BiosStatus.EndProgramm => "EndProgramm",
+            BiosStatus.EndProgram => "EndProgram",
             BiosStatus.HostStopped => "HostStopped",
             BiosStatus.NotImplementedOpCode => "NotImplementedOpCode",
             BiosStatus.NullDeviceInput => "NullDeviceInput",

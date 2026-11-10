@@ -32,7 +32,7 @@ public static class VMHostRunExtensions
             ram ??= RamSize.MB16;
 
             // 1) Компиляция
-            var comp = host.Project.CompileToIL(source, 0, optimize, lang).Build();
+            var comp = host.Project.CompileToIR(source, 0, optimize, lang).Build();
             if (!comp.Success)
                 return new(null, null, comp, 0, false, comp.Errors ?? [], default);
 
@@ -77,7 +77,7 @@ public static class VMHostRunExtensions
 
             // 6) Запуск — Success считается по fault.Status, а не по факту запуска
             var fault = ctx.Run(new LaunchOptions(StartAddress: 0));
-            bool ok = fault.Status == BiosStatus.EndProgramm;
+            bool ok = fault.Status == BiosStatus.EndProgram;
             IReadOnlyList<string> diags = ok
                 ? []
                 : [$"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}"];

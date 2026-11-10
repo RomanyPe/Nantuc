@@ -1,7 +1,6 @@
-﻿using Nantuc.CLI;
-using Testably.Abstractions.Testing;
+﻿using Testably.Abstractions.Testing;
 
-namespace TestsCLI;
+namespace Nantuc.CLI.Tests;
 
 public sealed class CliTestContext
 {

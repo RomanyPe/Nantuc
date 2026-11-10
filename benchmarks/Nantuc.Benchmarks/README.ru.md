@@ -71,7 +71,7 @@ Nantuc.Benchmarks/
 | `callMc` | `Call` | Вызов функции `sum(r0, r1)` в цикле, 3M итераций |
 | `mathMc` | `Math` | `ADD` + `DEC` + loop, 3M итераций |
 | `aluTput1Mc` | `AluTput1` | 4× `ADD` в один регистр (r0), 800K итераций |
-| `aluTput4Mc` | `AluTput4` | 4× `ADD` в разные регистры (ILP), 800K итераций |
+| `aluTput4Mc` | `AluTput4` | 4× `ADD` в разные регистры (IRP), 800K итераций |
 | `aluTputMixedMc` | `AluTputMixed` | `ADD`/`SUB`/`AND`/`OR` в разные регистры, 800K итераций |
 | `memoryMc` | `Memory` | Заполнение массива `arr[25000]` + суммирование, 20× |
 | `bitOpsMc` | `BitOps` | `SHR`/`AND`/`OR`/`XOR`, 3M итераций |
@@ -98,7 +98,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
     public double StepsVariance { get; }    // дисперсия StepsLogs (extension)
     public CompilationResult? Program { get; private set; }
 
-    public bool TryPrepare();        // CompileToIL(SourceLanguage.C, optimize: true) → TryLoadProgram
+    public bool TryPrepare();        // CompileToIR(SourceLanguage.C, optimize: true) → TryLoadProgram
     public void RunOnce();           // Launch(MipsLogs, ElapsedLog, StepsLogs, ctx)
     public void Warmup();            // Launch([], [], [], ctx) — лог отбрасывается
     public static void Launch(List<double> mips, List<double> elapsed,
@@ -106,7 +106,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
 }
 ```
 
-`TryPrepare` использует `_host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. Загрузка в устройство — через `ctx.TryLoadProgram(res.Program, 0, out string? errorMath)`. Пеephole-оптимизатор не применяется (см. [Особенная информация](#особенная-информация)).
+`TryPrepare` использует `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. Загрузка в устройство — через `ctx.TryLoadProgram(res.Program, 0, out string? errorMath)`. Пеephole-оптимизатор не применяется (см. [Особенная информация](#особенная-информация)).
 
 `Launch` запускает `ctx.Run(new LaunchOptions(ShowTimer: true, OnEnd: ...))`. В `OnEnd` считаются `Mips = Steps / Elapsed.TotalSeconds / 1e6`, добавляются в три списка.
 
@@ -232,21 +232,21 @@ if (runner.Program is { } comp)
 **Что не стоит делать:**
 - Запускать бенчмарк в CI/headless — `Console.ReadLine()` в конце `Main` заблокирует процесс, а `Console.Clear()` может бросить.
 - Сравнивать MIPS между машинами — привязка к ядру, частота, JIT, GC, thermal throttling сильно влияют. Сравнивайте только в пределах одной сессии.
-- Ожидать, что `optimize: true` в `BenchRunner.TryPrepare` даст тот же эффект, что AST-оптимизации + peephole для ASM: `optimize: true` для MiniC включает AST-оптимизации, но peephole (`VmPeepholeOptimizer.AddStdRules`) не вызывается автоматически.
+- Ожидать, что `optimize: true` в `BenchRunner.TryPrepare` даст тот же эффект, что AST-оптимизации + IR для ASM: `optimize: true` для MiniC включает AST-оптимизации, но IR (`VmIROptimizer.AddStdRules`) не вызывается автоматически.
 - Использовать `PeakMips` как единственную метрику — он берёт `Min(Elapsed)`, что чувствительно к выбросам. `TrimmedMean10` из `MipsLogs` надёжнее.
 
 ## Особенная информация
 
 ### `optimize: true` для MiniC
 
-`BenchRunner.TryPrepare` вызывает `_host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. Для MiniC-источников `optimize: true` включает AST-оптимизации компилятора, но **не** включает peephole: `VmPeepholeOptimizer.AddStdRules` никто не вызывает, а `OptimizationIL(..., peepholeOptimizationCount)` в `BenchRunner`/`Program` не используется. Поэтому все 14 кейсов — это AST-оптимизированный, но не peephole-оптимизированный код.
+`BenchRunner.TryPrepare` вызывает `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. Для MiniC-источников `optimize: true` включает AST-оптимизации компилятора, но **не** включает IR: `VmIROptimizer.AddStdRules` никто не вызывает, а `OptimizationIR(..., IROptimizationCount)` в `BenchRunner`/`Program` не используется. Поэтому все 14 кейсов — это AST-оптимизированный, но не IR-оптимизированный код.
 
-Если хотите сравнить «с peephole vs без», нужно явно:
+Если хотите сравнить «с IR vs без», нужно явно:
 
 ```csharp
-host.Project.Optimizator.VMPeepholeOptimizer.AddStdRules();
-var il = host.Project.CompileToIL(text, ProjectBuilder.BaseAddressProgram, optimize: false, SourceLanguage.C);
-il = host.Project.OptimizationIL(il, peepholeOptimizationCount: 5);
+host.Project.Optimizator.VMIROptimizer.AddStdRules();
+var il = host.Project.CompileToIR(text, ProjectBuilder.BaseAddressProgram, optimize: false, SourceLanguage.C);
+il = host.Project.OptimizationIR(il, IROptimizationCount: 5);
 var comp = il.Build();
 ```
 
@@ -342,8 +342,8 @@ var comp = il.Build();
     Если загрузка упала, `Program` уже установлен, а `IsPrepared = false`. Если вызывающий код смотрит на `Program`, он увидит «успешную» компиляцию, но программа не загружена.  
     Фикс: `Program = res` после успешной загрузки. Или задокументировать, что `Program` — результат компиляции, не загрузки.
 
-11. **`BenchRunner.TryPrepare` — жёсткий `optimize: true` и отсутствие peephole.**  
+11. **`BenchRunner.TryPrepare` — жёсткий `optimize: true` и отсутствие IR.**  
     Файл: `BenchRunner.cs`, `TryPrepare` + `BenchCase.cs`.  
-    `optimize: true` захардкожен, `BenchCase` не позволяет сравнить с `optimize: false`. Плюс peephole не вызывается (см. [Особенная информация](#особенная-информация)).  
-    Фикс: добавить в `BenchCase` флаг `OptimizeAst` (по умолчанию `true`) и, опционально, `RunPeephole` — чтобы можно было измерять эффект оптимизаций, а не только «голый» запуск.
+    `optimize: true` захардкожен, `BenchCase` не позволяет сравнить с `optimize: false`. Плюс IR не вызывается (см. [Особенная информация](#особенная-информация)).  
+    Фикс: добавить в `BenchCase` флаг `OptimizeAst` (по умолчанию `true`) и, опционально, `RunIR` — чтобы можно было измерять эффект оптимизаций, а не только «голый» запуск.
 ```

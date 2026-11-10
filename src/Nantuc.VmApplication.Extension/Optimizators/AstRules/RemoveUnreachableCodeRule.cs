@@ -15,7 +15,7 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
         return log;
     }
 
-    public static void RemoveUnreachableCode(ProgramNode program, ILogOptimization removedNodesLog)
+    public static void RemoveUnreachableCode(ProgramNode program, IRogOptimization removedNodesLog)
     {
         foreach (var func in program.FunctionNodes)
         {
@@ -30,7 +30,7 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
         }
     }
 
-    private static void OptimizeBlock(BlockNode block, ILogOptimization removedNodesLog)
+    private static void OptimizeBlock(BlockNode block, IRogOptimization removedNodesLog)
     {
         var newStatements = new List<ASTNode>();
         bool unreachable = false;
@@ -86,7 +86,7 @@ public class RemoveUnreachableCodeRule : IAstOptimizationRule
         SimplifyControlFlow(block, removedNodesLog);
     }
 
-    private static void SimplifyControlFlow(BlockNode block, ILogOptimization removedNodesLog)
+    private static void SimplifyControlFlow(BlockNode block, IRogOptimization removedNodesLog)
     {
         var simplified = new List<ASTNode>();
         foreach (var stmt in block.Statements)

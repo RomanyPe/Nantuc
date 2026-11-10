@@ -3,13 +3,13 @@
 namespace Nantuc.VmApplication.Project;
 
 /// <summary>
-/// Промежуточное IL представление результатов компиляции
+/// Промежуточное IR представление результатов компиляции
 /// </summary>
 /// <param name="Errors"> Список ошибок при не успешной компиляции </param>
 /// <param name="OptimizationResultLog"></param>
-public readonly record struct CompilationToILResult
+public readonly record struct CompilationToIRResult
 {
-    internal readonly ILAssembler? Assembler;
+    internal readonly IRAssembler? Assembler;
     /// <summary> Список ошибок </summary>
     public IReadOnlyList<string>? Errors { get; }
     /// <summary>
@@ -21,7 +21,7 @@ public readonly record struct CompilationToILResult
     /// Конструктор ошибок
     /// </summary>
     /// <param name="errors">список ошибок</param>
-    public CompilationToILResult(IReadOnlyList<string>? errors)
+    public CompilationToIRResult(IReadOnlyList<string>? errors)
     {
         Assembler = null;
         Errors = errors;
@@ -30,9 +30,9 @@ public readonly record struct CompilationToILResult
     /// <summary>
     /// Конструктор успешной компиляции
     /// </summary>
-    /// <param name="assembler">IL ассмеблер</param>
+    /// <param name="assembler">IR ассмеблер</param>
     /// <param name="optimizationResultLog">логи оптимизации</param>
-    public CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog)
+    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog)
     {
         Assembler = assembler;
         OptimizationResultLog = optimizationResultLog;
@@ -40,17 +40,17 @@ public readonly record struct CompilationToILResult
     /// <summary>
     /// Дефолтный конструктор со всеми параметрами
     /// </summary>
-    /// <param name="assembler">IL ассмеблер</param>
+    /// <param name="assembler">IR ассмеблер</param>
     /// <param name="optimizationResultLog">логи оптимизации</param>
     /// <param name="errors">список ошибок</param>
-    public CompilationToILResult(ILAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors)
+    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors)
     {
         Assembler = assembler;
         Errors = errors;
         OptimizationResultLog = optimizationResultLog;
     }
     /// <summary>
-    /// Собрать IL ассемблер в <see cref="CompilationResult"/>
+    /// Собрать IR ассемблер в <see cref="CompilationResult"/>
     /// </summary>
     public CompilationResult Build()
     {

@@ -3,12 +3,12 @@
 namespace Nantuc.Compiler.ASM.IR;
 
 
-public class PeepholeOptimizer
+public class IROptimizer
 {
-    private readonly List<IPeepholeRule> _rules = [];
-    public void Add(IPeepholeRule rule) => _rules.Add(rule);
-    public void Insert(int index, IPeepholeRule item) => _rules.Insert(index, item);
-    public void Remove(IPeepholeRule item) => _rules.Remove(item);
+    private readonly List<IOptimizerIRRule> _rules = [];
+    public void Add(IOptimizerIRRule rule) => _rules.Add(rule);
+    public void Insert(int index, IOptimizerIRRule item) => _rules.Insert(index, item);
+    public void Remove(IOptimizerIRRule item) => _rules.Remove(item);
     public void RemoveAt(int index) => _rules.RemoveAt(index);
     public int Count => _rules.Count;
 

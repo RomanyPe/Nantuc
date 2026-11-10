@@ -1,4 +1,4 @@
-﻿namespace TestsCLI;
+﻿namespace Nantuc.CLI.Tests;
 
 public class LibCommandTests
 {

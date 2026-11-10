@@ -101,7 +101,7 @@ Nantuc.Common/
 
 **`RegType : byte`** — 32 значения: `r0..r27` (регистры общего назначения, **все с `///`**), `rFL` (флаги Zero/Negative), `rSP` (stack pointer), `rHP` (heap pointer), `rIP` (instruction pointer). `<remarks>` на enum фиксирует: 32 регистра по 64 бита в `ArrayRegisters` (`[InlineArray(32)]` из `ulong`), нет аппаратно-занулённого регистра (обнуление через `XOR rN, rN`), порядок 0..31 — часть контракта. Ровно 32 = 5 бит.
 
-**`BiosStatus : byte`** — все 11 членов с `///`: `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgramm`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`. `<remarks>` на enum явно предупреждает: `EndProgramm` и `InfinityLoop` — **не ошибки по смыслу**, но проходят через путь `ProcessorFault`/`IProcessorFaultPolicy`; политика обязана их различать.
+**`BiosStatus : byte`** — все 11 членов с `///`: `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgram`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`. `<remarks>` на enum явно предупреждает: `EndProgram` и `InfinityLoop` — **не ошибки по смыслу**, но проходят через путь `ProcessorFault`/`IProcessorFaultPolicy`; политика обязана их различать.
 
 **`IdState`** — **breaking change** относительно предыдущей версии:
 

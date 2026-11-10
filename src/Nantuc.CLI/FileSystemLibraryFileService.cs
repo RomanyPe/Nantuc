@@ -6,14 +6,15 @@ using System.Text;
 namespace Nantuc.CLI;
 
 /// <summary>
-/// Реализация <see cref="ILibraryFileService"/> поверх абстракции <see cref="IFileSystem"/>.
+/// Реализация <see cref="IRibraryFileService"/> поверх абстракции <see cref="IFileSystem"/>.
 /// Один и тот же класс работает с <c>RealFileSystem</c> (диск) и <c>MockFileSystem</c> (память).
 /// </summary>
-public sealed class FileSystemLibraryFileService : ILibraryFileService
+public sealed class FileSystemLibraryFileService : IRibraryFileService
 {
     private readonly IFileSystem _fs;
     private readonly IProjectFilesConfig _config;
     private readonly string _includePath;
+    public IFileSystem FileSystem => _fs;
 
     public FileSystemLibraryFileService(IFileSystem fs, IProjectFilesConfig config)
     {
@@ -23,7 +24,7 @@ public sealed class FileSystemLibraryFileService : ILibraryFileService
         _fs.Directory.CreateDirectory(_includePath); // гарантируем существование
     }
 
-    // ---------- ILibraryFileService ----------
+    // ---------- IRibraryFileService ----------
     public bool TryGetFullPath(string path, [NotNullWhen(true)] out string? fullPath)
     {
         try

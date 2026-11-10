@@ -1,9 +1,10 @@
 ﻿using Nantuc.VmApplication.Project;
 using System.Diagnostics.CodeAnalysis;
+using System.IO.Abstractions;
 
 namespace Nantuc.CLI;
 
-public interface ILibraryFileService : IFileService
+public interface IRibraryFileService : IFileService
 {
     // Возвращает имена всех инклюдов в IncludePath
     IEnumerable<string> ListLibraries();
@@ -18,6 +19,7 @@ public interface ILibraryFileService : IFileService
 
     // Проверяет существование инклюда.
     bool LibraryExists(string name);
+    public IFileSystem FileSystem { get; }
 
     /// <summary>
     /// Разрешает относительный путь в абсолютный по правилам файловой системы сервиса.

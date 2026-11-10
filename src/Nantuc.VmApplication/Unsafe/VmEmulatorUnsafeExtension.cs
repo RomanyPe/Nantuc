@@ -1,5 +1,6 @@
 ﻿using Nantuc.Kernel.ControllersData;
 using Nantuc.VmApplication.Emulator;
+using System.Net.Http.Headers;
 
 namespace Nantuc.VmApplication.Unsafe;
 
@@ -34,7 +35,13 @@ public static class VmEmulatorUnsafeExtension
         public PortBus GetRawPortBus()
         {
             ArgumentNullException.ThrowIfNull(vm);
-            return vm.AsPortBus;
+            return vm.RawPortBus;
+        }
+
+        public Kernel.Utilites.Emulator GetRawEmulator()
+        {
+            ArgumentNullException.ThrowIfNull(vm);
+            return vm.RawEmulator;
         }
     }
 }

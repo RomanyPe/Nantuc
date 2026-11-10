@@ -3,13 +3,13 @@
 namespace Nantuc.VmApplication.Project;
 
 /// <summary>
-/// Peephole оптимизатор
+/// IR оптимизатор
 /// </summary>
-public sealed class VmPeepholeOptimizer
+public sealed class VmIROptimizer
 {
-    private readonly PeepholeOptimizer _opt;
+    private readonly IROptimizer _opt;
 
-    internal VmPeepholeOptimizer(PeepholeOptimizer astOptimizer)
+    internal VmIROptimizer(IROptimizer astOptimizer)
     {
         _opt = astOptimizer;
     }
@@ -20,15 +20,15 @@ public sealed class VmPeepholeOptimizer
     /// <summary>
     /// Добавить новое правило
     /// </summary>
-    public void Add(IPeepholeRule rule) => _opt.Add(rule);
+    public void Add(IOptimizerIRRule rule) => _opt.Add(rule);
     /// <summary>
     /// Вставить в определнный <paramref name="index"/>
     /// </summary>
-    public void Insert(int index, IPeepholeRule item) => _opt.Insert(index, item);
+    public void Insert(int index, IOptimizerIRRule item) => _opt.Insert(index, item);
     /// <summary>
     /// Удалить правило
     /// </summary>
-    public void Remove(IPeepholeRule item) => _opt.Remove(item);
+    public void Remove(IOptimizerIRRule item) => _opt.Remove(item);
     /// <summary>
     /// Удалить правило по индексу
     /// </summary>

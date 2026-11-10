@@ -17,7 +17,7 @@ public class InlineSmallVoidFunctionsRule : IAstOptimizationRule
         return log;
     }
 
-    private static void InlineSmallVoidFunctions(ProgramNode program, int maxBodySize, ILogOptimization inlinedFunc)
+    private static void InlineSmallVoidFunctions(ProgramNode program, int maxBodySize, IRogOptimization inlinedFunc)
     {
         var candidates = program.FunctionNodes
             .Where(f => f.ReturnType == "void" &&
@@ -45,7 +45,7 @@ public class InlineSmallVoidFunctionsRule : IAstOptimizationRule
     private static void InlineCallsInBlock(BlockNode block,
                                             Dictionary<string, FunctionNode> candidateMap,
                                             HashSet<string> inlined,
-                                            ILogOptimization inlinedFunc)
+                                            IRogOptimization inlinedFunc)
     {
         var newStatements = new List<ASTNode>();
 

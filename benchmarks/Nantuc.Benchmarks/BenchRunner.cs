@@ -40,7 +40,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
     {
         IsPrepared = false;
 
-        CompilationResult res = _host.Project.CompileToIL(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.C).Build();
+        CompilationResult res = _host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, true, SourceLanguage.C).Build();
         if (!res.Success)
         {
             foreach (var err in res.Errors ?? [])

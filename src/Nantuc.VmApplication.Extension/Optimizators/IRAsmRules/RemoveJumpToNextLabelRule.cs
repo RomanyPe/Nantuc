@@ -4,9 +4,9 @@ using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
 
-public sealed class RemoveJumpToNextLabelRule : IPeepholeRule
+public sealed class RemoveJumpToNextLabelRule : IOptimizerIRRule
 {
-    private readonly PeepholeLog log = new(PeepholeOptimizerExtension.RemoveJumpToNextLabel);
+    private readonly IRLog log = new(IROptimizerExtension.RemoveJumpToNextLabel);
 
     public IReadOnlyLogOptimization GetLogs() => log;
     public void Clear() => log.Clear();

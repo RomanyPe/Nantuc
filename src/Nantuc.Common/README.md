@@ -101,7 +101,7 @@ The module has no interfaces and no default implementations. Public surface:
 
 **`RegType : byte`** — 32 values: `r0..r27` (general-purpose registers, **all with `///`**), `rFL` (Zero/Negative flags), `rSP` (stack pointer), `rHP` (heap pointer), `rIP` (instruction pointer). The `<remarks>` on the enum states: 32 registers of 64 bits in `ArrayRegisters` (`[InlineArray(32)]` of `ulong`), there is no hardware-zeroed register (zeroing via `XOR rN, rN`), the order 0..31 is part of the contract. Exactly 32 = 5 bits.
 
-**`BiosStatus : byte`** — all 11 members with `///`: `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgramm`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`. The `<remarks>` on the enum explicitly warns: `EndProgramm` and `InfinityLoop` are **not errors by meaning**, but they pass through the `ProcessorFault`/`IProcessorFaultPolicy` path; the policy must distinguish them.
+**`BiosStatus : byte`** — all 11 members with `///`: `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgram`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`. The `<remarks>` on the enum explicitly warns: `EndProgram` and `InfinityLoop` are **not errors by meaning**, but they pass through the `ProcessorFault`/`IProcessorFaultPolicy` path; the policy must distinguish them.
 
 **`IdState`** — **breaking change** relative to the previous version:
 

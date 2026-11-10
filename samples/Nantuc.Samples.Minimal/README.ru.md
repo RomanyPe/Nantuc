@@ -26,7 +26,7 @@
 4. **`QueuedIOStream(Console.Out, PortCharEncoding.Utf16)`** — асинхронное устройство вывода, UTF-16LE, регистрируется на `sector 1`.
 5. **`TryRegisterDevice`** — регистрация VM на `sector 0` и I/O на `sector 1`. Возвращает `IdState` вместо `int < 0`.
 6. **`TryGetDeviceContext`** — получение `DeviceContext` без `!`.
-7. **`CompileToIL(baseAddress: 0, optimize: true).Build()`** — компиляция всех файлов из `IFileService` в байткод.
+7. **`CompileToIR(baseAddress: 0, optimize: true).Build()`** — компиляция всех файлов из `IFileService` в байткод.
 8. **`TryLoadProgram`** — загрузка байткода в RAM VM.
 9. **`Run()`** — блокирующий запуск до `END`/fault'а. Возвращает `ProcessorFault` — статус проверяется напрямую, без дополнительных вызовов.
 
@@ -67,12 +67,12 @@ Nantuc.Samples.Minimal/
 | 5 | `host.Emulator.TryRegisterDevice(DeviceSpec.Create(RamSize.MB128, name: "ConsoleVM"), sector: 0, out int vmId)` | Регистрирует VM на `sector 0`; `IdState.Valid` — успех, `vmId` — id |
 | 6 | `host.Emulator.TryRegisterDevice(new QueuedIOStream(Console.Out, PortCharEncoding.Utf16), name: "console", sector: 1, out _)` | Регистрирует I/O на `sector 1`; у порт-устройства имя передаётся параметром, у VM — внутри `DeviceSpec` |
 | 7 | `host.Emulator.TryGetDeviceContext(vmId, out var vm)` | `DeviceContext` для VM без `!` и без риска NRE |
-| 8 | `host.Project.CompileToIL(baseAddress: 0, optimize: true).Build()` | Компилирует всё из `IFileService` в `CompilationResult` |
+| 8 | `host.Project.CompileToIR(baseAddress: 0, optimize: true).Build()` | Компилирует всё из `IFileService` в `CompilationResult` |
 | 9 | `vm.TryLoadProgram(compilation.Program!, loadAddress: 0, out var error)` | Загружает байткод в RAM VM; `false` + `out error` — неудача |
 | 10 | `ProcessorFault fault = vm.Run();` | Запускает до `END`/fault'а, возвращает `ProcessorFault` |
-| 11 | `if (fault.Status != BiosStatus.EndProgramm) ...` | Проверка успешного завершения |
+| 11 | `if (fault.Status != BiosStatus.EndProgram) ...` | Проверка успешного завершения |
 
-`CompileToIL(ulong, bool)` — extension из `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (`ProjectExtension`). Внутри вызывает `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` и `ProjectBuilder.Build`.
+`CompileToIR(ulong, bool)` — extension из `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (`ProjectExtension`). Внутри вызывает `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` и `ProjectBuilder.Build`.
 
 `TryRegisterDevice`/`TryGetDeviceContext` — новый API эмулятора, возвращает `IdState`/`bool` вместо «магических» отрицательных id и `null`. См. раздел «`IdState` vs `int` / `null`» ниже.
 
@@ -135,7 +135,7 @@ using var host = VmHostFactory.CreateDefault(fileService: fs);
 
 **Что стоит делать:**
 - Запустить `dotnet run` в `Nantuc.Samples.Minimal` — на экран выведется `Hello world. Привет мир` (UTF-16).
-- Использовать как шаблон для своих примеров: копировать структуру `SaveFileProject` → `TryRegisterDevice` → `TryGetDeviceContext` → `CompileToIL` → `TryLoadProgram` → `Run`.
+- Использовать как шаблон для своих примеров: копировать структуру `SaveFileProject` → `TryRegisterDevice` → `TryGetDeviceContext` → `CompileToIR` → `TryLoadProgram` → `Run`.
 - Проверять `IdState` от `TryRegisterDevice` — это заменяет старую проверку `deviceId < 0`.
 - Для отладки заменить `Run()` на `RunStepMode` + `SingleStep`, как в `[VmApplication README](../../src/Nantuc.VmApplication/README.ru.md)`.
 
@@ -198,7 +198,7 @@ char c = (char)(pendingLowByte.Value | (b << 8));
 
 ### `optimize: true` — no-op
 
-`CompileToIL(0, optimize: true)` включает только AST-оптимизации. Но `VmHostProject.Optimizator.VMAstOptimizer` создаётся пустым — если не вызвать `AddStdRules()`, ни одно правило не применится. В этом примере `optimize: true` — «флаг на будущее». См. [Что исправить, п.2](#что-исправить).
+`CompileToIR(0, optimize: true)` включает только AST-оптимизации. Но `VmHostProject.Optimizator.VMAstOptimizer` создаётся пустым — если не вызвать `AddStdRules()`, ни одно правило не применится. В этом примере `optimize: true` — «флаг на будущее». См. [Что исправить, п.2](#что-исправить).
 
 ### `Run()` и `QueuedIOStream`
 
@@ -218,7 +218,7 @@ char c = (char)(pendingLowByte.Value | (b << 8));
    Фикс: для WASM-примеров использовать `SynchronousIOStream`, либо задокументировать в `README`/`STDLIBRARIES`, что `QueuedIOStream` требует явного `await`/`Dispose`.
 
 2. **`optimize: true` без `AddStdRules()` — no-op.**  
-   Файл: `Program.cs`. `CompileToIL(baseAddress: 0, optimize: true)` включает AST-оптимизации, но `VMAstOptimizer` пуст.  
+   Файл: `Program.cs`. `CompileToIR(baseAddress: 0, optimize: true)` включает AST-оптимизации, но `VMAstOptimizer` пуст.  
    Фикс: либо вызвать `host.Project.Optimizator.VMAstOptimizer.AddStdRules()` перед компиляцией, либо передать `optimize: false`, чтобы не вводить читателя в заблуждение.
 
 3. **Кириллица в `Console.Out`.**  

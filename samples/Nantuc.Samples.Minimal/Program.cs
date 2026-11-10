@@ -37,7 +37,7 @@ if (uartState != IdState.Valid) { Console.Error.WriteLine($"register uart: {uart
 if (!host.Emulator.TryGetDeviceContext(vmId, out var vm)) { Console.Error.WriteLine("no ctx"); return; }
 
 // 4) Компиляция
-var compilation = host.Project.CompileToIL(baseAddress: 0, optimize: true).Build();
+var compilation = host.Project.CompileToIR(baseAddress: 0, optimize: true).Build();
 if (!compilation.Success)
 {
     foreach (var e in compilation.Errors!) Console.Error.WriteLine(e);
@@ -53,5 +53,5 @@ if (!vm.TryLoadProgram(compilation.Program!, loadAddress: 0, out var error))
 
 // 6) Запуск — Run возвращает ProcessorFault, статус можно проверить
 ProcessorFault fault = vm.Run();
-if (fault.Status != BiosStatus.EndProgramm)
+if (fault.Status != BiosStatus.EndProgram)
     Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");

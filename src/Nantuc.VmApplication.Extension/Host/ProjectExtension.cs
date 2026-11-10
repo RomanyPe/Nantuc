@@ -6,10 +6,10 @@ public static class ProjectExtension
 {
     extension(VmHostProject proj)
     {
-        public CompilationToILResult CompileToIL(ulong baseAddress, bool optimize)
+        public CompilationToIRResult CompileToIR(ulong baseAddress, bool optimize)
         {
             var files = ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths);
-            return proj.CompileToIL(files, baseAddress, optimize);
+            return proj.CompileToIR(files, baseAddress, optimize);
         }
 
         public CompilationResult Compile(ulong baseAddress, bool optimize)
@@ -20,11 +20,11 @@ public static class ProjectExtension
         }
 
 
-        public CompilationToILResult CompileToIL(string source, ulong baseAddress, bool optimize, SourceLanguage language)
-            => proj.CompileToIL([new SourceFile("source", source, language)], baseAddress, optimize);
+        public CompilationToIRResult CompileToIR(string source, ulong baseAddress, bool optimize, SourceLanguage language)
+            => proj.CompileToIR([new SourceFile("source", source, language)], baseAddress, optimize);
 
-        public CompilationToILResult CompileToIL(IEnumerable<string> sources, ulong baseAddress, bool optimize, SourceLanguage language)
-            => proj.CompileToIL(
+        public CompilationToIRResult CompileToIR(IEnumerable<string> sources, ulong baseAddress, bool optimize, SourceLanguage language)
+            => proj.CompileToIR(
                 [.. sources.Select((s, i) => new SourceFile($"source_{i}", s, language))],
                 baseAddress,
                 optimize);
