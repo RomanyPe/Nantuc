@@ -104,7 +104,7 @@ if (fault.Status != BiosStatus.EndProgram)
     Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");
 ```
 
-A detailed walkthrough (explanation of ports `0x10`/`0x12`, `QueuedIOStream`, diagnostics) — in [`Nantuc.Samples.Minimal/README.md`](Nantuc.Samples.Minimal/README.md).
+A detailed walkthrough (explanation of ports `0x10`/`0x12`, `QueuedIOStream`, diagnostics) — in [`samples/Nantuc.Samples.Minimal/README.md`](samples/Nantuc.Samples.Minimal/README.md).
 
 **The same via CLI (`nantuc`)** — the package is installed as a .NET global tool and covers the whole pipeline: `compile` → `run` → `disasm` + include management via `lib`.
 
@@ -158,7 +158,7 @@ The public API of `Nantuc.VmApplication` follows the “Try + IdState + Processo
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **do not rely on `default(IdState) == Valid`** — this has changed.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. On success `Status == EndProgram`; on failure — `DivOnZero`/`SegmentationFault`/… with exact `IP` and `OpCode`.
 - **`IProcessorFaultPolicy`** — used **inside** the VM; the return from `Run`/`DebugRun` is already `ProcessorFault`, no separate policy is needed.
-- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`Nantuc.VmApplication.Extensions/README.md`](src/Nantuc.VmApplication.Extensions/README.md#отладчик).
+- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`src/Nantuc.VmApplication.Extension/README.md`](src/Nantuc.VmApplication.Extension/README.md#debugger).
 
 ## Architecture
 
@@ -250,7 +250,7 @@ The latest stable version is pulled by default; to pin a specific one — `--ver
 - **.NET 10 SDK** (all projects target `net10.0`).
 - **C# 14**: `extension` blocks, `[InlineArray]`, `params ReadOnlySpan`, `field` keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
 - **Windows / Linux / macOS / AoT** (other platforms have not been tested, but Nantuc is not tied to a specific platform).
-- **WASM**: `Common`/`Contracts`/`Diagnostics` — fully WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` have limitations (blocking calls, linear memory limits, single-threaded browser). Full analysis — [`docs/wasm.md`](docs/wasm.md).
+- **WASM**: `Common`/`Contracts`/`Diagnostics` — fully WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` have limitations (blocking calls, linear memory limits, single-threaded browser).
 
 ## Build and run
 
@@ -333,7 +333,6 @@ See [`LICENSE`](LICENSE) in the repository root.
 - Bytecode specification: [`docs/bytecode.md`](docs/bytecode.md)
 - Error code reference: [`docs/error-codes.md`](docs/error-codes.md)
 - Metrics: [`docs/METRICS.md`](docs/METRICS.md)
-- WASM limitations: [`docs/wasm.md`](docs/wasm.md)
 - Built-in MiniC/NANASM libraries: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md)
 - CLI: [`src/Nantuc.CLI/README.md`](src/Nantuc.CLI/README.md)
 - Comparison with other languages (OtherLangs): [`benchmarks/OtherLangs/README.md`](benchmarks/OtherLangs/README.md)
