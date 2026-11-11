@@ -124,7 +124,7 @@ public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
     public void Dispose() => _emulator.Dispose();
 }
 
-public readonly record struct DeviceSpec(RamSize RamSize, string? Name, IProcessorFaultPolicy ProcessorFaultPolicy)
+public readonly record struct DeviceSpec(RamSize RamSize, string? Name, IProcessorPolicy ProcessorFaultPolicy)
 {
     /// <summary>
     /// Метод для создания паспорта Nantuc устройства, желательно использовать вместо конструктора, так как имеет default значения
@@ -134,10 +134,10 @@ public readonly record struct DeviceSpec(RamSize RamSize, string? Name, IProcess
     /// <param name="processorFaultPolicy">политика остановки</param>
     public static DeviceSpec Create(RamSize? ramSize = null,
                                       string? name = null,
-                                      IProcessorFaultPolicy? processorFaultPolicy = null)
+                                      IProcessorPolicy? processorFaultPolicy = null)
     {
         ramSize ??= RamSize.MB1;
-        processorFaultPolicy ??= IProcessorFaultPolicy.Default;
+        processorFaultPolicy ??= IProcessorPolicy.Default;
         return new(ramSize.Value, name, processorFaultPolicy);
 
     }

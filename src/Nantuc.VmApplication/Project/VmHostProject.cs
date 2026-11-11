@@ -102,7 +102,7 @@ public sealed class VmHostProject(CompilerContext ctx)
         bool optimize,
         IEnumerable<SourceFile> files,
         Func<ulong, TAssembler> createAssembler,
-        Func<TAssembler, OptimizationResultLog?, string[]?, TResult> createResult)
+        Func<TAssembler, OptimizationResultLog?, DiagnosticResult[]?, TResult> createResult)
         where TAssembler : AssemblerBase
     {
         OptimizationResultLog? res = null;
@@ -122,8 +122,9 @@ public sealed class VmHostProject(CompilerContext ctx)
         }
         catch (Exception ex)
         {
-            // Передаём null вместо ассемблера и лога в случае ошибки.
-            return createResult(null!, res, [ex.Message]);
+            return ex is CodeException cex 
+                ? createResult(null!, res, [new DiagnosticResult(cex.Message, cex.ErrorCode)])
+                : createResult(null!, res, [new DiagnosticResult(ex.Message, ErrorCode.NotImplemented)]);
         }
     }
 
@@ -174,7 +175,9 @@ public sealed class VmHostProject(CompilerContext ctx)
         }
         catch (Exception ex)
         {
-            return new CompilationToIRResult(null, resOpt, [ex.Message]);
+            return ex is CodeException cex
+                ? new CompilationToIRResult(null, resOpt, [new DiagnosticResult(cex.Message, cex.ErrorCode)])
+                : new CompilationToIRResult(null!, resOpt, [new DiagnosticResult(ex.Message, ErrorCode.NotImplemented)]);
         }
     }
 

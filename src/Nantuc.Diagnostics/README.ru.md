@@ -63,7 +63,7 @@ Nantuc.Diagnostics/
 | **`ThrowCompiler`** | **`class`** (не `static`) **[BREAKING]** | — | Instance-фасад для бросания `CodeException` |
 | `CodeException` | `class : Exception` | — | Исключение с `ErrorCode` и `NumericCode` |
 
-**Default-реализация интерфейса есть только у `IErrorMessageProvider`** — через `static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();`. Это согласуется с `IProcessorFaultPolicy.Default` в `Contracts` и даёт единый паттерн «где живёт default» — на самом интерфейсе, а не на `ThrowCompiler`.
+**Default-реализация интерфейса есть только у `IErrorMessageProvider`** — через `static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();`. Это согласуется с `IProcessorPolicy.Default` в `Contracts` и даёт единый паттерн «где живёт default» — на самом интерфейсе, а не на `ThrowCompiler`.
 
 ### `ErrorCode` — единый enum
 
@@ -404,7 +404,7 @@ static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider(
 - Не форматирует ошибки в JSON/структурированный вид — только строка (`GetMessage`).
 - Не содержит severity-уровней (Error/Warning/Info) — только ошибки.
 - Не содержит source-позиций (файл, строка, столбец) как полей — они передаются аргументами в шаблон.
-- Не знает про `IProcessorFaultPolicy`/`BiosStatus` — это runtime-модель, отдельно.
+- Не знает про `IProcessorPolicy`/`BiosStatus` — это runtime-модель, отдельно.
 - Не зависит от других проектов Nantuc — можно подключать в любой .NET-проект как «Nantuc-style diagnostics».
 
 Правило «куда положить тип»: код ошибки/исключение/провайдер сообщений/аргумент диагностики → `Diagnostics`; runtime-статус → `Common`; контракт → `Contracts`; реализация исполнения → `Kernel`.

@@ -3,10 +3,10 @@ using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Host;
 
-public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorFaultPolicy
+public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorPolicy
 {
     private readonly TextWriter _out = output;
-
+    bool IProcessorPolicy.AllowUnsafeOpCodes => false;
     public bool ShouldContinue(in ProcessorFault fault)
     {
         _out.WriteLine(

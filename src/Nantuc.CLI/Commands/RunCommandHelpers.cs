@@ -18,7 +18,7 @@ namespace Nantuc.CLI.Commands
             BiosStatus.DivOnZero => "DivOnZero",
             BiosStatus.NotSupportedOpCode => "NotSupportedOpCode",
             BiosStatus.StackUnderflow => "StackUnderflow",
-            BiosStatus.PauseSystem => "PauseSystem",
+            BiosStatus.UnsafeOpCodeForbidden => "UnsafeOpCodeForbidden",
 
             _ => ((uint)status).ToString(),
         };

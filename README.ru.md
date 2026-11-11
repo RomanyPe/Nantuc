@@ -158,7 +158,7 @@ nantuc lib exist print.minic
 
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **не полагайтесь на `default(IdState) == Valid`** — это изменилось.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. На успехе `Status == EndProgram`; на падении — `DivOnZero`/`SegmentationFault`/… с точным `IP` и `OpCode`.
-- **`IProcessorFaultPolicy`** — используется **внутри** VM; возврат из `Run`/`DebugRun` — уже `ProcessorFault`, отдельная политика не нужна.
+- **`IProcessorPolicy`** — используется **внутри** VM; возврат из `Run`/`DebugRun` — уже `ProcessorFault`, отдельная политика не нужна.
 - **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — не добавляет контрактов в `Kernel`/`VmApplication`, работает через публичный API. Подробности — в [`Nantuc.VmApplication.Extensions/README.ru.md`](src/Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
 
 ## Архитектура
@@ -212,7 +212,7 @@ nantuc lib exist print.minic
 | Пакет | Назначение | README |
 |---|---|---|
 | `Nantuc.Common` | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState` (default-safe), декодер | [README](src/Nantuc.Common/README.ru.md) |
-| `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorFaultPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.ru.md) |
+| `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.ru.md) |
 | `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | [README](src/Nantuc.Diagnostics/README.ru.md) |
 | `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | [README](src/Nantuc.Kernel/README.ru.md) |
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.ru.md) |

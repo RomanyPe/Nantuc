@@ -32,7 +32,7 @@
 API следует паттерну «Try + IdState + ProcessorFault»:
 - `TryRegisterDevice` / `TryGetDeviceContext` — без `!` и магических `-1..-4`.
 - `IdState` — классификация возвратов `TryRegisterDevice`.
-- `Run` / `DebugRun` → `ProcessorFault` — статус завершения вместо ручного `IProcessorFaultPolicy`.
+- `Run` / `DebugRun` → `ProcessorFault` — статус завершения вместо ручного `IProcessorPolicy`.
 - `TryLoadProgram` — безопасная загрузка без исключений.
 - `GetLastFault` — доступ к последнему `ProcessorFault` без `AsRawDevice`.
 - `ThrowCompiler` (в `CompilerContext`) — единая политика исключений компилятора через `IErrorMessageProvider`.
@@ -137,12 +137,12 @@ public sealed class VmEmulator(Utilites.Emulator emulator) : IDisposable
 public readonly record struct DeviceSpec(
     RamSize RamSize,
     string? Name,
-    IProcessorFaultPolicy ProcessorFaultPolicy)
+    IProcessorPolicy ProcessorFaultPolicy)
 {
     public static DeviceSpec Create(
         RamSize? ramSize = null,
         string? name = null,
-        IProcessorFaultPolicy? processorFaultPolicy = null);
+        IProcessorPolicy? processorFaultPolicy = null);
 }
 
 public class VmEmulatorBuilder
@@ -287,14 +287,17 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
     public static bool operator !=(SnapshotRegisters a, SnapshotRegisters b);
 }
 ```
-
+### Результат диагностики
+```csharp
+public readonly record struct DiagnosticResult(string Message, ErrorCode ErrorCode);
+```
 ### Результаты компиляции
 
 ```csharp
 public readonly struct CompilationResult
 {
     public CompilationResult(AssemblerBase asm, OptimizationResultLog? log);
-    public CompilationResult(IReadOnlyList<string>? errors);
+    public CompilationResult(IReadOnlyList<DiagnosticResult>? errors);
 
     public byte[]? Program { get; }
     public ulong StartAdress { get; }
@@ -302,7 +305,7 @@ public readonly struct CompilationResult
     public int DataStart { get; }
     public int DataSize { get; }
     public OptimizationResultLog? OptimizationResultLog { get; }
-    public IReadOnlyList<string>? Errors { get; }
+    public IReadOnlyList<DiagnosticResult>? Errors { get; }
     public bool Success => Program != null && (Errors == null || Errors.Count == 0);
 }
 ```
@@ -313,12 +316,12 @@ public readonly struct CompilationResult
 public readonly record struct CompilationToIRResult
 {
     internal readonly IRAssembler? Assembler;
-    public IReadOnlyList<string>? Errors { get; }
+    public IReadOnlyList<DiagnosticResult>? Errors { get; }
     public OptimizationResultLog? OptimizationResultLog { get; }
 
-    public CompilationToIRResult(IReadOnlyList<string>? errors);
+    public CompilationToIRResult(IReadOnlyList<DiagnosticResult>? errors);
     public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog);
-    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors);
+    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<DiagnosticResult>? errors);
 
     public CompilationResult Build();
 }
@@ -448,7 +451,7 @@ var compilation = host.Project.Compile(sources, baseAddress: 0, optimize: true);
 if (!compilation.Success)
 {
     foreach (var err in compilation.Errors!)
-        Console.Error.WriteLine(err);
+        Console.Error.WriteLine(err.Message);
     return;
 }
 

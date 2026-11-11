@@ -63,7 +63,7 @@ Nantuc.Diagnostics/
 | **`ThrowCompiler`** | **`class`** (not `static`) **[BREAKING]** | — | Instance facade for throwing `CodeException` |
 | `CodeException` | `class : Exception` | — | Exception with `ErrorCode` and `NumericCode` |
 
-**A default implementation of the interface exists only for `IErrorMessageProvider`** — via `static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();`. This is consistent with `IProcessorFaultPolicy.Default` in `Contracts` and provides a unified pattern for "where the default lives" — on the interface itself, not on `ThrowCompiler`.
+**A default implementation of the interface exists only for `IErrorMessageProvider`** — via `static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();`. This is consistent with `IProcessorPolicy.Default` in `Contracts` and provides a unified pattern for "where the default lives" — on the interface itself, not on `ThrowCompiler`.
 
 ### `ErrorCode` — a single enum
 
@@ -405,7 +405,7 @@ This is a C# 11+ static interface member with a default implementation. It is no
 - It does not format errors into JSON/structured form — only a string (`GetMessage`).
 - It does not contain severity levels (Error/Warning/Info) — only errors.
 - It does not contain source positions (file, line, column) as fields — they are passed as arguments to the template.
-- It knows nothing about `IProcessorFaultPolicy`/`BiosStatus` — that is the runtime model, separate.
+- It knows nothing about `IProcessorPolicy`/`BiosStatus` — that is the runtime model, separate.
 - It does not depend on other Nantuc projects — it can be plugged into any .NET project as "Nantuc-style diagnostics".
 
 Rule for "where to put a type": error code/exception/message provider/diagnostic argument → `Diagnostics`; runtime status → `Common`; contract → `Contracts`; execution implementation → `Kernel`.

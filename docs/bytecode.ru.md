@@ -155,7 +155,7 @@
 | 41 | `TEST`           | left | right | — | — | обновляет `rFL` по `left & right` |
 | 42 | `MOD`            | dst | src | — | — | `dst %= src` (unsigned), `DivOnZero` при 0 |
 
-Непосредственный операнд присутствует **только** у опкодов, отмеченных `HasNeed64IntData = true` (в эталоне: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `LOAD_UNSAFE`, `STORE_UNSAFE`).
+Непосредственный операнд присутствует **только** у опкодов, отмеченных `HasNeed64IntData = true` (в эталоне: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `LOAD_UNSAFE`, `STORE_UNSAFE`, `LOAD_IND`, `STORE_IND`, `LOAD_IND_UNSAFE`, `STORE_IND_UNSAFE`).
 
 ---
 
@@ -166,7 +166,7 @@
 | Опкод | Действие |
 |-------|----------|
 | `NOP` | пустая операция, `rIP` уже сдвинут на 4 |
-| `END` | `IsRunning = false`; возвращается `BiosStatus.EndProgram`; далее — `IProcessorFaultPolicy.ShouldContinue`, её ответ перезаписывает `IsRunning` |
+| `END` | `IsRunning = false`; возвращается `BiosStatus.EndProgram`; далее — `IProcessorPolicy.ShouldContinue`, её ответ перезаписывает `IsRunning` |
 
 ### 5.2. Пересылки и загрузка-сохранение
 
@@ -237,7 +237,7 @@
 
 ### 5.6. Управление потоком
 
-**`JMP target`** → `rIP = target`. Границы **не проверяются** — прыжок в недопустимую область приведёт к неопределённому поведению на следующем шаге (чтение инструкции через `ReadInt32LEUnSafe`).
+**`JMP target`** → `rIP = target`.
 
 **`JZ target`** — если `Z=1`, `rIP = target`.
 
@@ -269,12 +269,10 @@
 
 **`PUSH Reg1`**:
 1. `sp = rSP - 8`
-2. `RAM[sp] = Reg1` (checked write 8 байт)
-3. если запись провалилась → вернуть её статус
-4. `if rHP >= sp → SegmentationFault` (запись уже выполнена!)
+2. `if rHP >= sp → SegmentationFault`
+3. `RAM[sp] = Reg1` (checked write 8 байт)
+4. если запись провалилась → вернуть её статус
 5. `rSP = sp`
-
-> ⚠️ В текущей реализации проверка коллизии с кучей происходит **после** записи. Это архитектурная особенность/дефект: при коллизии значение окажется в памяти, но `rSP` не обновится, и будет возвращён `SegmentationFault`.
 
 **`POP Reg1`**:
 1. `value = RAM[rSP]` (checked read 8 байт LE)
@@ -373,7 +371,7 @@ ProcessorFault(BiosStatus Status,
 - `OpCode` — реальный опкод; значение `OpCode.NOP` (0) зарезервировано под «неизвестно/нет опкода» (спорное решение, но зафиксировано).
 - `FaultData` — контекст: адрес памяти, номер порта, опкод и т.п.
 
-Далее вызывается `IProcessorFaultPolicy.ShouldContinue(fault)`; её ответ записывается в `IsRunning`. Политика **обязана** различать «настоящие ошибки» и «штатные» `EndProgram`/`HostStopped`/`InfinityLoop`.
+Далее вызывается `IProcessorPolicy.ShouldContinue(fault)`; её ответ записывается в `IsRunning`. Политика **обязана** различать «настоящие ошибки» и «штатные» `EndProgram`/`HostStopped`/`InfinityLoop`.
 
 ---
 
@@ -497,14 +495,8 @@ raw = 0x08 | (1 << 8) | (2 << 13) = 0x00004108
 
 ## 12. Ограничения и известные особенности реализации
 
-1. **`JMP`/`JZ`/`JNZ`/`JG`/`JL` не проверяют границы** целевого адреса (в отличие от `JMP_IND`/`CALL_IND`). Прыжок за пределы ОЗУ приводит к UB на следующем шаге (`ReadInt32LEUnSafe`).
-2. **`PUSH` пишет в память до проверки коллизии с кучей** (`rHP`), поэтому при `SegmentationFault` запись остаётся в памяти, но `rSP` не меняется.
-3. **Проверка границ в `MemoryBus`**: `address + N <= Length` реализована как `address <= Length - N`; при `Length < N` возможен `underflow` (в эталоне исключён, т.к. `Length ≥ 64`).
-4. **Чтение immediate использует `ReadInt64LEUnSafe`**, т.е. unaligned. На платформах, где unaligned-чтение не поддерживается аппаратно, требуется 8-байтное выравнивание адреса загрузки программы.
 5. **`WAKE` как инструкция в теле — no-op.** Пробуждение из `HALT` возможно только через `EnqueueExternalCommand(OpCode.WAKE)` или `PortBus.WakeProcessor`.
-6. **`END` не гарантирует остановку**: `IsRunning = false` выставляется, но затем перезаписывается ответом `IProcessorFaultPolicy.ShouldContinue(...)`. Политика должна вернуть `false` для `EndProgram`.
 7. **`InstructionLOAD`/`InstructionSTORE` не возвращают `AlignmentFault` для невалидного `OpCodeSize`** (там `default` → `SegmentationFault` у LOAD и `AlignmentFault` у STORE); на практике `OpCodeSize` имеет ровно 4 значения — `default` недостижим.
-8. **`HasNeed64IntData`** устойчив к смене базового типа `OpCode` на знаковый: проверка `(uint)opCode > (uint)OpCode.MOD`, затем индексация в `_has[0..42]`.
 9. **`OpCode.NOP` = 0 используется как маркер «неизвестного опкода»** в `ProcessorFault` (`ProcessSimulationStatusSlow`). Это спорное соглашение; при появлении реального NOP-сбоя отличить его от «пустого» значения будет невозможно.
 
 ---
@@ -521,4 +513,4 @@ raw = 0x08 | (1 << 8) | (2 << 13) = 0x00004108
 | Флаги | обновляются только `CMP` и `TEST` |
 | Стек | 8-байтные слоты, `rSP` растёт вниз, `rHP` — верхняя граница кучи |
 | Ошибка доступа | `AlignmentFault` / `SegmentationFault`, не исключения |
-| Политика | `IProcessorFaultPolicy.ShouldContinue` — последняя инстанция |
+| Политика | `IProcessorPolicy.ShouldContinue` — последняя инстанция |

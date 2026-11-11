@@ -83,7 +83,7 @@ public class Emulator : IDisposable
     /// <returns>Новый экземпляр <see cref="Device"/>.</returns>
     public Device CreateDevice(
         RamSize size,
-        IProcessorFaultPolicy processorFaultPolicy)
+        IProcessorPolicy processorFaultPolicy)
     {
         return new Device(_portBus, size, processorFaultPolicy);
     }

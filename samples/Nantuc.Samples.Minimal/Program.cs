@@ -40,7 +40,7 @@ if (!host.Emulator.TryGetDeviceContext(vmId, out var vm)) { Console.Error.WriteL
 var compilation = host.Project.CompileToIR(baseAddress: 0, optimize: true).Build();
 if (!compilation.Success)
 {
-    foreach (var e in compilation.Errors!) Console.Error.WriteLine(e);
+    foreach (var e in compilation.Errors!) Console.Error.WriteLine(e.Message);
     return;
 }
 

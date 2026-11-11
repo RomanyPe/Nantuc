@@ -72,7 +72,7 @@ var resCompile = host.Project.CompileToIR(
 if (!resCompile.Success)
 {
     foreach (var err in resCompile.Errors!)
-        Console.WriteLine(err);
+        Console.WriteLine(err.Message);
     return;
 }
 

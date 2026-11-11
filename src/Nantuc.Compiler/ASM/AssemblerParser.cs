@@ -472,12 +472,12 @@ public partial class AssemblerParser
             // LOAD/STORE: регистр, адрес (константа)
             case "LOAD":
             case "LOAD_UNSAFE":
-                FormatLOAD__STORE(tokens, size, baseMnemonic, isLoad: true);
+                FormatLOAD__STORE(tokens, size, baseMnemonic, opCode);
                 break;
 
             case "STORE":
             case "STORE_UNSAFE":
-                FormatLOAD__STORE(tokens, size, baseMnemonic, isLoad: false);
+                FormatLOAD__STORE(tokens, size, baseMnemonic, opCode);
                 break;
 
             case "LOAD_IND":
@@ -534,7 +534,7 @@ public partial class AssemblerParser
         _asm.EmitInst(opCode, rInd1, rInd2, size);
     }
 
-    private void FormatLOAD__STORE(string[] tokens, OpCodeSize size, string baseMnemonic, bool isLoad)
+    private void FormatLOAD__STORE(string[] tokens, OpCodeSize size, string baseMnemonic, OpCode opcode)
     {
         if (tokens.Length < 3)
             _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
@@ -542,10 +542,9 @@ public partial class AssemblerParser
         RegType rMem = ParseReg(tokens[1]);
         ulong addr = ParseNumber(tokens[2]);
 
-        if (isLoad) _asm.EmitLoad(rMem, size, addr);
-        else _asm.EmitStore(rMem, size, addr);
+        _asm.EmitInstWithData(opcode, rMem, size, addr);    
     }
-
+    
     private void FormatLDI(string[] tokens, string baseMnemonic)
     {
         if (tokens.Length < 3)

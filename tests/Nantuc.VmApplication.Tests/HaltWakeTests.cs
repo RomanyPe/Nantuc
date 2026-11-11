@@ -11,9 +11,12 @@ namespace Nantuc.Tests;
 public class HaltWakeTests
 {
     /// <summary>Сохраняет все ошибки и останавливает симуляцию.</summary>
-    private sealed class CapturingFaultPolicy : IProcessorFaultPolicy
+    private sealed class CapturingFaultPolicy : IProcessorPolicy
     {
         public List<ProcessorFault> Faults { get; } = [];
+
+        public bool AllowUnsafeOpCodes => false;
+
         public bool ShouldContinue(in ProcessorFault fault)
         {
             Faults.Add(fault);

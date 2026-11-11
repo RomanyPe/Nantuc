@@ -21,7 +21,7 @@ The module depends only on `Nantuc.Common` (for `BiosStatus`, `ProcessorFault`, 
 
 Key roles of the module:
 - Port bus: `IPortBus`, `IPortUse`, `IPortController`, `ReadPortResult`.
-- Processor: `ProcessorSnapshot`, `IProcessorFaultPolicy` (with a cached `Default`).
+- Processor: `ProcessorSnapshot`, `IProcessorPolicy` (with a cached `Default`).
 - Optimizations: `OptimizationId`, `OptimizationLogEntry`, `IReadOnlyLogOptimization`.
 - Measurement results: `TimeSimulationResult`.
 - Devices: `DeviceInfo`, `IReadOnlyNativeBuffer`.
@@ -40,7 +40,7 @@ Nantuc.Contracts/
 ├── IPortBus.cs                       # interface IPortBus
 ├── IPortController.cs                # interface IPortController : IPortUse, IDisposable
 ├── IPortUse.cs                       # interface IPortUse
-├── IProcessorFaultPolicy.cs          # interface IProcessorFaultPolicy + nested DefaultProcessorFaultPolicy
+├── IProcessorPolicy.cs          # interface IProcessorPolicy + nested DefaultProcessorFaultPolicy
 ├── ProcessorSnapshot.cs              # readonly struct ProcessorSnapshot, [InlineArray(32)]
 ├── IReadOnlyLogOptimization.cs       # interface IReadOnlyLogOptimization
 ├── TimeSimulationResult.cs           # readonly record struct TimeSimulationResult
@@ -52,7 +52,7 @@ Nantuc.Contracts/
 Organization notes:
 - Files `OptimizationId.cs` and `OptimizationLogEntry.cs` — the file name matches the type name (previously there was `TypeOptimization.cs` with the type `OptimizationId` — now renamed).
 - `IPortController.cs` — one-liner, but with `///` and `<see>` references to `IPortUse`/`IDisposable`.
-- `IProcessorFaultPolicy` contains `private class DefaultProcessorFaultPolicy` — the policy implementation lives inside the interface. This is non-standard for contracts, but deliberate: the "default policy" is part of the contract.
+- `IProcessorPolicy` contains `private class DefaultProcessorFaultPolicy` — the policy implementation lives inside the interface. This is non-standard for contracts, but deliberate: the "default policy" is part of the contract.
 - `ProcessorSnapshot` — a `readonly struct` with `[InlineArray(RegisterCount)] (RegisterCount = 32)` for storing a copy of the registers. Two constructors:
     - `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)` — `CurrentBiosStatus = BiosStatus.Success`;
     - `(..., BiosStatus currentBiosStatus)` — same plus an explicit status.
@@ -72,7 +72,7 @@ The module has 7 `interface`s and 5 `struct`/`record struct`s. Public surface:
 | `IPortController` | `interface : IPortUse, IDisposable` | Composition "device on the bus + disposal" |
 | `ReadPortResult` | `readonly record struct` | `(byte Data, BiosStatus Status = Success)` |
 | `ProcessorSnapshot` | `readonly struct` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)`; `[InlineArray(RegisterCount)]` storage (32); `RawInstruction`, `DataByInstruction`, `CurrentBiosStatus`, `DataFault`; decoded from `RawInstruction`: `OpCode`, `FirstRegister`, `SecondRegister`, `DataSizeCode` |
-| `IProcessorFaultPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)`; `Default` — cached singleton |
+| `IProcessorPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)`; `Default` — cached singleton |
 | `IReadOnlyLogOptimization` | `interface` | `Id`, `GetLogs()` |
 | `OptimizationId` | `readonly struct` | Validated identifier `[a-z0-9.-]{1,128}` |
 | `OptimizationLogEntry` | `readonly record struct` | `(int Pass, string Message)` |
@@ -109,28 +109,25 @@ Decoded from `RawInstruction` via `InstructionDecoder`: `OpCode`, `FirstRegister
 
 There is no writing to `ProcessorSnapshot` — that is in `Kernel`; here it is read-only.
 
-**`IProcessorFaultPolicy`** — the processor stop policy on `ProcessorFault`:
+**`IProcessorPolicy`** — the processor stop policy on `ProcessorFault`:
 
 ```csharp
-public interface IProcessorFaultPolicy
+public interface IProcessorPolicy
 {
-    public static IProcessorFaultPolicy Default { get; } = new DefaultProcessorFaultPolicy();
-
-    private class DefaultProcessorFaultPolicy : IProcessorFaultPolicy
+    public static IProcessorPolicy Default { get; } = new DefaultProcessorFaultPolicy();
+    
+    private class DefaultProcessorFaultPolicy : IProcessorPolicy
     {
-        public bool ShouldContinue(in ProcessorFault fault) => fault.Status switch
-        {
-            BiosStatus.Success => true,
-            BiosStatus.NullDeviceOutput => true,
-            _ => false,
-        };
+        bool IProcessorPolicy.AllowUnsafeOpCodes => false;
+        public bool ShouldContinue(in ProcessorFault fault) => fault.Status == BiosStatus.Success;
     }
+
+    bool AllowUnsafeOpCodes => false;
 
     bool ShouldContinue(in ProcessorFault fault);
 }
+}
 ```
-
-Semantics of `Default`: continue on `Success` and `NullDeviceOutput`, stop on any other status. `NullDeviceInput` is not included in "continue" — asymmetric (see [What to fix](#what-to-fix), item 2. *(Note: the "What to fix" section was not present in the provided source.)*). `Default` is a **static property with a cached instance** (static initializer, created once on first access to the interface type).
 
 ### Optimizations
 
@@ -197,7 +194,7 @@ public sealed class UartDevice : IPortController
 **Checking the policy after a fault:**
 
 ```csharp
-IProcessorFaultPolicy policy = IProcessorFaultPolicy.Default;
+IProcessorPolicy policy = IProcessorPolicy.Default;
 
 ProcessorFault fault = new(
     Status: BiosStatus.DivOnZero,
@@ -245,7 +242,7 @@ foreach (OptimizationLogEntry e in entries)
 Medium. Contracts are what the extension author and the `VmApplication` user see, but not what a MiniC program author writes.
 
 - The extension author (custom device, disassembler, debugger) implements `IPortUse`/`IPortController`/`IReadOnlyNativeBuffer` — and this is their main entry into the platform.
-- A `VmApplication` user who wants to read the processor state uses `ProcessorSnapshot` and `IProcessorFaultPolicy`.
+- A `VmApplication` user who wants to read the processor state uses `ProcessorSnapshot` and `IProcessorPolicy`.
 - The optimization compiler author works with `OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`.
 - A MiniC/NANASM program author does not import this module — they work through `VmApplication`.
 
@@ -254,7 +251,7 @@ Medium. Contracts are what the extension author and the `VmApplication` user see
 - Read `ReadPortResult.Status` first, `Data` — only if `Success`.
 - Use `OptimizationId.TryParse` for user input and the constructor — for known-valid constants.
 - Return `in ProcessorFault` from the kernel and accept it `in` in `ShouldContinue` — without copying.
-- `IProcessorFaultPolicy.Default` is a cached singleton (static initializer); for production with special policy requirements — your own implementation.
+- `IProcessorPolicy.Default` is a cached singleton (static initializer); for production with special policy requirements — your own implementation.
 
 **What you should not do:**
 - Return `new ReadPortResult(data)` without an explicit `Status` — the `Success` default will mask an error.
@@ -271,7 +268,7 @@ Medium. Contracts are what the extension author and the `VmApplication` user see
 |---|---|---|
 | Building for WASM | ✅ | No `unsafe`, `DllImport`, `LibraryImport`. All types are `interface`/`readonly struct`. Builds for `browser-wasm` without csproj changes. |
 | `stackalloc` / `InlineArray` | ✅ | `ProcessorSnapshot` uses `[InlineArray(RegisterCount)] (const int RegisterCount = 32)` — compile-time, AOT-friendly. `stackalloc` in `CurrentProcessorSnapshot` (in `Kernel`) — 32 × 8 bytes. Length validation (`ArgumentException` from `GetArr`) — `managed`, no `unsafe`. | 
-| `Interlocked` / `Volatile` | ✅ | Not used. `IProcessorFaultPolicy.Default` is a `static` property with a cached instance (static initializer). |
+| `Interlocked` / `Volatile` | ✅ | Not used. `IProcessorPolicy.Default` is a `static` property with a cached instance (static initializer). |
 | `Regex` / trimming | ✅ | Regex is not used; there is no reflection, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` validates the string character by character (`foreach (char c in value)`, without `Regex`). Trimming-compatible. |
 | AOT | ✅ | No `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |
 
@@ -285,9 +282,9 @@ Medium. Contracts are what the extension author and the `VmApplication` user see
 - Comparison — `StringComparison.Ordinal` / `String.CompareOrdinal`; culture-independent.
 - Persistence: the XML documentation states that well-known ids are stable and can be written to logs/caches/configs. In the code there are **no static fields with well-known ids** — only the mechanism itself (see [What to fix](#what-to-fix), item 1. *(Note: the "What to fix" section was not present in the provided source.)*).
 
-### `IProcessorFaultPolicy` as a contract
+### `IProcessorPolicy` as a contract
 
-- `Default` is a static property with a **cached instance** of `DefaultProcessorFaultPolicy` (static initializer). Created once on first access to the `IProcessorFaultPolicy` type; repeated reads of `Default` return the same instance.
+- `Default` is a static property with a **cached instance** of `DefaultProcessorFaultPolicy` (static initializer). Created once on first access to the `IProcessorPolicy` type; repeated reads of `Default` return the same instance.
 - `DefaultProcessorFaultPolicy.ShouldContinue` returns `true` for `Success` and `NullDeviceOutput`. `NullDeviceInput` — `false`. If `NullDeviceInput` semantically means "no input device, but this is not a fault", the behavior of `Default` diverges from expectations (see [What to fix](#what-to-fix), item 2. *(Note: the "What to fix" section was not present in the provided source.)*).
 - The private nested class is a non-standard solution for contracts, but acceptable: the "default policy" is part of the contract, not a separate implementation in `Kernel`.
 
@@ -312,7 +309,7 @@ Not defined in `Nantuc.Contracts`. `OptimizationId` is character-based, not rela
 
 ### What this module does not do
 
-- It does not contain implementations — only interfaces and DTOs. The only exception is `private class DefaultProcessorFaultPolicy` inside `IProcessorFaultPolicy` (this is the "default policy", part of the contract).
+- It does not contain implementations — only interfaces and DTOs. The only exception is `private class DefaultProcessorFaultPolicy` inside `IProcessorPolicy` (this is the "default policy", part of the contract).
 - It does not contain state, caches, counters.
 - It knows nothing about `ManagerDevices`, `MemoryBus`, `Processor` — only about `BiosStatus`/`ProcessorFault`/`RegType`/`OpCode` from `Common`.
 - It does not implement `IReadOnlyNativeBuffer` over `NativeMemory` — it only declares the interface; the implementation is in the layer that knows about `NativeMemory`.

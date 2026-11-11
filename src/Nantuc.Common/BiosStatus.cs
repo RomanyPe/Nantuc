@@ -6,7 +6,7 @@
 /// <remarks>
 /// <para>
 /// Возвращается из обработчиков инструкций процессора (<c>Processor.Instruction*</c>),
-/// из <c>MemoryBus</c>/<c>PortBus</c>, а также передаётся в <c>IProcessorFaultPolicy</c>
+/// из <c>MemoryBus</c>/<c>PortBus</c>, а также передаётся в <c>IProcessorPolicy</c>
 /// при принятии решения о продолжении работы программы.
 /// </para>
 /// <para>
@@ -16,7 +16,7 @@
 /// <para>
 /// Внимание: <see cref="EndProgram"/> и <see cref="InfinityLoop"/> не являются ошибками
 /// по смыслу, но, как и остальные ненулевые коды, проходят через путь обработки сбоя
-/// (заполнение <c>ProcessorFault</c>, опрос <c>IProcessorFaultPolicy.ShouldContinue</c>).
+/// (заполнение <c>ProcessorFault</c>, опрос <c>IProcessorPolicy.ShouldContinue</c>).
 /// Политика обязана различать «штатное завершение» и «настоящий сбой».
 /// </para>
 /// <para>
@@ -95,6 +95,6 @@ public enum BiosStatus : byte
     /// Также может возвращаться при <see cref="OpCode.RET"/> на пустом стеке — см. <c>Processor.InstructionRET</c>.
     /// </summary>
     StackUnderflow,
-    PauseSystem,
+    UnsafeOpCodeForbidden,
 }
 

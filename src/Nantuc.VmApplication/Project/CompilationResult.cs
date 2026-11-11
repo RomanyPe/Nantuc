@@ -27,7 +27,7 @@ public readonly struct CompilationResult
     /// Конструктор ошибок
     /// </summary>
     /// <param name="errors">Список ошибок</param>
-    public CompilationResult(IReadOnlyList<string>? errors)
+    public CompilationResult(IReadOnlyList<DiagnosticResult>? errors)
     {
         Program = null;
         StartAdress = 0;
@@ -51,7 +51,7 @@ public readonly struct CompilationResult
     /// <summary> Логи оптимизации </summary>
     public OptimizationResultLog? OptimizationResultLog { get; }
     /// <summary> Список ошибок </summary>
-    public IReadOnlyList<string>? Errors { get; }
+    public IReadOnlyList<DiagnosticResult>? Errors { get; }
     /// <summary> Успешность выполненной компиляции </summary>
     public bool Success => Program != null && (Errors == null || Errors.Count == 0);
 }

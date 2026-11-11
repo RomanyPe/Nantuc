@@ -34,7 +34,7 @@ public static class VMHostRunExtensions
             // 1) Компиляция
             var comp = host.Project.CompileToIR(source, 0, optimize, lang).Build();
             if (!comp.Success)
-                return new(null, null, comp, 0, false, comp.Errors ?? [], default);
+                return new(null, null, comp, 0, false, [.. (comp.Errors ?? []).Select(e => e.Message)], default);
 
             // 2) Регистрация VM — безопасно, через TryRegisterDevice
             var spec = DeviceSpec.Create(ram, name: deviceName);

@@ -157,7 +157,7 @@ The public API of `Nantuc.VmApplication` follows the “Try + IdState + Processo
 
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **do not rely on `default(IdState) == Valid`** — this has changed.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. On success `Status == EndProgram`; on failure — `DivOnZero`/`SegmentationFault`/… with exact `IP` and `OpCode`.
-- **`IProcessorFaultPolicy`** — used **inside** the VM; the return from `Run`/`DebugRun` is already `ProcessorFault`, no separate policy is needed.
+- **`IProcessorPolicy`** — used **inside** the VM; the return from `Run`/`DebugRun` is already `ProcessorFault`, no separate policy is needed.
 - **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`src/Nantuc.VmApplication.Extension/README.md`](src/Nantuc.VmApplication.Extension/README.md#debugger).
 
 ## Architecture
@@ -211,7 +211,7 @@ All modules are published as NuGet packages on [nuget.org](https://www.nuget.org
 | Package | Purpose | README |
 |---|---|---|
 | `Nantuc.Common` | Opcodes, registers, RAM/port sizes, `BiosStatus`, `ProcessorFault`, `IdState` (default-safe), decoder | [README](src/Nantuc.Common/README.md) |
-| `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorFaultPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.md) |
+| `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.md) |
 | `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | [README](src/Nantuc.Diagnostics/README.md) |
 | `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | [README](src/Nantuc.Kernel/README.md) |
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.md) |

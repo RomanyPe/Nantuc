@@ -44,7 +44,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
         if (!res.Success)
         {
             foreach (var err in res.Errors ?? [])
-                Console.WriteLine(err);
+                Console.WriteLine(err.Message);
             return false;
         }
         var ctx = _host.Emulator.GetDeviceContext(_deviceId)!;

@@ -445,5 +445,8 @@ public static class AsmExtensions
             => asm.EmitJump(InstructionEncoder.EncodeJ(op.ToUint()), label);
         public void EmitInstJAbsolute(OpCode op, ulong adrr)
             => asm.EmitJumpToAbsolute(InstructionEncoder.EncodeJ(op.ToUint()), adrr);
+
+        public void EmitInstWithData(OpCode op, RegType reg, OpCodeSize s, ulong data)
+            => asm.EmitInstruction64(InstructionEncoder.EncodeI(op.ToUint(), reg.ToUint(), s.ToUint()), data);
     }
 }

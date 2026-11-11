@@ -10,6 +10,21 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.13.0] - 2026-11-12
+
+### Added
+- a new method in the `IProcessorPolicy` interface — `bool AllowUnsafeOpCodes { get; }` — permission for the processor to use unsafe opcodes due to security issues
+- the condition blocks themselves for `*_UNSAFE` instructions
+- a new structure `readonly record struct DiagnosticResult(string Message, ErrorCode ErrorCode)` for error diagnostics
+
+### Changed
+- **BREAKING:** name `IProcessorFaultPolicy` => `IProcessorPolicy`
+- **BREAKING:** the `Errors` properties for compilation results have been changed; they now return not only the finished string but also, where possible, an `ErrorCode` — if they cannot return a specific one, they return `ErrorCode.NotImplemented`
+- fixed a bug that caused the `LOAD_UNSAFE` and `STORE_UNSAFE` instructions to be replaced with their safe variants
+
+### Documentation
+- documentation synchronized with the code
+
 ## [0.12.0] - 2026-11-10
 
 ### Changed

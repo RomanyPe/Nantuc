@@ -163,7 +163,7 @@ Nantuc.Kernel/
 ### `Emulator` — точка входа
 
 - Конструктор `Emulator(PortSize ports, DevicePortSize portsOnDev)` — создаёт `PortBus` и `ManagerDevices`.
-- `CreateDevice(RamSize, IProcessorFaultPolicy)` — новый `Device`.
+- `CreateDevice(RamSize, IProcessorPolicy)` — новый `Device`.
 - `RegisterDevice(IPortController, string?, uint, out int)` — регистрирует внешний контроллер; при отказе **освобождает** `device` (`device.Dispose()` внутри `ManagerDevices.TryAddDevice`).
 - `GetDevice(int)` / `TryGetDevice<T>(int, out T?)` — по `Id`.
 - `UnregisterDevice(int)` / `ChangeDeviceSector(int, uint)`.
@@ -186,7 +186,7 @@ using Nantuc.Kernel.Utilites;
 
 using var emulator = new Emulator(PortSize.KB64, DevicePortSize.B64);
 
-using Device device = emulator.CreateDevice(RamSize.MB16, IProcessorFaultPolicy.Default);
+using Device device = emulator.CreateDevice(RamSize.MB16, IProcessorPolicy.Default);
 
 byte[] program = [/* байты: 32-битные слова инструкций */];
 device.LoadProgram(program, loadAddress: 0x0);

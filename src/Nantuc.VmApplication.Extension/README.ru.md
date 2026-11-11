@@ -1,4 +1,4 @@
-﻿﻿# Nantuc.VmApplication.Extensions — README
+﻿# Nantuc.VmApplication.Extensions — README
 
 > Расширения к основному API: дизассемблер, отладчик, I/O-устройства, стандартные оптимизации (AST и IR), утилиты компиляции «одной строкой», встроенные библиотеки MiniC/NANASM.
 > Зависит от `[Nantuc.VmApplication]` (транзитивно — от `Diagnostics`, `Kernel`, `Contracts`, `Common`; напрямую из `Common` используется `OpCode`, `AlignUp`, `InstructionDecoder`).
@@ -26,6 +26,7 @@
 - **Встроенные библиотеки** (`Libraries`): строковые константы `heap_nanasm`, `alloc_minic`, `io_nanasm`, `print_minic`, `imath_minic`, `bitops_minic`, `ovf_minic` для `#include`. Подробнее — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
 - **RAM-утилиты** (`DeviceContextExtensions`): `GetRamAsNewArray` / `GetAllRamAsNewArray`, `CopyRamTo` в `Span<byte>` / `byte[]` / `Memory<byte>` / `Stream`, `ReadRam<T>` / `CopyRamTo<T>` для `unmanaged`-типов, `TryCopyRamTo` без исключений — читать RAM **остановленной** VM (все, кроме `TryCopyRamTo`, бросают `InvalidOperationException` при `ctx.IsRunning`).
 - **Bytecode-утилиты** (`BytecodeExtension`): `GetOpCodeSafety` / `GetUnsafeOpCodes` — статический разбор `CompilationResult.Program` на наличие `*_UNSAFE` опкодов (`OpCodeSafety.Safe`/`HasUnsafe`/`Unknown`) и поиск их местоположений (`UnsafeOpCodeLocation(OpCode, Offset, Ip)`). Полезно для проверки недоверенного кода перед запуском и для проверки результата `ReplaceSafeMemAccessWithUnsafeRule`.
+
 Ключевая идея — не менять контракт `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IOptimizerIRRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`, отладчик работает через `DeviceContext.RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. Никаких новых интерфейсов в `Kernel.Contracts`.
 
 ## Дерево локального проекта
@@ -38,7 +39,7 @@ Nantuc.VmApplication.Extensions/
 ├── Bytecode/
 │   └── BytecodeExtension.cs                  # extension on CompilationResult: GetOpCodeSafety / GetUnsafeOpCodes + OpCodeSafety + UnsafeOpCodeLocation + IsUnsafeOpcode
 ├── Diagnostics/
-│   └── DiagnosticsCompilerExtension.cs                  # extension on IReadOnlyDictionary<ErrorCode,string> (ValidateAllCodesCovered / TryValidateAllCodesCovered) — см. «Что исправить», п.3
+│   └── DiagnosticsCompilerExtension.cs       # extension on IReadOnlyDictionary<ErrorCode,string> (ValidateAllCodesCovered / TryValidateAllCodesCovered) — см. «Что исправить», п.3
 ├── Debugging/
 │   ├── Debugger.cs                           # пошаговый отладчик над DeviceContext: Step/StepOver/StepOut/Continue/ContinueTo/RunToEnd/breakpoints/RAM/дизассемблер/стек
 │   ├── DebugStop.cs                          # readonly record struct: Reason + IP + StepCount + ProcessorSnapshot + ProcessorFault
@@ -56,18 +57,19 @@ Nantuc.VmApplication.Extensions/
 ├── Emulator/IO/
 │   ├── NumericIOStream.cs                    # синхронный: пишет числовые коды символов
 │   ├── OutputPortLayout.cs                   # const: WindowSize=8, Data=0, Status=1, Flush=2
-│   ├── PortBusExtensions.cs                  # extension(PortBus).GetBaseAddress(uint sector)
 │   ├── PortCharEncoding.cs                   # enum: BytePerChar | Utf8 | Utf16
 │   ├── QueuedIOStream.cs                     # async: Channel<byte> + фоновый drain
 │   └── SynchronousIOStream.cs                # синхронный: пишет символы
 ├── Host/
 │   ├── HostExtensions.cs                     # RunOutcome + RunAndKeep / RunAndCleanup / RunOnce (+ UART через QueuedIOStream, если output != null)
-│   └── ProjectExtension.cs                   # Compile/CompileToIR по строке/строкам + SaveFileInclude/SaveFileProject + LoggingFaultPolicyMinimal
+│   ├── LoggingFaultPolicyMinimal.cs          # IProcessorPolicy: логирует fault и останавливает симуляцию
+│   └── ProjectExtension.cs                   # Compile/CompileToIR по строке/строкам + SaveFileInclude/SaveFileProject
 ├── StdLibraries/
 │   └── Libraries.cs                          # static class Libraries: heap_nanasm, alloc_minic, io_nanasm, print_minic, imath_minic, bitops_minic, ovf_minic
 └── Optimizators/
     ├── AstOptimizerExtension.cs              # extension(VmAstOptimizer).AddStdRules() + WithASTNodePrefix + OptimizationId-константы
-    ├── IROptimizerExtension.cs         # extension(VmIROptimizer).AddStdRules() + WithIRPrefix / WithRule + OptimizationId-константы + IRLog
+    ├── IROptimizerExtension.cs               # extension(VmIROptimizer).AddStdRules() + WithIRPrefix / WithRule + OptimizationId-константы
+    ├── IRLog.cs                              # IRLog : IRogOptimization — форматирование лога оптимизаций
     ├── AstRules/
     │   ├── FoldConstantsRule.cs
     │   ├── InlineSmallVoidFunctionsRule.cs
@@ -86,12 +88,13 @@ Nantuc.VmApplication.Extensions/
 
 Замечания по организации:
 - Папка и namespace — `StdLibraries`, файл и публичный класс — `Libraries`. Исторически папка называлась `Librares`, в старых доках встречалось `Librare` — обе опечатки исправлены. Namespace `Nantuc.VmApplication.Extensions.StdLibraries`, класс `Libraries`.
-- `ProjectExtension.cs` содержит `LoggingFaultPolicyMinimal` — класс не про расширения проекта, а про политику fault'ов. Логичнее вынести в `Host/`.
 - `AstOptimizerExtension.cs` и `IROptimizerExtension.cs` содержат не только extension-методы, но и `OptimizationId`-константы. Они — часть публичного контракта: по этим ID вы ищете логи в `OptimizationResultLog`.
+- `IRLog.cs` — отдельный файл (namespace `Nantuc.VmApplication.Extensions.Optimizators`), вынесен из `IROptimizerExtension.cs`.
 - `Diagnostics/DiagnosticsCompilerExtension.cs` — расширение над `IReadOnlyDictionary<ErrorCode, string>` (`ValidateAllCodesCovered`/`TryValidateAllCodesCovered`). По changelog 0.7.2 эти методы помечены как удалённые; в коде файл пока присутствует — см. [Что исправить](#что-исправить), п.3.
 - `Debugging/` — новый слой поверх `DeviceContext`, не меняет `Nantuc.VmApplication`. Отладчик не потокобезопасен (кроме `RequestStop`), что совпадает с моделью `DeviceContext`. Стек вызовов восстанавливается эвристически — VM не хранит frame pointer. Подробности — в [Особенная информация](#особенная-информация).
 - `Bytecode/` — статический разбор `CompilationResult.Program`, не трогает `DeviceContext`/`VmEmulator`. `IsUnsafeOpcode` — тот же набор, что использует `ReplaceSafeMemAccessWithUnsafeRule`, поэтому модуль можно использовать для верификации результата IR-правила (после применения — все `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` заменены на `*_UNSAFE`).
 - `Host/HostExtensions.cs` — `RunAndKeep` в текущей версии использует только safe-API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`), без `!`. Побочный эффект: при ошибке регистрации/загрузки возвращается `RunOutcome` с `Device == null`, а не NRE. UART регистрируется на `sector + 1`, если передан `output`.
+- `Host/LoggingFaultPolicyMinimal.cs` — отдельный файл; ранее класс лежал в `ProjectExtension.cs`, теперь вынесен.
 
 ## API
 
@@ -335,15 +338,6 @@ public QueuedIOStream(TextWriter writer, PortCharEncoding encoding);
 
 `WritePort(Data, value)` → `Channel.Writer.TryWrite(value)` + `Interlocked.Increment`. `ReadPort(Status)` → `1` если pending, `0` иначе. `WritePort(Flush, _)` → polling до 2 сек. `Dispose` → `Complete` + `_drainTask.Wait(5s)`.
 
-**`PortBusExtensions`**:
-
-```csharp
-extension(PortBus bus)
-{
-    public ulong GetBaseAddress(uint sector) => (ulong)sector * bus.PortsOnDevice;
-}
-```
-
 ### Оптимизации
 
 **`AstOptimizerExtension`**:
@@ -494,7 +488,7 @@ extension(VmHost host)
 **`LoggingFaultPolicyMinimal`**:
 
 ```csharp
-public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorFaultPolicy
+public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorPolicy
 {
     public bool ShouldContinue(in ProcessorFault fault);
     // пишет строку в output, возвращает false (остановить симуляцию)
@@ -970,10 +964,6 @@ VM не хранит frame pointer и не ведёт отдельный call st
 - `ovf_minic` — `add_ovf_i32`/`sub_ovf_i32`/`mul_ovf_i32` (для signed 32-bit; `INT_MAX = 2147483647`, `INT_MIN = -2147483647 - 1`), `add_ovf_u64`/`sub_ovf_u64`/`mul_ovf_u64` (для unsigned 64-bit). Все возвращают `1` при переполнении и `0` — иначе.
 
 Подробности — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
-
-### `PortBusExtensions.GetBaseAddress`
-
-`(ulong)sector * bus.PortsOnDevice` — вычисляет абсолютный адрес начала сектора в port-пространстве. `sector` сначала приводится к `ulong`, переполнения нет.
 
 ### `HostExtensions` и `sector`
 

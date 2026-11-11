@@ -21,7 +21,7 @@
 
 Ключевые роли модуля:
 - Шина портов: `IPortBus`, `IPortUse`, `IPortController`, `ReadPortResult`.
-- Процессор: `ProcessorSnapshot`, `IProcessorFaultPolicy` (с кэшированным `Default`).
+- Процессор: `ProcessorSnapshot`, `IProcessorPolicy` (с кэшированным `Default`).
 - Оптимизации: `OptimizationId`, `OptimizationLogEntry`, `IReadOnlyLogOptimization`.
 - Результаты замеров: `TimeSimulationResult`.
 - Устройства: `DeviceInfo`, `IReadOnlyNativeBuffer`.
@@ -40,7 +40,7 @@ Nantuc.Contracts/
 ├── IPortBus.cs                       # interface IPortBus
 ├── IPortController.cs                # interface IPortController : IPortUse, IDisposable
 ├── IPortUse.cs                       # interface IPortUse
-├── IProcessorFaultPolicy.cs          # interface IProcessorFaultPolicy + nested DefaultProcessorFaultPolicy
+├── IProcessorPolicy.cs          # interface IProcessorPolicy + nested DefaultProcessorFaultPolicy
 ├── ProcessorSnapshot.cs              # readonly struct ProcessorSnapshot, [InlineArray(32)]
 ├── IReadOnlyLogOptimization.cs       # interface IReadOnlyLogOptimization
 ├── TimeSimulationResult.cs           # readonly record struct TimeSimulationResult
@@ -52,7 +52,7 @@ Nantuc.Contracts/
 Замечания по организации:
 - Файлы `OptimizationId.cs` и `OptimizationLogEntry.cs` — имя файла соответствует имени типа (ранее было `TypeOptimization.cs` с типом `OptimizationId` — теперь переименовано).
 - `IPortController.cs` — однострочный, но с `///` и `<see>`-ссылками на `IPortUse`/`IDisposable`.
-- `IProcessorFaultPolicy` содержит `private class DefaultProcessorFaultPolicy` — реализация политики живёт внутри интерфейса. Это нестандартно для контрактов, но осознанно: «политика по умолчанию» — часть контракта.
+- `IProcessorPolicy` содержит `private class DefaultProcessorFaultPolicy` — реализация политики живёт внутри интерфейса. Это нестандартно для контрактов, но осознанно: «политика по умолчанию» — часть контракта.
 - `ProcessorSnapshot` — `readonly struct` с `[InlineArray(RegisterCount)] (RegisterCount = 32)` для хранения копии регистров. Два конструктора:
     - `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)` — `CurrentBiosStatus = BiosStatus.Success`;
     - `(..., BiosStatus currentBiosStatus)` — то же плюс явный статус.
@@ -71,7 +71,7 @@ Nantuc.Contracts/
 | `IPortController` | `interface : IPortUse, IDisposable` | Композиция «устройство на шине + освобождение» |
 | `ReadPortResult` | `readonly record struct` | `(byte Data, BiosStatus Status = Success)` |
 | `ProcessorSnapshot` | `readonly struct` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)`; `[InlineArray(RegisterCount)]`-хранилище (32); `RawInstruction`, `DataByInstruction`, `CurrentBiosStatus`, `DataFault`; декодированные из `RawInstruction`: `OpCode`, `FirstRegister`, `SecondRegister`, `DataSizeCode`|
-| `IProcessorFaultPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)`; `Default` — кэшированный singleton |
+| `IProcessorPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)`; `Default` — кэшированный singleton |
 | `IReadOnlyLogOptimization` | `interface` | `Id`, `GetLogs()` |
 | `OptimizationId` | `readonly struct` | Валидированный идентификатор `[a-z0-9.-]{1,128}` |
 | `OptimizationLogEntry` | `readonly record struct` | `(int Pass, string Message)` |
@@ -107,28 +107,25 @@ Nantuc.Contracts/
 
 Записи в `ProcessorSnapshot` нет — она в `Kernel`; здесь только чтение снимка.
 
-**`IProcessorFaultPolicy`** — политика остановки процессора при `ProcessorFault`:
+**`IProcessorPolicy`** — политика остановки процессора при `ProcessorFault`:
 
 ```csharp
-public interface IProcessorFaultPolicy
+public interface IProcessorPolicy
 {
-    public static IProcessorFaultPolicy Default { get; } = new DefaultProcessorFaultPolicy();
-
-    private class DefaultProcessorFaultPolicy : IProcessorFaultPolicy
+    public static IProcessorPolicy Default { get; } = new DefaultProcessorFaultPolicy();
+    
+    private class DefaultProcessorFaultPolicy : IProcessorPolicy
     {
-        public bool ShouldContinue(in ProcessorFault fault) => fault.Status switch
-        {
-            BiosStatus.Success => true,
-            BiosStatus.NullDeviceOutput => true,
-            _ => false,
-        };
+        bool IProcessorPolicy.AllowUnsafeOpCodes => false;
+        public bool ShouldContinue(in ProcessorFault fault) => fault.Status == BiosStatus.Success;
     }
+
+    bool AllowUnsafeOpCodes => false;
 
     bool ShouldContinue(in ProcessorFault fault);
 }
+}
 ```
-
-Семантика `Default`: продолжать при `Success` и `NullDeviceOutput`, останавливаться на любом другом статусе. `NullDeviceInput` не входит в «продолжать» — асимметрично (см. [Что исправить](#что-исправить), п. 2). `Default` — **статическое свойство с кэшированным экземпляром** (static initializer, создаётся один раз при первом обращении к типу интерфейса).
 
 ### Оптимизации
 
@@ -195,7 +192,7 @@ public sealed class UartDevice : IPortController
 **Проверка политики после падения:**
 
 ```csharp
-IProcessorFaultPolicy policy = IProcessorFaultPolicy.Default;
+IProcessorPolicy policy = IProcessorPolicy.Default;
 
 ProcessorFault fault = new(
     Status: BiosStatus.DivOnZero,
@@ -243,7 +240,7 @@ foreach (OptimizationLogEntry e in entries)
 Средняя. Контракты — это то, что видит автор расширений и пользователь `VmApplication`, но не то, что пишет автор программы на MiniC.
 
 - Автор расширений (кастомное устройство, дизассемблер, отладчик) реализует `IPortUse`/`IPortController`/`IReadOnlyNativeBuffer` — и это его основной вход в платформу.
-- Пользователь `VmApplication`, который хочет читать состояние процессора, использует `ProcessorSnapshot` и `IProcessorFaultPolicy`.
+- Пользователь `VmApplication`, который хочет читать состояние процессора, использует `ProcessorSnapshot` и `IProcessorPolicy`.
 - Автор компилятора оптимизаций работает с `OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`.
 - Автор программы на MiniC/NANASM этот модуль не импортирует — он работает через `VmApplication`.
 
@@ -252,7 +249,7 @@ foreach (OptimizationLogEntry e in entries)
 - Читать `ReadPortResult.Status` первым делом, `Data` — только если `Success`.
 - Использовать `OptimizationId.TryParse` для пользовательского ввода и конструктор — для заведомо валидных констант.
 - Возвращать `in ProcessorFault` из ядра и принимать его `in` в `ShouldContinue` — без копирования.
-- `IProcessorFaultPolicy.Default` — кэшированный singleton (static initializer); для production с особыми требованиями к политике — своя реализация.
+- `IProcessorPolicy.Default` — кэшированный singleton (static initializer); для production с особыми требованиями к политике — своя реализация.
 
 **Что не стоит делать:**
 - Возвращать `new ReadPortResult(data)` без явного `Status` — дефолт `Success` замаскирует ошибку.
@@ -269,7 +266,7 @@ foreach (OptimizationLogEntry e in entries)
 |---|---|---|
 | Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — `interface`/`readonly struct`. Собирается под `browser-wasm` без правок csproj. |
 | `stackalloc` / `InlineArray` | ✅ | `ProcessorSnapshot` использует `[InlineArray(RegisterCount)] (const int RegisterCount = 32)` — compile-time, AOT-friendly. `stackalloc` в `CurrentProcessorSnapshot` (в `Kernel`) — 32 × 8 байт. Валидация длины (`ArgumentException` из `GetArr`) — `managed`, без `unsafe`. | 
-| `Interlocked` / `Volatile` | ✅ | Не используются. `IProcessorFaultPolicy.Default` — `static`-свойство с кэшированным экземпляром (static initializer). |
+| `Interlocked` / `Volatile` | ✅ | Не используются. `IProcessorPolicy.Default` — `static`-свойство с кэшированным экземпляром (static initializer). |
 | `Regex` / trimming | ✅ | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` валидирует строку посимвольно (`foreach (char c in value)`), без `Regex`. Trimming-совместимо. |
 | AOT | ✅ | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |
 
@@ -283,9 +280,9 @@ foreach (OptimizationLogEntry e in entries)
 - Сравнение — `StringComparison.Ordinal` / `String.CompareOrdinal`; culture-independent.
 - Персистентность: XML-документация утверждает, что well-known id стабильны и их можно писать в логи/кэши/конфиги. В коде **статических полей с well-known id нет** — только сам механизм (см. [Что исправить](#что-исправить), п. 1).
 
-### `IProcessorFaultPolicy` как контракт
+### `IProcessorPolicy` как контракт
 
-- `Default` — статическое свойство с **кэшированным экземпляром** `DefaultProcessorFaultPolicy` (static initializer). Создаётся один раз при первом обращении к типу `IProcessorFaultPolicy`; повторные чтения `Default` возвращают тот же экземпляр.
+- `Default` — статическое свойство с **кэшированным экземпляром** `DefaultProcessorFaultPolicy` (static initializer). Создаётся один раз при первом обращении к типу `IProcessorPolicy`; повторные чтения `Default` возвращают тот же экземпляр.
 - `DefaultProcessorFaultPolicy.ShouldContinue` возвращает `true` для `Success` и `NullDeviceOutput`. `NullDeviceInput` — `false`. Если `NullDeviceInput` семантически «нет устройства ввода, но это не падение», поведение `Default` расходится с ожиданиями (см. [Что исправить](#что-исправить), п. 2).
 - Приватный вложенный класс — нестандартное для контрактов решение, но допустимое: «политика по умолчанию» — часть контракта, а не отдельная реализация в `Kernel`.
 
@@ -310,7 +307,7 @@ foreach (OptimizationLogEntry e in entries)
 
 ### Что этот модуль не делает
 
-- Не содержит реализаций — только интерфейсы и DTO. Единственное исключение — `private class DefaultProcessorFaultPolicy` внутри `IProcessorFaultPolicy` (это «политика по умолчанию», часть контракта).
+- Не содержит реализаций — только интерфейсы и DTO. Единственное исключение — `private class DefaultProcessorFaultPolicy` внутри `IProcessorPolicy` (это «политика по умолчанию», часть контракта).
 - Не содержит состояния, кэшей, счётчиков.
 - Не знает про `ManagerDevices`, `MemoryBus`, `Processor` — только про `BiosStatus`/`ProcessorFault`/`RegType`/`OpCode` из `Common`.
 - Не реализует `IReadOnlyNativeBuffer` над `NativeMemory` — только объявляет интерфейс; реализация — в слое, который знает про `NativeMemory`.

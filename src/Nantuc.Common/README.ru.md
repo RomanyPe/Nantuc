@@ -101,7 +101,7 @@ Nantuc.Common/
 
 **`RegType : byte`** — 32 значения: `r0..r27` (регистры общего назначения, **все с `///`**), `rFL` (флаги Zero/Negative), `rSP` (stack pointer), `rHP` (heap pointer), `rIP` (instruction pointer). `<remarks>` на enum фиксирует: 32 регистра по 64 бита в `ArrayRegisters` (`[InlineArray(32)]` из `ulong`), нет аппаратно-занулённого регистра (обнуление через `XOR rN, rN`), порядок 0..31 — часть контракта. Ровно 32 = 5 бит.
 
-**`BiosStatus : byte`** — все 11 членов с `///`: `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgram`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`. `<remarks>` на enum явно предупреждает: `EndProgram` и `InfinityLoop` — **не ошибки по смыслу**, но проходят через путь `ProcessorFault`/`IProcessorFaultPolicy`; политика обязана их различать.
+**`BiosStatus : byte`** — все 11 членов с `///`: `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgram`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`. `<remarks>` на enum явно предупреждает: `EndProgram` и `InfinityLoop` — **не ошибки по смыслу**, но проходят через путь `ProcessorFault`/`IProcessorPolicy`; политика обязана их различать.
 
 **`IdState`** — **breaking change** относительно предыдущей версии:
 
@@ -127,7 +127,7 @@ public readonly record struct ProcessorFault(
 ```
 
 Вынесен в отдельный файл `ProcessorFault.cs`. Полный XML: `<summary>` + `<remarks>` + `<param>` на каждый параметр. Ключевые факты из `<remarks>`:
-- Формируется процессором при статусе ≠ `Success`, передаётся в `IProcessorFaultPolicy.ShouldContinue`.
+- Формируется процессором при статусе ≠ `Success`, передаётся в `IProcessorPolicy.ShouldContinue`.
 - **Не исключение**, value-type: копируется по стеку, не аллоцирует память, пригоден для передачи между потоками без блокировок.
 - **Соглашение о «неинициализированном» значении:** используется `OpCode.NOP` (значение 0). `<remarks>` явно называет это спорным решением и рекомендует в будущем заменить на `OpCode?` или отдельный сентинел.
 

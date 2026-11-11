@@ -163,7 +163,7 @@ Its own `MemoryBus` + `Processor` + `byte[] _ioMemory` + `ManualResetEventSlim _
 ### `Emulator` — entry point
 
 - Constructor `Emulator(PortSize ports, DevicePortSize portsOnDev)` — creates `PortBus` and `ManagerDevices`.
-- `CreateDevice(RamSize, IProcessorFaultPolicy)` — a new `Device`.
+- `CreateDevice(RamSize, IProcessorPolicy)` — a new `Device`.
 - `RegisterDevice(IPortController, string?, uint, out int)` — registers an external controller; on failure it **disposes** `device` (`device.Dispose()` inside `ManagerDevices.TryAddDevice`).
 - `GetDevice(int)` / `TryGetDevice<T>(int, out T?)` — by `Id`.
 - `UnregisterDevice(int)` / `ChangeDeviceSector(int, uint)`.
@@ -186,7 +186,7 @@ using Nantuc.Kernel.Utilites;
 
 using var emulator = new Emulator(PortSize.KB64, DevicePortSize.B64);
 
-using Device device = emulator.CreateDevice(RamSize.MB16, IProcessorFaultPolicy.Default);
+using Device device = emulator.CreateDevice(RamSize.MB16, IProcessorPolicy.Default);
 
 byte[] program = [/* bytes: 32-bit instruction words */];
 device.LoadProgram(program, loadAddress: 0x0);

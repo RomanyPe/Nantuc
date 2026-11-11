@@ -1,4 +1,5 @@
 ﻿using Nantuc.Compiler.ASM.IR;
+using Nantuc.Diagnostics;
 
 namespace Nantuc.VmApplication.Project;
 
@@ -11,7 +12,7 @@ public readonly record struct CompilationToIRResult
 {
     internal readonly IRAssembler? Assembler;
     /// <summary> Список ошибок </summary>
-    public IReadOnlyList<string>? Errors { get; }
+    public IReadOnlyList<DiagnosticResult>? Errors { get; }
     /// <summary>
     /// Логи оптимизации
     /// </summary>
@@ -21,7 +22,7 @@ public readonly record struct CompilationToIRResult
     /// Конструктор ошибок
     /// </summary>
     /// <param name="errors">список ошибок</param>
-    public CompilationToIRResult(IReadOnlyList<string>? errors)
+    public CompilationToIRResult(IReadOnlyList<DiagnosticResult>? errors)
     {
         Assembler = null;
         Errors = errors;
@@ -43,7 +44,7 @@ public readonly record struct CompilationToIRResult
     /// <param name="assembler">IR ассмеблер</param>
     /// <param name="optimizationResultLog">логи оптимизации</param>
     /// <param name="errors">список ошибок</param>
-    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<string>? errors)
+    public CompilationToIRResult(IRAssembler? assembler, OptimizationResultLog? optimizationResultLog, IReadOnlyList<DiagnosticResult>? errors)
     {
         Assembler = assembler;
         Errors = errors;
@@ -63,7 +64,7 @@ public readonly record struct CompilationToIRResult
         }
         catch (Exception ex)
         {
-            return new CompilationResult([ex.Message]);
+            return new CompilationResult([new DiagnosticResult(ex.Message, ErrorCode.NotImplemented)]);
         }
     }
 }

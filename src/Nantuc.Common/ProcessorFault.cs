@@ -6,7 +6,7 @@
 /// <remarks>
 /// <para>
 /// Формируется процессором при получении от обработчика инструкции статуса, отличного от
-/// <see cref="BiosStatus.Success"/>, и далее передаётся в <c>IProcessorFaultPolicy.ShouldContinue</c>
+/// <see cref="BiosStatus.Success"/>, и далее передаётся в <c>IProcessorPolicy.ShouldContinue</c>
 /// для принятия решения о продолжении работы. Текущее значение доступно через
 /// <c>Processor.GetDiagnosticData()</c>.
 /// </para>

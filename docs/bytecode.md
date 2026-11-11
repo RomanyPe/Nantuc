@@ -1,3 +1,5 @@
+Here is the English translation. No `.ru` localization prefixes were present in the source.
+
 # Nantuc Virtual Machine Bytecode Specification
 
 > Format version: 1  
@@ -8,13 +10,13 @@
 
 ## 1. Terminology and conventions
 
-- **Bytecode** — a sequence of 32-bit instruction words and 64-bit immediate operands located in RAM.
+- **Bytecode** — a sequence of 32-bit instruction words and 64-bit immediate operands, placed in RAM.
 - **Instruction word** — a 32-bit `uint`, read from memory as **little-endian** (`MemoryBus.ReadInt32LE*`).
 - **Immediate** — a 64-bit value, read from memory as **little-endian unaligned** (`ReadInt64LEUnSafe`).
 - **VM** — the virtual processor implemented in `Processor`.
-- **Loader** — `Device.LoadProgram` (copies the program bytes into RAM and initializes `rHP`).
+- **Loader** — `Device.LoadProgram` (copies program bytes into RAM and initializes `rHP`).
 
-Key requirement: **the program load base address must be a multiple of 8** for correct immediate reads.
+Key requirement: **the base load address of the program must be a multiple of 8** for correct immediate reads.
 
 ---
 
@@ -22,28 +24,28 @@ Key requirement: **the program load base address must be a multiple of 8** for c
 
 ### 2.1. Registers
 
-32 registers of 64 bits each (`[InlineArray(32)]` in `Processor`). Indexed by `RegType` (0..31).
+32 registers of 64 bits each (`[InlineArray(32)]` in `Processor`). Indexing is by `RegType` (0..31).
 
-| Index | Name | Purpose |
-|------:|------|---------|
+| Index | Name   | Purpose |
+|------:|--------|---------|
 | 0–27  | `r0..r27` | General-purpose registers |
 | 28    | `rFL` | Flags: bit 0 = Zero, bit 1 = Negative |
 | 29    | `rSP` | Stack Pointer — stack pointer (grows downward) |
 | 30    | `rHP` | Heap Pointer — heap pointer |
 | 31    | `rIP` | Instruction Pointer — address of the next instruction |
 
-**`rFL` flags are updated only by `CMP` and `TEST`.** Arithmetic and logical instructions do not change the flags.
+**`rFL` flags are updated only by `CMP` and `TEST`.** Arithmetic and logical instructions do not change flags.
 
 ### 2.2. Processor state
 
 - `IsRunning` — whether the program is executing.
-- `IsSleeping` — the processor is in `HALT` mode (waiting to be woken).
+- `IsSleeping` — the processor is in `HALT` mode (waiting for wakeup).
 
 ### 2.3. Initial initialization (`LaunchProgramm`)
 
 | Field | Value |
 |-------|-------|
-| `rIP` | the `startAddress` argument (address of the first instruction) |
+| `rIP` | argument `startAddress` (address of the first instruction) |
 | `rSP` | `AlignDown(RAM.Length, 8)` — top of RAM |
 | `rFL` | `0` |
 | `IsRunning` | `true`, `IsSleeping = false` |
@@ -51,7 +53,7 @@ Key requirement: **the program load base address must be a multiple of 8** for c
 
 ### 2.4. Address format
 
-- RAM is byte-addressed, length is `RAM.Length` (power of two, ≥ 64 bytes).
+- RAM is byte-addressed; length is `RAM.Length` (power of two, ≥ 64 bytes).
 - Ports are a separate byte space divided into sectors of `PortsOnDevice` ports each.
 
 ---
@@ -70,7 +72,7 @@ bits:  31 … 20  |  19 … 18   |  17 … 13   |  12 … 8   |  7 … 0
 - **Reg1** (5 bits) — first register operand, usually the destination.
 - **Reg2** (5 bits) — second register operand, usually the source.
 - **DataSize** (2 bits) — only for the LOAD/STORE group (`OpCodeSize`).
-- **Bits 20–31** are reserved and must be zero.
+- **Bits 20–31** — reserved, must be zero.
 
 Decoder (reference): `InstructionDecoder.GetOpCode/GetReg1/GetReg2/GetDataSizeCode`.
 
@@ -87,10 +89,10 @@ Decoder (reference): `InstructionDecoder.GetOpCode/GetReg1/GetReg2/GetDataSizeCo
 
 | Operand | What it encodes |
 |---------|-----------------|
-| `Reg1`  | destination (dst) / left operand / sole operand |
+| `Reg1`  | destination (dst) / left operand / only operand |
 | `Reg2`  | source (src) / right operand / port (for IN/OUT) |
 
-See the opcode table (§ 4) for specific conventions.
+See the opcode table for specific conventions.
 
 ### 3.4. DataSize (`OpCodeSize`)
 
@@ -107,7 +109,7 @@ Used only by `LOAD`, `STORE`, `LOAD_IND`, `STORE_IND`, and their `_UNSAFE` varia
 
 ## 4. Opcodes (registry)
 
-All values are from 0 to 42; the original enum is `OpCode : byte`. Values are fixed by declaration order and cannot be reordered without updating the decoder and saved images.
+All values are 0 through 42; the original enum is `OpCode : byte`. Values are fixed by declaration order and cannot be reordered without updating the decoder and saved images.
 
 | # | Mnemonic | Reg1 | Reg2 | Size | Immediate | Brief meaning |
 |--:|----------|------|------|:----:|:---------:|---------------|
@@ -126,7 +128,7 @@ All values are from 0 to 42; the original enum is `OpCode : byte`. Values are fi
 | 12 | `SHL`            | dst | shift | — | — | `dst <<= (byte)shift` |
 | 13 | `INC`            | reg | — | — | — | `reg += 1` |
 | 14 | `DEC`            | reg | — | — | — | `reg -= 1` |
-| 15 | `DIV`            | dst | src | — | — | `dst /= src` (unsigned), `DivOnZero` on 0 |
+| 15 | `DIV`            | dst | src | — | — | `dst /= src` (unsigned), `DivOnZero` if 0 |
 | 16 | `AND`            | dst | src | — | — | `dst &= src` |
 | 17 | `OR`             | dst | src | — | — | `dst \|= src` |
 | 18 | `XOR`            | dst | src | — | — | `dst ^= src` |
@@ -145,17 +147,17 @@ All values are from 0 to 42; the original enum is `OpCode : byte`. Values are fi
 | 31 | `CALL_IND`       | addr | — | — | — | `CALL [Reg1]` (checked) |
 | 32 | `JMP_IND`        | addr | — | — | — | `JMP [Reg1]` (checked) |
 | 33 | `HALT`           | — | — | — | — | `IsSleeping = true` |
-| 34 | `WAKE`           | — | — | — | — | no-op in the stream; as an external command — wake-up |
-| 35 | `WAKE_INT`       | port | — | — | — | wake device via `port[Reg1]` |
+| 34 | `WAKE`           | — | — | — | — | no-op in stream; as an external command — wakeup |
+| 35 | `WAKE_INT`       | port | — | — | — | wake device at `port[Reg1]` |
 | 36 | `LOAD_UNSAFE`    | dst | — | ✓ | ✓ | `dst = [addr]` (unchecked) |
 | 37 | `STORE_UNSAFE`   | src | — | ✓ | ✓ | `[addr] = src` (unchecked) |
 | 38 | `STORE_IND_UNSAFE` | src | addr | ✓ | — | `[Reg2] = Reg1` (unchecked) |
 | 39 | `LOAD_IND_UNSAFE`  | dst | addr | ✓ | — | `dst = [Reg2]` (unchecked) |
 | 40 | `CMP`            | left | right | — | — | updates `rFL` based on `left - right` |
 | 41 | `TEST`           | left | right | — | — | updates `rFL` based on `left & right` |
-| 42 | `MOD`            | dst | src | — | — | `dst %= src` (unsigned), `DivOnZero` on 0 |
+| 42 | `MOD`            | dst | src | — | — | `dst %= src` (unsigned), `DivOnZero` if 0 |
 
-An immediate operand is present **only** in opcodes marked `HasNeed64IntData = true` (in the reference: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `LOAD_UNSAFE`, `STORE_UNSAFE`).
+The immediate operand is present **only** for opcodes marked `HasNeed64IntData = true` (in the reference: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `LOAD_UNSAFE`, `STORE_UNSAFE`, `LOAD_IND`, `STORE_IND`, `LOAD_IND_UNSAFE`, `STORE_IND_UNSAFE`).
 
 ---
 
@@ -166,7 +168,7 @@ An immediate operand is present **only** in opcodes marked `HasNeed64IntData = t
 | Opcode | Action |
 |--------|--------|
 | `NOP` | no operation, `rIP` has already advanced by 4 |
-| `END` | `IsRunning = false`; `BiosStatus.EndProgram` is returned; then `IProcessorFaultPolicy.ShouldContinue` is called, and its response overwrites `IsRunning` |
+| `END` | `IsRunning = false`; returns `BiosStatus.EndProgram`; then `IProcessorPolicy.ShouldContinue`, whose response overwrites `IsRunning` |
 
 ### 5.2. Moves and load/store
 
@@ -177,8 +179,8 @@ An immediate operand is present **only** in opcodes marked `HasNeed64IntData = t
 **`LOAD[.size] Reg1, [imm]`** — checked read:
 1. `addr = imm`
 2. alignment check by `size` (`addr & (N-1) == 0`)
-3. bounds check `addr + N <= RAM.Length`
-4. read `N` bytes little-endian, zero-extend to 64 bits
+3. check `addr + N <= RAM.Length`
+4. read `N` bytes little-endian, zero-extended to 64 bits
 5. `Reg1 = value`
 
 Errors: `AlignmentFault` (with `FaultData = addr`), `SegmentationFault` (with `FaultData = addr`).
@@ -186,13 +188,13 @@ Errors: `AlignmentFault` (with `FaultData = addr`), `SegmentationFault` (with `F
 **`STORE[.size] [imm], Reg1`** — checked write:
 1. `addr = imm`
 2. the same checks
-3. write the low `N` bytes of `Reg1` little-endian to `[addr]`
+3. write the least significant `N` bytes of `Reg1` little-endian to `[addr]`
 
 **`LOAD_IND[.size] Reg1, Reg2`** — same as `LOAD`, but `addr = Reg2`.
 
 **`STORE_IND[.size] Reg1, Reg2`** — same as `STORE`, but `addr = Reg2`.
 
-**`*_UNSAFE` variants** — without checks. Behavior on out-of-bounds access or misalignment is **undefined** (`Unsafe.ReadUnaligned`/`WriteUnaligned` through a pointer outside the buffer).
+**`*_UNSAFE` variants** — without checks. Behavior on out-of-bounds or misalignment is **undefined** (`Unsafe.ReadUnaligned`/`WriteUnaligned` on a pointer outside the buffer).
 
 ### 5.3. Arithmetic (unsigned, 64-bit, wrap-around)
 
@@ -202,13 +204,13 @@ All instructions modify only `Reg1`.
 |--------|---------|
 | `ADD Reg1, Reg2` | `Reg1 = Reg1 + Reg2` |
 | `SUB Reg1, Reg2` | `Reg1 = Reg1 - Reg2` |
-| `MULT_INT Reg1, Reg2` | `Reg1 = Reg1 * Reg2` (overflow is discarded) |
+| `MULT_INT Reg1, Reg2` | `Reg1 = Reg1 * Reg2` (overflow discarded) |
 | `DIV Reg1, Reg2` | `Reg1 = Reg1 / Reg2` (unsigned); `DivOnZero` if `Reg2 == 0` |
 | `MOD Reg1, Reg2` | `Reg1 = Reg1 % Reg2` (unsigned); `DivOnZero` if `Reg2 == 0` |
 | `INC Reg1` | `Reg1 += 1` |
 | `DEC Reg1` | `Reg1 -= 1` |
-| `SHR Reg1, Reg2` | `Reg1 >>= (byte)Reg2` (low byte) |
-| `SHL Reg1, Reg2` | `Reg1 <<= (byte)Reg2` (low byte) |
+| `SHR Reg1, Reg2` | `Reg1 >>= (byte)Reg2` (least significant byte) |
+| `SHL Reg1, Reg2` | `Reg1 <<= (byte)Reg2` (least significant byte) |
 
 ### 5.4. Logical
 
@@ -221,15 +223,15 @@ All instructions modify only `Reg1`.
 
 ### 5.5. Comparisons (update `rFL`)
 
-`rFL` (28): bit 0 — **Zero (Z)**, bit 1 — **Negative (N)**. Remaining bits are 0.
+`rFL` (28): bit 0 — **Zero (Z)**, bit 1 — **Negative (N)**. Other bits are 0.
 
-**`CMP Reg1, Reg2`** — compute `res = Reg1 - Reg2` (64-bit, unsigned):
+**`CMP Reg1, Reg2`** — computes `res = Reg1 - Reg2` (64-bit, unsigned):
 - `Z = (res == 0)`
 - `N = (res >> 63) & 1`
 
 `Reg1`/`Reg2` are not modified.
 
-**`TEST Reg1, Reg2`** — compute `res = Reg1 & Reg2`:
+**`TEST Reg1, Reg2`** — computes `res = Reg1 & Reg2`:
 - `Z = (res == 0)`
 - `N = (res >> 63) & 1`
 
@@ -237,22 +239,22 @@ All instructions modify only `Reg1`.
 
 ### 5.6. Control flow
 
-**`JMP target`** → `rIP = target`. Bounds are **not checked** — a jump to an invalid area will lead to undefined behavior on the next step (instruction read via `ReadInt32LEUnSafe`).
+**`JMP target`** → `rIP = target`.
 
 **`JZ target`** — if `Z=1`, `rIP = target`.
 
 **`JNZ target`** — if `Z=0`, `rIP = target`.
 
-**`JG target`** — if `Z=0` and `N=0`, `rIP = target` (unsigned "greater").
+**`JG target`** — if `Z=0` and `N=0`, `rIP = target` (unsigned “greater”).
 
-**`JL target`** — if `N=1`, `rIP = target` (unsigned "less").
+**`JL target`** — if `N=1`, `rIP = target` (unsigned “less”).
 
 **`JMP_IND Reg1`** — `target = Reg1`; check `target < RAM.Length`; on failure — `SegmentationFault`; otherwise `rIP = target`.
 
 **`CALL target`** — subroutine call:
 1. `if rSP < 8 → SegmentationFault`
 2. `sp = rSP - 8`
-3. `if rHP >= sp → SegmentationFault` (stack-heap collision)
+3. `if rHP >= sp → SegmentationFault` (stack/heap collision)
 4. `RAM[sp] = rIP` (unchecked write, little-endian)
 5. `rSP = sp; rIP = target`
 
@@ -263,22 +265,20 @@ All instructions modify only `Reg1`.
 2. `rIP = RAM[rSP]` (unchecked read, 8 bytes LE)
 3. `rSP += 8`
 
-`stackBase` is the `rSP` value immediately after `LaunchProgramm` (top of RAM, aligned down to 8).
+`stackBase` is the value of `rSP` immediately after `LaunchProgramm` (top of RAM, aligned down to 8).
 
 ### 5.7. Stack
 
 **`PUSH Reg1`**:
 1. `sp = rSP - 8`
-2. `RAM[sp] = Reg1` (checked write of 8 bytes)
-3. if the write failed → return its status
-4. `if rHP >= sp → SegmentationFault` (the write has already been performed!)
+2. `if rHP >= sp → SegmentationFault`
+3. `RAM[sp] = Reg1` (checked write of 8 bytes)
+4. if the write fails → return its status
 5. `rSP = sp`
-
-> ⚠️ In the current implementation, the heap collision check occurs **after** the write. This is an architectural quirk/defect: on collision, the value will end up in memory, but `rSP` will not be updated, and `SegmentationFault` will be returned.
 
 **`POP Reg1`**:
 1. `value = RAM[rSP]` (checked read of 8 bytes LE)
-2. if the read failed → return the status
+2. if the read fails → return status
 3. `Reg1 = value; rSP += 8`
 
 ### 5.8. I/O ports
@@ -287,13 +287,13 @@ Port space: `PortBus.TotalPorts = 2^ports.Log2`, sector size `2^portsOnDev.Log2`
 
 **`IN Reg1, Reg2`** — `addr = Reg2`; `Reg1 = PortBus.ReadPort(addr)`. If no device is registered at the address → `NullDeviceInput`, `FaultData = addr`. The device returns **1 byte**, zero-extended to 64 bits.
 
-**`OUT Reg1, Reg2`** — `addr = Reg2`; `PortBus.WritePort(addr, (byte)Reg1)`. If there is no device → `NullDeviceOutput`. Only the low byte of `Reg1` is transmitted.
+**`OUT Reg1, Reg2`** — `addr = Reg2`; `PortBus.WritePort(addr, (byte)Reg1)`. If no device is present → `NullDeviceOutput`. Only the least significant byte of `Reg1` is transferred.
 
-**`WAKE_INT Reg1`** — `addr = Reg1`; `PortBus.WakeProcessor(addr)`. If the device is not found → `NullDeviceOutput`. The device receives a `WakeProcessor()` signal that clears `IsSleeping` on the next step.
+**`WAKE_INT Reg1`** — `addr = Reg1`; `PortBus.WakeProcessor(addr)`. If the device is not found → `NullDeviceOutput`. The device receives the `WakeProcessor()` signal, which clears `IsSleeping` on the next step.
 
 ### 5.9. Sleep
 
-**`HALT`** — `IsSleeping = true`. External command processing continues, but program body steps are not executed.
+**`HALT`** — `IsSleeping = true`. External commands continue to be processed, but program-body steps are not executed.
 
 **`WAKE`** — as an instruction in the program body: no-op (`Success`). As an **external command** via `EnqueueExternalCommand` or `PortBus.WakeProcessor` — clears `IsSleeping`.
 
@@ -305,14 +305,14 @@ Port space: `PortBus.TotalPorts = 2^ports.Log2`, sector size `2^portsOnDev.Log2`
 
 ### 6.1. RAM
 
-- Single byte address space `[0, RAM.Length)`.
+- Single byte-addressable space `[0, RAM.Length)`.
 - Byte order: **little-endian** (endianness is fixed by `NativeMemoryBuffer` on all platforms).
 - Size: `RamSize` (power of two, 64 B … 2 GiB). By default allocated via `NativeMemory.AllocZeroed`.
 
 ### 6.2. Checked vs unchecked accesses
 
 | Aspect | Checked (`LOAD`/`STORE`/`LOAD_IND`/`STORE_IND`) | Unchecked (`*_UNSAFE`) |
-|--------|--------------------------------------------------|-------------------------|
+|--------|----------------------------------------------------|----------------------------|
 | Alignment check | yes (for `S16/S32/S64`) | no |
 | Bounds check | yes (`addr + N <= Length`) | no |
 | Error status | `AlignmentFault` / `SegmentationFault` | n/a, UB |
@@ -344,10 +344,10 @@ The device implements `ReadPort(offset) → byte` and `WritePort(offset, value)`
 ### 8.1. Statuses (`BiosStatus : byte`)
 
 | Code | Name | Meaning |
-|-----:|------|---------|
+|----:|-----|-------|
 | 0  | `Success` | success (default, safe value) |
 | 1  | `SegmentationFault` | RAM out-of-bounds / stack-heap collision |
-| 2  | `AlignmentFault` | invalid address alignment |
+| 2  | `AlignmentFault` | incorrect address alignment |
 | 3  | `EndProgram` | normal termination (`END`) |
 | 4  | `HostStopped` | host-side stop (`Stop`) |
 | 5  | `NotImplementedOpCode` | opcode has no handler |
@@ -355,12 +355,12 @@ The device implements `ReadPort(offset) → byte` and `WritePort(offset, value)`
 | 7  | `NullDeviceOutput` | no output device / wake port |
 | 8  | `InfinityLoop` | step limit / policy triggered |
 | 9  | `DivOnZero` | division by zero (`DIV`, `MOD`) |
-| 10 | `NotSupportedOpCode` | opcode is known but not supported |
+| 10 | `NotSupportedOpCode` | opcode is known but unsupported |
 | 11 | `StackUnderflow` | `RET` on an empty stack / stack overflow |
 
 ### 8.2. `ProcessorFault`
 
-When a status ≠ `Success` is received (including the "normal" `EndProgram`, `HostStopped`, `InfinityLoop`), a snapshot is formed:
+When a status ≠ `Success` is received (including the “normal” `EndProgram`, `HostStopped`, `InfinityLoop`), a snapshot is formed:
 
 ```csharp
 ProcessorFault(BiosStatus Status,
@@ -370,16 +370,16 @@ ProcessorFault(BiosStatus Status,
 ```
 
 - `InstructionPointer` — `rIP` immediately after reading the 4-byte instruction word.
-- `OpCode` — the actual opcode; the value `OpCode.NOP` (0) is reserved for "unknown/no opcode" (a controversial decision, but fixed).
+- `OpCode` — the real opcode; the value `OpCode.NOP` (0) is reserved for “unknown/no opcode” (a controversial decision, but fixed).
 - `FaultData` — context: memory address, port number, opcode, etc.
 
-Then `IProcessorFaultPolicy.ShouldContinue(fault)` is called; its response is written to `IsRunning`. The policy **must** distinguish "real errors" from the "normal" `EndProgram`/`HostStopped`/`InfinityLoop`.
+Then `IProcessorPolicy.ShouldContinue(fault)` is called; its response is written to `IsRunning`. The policy **must** distinguish “real errors” from “normal” `EndProgram`/`HostStopped`/`InfinityLoop`.
 
 ---
 
 ## 9. Step execution (`Processor.Step`)
 
-Pseudocode of one step:
+Pseudocode for one step:
 
 ```
 1. If _hasCommand:
@@ -398,7 +398,7 @@ Pseudocode of one step:
      IsRunning = policy.ShouldContinue(_faultData)
 ```
 
-Important: `_lastFaultData` is set inside the handler before returning the status (for example, `FaultData` from `MemoryBus`, the port number, the `NotImplementedOpCode` opcode).
+Important: `_lastFaultData` is set inside the handler before returning the status (for example, `FaultData` from `MemoryBus`, port number, opcode `NotImplementedOpCode`).
 
 ---
 
@@ -419,18 +419,18 @@ Implemented in `AssemblerParser` (NANASM-compatible text). **Case-insensitive** 
 - `LOAD[.size] reg, addr`, `STORE[.size] addr, reg`: `addr` — a number or a label.
 - `LOAD_IND[.size] reg, reg`, `STORE_IND[.size] reg, reg` — similarly.
 - `LOAD_UNSAFE[.size]`, `STORE_UNSAFE[.size]`, `LOAD_IND_UNSAFE[.size]`, `STORE_IND_UNSAFE[.size]` — similarly, without checks.
-- Jumps: `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `CALL` — a label or an absolute address.
+- Branches: `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `CALL` — label or absolute address.
 
 ### 10.3. Size suffixes
 
-`.S8`, `.S16`, `.S32`, `.S64` (or `.8`, `.16`, `.32`, `.64`). Default is `.S64`. Spaces around the dot are allowed: `LOAD . S8` is normalized to `LOAD.S8`.
+`.S8`, `.S16`, `.S32`, `.S64` (or `.8`, `.16`, `.32`, `.64`). Default is `.S64`. Spaces around the dot are allowed: `LOAD . S8` normalizes to `LOAD.S8`.
 
 ### 10.4. Labels and patches
 
-- `label:` — a label at the current position.
+- `label:` — label at the current position.
 - `label: <instruction>` — label + instruction.
 - Patches for immediate fields are resolved at `Build()`: `targetAddr = baseAddress + offset(label)`.
-- `baseAddress` must be a multiple of 8 (otherwise the immediate will be read from a different address than it was written to).
+- `baseAddress` must be a multiple of 8 (otherwise the immediate will be read at a different address than written).
 
 ### 10.5. Sections and data
 
@@ -495,21 +495,15 @@ Bytes: 08 41 00 00
 
 ---
 
-## 12. Limitations and known implementation quirks
+## 12. Limitations and known implementation features
 
-1. **`JMP`/`JZ`/`JNZ`/`JG`/`JL` do not check target address bounds** (unlike `JMP_IND`/`CALL_IND`). A jump outside RAM leads to UB on the next step (`ReadInt32LEUnSafe`).
-2. **`PUSH` writes to memory before checking for a heap collision** (`rHP`), so on `SegmentationFault` the write remains in memory, but `rSP` is not updated.
-3. **Bounds check in `MemoryBus`**: `address + N <= Length` is implemented as `address <= Length - N`; if `Length < N`, underflow is possible (ruled out in the reference because `Length ≥ 64`).
-4. **Immediate reading uses `ReadInt64LEUnSafe`**, i.e., unaligned. On platforms where unaligned reads are not supported by hardware, the program load address must be 8-byte aligned.
 5. **`WAKE` as an instruction in the body is a no-op.** Waking from `HALT` is possible only via `EnqueueExternalCommand(OpCode.WAKE)` or `PortBus.WakeProcessor`.
-6. **`END` does not guarantee stopping**: `IsRunning = false` is set, but then overwritten by the response of `IProcessorFaultPolicy.ShouldContinue(...)`. The policy must return `false` for `EndProgram`.
-7. **`InstructionLOAD`/`InstructionSTORE` do not return `AlignmentFault` for an invalid `OpCodeSize`** (there `default` → `SegmentationFault` for LOAD and `AlignmentFault` for STORE); in practice `OpCodeSize` has exactly 4 values — `default` is unreachable.
-8. **`HasNeed64IntData`** is robust to changing the underlying `OpCode` type to signed: check `(uint)opCode > (uint)OpCode.MOD`, then index into `_has[0..42]`.
-9. **`OpCode.NOP` = 0 is used as the "unknown opcode" marker** in `ProcessorFault` (`ProcessSimulationStatusSlow`). This is a controversial convention; if a real NOP fault appears, it will be impossible to distinguish it from the "empty" value.
+7. **`InstructionLOAD`/`InstructionSTORE` do not return `AlignmentFault` for invalid `OpCodeSize`** (there `default` → `SegmentationFault` in LOAD and `AlignmentFault` in STORE); in practice `OpCodeSize` has exactly 4 values — `default` is unreachable.
+9. **`OpCode.NOP` = 0 is used as the “unknown opcode” marker** in `ProcessorFault` (`ProcessSimulationStatusSlow`). This is a controversial convention; if a real NOP fault appears, it will be impossible to distinguish it from an “empty” value.
 
 ---
 
-## 13. Quick cheat sheet of conventions
+## 13. Quick reference for conventions
 
 | Convention | Value |
 |------------|-------|
@@ -521,4 +515,4 @@ Bytes: 08 41 00 00
 | Flags | updated only by `CMP` and `TEST` |
 | Stack | 8-byte slots, `rSP` grows downward, `rHP` — upper bound of the heap |
 | Access error | `AlignmentFault` / `SegmentationFault`, not exceptions |
-| Policy | `IProcessorFaultPolicy.ShouldContinue` — last instance |
+| Policy | `IProcessorPolicy.ShouldContinue` — last resort |

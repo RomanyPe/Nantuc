@@ -66,7 +66,7 @@ public static class VmPojectUnsafeExtension
             bool optimize,
             IEnumerable<SourceFile> files,
             Func<ulong, TAssembler> createAssembler,
-            Func<TAssembler, OptimizationResultLog?, string[]?, TResult> createResult)
+            Func<TAssembler, OptimizationResultLog?, DiagnosticResult[]?, TResult> createResult)
             where TAssembler : AssemblerBase
         {
             return proj.CompileInternal(baseAddress, optimize, files, createAssembler, createResult);

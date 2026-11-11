@@ -26,7 +26,7 @@ public sealed class Device : IPortController
     private readonly MemoryBus _ram;
     private readonly Processor _processor;
     private readonly PortBus _portBus;
-    private readonly IProcessorFaultPolicy _processorFaultPolicy;
+    private readonly IProcessorPolicy _processorFaultPolicy;
     private long stepCounter = 0;
     private int _disposed;
 
@@ -57,7 +57,7 @@ public sealed class Device : IPortController
     /// <param name="portBus">Общая шина портов ввода-вывода.</param>
     /// <param name="size">Размер ОЗУ.</param>
     /// <param name="processorFaultPolicy">Политика обработки сбоев процессора.</param>
-    public Device(PortBus portBus, RamSize size, IProcessorFaultPolicy processorFaultPolicy)
+    public Device(PortBus portBus, RamSize size, IProcessorPolicy processorFaultPolicy)
     {
         _processorFaultPolicy = processorFaultPolicy;
         _portBus = portBus;

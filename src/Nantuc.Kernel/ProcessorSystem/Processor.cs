@@ -3,7 +3,6 @@ using Nantuc.Contracts;
 using Nantuc.Kernel.ControllersData;
 using Nantuc.Kernel.RamSystem;
 using System.Collections.Concurrent;
-using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
 using static Nantuc.Common.InstructionDecoder;
 
@@ -26,10 +25,10 @@ namespace Nantuc.Kernel.ProcessorSystem;
 /// </remarks>
 /// <param name="ram">Шина ОЗУ.</param>
 /// <param name="portBus">Шина портов ввода-вывода.</param>
-/// <param name="processorFaultPolicy">Политика, определяющая, продолжать ли исполнение после сбоя.</param>
+/// <param name="processorPolicy">Политика, определяющая, продолжать ли исполнение после сбоя.</param>
 public sealed class Processor(MemoryBus ram,
                               PortBus portBus,
-                              IProcessorFaultPolicy processorFaultPolicy)
+                              IProcessorPolicy processorPolicy)
 {
 
     [InlineArray(CountReg)]
@@ -44,7 +43,7 @@ public sealed class Processor(MemoryBus ram,
 
     private readonly ConcurrentQueue<uint> _externalCommands = new();
     private readonly ConcurrentQueue<BiosStatus> _statusFromSimulation = [];
-    private readonly IProcessorFaultPolicy _processorFaultPolicy = processorFaultPolicy;
+    private readonly IProcessorPolicy _processorPolicy = processorPolicy;
     private readonly MemoryBus _ram = ram;
     private readonly PortBus _portBus = portBus;
 
@@ -124,7 +123,6 @@ public sealed class Processor(MemoryBus ram,
         return arr;
     }
 
-
     private ulong Get64IntData()
     {
         ulong ip = _registers[RegType.rIP.Int()];
@@ -179,7 +177,7 @@ public sealed class Processor(MemoryBus ram,
             if (result != BiosStatus.Success)
             {
                 _faultData = new(result, _lastFaultData, _registers[RegType.rIP.Int()], 0);
-                Volatile.Write(ref _isRunning, _processorFaultPolicy.ShouldContinue(_faultData));
+                Volatile.Write(ref _isRunning, _processorPolicy.ShouldContinue(_faultData));
                 return;
             }
         }
@@ -283,11 +281,9 @@ public sealed class Processor(MemoryBus ram,
         if (dat != BiosStatus.Success)
         {
             _faultData = new(dat, _lastFaultData, ip, opCode);
-            Volatile.Write(ref _isRunning, _processorFaultPolicy.ShouldContinue(_faultData));
+            Volatile.Write(ref _isRunning, _processorPolicy.ShouldContinue(_faultData));
         }
     }
-
-    // ... (приватные Instruction* без изменений — пропущены для краткости) ...
 
     private BiosStatus InstructionMOD(RegType reg1, RegType reg2)
     {
@@ -531,6 +527,7 @@ public sealed class Processor(MemoryBus ram,
     }
     private BiosStatus InstructionLOAD_UNSAFE(OpCodeSize sizeT, RegType reg, ulong adress)
     {
+        if (!_processorPolicy.AllowUnsafeOpCodes) return BiosStatus.UnsafeOpCodeForbidden;
 
         switch (sizeT)
         {
@@ -566,6 +563,7 @@ public sealed class Processor(MemoryBus ram,
 
     private BiosStatus InstructionSTORE_UNSAFE(OpCodeSize sizeT, RegType reg, ulong adress)
     {
+        if (!_processorPolicy.AllowUnsafeOpCodes) return BiosStatus.UnsafeOpCodeForbidden;
 
         switch (sizeT)
         {
@@ -597,11 +595,15 @@ public sealed class Processor(MemoryBus ram,
 
     private BiosStatus InstructionLOAD_IND_UNSAFE(OpCodeSize sizeT, RegType reg1, RegType reg2)
     {
+        if (!_processorPolicy.AllowUnsafeOpCodes) return BiosStatus.UnsafeOpCodeForbidden;
+
         return InstructionLOAD_UNSAFE(sizeT, reg1, _registers[reg2.Int()]);
     }
 
     private BiosStatus InstructionSTORE_IND_UNSAFE(OpCodeSize sizeT, RegType reg1, RegType reg2)
     {
+        if (!_processorPolicy.AllowUnsafeOpCodes) return BiosStatus.UnsafeOpCodeForbidden;
+
         return InstructionSTORE_UNSAFE(sizeT, reg1, _registers[reg2.Int()]);
     }
 
@@ -783,7 +785,11 @@ public sealed class Processor(MemoryBus ram,
         if (_registers[RegType.rHP.Int()] >= sp)
             return RecordFaultContext(BiosStatus.SegmentationFault, sp);
 
-        _ram.WriteInt64LEUnSafe(sp, _registers[RegType.rIP.Int()]);
+        _ram.WriteInt64LE(sp, _registers[RegType.rIP.Int()]);
+        var status = _ram.UpdateAndReadStatus();
+        if (status != BiosStatus.Success)
+            return RecordFaultContext(status, _ram.FaultData);
+
 
         _registers[RegType.rSP.Int()] = sp;
         _registers[RegType.rIP.Int()] = targetAddress;
@@ -799,7 +805,10 @@ public sealed class Processor(MemoryBus ram,
         if (sp >= _stackBase)
             return RecordFaultContext(BiosStatus.StackUnderflow, _registers[RegType.rIP.Int()]);
 
-        ulong returnAddress = _ram.ReadInt64LEUnSafe(sp);
+        ulong returnAddress = _ram.ReadInt64LE(sp);
+        var status = _ram.UpdateAndReadStatus();
+        if (status != BiosStatus.Success)
+            return RecordFaultContext(status, _ram.FaultData);
 
         _registers[RegType.rSP.Int()] = sp + 8;
         _registers[RegType.rIP.Int()] = returnAddress;
