@@ -130,7 +130,7 @@ Help for all commands — `nantuc help`. Details — in [`src/Nantuc.CLI/README.
 
 ## Key features
 
-- **Two languages**: MiniC (C-like: structs, pointers, arrays, `const`, `sizeof`, inline `asm`, `extern`, `#include`) and NANASM (assembler with labels and size suffixes). Specifications — in [`Nantuc.Compiler/README.md`](Nantuc.Compiler/README.md).
+- **Two languages**: MiniC (C-like: structs, pointers, arrays, `const`, `sizeof`, inline `asm`, `extern`, `#include`) and NANASM (assembler with labels and size suffixes). Specifications — in [`src/Nantuc.Compiler/README.md`](src/Nantuc.Compiler/README.md).
 - **Compiler from scratch**: lexer, recursive parser, AST, greedy register allocation, code generation to 32-bit bytecode, AST and IR optimizations, `const`-correctness.
 - **VM with isolated `unsafe`**: native RAM via `NativeMemory`, registers in `InlineArray` (no per-step allocations), port bus with routing `address → (device, offset)`.
 - **Safe API**: `TryRegisterDevice`/`TryGetDeviceContext` instead of `id < 0` + `!`, `IdState` instead of magic `-1..-4`, `ProcessorFault` from `Run`/`DebugRun`, `TryLoadProgram` instead of exceptions, `Pause()`/`Resume()` for control from another thread.

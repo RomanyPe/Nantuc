@@ -131,7 +131,7 @@ nantuc lib exist print.minic
 
 ## Ключевые особенности
 
-- **Два языка**: MiniC (C-подобный: структуры, указатели, массивы, `const`, `sizeof`, inline `asm`, `extern`, `#include`) и NANASM (ассемблер с метками и размерными суффиксами). Спецификации — в [`Nantuc.Compiler/README.ru.md`](Nantuc.Compiler/README.ru.md).
+- **Два языка**: MiniC (C-подобный: структуры, указатели, массивы, `const`, `sizeof`, inline `asm`, `extern`, `#include`) и NANASM (ассемблер с метками и размерными суффиксами). Спецификации — в [`src/Nantuc.Compiler/README.ru.md`](src/Nantuc.Compiler/README.ru.md).
 - **Компилятор с нуля**: лексер, рекурсивный парсер, AST, жадная раскраска регистров, кодогенерация в 32-битный байткод, AST- и IR-оптимизации, `const`-correctness.
 - **VM с изолированным `unsafe`**: нативная RAM через `NativeMemory`, регистры в `InlineArray` (без аллокаций на шаг), порт-шина с маршрутизацией `address → (device, offset)`.
 - **Безопасный API**: `TryRegisterDevice`/`TryGetDeviceContext` вместо `id < 0` + `!`, `IdState` вместо магических `-1..-4`, `ProcessorFault` из `Run`/`DebugRun`, `TryLoadProgram` вместо исключений, `Pause()`/`Resume()` для управления из другого потока.
