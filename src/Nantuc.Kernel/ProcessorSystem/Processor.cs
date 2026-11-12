@@ -595,15 +595,11 @@ public sealed class Processor(MemoryBus ram,
 
     private BiosStatus InstructionLOAD_IND_UNSAFE(OpCodeSize sizeT, RegType reg1, RegType reg2)
     {
-        if (!_processorPolicy.AllowUnsafeOpCodes) return BiosStatus.UnsafeOpCodeForbidden;
-
         return InstructionLOAD_UNSAFE(sizeT, reg1, _registers[reg2.Int()]);
     }
 
     private BiosStatus InstructionSTORE_IND_UNSAFE(OpCodeSize sizeT, RegType reg1, RegType reg2)
     {
-        if (!_processorPolicy.AllowUnsafeOpCodes) return BiosStatus.UnsafeOpCodeForbidden;
-
         return InstructionSTORE_UNSAFE(sizeT, reg1, _registers[reg2.Int()]);
     }
 

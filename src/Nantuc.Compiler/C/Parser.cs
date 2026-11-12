@@ -761,7 +761,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
         {
             string op = Current.Value;
             Advance();
-            ASTNode right = ParseAdditive();
+            ASTNode right = ParseShift();
             left = new BinaryOpNode(op, left, right);
         }
         return left;

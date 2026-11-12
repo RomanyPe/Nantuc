@@ -5,8 +5,24 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-	</PropertyGroup>
+		<!-- Основной переключатель для Native AOT -->
+		<PublishAot>true</PublishAot>
 
+		<!-- Помогает анализатору выявлять проблемы AOT-совместимости в вашем коде -->
+		<IsAotCompatible>true</IsAotCompatible>
+
+		<!-- Включает обрезку неиспользуемого кода (trimming), что важно для AOT -->
+		<PublishTrimmed>true</PublishTrimmed>
+
+		<!-- Упаковывает приложение в один исполняемый файл -->
+		<PublishSingleFile>true</PublishSingleFile>
+
+		<!-- Отключает глобализацию, чтобы уменьшить размер приложения (если это допустимо для вашего проекта) -->
+		<InvariantGlobalization>true</InvariantGlobalization>
+
+		<!-- Отключает встроенную поддержку COM-взаимодействия (часто требуется для UI-фреймворков) -->
+		<BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+	</PropertyGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\..\src\Nantuc.VmApplication.Extension\Nantuc.VmApplication.Extensions.csproj" />
 	</ItemGroup>

@@ -237,6 +237,8 @@
 
 ### 5.6. Управление потоком
 
+> проверка `target < RAM.Length`; при провале — `SegmentationFault`; иначе `rIP = target`
+
 **`JMP target`** → `rIP = target`.
 
 **`JZ target`** — если `Z=1`, `rIP = target`.
@@ -247,7 +249,7 @@
 
 **`JL target`** — если `N=1`, `rIP = target` (беззнаковое «меньше»).
 
-**`JMP_IND Reg1`** — `target = Reg1`; проверка `target < RAM.Length`; при провале — `SegmentationFault`; иначе `rIP = target`.
+**`JMP_IND Reg1`** — `target = Reg1`.
 
 **`CALL target`** — вызов подпрограммы:
 1. `if rSP < 8 → SegmentationFault`
@@ -295,7 +297,7 @@
 
 **`WAKE`** — как инструкция в теле программы: no-op (`Success`). Как **внешняя команда** через `EnqueueExternalCommand` или `PortBus.WakeProcessor` — снимает `IsSleeping`.
 
-**`WAKE_INT Reg1`** — см. § 5.8.
+**`WAKE_INT Reg1`** — см. 5.8. Порты ввода-вывода
 
 ---
 
@@ -355,6 +357,7 @@
 | 9  | `DivOnZero` | деление на ноль (`DIV`, `MOD`) |
 | 10 | `NotSupportedOpCode` | опкод известен, но не поддерживается |
 | 11 | `StackUnderflow` | `RET` на пустом стеке / переполнение стека |
+| 12 | `UnsafeOpCodeForbidden`| использование небезопасного `OpCode` при предварительном запрете политики `IProcessorPolicy.AllowUnsafeOpCodes` |
 
 ### 8.2. `ProcessorFault`
 
@@ -513,4 +516,4 @@ raw = 0x08 | (1 << 8) | (2 << 13) = 0x00004108
 | Флаги | обновляются только `CMP` и `TEST` |
 | Стек | 8-байтные слоты, `rSP` растёт вниз, `rHP` — верхняя граница кучи |
 | Ошибка доступа | `AlignmentFault` / `SegmentationFault`, не исключения |
-| Политика | `IProcessorPolicy.ShouldContinue` — последняя инстанция |
+| Политика | `IProcessorPolicy.ShouldContinue` — последняя инстанция, `IProcessorPolicy.AllowUnsafeOpCodes` - разрешение использовать небезопасные опкоды |

@@ -10,6 +10,11 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.13.1] - 2026-11-12
+
+### Fixed
+- A bug that caused `a < b << c;` not to be parsed (leaving `<< c;` behind)
+
 ## [0.13.0] - 2026-11-12
 
 ### Added

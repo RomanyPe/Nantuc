@@ -295,8 +295,8 @@ Additional examples (full cycle with diagnostics, step-by-step debugging, custom
 
 ## Metrics and quality
 
-- ~22,000 lines, 13 projects; core and API (excluding samples, tests, and benchmarks) — ~17,900 lines, 7 projects.
-- End product `Nantuc.CLI` (console application): ~865 lines.
+- ~24,000 lines, 13 projects; core and API (excluding samples, tests, and benchmarks) — ~18,300 lines, 7 projects.
+- End product `Nantuc.CLI` (console application): ~960 lines.
 - Maintainability index: 80–97 (main modules).
 - Full metrics table — [docs/METRICS.md](docs/METRICS.md).
 

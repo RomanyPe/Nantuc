@@ -110,14 +110,7 @@ public class UnsafeOpCodeTests(ITestOutputHelper outPut)
 
     private class MockProcessorPolicy(bool allowUnsafe, ITestOutputHelper outPut) : IProcessorPolicy
     {
-        public bool AllowUnsafeOpCodes
-        {
-            get
-            {
-                outPut.WriteLine($"AllowUnsafeOpCodes: {allowUnsafe}");
-                return allowUnsafe;
-            }
-        }
+        public bool AllowUnsafeOpCodes => allowUnsafe;
 
         public bool ShouldContinue(in ProcessorFault fault)
         {

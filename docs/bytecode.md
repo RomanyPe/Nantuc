@@ -239,6 +239,8 @@ All instructions modify only `Reg1`.
 
 ### 5.6. Control flow
 
+> check `target < RAM.Length`; on failure — `SegmentationFault`; otherwise `rIP = target`
+
 **`JMP target`** → `rIP = target`.
 
 **`JZ target`** — if `Z=1`, `rIP = target`.
@@ -249,7 +251,7 @@ All instructions modify only `Reg1`.
 
 **`JL target`** — if `N=1`, `rIP = target` (unsigned “less”).
 
-**`JMP_IND Reg1`** — `target = Reg1`; check `target < RAM.Length`; on failure — `SegmentationFault`; otherwise `rIP = target`.
+**`JMP_IND Reg1`** — `target = Reg1`.
 
 **`CALL target`** — subroutine call:
 1. `if rSP < 8 → SegmentationFault`
@@ -297,7 +299,7 @@ Port space: `PortBus.TotalPorts = 2^ports.Log2`, sector size `2^portsOnDev.Log2`
 
 **`WAKE`** — as an instruction in the program body: no-op (`Success`). As an **external command** via `EnqueueExternalCommand` or `PortBus.WakeProcessor` — clears `IsSleeping`.
 
-**`WAKE_INT Reg1`** — see § 5.8.
+**`WAKE_INT Reg1`** — see 5.8. I/O ports
 
 ---
 
@@ -357,6 +359,7 @@ The device implements `ReadPort(offset) → byte` and `WritePort(offset, value)`
 | 9  | `DivOnZero` | division by zero (`DIV`, `MOD`) |
 | 10 | `NotSupportedOpCode` | opcode is known but unsupported |
 | 11 | `StackUnderflow` | `RET` on an empty stack / stack overflow |
+| 12 | `UnsafeOpCodeForbidden` | use of an unsafe `OpCode` when the `IProcessorPolicy.AllowUnsafeOpCodes` policy has preemptively forbidden it |
 
 ### 8.2. `ProcessorFault`
 
@@ -515,4 +518,4 @@ Bytes: 08 41 00 00
 | Flags | updated only by `CMP` and `TEST` |
 | Stack | 8-byte slots, `rSP` grows downward, `rHP` — upper bound of the heap |
 | Access error | `AlignmentFault` / `SegmentationFault`, not exceptions |
-| Policy | `IProcessorPolicy.ShouldContinue` — last resort |
+| Policy | `IProcessorPolicy.ShouldContinue` — the final authority (last resort); `IProcessorPolicy.AllowUnsafeOpCodes` — permission to use unsafe opcodes |
