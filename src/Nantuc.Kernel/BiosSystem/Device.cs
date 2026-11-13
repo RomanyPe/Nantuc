@@ -26,7 +26,7 @@ public sealed class Device : IPortController
     private readonly MemoryBus _ram;
     private readonly Processor _processor;
     private readonly PortBus _portBus;
-    private readonly IProcessorPolicy _processorFaultPolicy;
+    private readonly IProcessorPolicy _processorPolicy;
     private long stepCounter = 0;
     private int _disposed;
 
@@ -59,10 +59,10 @@ public sealed class Device : IPortController
     /// <param name="processorFaultPolicy">Политика обработки сбоев процессора.</param>
     public Device(PortBus portBus, RamSize size, IProcessorPolicy processorFaultPolicy)
     {
-        _processorFaultPolicy = processorFaultPolicy;
+        _processorPolicy = processorFaultPolicy;
         _portBus = portBus;
         _ram = new MemoryBus(size);
-        _processor = new Processor(_ram, _portBus, _processorFaultPolicy);
+        _processor = new Processor(_ram, _portBus, _processorPolicy);
         _ioMemory = new byte[_portBus.PortsOnDevice];
     }
 
@@ -74,15 +74,6 @@ public sealed class Device : IPortController
     public void CopyRegisters(Span<ulong> destination)
     {
         _processor.CopyRegisters(destination);
-    }
-
-    /// <summary>
-    /// Возвращает снимок всех регистров процессора (32 элемента).
-    /// </summary>
-    /// <returns>Новый массив <c>ulong[32]</c>.</returns>
-    public ulong[] GetRegistersSnapshot()
-    {
-        return _processor.GetRegistersSnapshot();
     }
 
     /// <summary>
@@ -136,7 +127,7 @@ public sealed class Device : IPortController
     /// <param name="onLaunch">Необязательный колбэк, вызываемый перед запуском.</param>
     /// <param name="onEnd">Необязательный колбэк, получающий результат замера времени (или <see langword="null"/>, если таймер не включён).</param>
     /// <returns>Диагностические данные о последнем сбое/остановке.</returns>
-    public ProcessorFault Run(ulong start,
+    public ProcessorFault Run(ulong startIndex,
                     long? limit,
                     bool snowTimer,
                     Action? onLaunch,
@@ -144,8 +135,6 @@ public sealed class Device : IPortController
     {
 
         onLaunch?.Invoke();
-
-        ulong startIndex = start;
         stepCounter = 0;
 
         _processor.Reset();
@@ -213,7 +202,7 @@ public sealed class Device : IPortController
     {
         titleAct?.Invoke();
         stepCounter = 0;
-        ulong startIndex = start ?? _ram.Length;
+        ulong startIndex = start ?? 0;
 
         _processor.LaunchProgramm(startIndex);
     }
@@ -238,14 +227,14 @@ public sealed class Device : IPortController
 
     private void RunSimulationLoop()
     {
+        _wakeSignal.Reset();
         while (_processor.IsRunning)
         {
             _processor.Step();
 
             if (_processor.IsSleeping)
             {
-                _wakeSignal.Wait(15);
-                _wakeSignal.Reset();
+                ProcessorSleepWait();
             }
             else
             {
@@ -255,19 +244,23 @@ public sealed class Device : IPortController
     }
     private void RunSimulationLoopWithLimit(long limit)
     {
+        _wakeSignal.Reset();
+        bool isEndLimit = false;
+
         while (_processor.IsRunning)
         {
+            if (isEndLimit) break;
             if (stepCounter >= limit)
             {
                 _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+                isEndLimit = true;
             }
 
             _processor.Step();
 
             if (_processor.IsSleeping)
             {
-                _wakeSignal.Wait(15);
-                _wakeSignal.Reset();
+                ProcessorSleepWait();
             }
             else
             {
@@ -279,32 +272,39 @@ public sealed class Device : IPortController
 
     private void RunSimulationLoopDebug(int delay, bool useSleepMode, long stepLimit, Action<ProcessorSnapshot>? onStep)
     {
+        _wakeSignal.Reset();
+        bool isEndLimit = false;
         while (_processor.IsRunning)
         {
             onStep?.Invoke(_processor.CurrentProcessorSnapshot);
+            if (isEndLimit) break;
             if (stepCounter >= stepLimit)
             {
                 _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+                isEndLimit = true;
             }
 
             _processor.Step();
 
             if (_processor.IsSleeping)
             {
-                _wakeSignal.Wait(15);
-                _wakeSignal.Reset();
+                ProcessorSleepWait();
             }
-            else
+            else if (_processor.IsRunning)
             {
-                if (_processor.IsRunning)
-                    stepCounter++;
+                stepCounter++;
             }
 
             if (useSleepMode) Thread.Sleep(delay);
         }
     }
 
+    private void ProcessorSleepWait()
+    {
+        _wakeSignal.Wait(_processorPolicy.SleepWaitTimeout);
+        _wakeSignal.Reset();
 
+    }
 
     /// <summary>
     /// Читает байт из блока портов устройства.

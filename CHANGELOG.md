@@ -10,6 +10,14 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.13.2] - 2026-11-13
+
+### Added
+- new property `TimeSpan SleepWaitTimeout { get; }` with a default value of `TimeSpan.FromMilliseconds(15);` on the `IProcessorPolicy` interface
+
+### Fixed
+- fixed DoS and OOB vulnerabilities in the VM, but it has become slower
+
 ## [0.13.1] - 2026-11-12
 
 ### Fixed

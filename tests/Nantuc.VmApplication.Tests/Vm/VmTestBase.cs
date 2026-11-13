@@ -92,7 +92,11 @@ public class UnsafeOpCodeTests(ITestOutputHelper outPut)
 
     private (DeviceContext Ctx, int DeviceId) RegisterVm(VmHost host, bool allowUnsafe)
     {
-        var spec = DeviceSpec.Create(RamSize.KB16, name: "test-vm", processorFaultPolicy: new MockProcessorPolicy(allowUnsafe, _outPut));
+        return RegisterVm(host, allowUnsafe, RamSize.KB16);
+    }
+    private (DeviceContext Ctx, int DeviceId) RegisterVm(VmHost host, bool allowUnsafe, RamSize ram)
+    {
+        var spec = DeviceSpec.Create(ram, name: "test-vm", processorFaultPolicy: new MockProcessorPolicy(allowUnsafe, _outPut));
         var state = host.Emulator.TryRegisterDevice(spec, sector: 0, out int id);
         Assert.Equal(IdState.Valid, state);
         var ctx = host.Emulator.GetDeviceContext(id);

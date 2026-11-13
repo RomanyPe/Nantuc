@@ -120,6 +120,8 @@ public interface IProcessorPolicy
         public bool ShouldContinue(in ProcessorFault fault) => fault.Status == BiosStatus.Success;
     }
 
+    TimeSpan SleepWaitTimeout => TimeSpan.FromMilliseconds(15);
+
     bool AllowUnsafeOpCodes => false;
 
     bool ShouldContinue(in ProcessorFault fault);
