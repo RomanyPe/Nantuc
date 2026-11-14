@@ -8,6 +8,7 @@ public class FunctionNode(string name, string returnType, BlockNode body) : ASTN
     public BlockNode Body { get; set; } = body;
     public int LocalSize { get; set; }
     public bool IsExternal { get; set; }
+    public bool ReturnIsPointer { get; set; }
     public override string NameNode => nameof(FunctionNode);
 
 }

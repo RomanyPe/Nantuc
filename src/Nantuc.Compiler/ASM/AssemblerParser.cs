@@ -7,102 +7,93 @@ using System.Text.RegularExpressions;
 
 namespace Nantuc.Compiler.ASM;
 
-/// <summary>
-/// Парсер ассемблерного текста, преобразующий его в байт-код.
-/// Поддерживаемые инструкции:
-///   NOP, END, RET,
-///   MOV, ADD, SUB, AND, OR, XOR (два регистра),
-///   INC, DEC, NOT, PUSH, POP (один регистр),
-///   LDI (регистр, константа),
-///   LOAD.S8|.S16|.S32|.S64 (регистр, адрес),
-///   STORE.S8|.S16|.S32|.S64 (регистр, адрес),
-///   JMP, JZ, JNZ, JG, JL, CALL (метка или абсолютный адрес).
-/// </summary>
 public partial class AssemblerParser
 {
-    private static readonly Dictionary<string, RegType> _regMapLex = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, RegType> _regMap = new Dictionary<string, RegType>(StringComparer.OrdinalIgnoreCase)
     {
-        { "r0", RegType.r0 },
-        { "r1", RegType.r1 },
-        { "r2", RegType.r2 },
-        { "r3", RegType.r3 },
-        { "r4", RegType.r4 },
-        { "r5", RegType.r5 },
-        { "r6", RegType.r6 },
-        { "r7", RegType.r7 },
-        { "r8", RegType.r8 },
-        { "r9", RegType.r9 },
-        { "r10", RegType.r10 },
-        { "r11", RegType.r11 },
-        { "r12", RegType.r12 },
-        { "r13", RegType.r13 },
-        { "r14", RegType.r14 },
-        { "r15", RegType.r15 },
-        { "r16", RegType.r16 },
-        { "r17", RegType.r17 },
-        { "r18", RegType.r18 },
-        { "r19", RegType.r19 },
-        { "r20", RegType.r20 },
-        { "r21", RegType.r21 },
-        { "r22", RegType.r22 },
-        { "r23", RegType.r23 },
-        { "r24", RegType.r24 },
-        { "r25", RegType.r25 },
-        { "r26", RegType.r26 },
-        { "r27", RegType.r27 },
-        { "rFL", RegType.rFL },
-        { "rSP", RegType.rSP },
-        { "rHP", RegType.rHP },
-        { "rIP", RegType.rIP }
-    };
+        ["r0"] = RegType.r0,
+        ["r1"] = RegType.r1,
+        ["r2"] = RegType.r2,
+        ["r3"] = RegType.r3,
+        ["r4"] = RegType.r4,
+        ["r5"] = RegType.r5,
+        ["r6"] = RegType.r6,
+        ["r7"] = RegType.r7,
+        ["r8"] = RegType.r8,
+        ["r9"] = RegType.r9,
+        ["r10"] = RegType.r10,
+        ["r11"] = RegType.r11,
+        ["r12"] = RegType.r12,
+        ["r13"] = RegType.r13,
+        ["r14"] = RegType.r14,
+        ["r15"] = RegType.r15,
+        ["r16"] = RegType.r16,
+        ["r17"] = RegType.r17,
+        ["r18"] = RegType.r18,
+        ["r19"] = RegType.r19,
+        ["r20"] = RegType.r20,
+        ["r21"] = RegType.r21,
+        ["r22"] = RegType.r22,
+        ["r23"] = RegType.r23,
+        ["r24"] = RegType.r24,
+        ["r25"] = RegType.r25,
+        ["r26"] = RegType.r26,
+        ["r27"] = RegType.r27,
+        ["rFL"] = RegType.rFL,
+        ["rSP"] = RegType.rSP,
+        ["rHP"] = RegType.rHP,
+        ["rIP"] = RegType.rIP
+    }.ToFrozenDictionary();
 
-
-    private static readonly Dictionary<string, OpCode> _opMapLex = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, OpCode> _opMap = new Dictionary<string, OpCode>(StringComparer.OrdinalIgnoreCase)
     {
-        { "NOP", OpCode.NOP },
-        { "END", OpCode.END },
-        { "RET", OpCode.RET },
-        { "MOV", OpCode.MOV },
-        { "ADD", OpCode.ADD },
-        { "SUB", OpCode.SUB },
-        { "AND", OpCode.AND },
-        { "OR", OpCode.OR },
-        { "XOR", OpCode.XOR },
-        { "INC", OpCode.INC },
-        { "DEC", OpCode.DEC },
-        { "NOT", OpCode.NOT },
-        { "PUSH", OpCode.PUSH },
-        { "POP", OpCode.POP },
-        { "LDI", OpCode.LDI },
-        { "LOAD", OpCode.LOAD },
-        { "STORE", OpCode.STORE },
-        { "JMP", OpCode.JMP },
-        { "JZ", OpCode.JZ },
-        { "JNZ", OpCode.JNZ },
-        { "JG", OpCode.JG },
-        { "JL", OpCode.JL },
-        { "CALL", OpCode.CALL },
-        { "LOAD_IND", OpCode.LOAD_IND },
-        { "STORE_IND", OpCode.STORE_IND },
-        { "IN", OpCode.IN },
-        { "OUT", OpCode.OUT },
-        { "CALL_IND", OpCode.CALL_IND },
-        { "JMP_IND", OpCode.JMP_IND },
-        { "SHR", OpCode.SHR },
-        { "SHL", OpCode.SHL },
-        { "MULT_INT", OpCode.MULT_INT },
-        { "DIV", OpCode.DIV },
-        { "MOD", OpCode.MOD },
-        { "HALT", OpCode.HALT },
-        { "WAKE", OpCode.WAKE},
-        { "WAKE_INT", OpCode.WAKE_INT },
-        { "LOAD_IND_UNSAFE", OpCode.LOAD_IND_UNSAFE},
-        { "LOAD_UNSAFE", OpCode.LOAD_UNSAFE},
-        { "STORE_IND_UNSAFE", OpCode.STORE_IND_UNSAFE},
-        { "STORE_UNSAFE", OpCode.STORE_UNSAFE},
-        { "CMP", OpCode.CMP},
-        { "TEST", OpCode.TEST},
-    };
+        ["NOP"] = OpCode.NOP,
+        ["END"] = OpCode.END,
+        ["RET"] = OpCode.RET,
+        ["MOV"] = OpCode.MOV,
+        ["ADD"] = OpCode.ADD,
+        ["SUB"] = OpCode.SUB,
+        ["AND"] = OpCode.AND,
+        ["OR"] = OpCode.OR,
+        ["XOR"] = OpCode.XOR,
+        ["INC"] = OpCode.INC,
+        ["DEC"] = OpCode.DEC,
+        ["NOT"] = OpCode.NOT,
+        ["PUSH"] = OpCode.PUSH,
+        ["POP"] = OpCode.POP,
+        ["LDI"] = OpCode.LDI,
+        ["LOAD"] = OpCode.LOAD,
+        ["STORE"] = OpCode.STORE,
+        ["JMP"] = OpCode.JMP,
+        ["JZ"] = OpCode.JZ,
+        ["JNZ"] = OpCode.JNZ,
+        ["JG"] = OpCode.JG,
+        ["JL"] = OpCode.JL,
+        ["CALL"] = OpCode.CALL,
+        ["LOAD_IND"] = OpCode.LOAD_IND,
+        ["STORE_IND"] = OpCode.STORE_IND,
+        ["IN"] = OpCode.IN,
+        ["OUT"] = OpCode.OUT,
+        ["CALL_IND"] = OpCode.CALL_IND,
+        ["JMP_IND"] = OpCode.JMP_IND,
+        ["SHR"] = OpCode.SHR,
+        ["SHL"] = OpCode.SHL,
+        ["MULT_INT"] = OpCode.MULT_INT,
+        ["DIV"] = OpCode.DIV,
+        ["MOD"] = OpCode.MOD,
+        ["HALT"] = OpCode.HALT,
+        ["WAKE"] = OpCode.WAKE,
+        ["WAKE_INT"] = OpCode.WAKE_INT,
+        ["LOAD_IND_UNSAFE"] = OpCode.LOAD_IND_UNSAFE,
+        ["LOAD_UNSAFE"] = OpCode.LOAD_UNSAFE,
+        ["STORE_IND_UNSAFE"] = OpCode.STORE_IND_UNSAFE,
+        ["STORE_UNSAFE"] = OpCode.STORE_UNSAFE,
+        ["CMP"] = OpCode.CMP,
+        ["TEST"] = OpCode.TEST,
+        ["CASTZ"] = OpCode.CASTZ,
+        ["CASTS"] = OpCode.CASTS,
+    }.ToFrozenDictionary();
+
     private sealed record PendingData(string? Label, byte[] Data);
 
     private readonly List<PendingData> _pendingData = [];
@@ -111,12 +102,10 @@ public partial class AssemblerParser
     private bool _allowDataSection = false;
     private string _currentLine = string.Empty;
     private AssemblerBase _asm = null!;
-    private static readonly FrozenDictionary<string, RegType> _regMap = _regMapLex.ToFrozenDictionary();
-    private static readonly FrozenDictionary<string, OpCode> _opMap = _opMapLex.ToFrozenDictionary();
 
-    public byte[] Assemble(string code, ulong baseAddress, ThrowCompiler throwCompiler)
+    public byte[] Assemble(string code, ulong baseAddress, ErrorReporter ErrorReporter)
     {
-        var asm = new Assembler(baseAddress, throwCompiler);
+        var asm = new Assembler(baseAddress, ErrorReporter);
         Assemble(code, asm, allowDataSection: true);
         return asm.Build();
     }
@@ -161,7 +150,7 @@ public partial class AssemblerParser
                 if (section == "data")
                 {
                     if (!_allowDataSection)
-                        _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+                        _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
                             ".data section is not allowed in this context (inline asm)");
                     _inDataSection = true;
                     continue;
@@ -176,7 +165,7 @@ public partial class AssemblerParser
                 if (_inDataSection && TryProcessDataDirective(line, out err))
                     continue;
                 if (err != null)
-                    _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, err);
+                    _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, err);
             }
 
             // --- секция данных: label + данные ---
@@ -185,7 +174,7 @@ public partial class AssemblerParser
                 if (line.EndsWith(':'))
                 {
                     if (_pendingLabel != null)
-                        _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction,
+                        _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction,
                             $"Label '{_pendingLabel}' has no data before next label");
                     _pendingLabel = line[..^1].Trim();
                     continue;
@@ -196,22 +185,22 @@ public partial class AssemblerParser
                     string label = parts[0].Trim();
                     string rest = parts[1].Trim();
                     if (_pendingLabel != null)
-                        _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction,
+                        _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction,
                             $"Label '{_pendingLabel}' has no data");
                     _pendingLabel = label;
                     if (!string.IsNullOrEmpty(rest))
                     {
                         if (!TryProcessDataDirective(rest, out var e2))
-                            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, rest);
+                            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, rest);
                         if (e2 != null)
-                            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, e2);
+                            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, e2);
                     }
                     continue;
                 }
 
                 if (TryProcessDataDirective(line, out _))
                     continue;
-                _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, line);
+                _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, line);
                 continue;
             }
 
@@ -236,11 +225,11 @@ public partial class AssemblerParser
         }
 
         if (_pendingLabel != null)
-            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction,
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction,
                 $"Label '{_pendingLabel}' has no data");
     }
 
-    // Стало: нормализуем "LOAD . S8" → "LOAD.S8" без аллокаций
+    // Стало: нормализуем "LOAD . S8" -> "LOAD.S8" без аллокаций
     // (работаем по ReadOnlySpan, аллоцируем только если реально нашли " . ")
     private static string NormalizeSizeExtension(string instruction)
     {
@@ -422,7 +411,7 @@ public partial class AssemblerParser
         }
 
         if (!_opMap.TryGetValue(baseMnemonic, out OpCode opCode))
-            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
 
         switch (baseMnemonic)
         {
@@ -497,10 +486,22 @@ public partial class AssemblerParser
                 FormatJumpType(tokens, baseMnemonic, opCode);
                 break;
 
+            case "CASTZ":
+            case "CASTS":
+                FormatIWithSize(tokens, baseMnemonic, opCode, size);
+                break;
+
             default:
-                _asm.ThrowCompiler.Throw(ErrorCode.Asm_UnknownMnemonic,baseMnemonic);
+                _asm.ErrorReporter.Throw(ErrorCode.Asm_UnknownMnemonic,baseMnemonic);
                 break;
         }
+    }
+    private void FormatIWithSize(string[] tokens, string baseMnemonic, OpCode opCode, OpCodeSize size)
+    {
+        if (tokens.Length < 2)
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+        RegType rU = ParseReg(tokens[1]);
+        _asm.EmitInstI(opCode, rU, size);
     }
     private static bool TryParseSize(string s, out OpCodeSize size)
     {
@@ -516,7 +517,7 @@ public partial class AssemblerParser
     private void FormatJumpType(string[] tokens, string baseMnemonic, OpCode opCode)
     {
         if (tokens.Length < 2)
-            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         string target = tokens[1];
 
         if (IsNumber(target))
@@ -528,7 +529,7 @@ public partial class AssemblerParser
     private void FormateLOAD_IND__STORE_IND(string[] tokens, OpCodeSize size, string baseMnemonic, OpCode opCode)
     {
         if (tokens.Length < 3)
-            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rInd1 = ParseReg(tokens[1]);
         RegType rInd2 = ParseReg(tokens[2]);
         _asm.EmitInst(opCode, rInd1, rInd2, size);
@@ -537,7 +538,7 @@ public partial class AssemblerParser
     private void FormatLOAD__STORE(string[] tokens, OpCodeSize size, string baseMnemonic, OpCode opcode)
     {
         if (tokens.Length < 3)
-            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
 
         RegType rMem = ParseReg(tokens[1]);
         ulong addr = ParseNumber(tokens[2]);
@@ -548,7 +549,7 @@ public partial class AssemblerParser
     private void FormatLDI(string[] tokens, string baseMnemonic)
     {
         if (tokens.Length < 3)
-            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rLdi = ParseReg(tokens[1]);
         string operand = tokens[2];
         if (IsNumber(operand))
@@ -565,7 +566,7 @@ public partial class AssemblerParser
     private void FormatU(string[] tokens, string baseMnemonic, OpCode opCode)
     {
         if (tokens.Length < 2)
-            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType rU = ParseReg(tokens[1]);
         _asm.EmitInstU(opCode, rU);
     }
@@ -573,7 +574,7 @@ public partial class AssemblerParser
     private void FormatR(string[] tokens, string baseMnemonic, OpCode opCode)
     {
         if (tokens.Length < 3)
-            _asm.ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
         RegType r1 = ParseReg(tokens[1]);
         RegType r2 = ParseReg(tokens[2]);
         _asm.EmitInstR(opCode, r1, r2);
@@ -583,7 +584,7 @@ public partial class AssemblerParser
     {
         if (_regMap.TryGetValue(s, out RegType reg))
             return reg;
-        return _asm.ThrowCompiler.Throw<RegType>(ErrorCode.Asm_UnknownRegister, _currentLine);
+        return _asm.ErrorReporter.Throw<RegType>(ErrorCode.Asm_UnknownRegister, _currentLine);
     }
 
     private static ulong ParseNumber(string s)
@@ -605,42 +606,4 @@ public partial class AssemblerParser
     
     [GeneratedRegex(@"(\w)\s*\.\s*(\w)")]
     private static partial Regex GetRexExtensionAsm();
-}
-
-public static class AsmLanguageDefinition
-{
-    private static readonly Regex _mnemonicsRegex;
-    private static readonly Regex regex;
-
-    public static readonly FrozenSet<string> Mnemonics;
-    public static readonly FrozenSet<string> Registers;
-
-    static AsmLanguageDefinition()
-    {
-        Mnemonics = [
-            "NOP", "END", "RET", "MOV", "ADD", "SUB", "AND", "OR", "XOR",
-            "INC", "DEC", "NOT", "PUSH", "POP",
-            "LDI", "LOAD", "STORE",
-            "LOAD_UNSAFE", "STORE_UNSAFE", "JMP", "JZ",
-            "JNZ", "JG", "JL", "CALL", "LOAD_IND", "STORE_IND","LOAD_IND_UNSAFE", "STORE_IND_UNSAFE",
-            "IN", "OUT", "SHR", "MULT_INT", "DIV", "HALT", "WAKE", "WAKE_INT", "CMP", "TEST",
-            "JMP_IND", "CALL_IND", "SHL", "MOD"
-        ];
-
-        Registers = [
-            "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
-            "r10", "r11", "r12", "r13", "r14", "r15", "r16", "r17", "r18", "r19",
-            "r20", "r21", "r22", "r23", "r24", "r25", "r26", "r27",
-            "rFL", "rSP", "rHP", "rIP"
-        ];
-
-        _mnemonicsRegex = new(GetMnemonicsPattern(), RegexOptions.IgnoreCase);
-        regex = new(GetRegistersPattern(), RegexOptions.IgnoreCase);
-    }
-
-    private static string GetRegistersPattern() => $@"\b({string.Join("|", Registers)})\b";
-    private static string GetMnemonicsPattern() => $@"\b({string.Join("|", Mnemonics)})\b";
-
-    public static Regex GetMnemonicRegex() => _mnemonicsRegex;
-    public static Regex GetRegisterRegex() => regex;
 }

@@ -1,6 +1,6 @@
 ﻿# Nantuc — README
 
-[Русская версия](README.ru/md)
+[Русская версия](README.ru.md)
 
 > A platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and public embedding API.
 > **Project version:** specified in `CHANGELOG.md`, semver guaranteed.
@@ -106,7 +106,7 @@ if (fault.Status != BiosStatus.EndProgram)
 
 A detailed walkthrough (explanation of ports `0x10`/`0x12`, `QueuedIOStream`, diagnostics) — in [`samples/Nantuc.Samples.Minimal/README.md`](samples/Nantuc.Samples.Minimal/README.md).
 
-**The same via CLI (`nantuc`)** — the package is installed as a .NET global tool and covers the whole pipeline: `compile` → `run` → `disasm` + include management via `lib`.
+**The same via CLI (`nantuc`)** — the package is installed as a .NET global tool and covers the whole pipeline: `compile` -> `run` -> `disasm` + include management via `lib`.
 
 ```bash
 # Install the CLI as a .NET global tool
@@ -132,7 +132,7 @@ Help for all commands — `nantuc help`. Details — in [`src/Nantuc.CLI/README.
 
 - **Two languages**: MiniC (C-like: structs, pointers, arrays, `const`, `sizeof`, inline `asm`, `extern`, `#include`) and NANASM (assembler with labels and size suffixes). Specifications — in [`src/Nantuc.Compiler/README.md`](src/Nantuc.Compiler/README.md).
 - **Compiler from scratch**: lexer, recursive parser, AST, greedy register allocation, code generation to 32-bit bytecode, AST and IR optimizations, `const`-correctness.
-- **VM with isolated `unsafe`**: native RAM via `NativeMemory`, registers in `InlineArray` (no per-step allocations), port bus with routing `address → (device, offset)`.
+- **VM with isolated `unsafe`**: native RAM via `NativeMemory`, registers in `InlineArray` (no per-step allocations), port bus with routing `address -> (device, offset)`.
 - **Safe API**: `TryRegisterDevice`/`TryGetDeviceContext` instead of `id < 0` + `!`, `IdState` instead of magic `-1..-4`, `ProcessorFault` from `Run`/`DebugRun`, `TryLoadProgram` instead of exceptions, `Pause()`/`Resume()` for control from another thread.
 - **Devices as first-class**: the VM itself is a device (`IPortController`) — VMs can be nested, UARTs, monitors, and keyboards can be connected.
 - **Public API without hacks**: `VmHost` / `DeviceContext` / `VmHostProject` — all unsafe and native buffers are hidden in `Nantuc.Kernel`.
@@ -147,10 +147,10 @@ The public API of `Nantuc.VmApplication` follows the “Try + IdState + Processo
 
 | Scenario | Old (raw) path | Safe path |
 |---|---|---|
-| Device registration | `int id = RegisterDevice(...)` + check `id < 0` | `TryRegisterDevice(..., out int id)` → `IdState` |
+| Device registration | `int id = RegisterDevice(...)` + check `id < 0` | `TryRegisterDevice(..., out int id)` -> `IdState` |
 | Getting `DeviceContext` | `GetDeviceContext(id)!` | `TryGetDeviceContext(id, out ctx)` |
 | Loading a program | `LoadProgram(...)` (throws) | `TryLoadProgram(..., out error)` |
-| Running the VM | `Run()` → `void` | `Run(opt)` → `ProcessorFault` |
+| Running the VM | `Run()` -> `void` | `Run(opt)` -> `ProcessorFault` |
 | Stop by limit | `RunWithLimit(...)` | `Run(new LaunchOptions(StepLimit: N))` |
 | Pause/resume | — (previously only `Stop`) | `Pause()` / `Resume()` — queue-based, safe from another thread |
 | Step-by-step execution | — | `Debugger` (in `VmApplication.Extensions`) on top of `RunStepMode`/`SingleStep` |
@@ -194,7 +194,7 @@ Layers go bottom-up. Each subsequent layer depends only on the previous ones; th
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │  Nantuc.Common            Nantuc.Diagnostics                                     │
 │  (ISA, sizes, BiosStatus,      (ErrorCode, DiagnosticData,                       │
-│   ProcessorFault, IdState)        ThrowCompiler)                                 │
+│   ProcessorFault, IdState)        ErrorReporter)                                 │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -212,14 +212,14 @@ All modules are published as NuGet packages on [nuget.org](https://www.nuget.org
 |---|---|---|
 | `Nantuc.Common` | Opcodes, registers, RAM/port sizes, `BiosStatus`, `ProcessorFault`, `IdState` (default-safe), decoder | [README](src/Nantuc.Common/README.md) |
 | `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.md) |
-| `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | [README](src/Nantuc.Diagnostics/README.md) |
-| `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | [README](src/Nantuc.Kernel/README.md) |
+| `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ErrorReporter`, `CodeException` | [README](src/Nantuc.Diagnostics/README.md) |
+| `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` -> `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` -> `ProcessorFault`) | [README](src/Nantuc.Kernel/README.md) |
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.md) |
 | `Nantuc.VmApplication.Extensions` | Disassembler, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extensions/README.md) |
 | `Nantuc.CLI` | CLI `nantuc`: `compile`, `run`, `disasm`, `lib`, `help`; installed as a .NET global tool | [README](src/Nantuc.CLI/README.md) |
 
-**Dependencies (bottom-up):** `Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions` → `Nantuc.CLI`.
+**Dependencies (bottom-up):** `Common` -> `Contracts` -> `Diagnostics` -> `Kernel` -> `Compiler` -> `VmApplication` -> `VmApplication.Extensions` -> `Nantuc.CLI`.
 
 **What to install for a scenario:**
 
@@ -311,7 +311,7 @@ The project is open to issues and pull requests.
 
 - **Found a bug** — issue with a minimal example (MiniC/NANASM + expected/actual behavior).
 - **Want a feature** — issue describing the scenario (what you are doing, what is in the way).
-- **Change** — fork → branch → PR. For large changes, open an issue first (to discuss the design).
+- **Change** — fork -> branch -> PR. For large changes, open an issue first (to discuss the design).
 - **Style**: follow the style of neighboring files; `Nullable=enable`, `ImplicitUsings=enable`; `unsafe` — only in `Nantuc.Kernel`.
 
 Before a PR:

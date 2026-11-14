@@ -32,7 +32,7 @@ The project is a leaf in the dependency graph: `net10.0`, without `ProjectRefere
 > - `DevicePortSize.cs` — **broken closing tags** `</summary` (without `>`) on the `B64`, `B128`, `B256` factories — XML does not parse.  
 > - `InstructionDecoder.HasNeed64IntData` — `<remarks>` describes the **old behavior** (vulnerability to a signed `OpCode`), although the code is already protected by a `(uint)` cast.  
 > - `IdState` — **semantics clarified**: `Valid = 0` (default value), `Unknown = -5`. Code that relied on `IdState.Valid == default` remains compatible; code that treated `Unknown` as `0` must be updated.  
-> - `DecodeInstructionResult` — **breaking change**: it was a `readonly struct` with public fields, and became a `readonly record struct` with positional parameters (fields → get-only properties; `Equals`/`GetHashCode`/`==` are generated).  
+> - `DecodeInstructionResult` — **breaking change**: it was a `readonly struct` with public fields, and became a `readonly record struct` with positional parameters (fields -> get-only properties; `Equals`/`GetHashCode`/`==` are generated).  
 > Details are in the [What to fix](#what-to-fix) section.
 
 ## Local project tree
@@ -79,7 +79,7 @@ The module has no interfaces or default implementations. Public surface:
 | `RamSize` | `readonly struct` | RAM size, log2, 64 B … 2 GiB, full set of factories |
 | `PortSize` | `readonly struct` | Port-space size, log2, 64 B … 512 KiB, **full set of factories (including `KB2`/`KB32`)** |
 | `DevicePortSize` | `readonly struct` | Device port block size, log2, 8 B … 256 B |
-| `DecodeInstructionResult` | `readonly record struct` | Decoding result (fields → get-only properties) |
+| `DecodeInstructionResult` | `readonly record struct` | Decoding result (fields -> get-only properties) |
 | `InstructionDecoder` | `static class` | Parsing a 32-bit instruction + table of “whether an immediate is required” |
 | `AlignmentExtensions` | `static class` | `AlignUp`/`AlignDown`/`AlignUpArithmetic` for `IBinaryInteger<T>` |
 
@@ -92,12 +92,13 @@ The module has no interfaces or default implementations. Public surface:
 - Arithmetic: `ADD`, `SUB`, `MULT_INT` (wrap-around), `SHR`/`SHL` (shift amount is the low byte of `R2`), `INC`, `DEC`, `DIV` (`DivOnZero`), `MOD` (`DivOnZero`).
 - Logic: `AND`, `OR`, `XOR` (for zeroing via `XOR R1, R1`), `NOT`.
 - Control flow: `JMP`, `JZ`, `JNZ`, `JG` (Zero and Negative are cleared), `JL` (Negative is set), `JMP_IND` (indirect jump to the address from a register, with bounds checking).
-- Stack: `PUSH` (`rSP -= 8`, collision with the heap → `SegmentationFault`), `POP` (`rSP += 8`), `CALL` (saves the return address), `RET` (empty stack → `StackUnderflow`), `CALL_IND` (indirect call to the address from a register, with bounds checking).
+- Stack: `PUSH` (`rSP -= 8`, collision with the heap -> `SegmentationFault`), `POP` (`rSP += 8`), `CALL` (saves the return address), `RET` (empty stack -> `StackUnderflow`), `CALL_IND` (indirect call to the address from a register, with bounds checking).
 - I/O: `IN`, `OUT` (low byte of the source register).
-- Sleep: `HALT` (`IsSleeping = true`), `WAKE` (external command), `WAKE_INT` (via a port; no port → `NullDeviceOutput`).
+- Sleep: `HALT` (`IsSleeping = true`), `WAKE` (external command), `WAKE_INT` (via a port; no port -> `NullDeviceOutput`).
 - Unsafe variants: `LOAD_UNSAFE`/`STORE_UNSAFE` (fast path by absolute address without checks), `STORE_IND_UNSAFE`/`LOAD_IND_UNSAFE` (indirect via register, without checks).
-- Comparison: `CMP` (`R1 - R2` → `rFL` flags), `TEST` (`R1 & R2` → `rFL` flags), `MOD`.
-
+- Comparison: `CMP` (`R1 - R2` -> `rFL` flags), `TEST` (`R1 & R2` -> `rFL` flags), `MOD`.
+- Casting: `CASTZ`, `CASTS` cast a `ulong` from a register to `S8` — 1 byte, `S16` — 2 bytes, `S32` — 4 bytes
+- 
 **`OpCodeSize`** — `S8 = 0b00` (8 bits = 1 byte), `S16 = 0b01` (2 bytes), `S32 = 0b10` (4 bytes), `S64 = 0b11` (8 bytes). **Full XML**, including `<remarks>` on the enum about bit encoding and about the fact that the values must not be changed without the decoder. The closing-tag defect (`</summary` without `>`) has been fixed.
 
 **`RegType : byte`** — 32 values: `r0..r27` (general-purpose registers, **all with `///`**), `rFL` (Zero/Negative flags), `rSP` (stack pointer), `rHP` (heap pointer), `rIP` (instruction pointer). `<remarks>` on the enum records: 32 registers of 64 bits each in `ArrayRegisters` (`[InlineArray(32)]` of `ulong`), there is no hardware-zeroed register (zeroing is done via `XOR rN, rN`), and the order 0..31 is part of the contract. Exactly 32 = 5 bits.
@@ -197,7 +198,7 @@ Via a C# 14 `extension` block, adds to `IBinaryInteger<T>`:
 | `AlignDown(T)` | down to a multiple | `DEBUG` only, requires a power of two |
 | `AlignUpArithmetic(T)` | up via `%` | always, requires `> 0` (not necessarily a power of two) |
 
-`AlignUp`/`AlignDown` in **Release** do not validate `alignment` — an invalid value will silently produce garbage. For guaranteed validation, use `AlignUpArithmetic`. XML exists on `AlignUp`/`AlignDown`, but **not** on `AlignUpArithmetic`. Plus a typo in the class `<summary>`: “ресширение” → “расширение” (see [What to fix](#what-to-fix), item 7).
+`AlignUp`/`AlignDown` in **Release** do not validate `alignment` — an invalid value will silently produce garbage. For guaranteed validation, use `AlignUpArithmetic`. XML exists on `AlignUp`/`AlignDown`, but **not** on `AlignUpArithmetic`. Plus a typo in the class `<summary>`: “ресширение” -> “расширение” (see [What to fix](#what-to-fix), item 7).
 
 ## API examples
 
@@ -293,7 +294,7 @@ Low. This is the platform's internal foundation, not a user-facing API.
 
 - A user who writes programs in MiniC or NANASM should not import `Nantuc.Common` directly — they work through `VmApplication` / `Kernel`.
 - An extension author (disassembler, debugger, custom devices, custom backends) will use this module constantly — opcodes, registers, and units of measurement live here.
-- A compiler author (MiniC frontend → NANASM) must align code generation with `OpCode` and `HasNeed64IntData`.
+- A compiler author (MiniC frontend -> NANASM) must align code generation with `OpCode` and `HasNeed64IntData`.
 
 **What you should do:**
 - Use the `RamSize`/`PortSize`/`DevicePortSize` factories — not “magic” numbers. The factory sets of `PortSize` and `RamSize` now match.
@@ -321,9 +322,9 @@ Low. This is the platform's internal foundation, not a user-facing API.
        (12 bits)|  (2 bits) |  (5 bits)|  (5 bits)| (8 bits)
 ```
 
-- `OpCode` — 8 bits → up to 256 opcodes, about 60 are actually used.
-- `Reg1`, `Reg2` — 5 bits each → 32 registers, exactly as in `RegType`.
-- `OpCodeSize` — 2 bits → 4 variants (`S8`/`S16`/`S32`/`S64`).
+- `OpCode` — 8 bits -> up to 256 opcodes, about 60 are actually used.
+- `Reg1`, `Reg2` — 5 bits each -> 32 registers, exactly as in `RegType`.
+- `OpCodeSize` — 2 bits -> 4 variants (`S8`/`S16`/`S32`/`S64`).
 - Bits 20–31 are unused — room for the future.
 
 Full instruction length:
@@ -376,4 +377,4 @@ According to the new `OpCode` XML documentation: `LOAD_IND`/`STORE_IND`/`CALL_IN
 - It does not serialize bytecode — the `.bin`/`.nanas` format is defined in `Kernel`/`Extensions`.
 - It does not contain `ToIdState`/`TryGetIdState` — only the `IdState` enum (see [What to fix](#what-to-fix), item 6).
 
-Rule for “where to put a type”: a primitive without behavior → `Common`; an interface/contract → `Contracts`; anything that executes or stores state → `Kernel`.
+Rule for “where to put a type”: a primitive without behavior -> `Common`; an interface/contract -> `Contracts`; anything that executes or stores state -> `Kernel`.

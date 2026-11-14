@@ -37,7 +37,7 @@ Namespace — `Nantuc.Benchmarks` (все файлы в одной папке):
 
 ```
 Nantuc.Benchmarks/
-├── Nantuc.Benchmarks.csproj            # net10.0, Exe, ref → VmApplication.Extensions
+├── Nantuc.Benchmarks.csproj            # net10.0, Exe, ref -> VmApplication.Extensions
 ├── Program.cs                          # Main + массив BenchCase[] + вывод/прогресс
 ├── SourceCasesMiniC.cs                 # все 14 MiniC-источников (callMc…sortMc)
 ├── BenchRunner.cs                      # BenchRunner + ListExtensions.ComputeVariance
@@ -58,8 +58,8 @@ Nantuc.Benchmarks/
 
 `Program.Main()` (private static):
 
-1. `VmHostFactory.CreateDefault()` → `host`.
-2. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` → `deviceId`.
+1. `VmHostFactory.CreateDefault()` -> `host`.
+2. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` -> `deviceId`.
 3. Массив `BenchCase[]` (14 кейсов, `_runs=20`, `_runsWarmup=5`).
 4. Для каждого кейса: `new BenchRunner(host, deviceId, case)`, `TryPrepare()`, warmup, runs, сбор статистики.
 5. `File.WriteAllText` в `logs/`, `Console.WriteLine`, `Console.ReadLine()`.
@@ -98,7 +98,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
     public double StepsVariance { get; }    // дисперсия StepsLogs (extension)
     public CompilationResult? Program { get; private set; }
 
-    public bool TryPrepare();        // CompileToIR(SourceLanguage.C, optimize: true) → TryLoadProgram
+    public bool TryPrepare();        // CompileToIR(SourceLanguage.C, optimize: true) -> TryLoadProgram
     public void RunOnce();           // Launch(MipsLogs, ElapsedLog, StepsLogs, ctx)
     public void Warmup();            // Launch([], [], [], ctx) — лог отбрасывается
     public static void Launch(List<double> mips, List<double> elapsed,
@@ -292,7 +292,7 @@ var comp = il.Build();
 2. **`BenchRunner.PeakMips`/`StepsOnce` — берёт `StepsLogs[0]`, а не минимум/медиану.**  
    Файл: `BenchRunner.cs`, свойства `PeakMips` и `StepsOnce`.  
    `StepsOnce = _stepsLogs[0]` — если первый прогон был с другим поведением (например, GC между `TryPrepare` и первым `RunOnce`), число шагов может отличаться от последующих. `PeakMips = StepsOnce / Min(Elapsed)` смешивает шаги одного прогона с временем другого.  
-   Фикс: `StepsOnce` → `_stepsLogs.Min()` (или `Median`), `PeakMips` → `_stepsLogs.Zip(_elapsedSecondsLogs).Max(p => p.First / p.Second / 1e6)`.
+   Фикс: `StepsOnce` -> `_stepsLogs.Min()` (или `Median`), `PeakMips` -> `_stepsLogs.Zip(_elapsedSecondsLogs).Max(p => p.First / p.Second / 1e6)`.
 
 3. **`BenchRunner.Warmup`/`RunOnce` — warmup пишет в пустые списки.**  
    Файл: `BenchRunner.cs`, методы `Warmup` и `RunOnce`.  
@@ -315,7 +315,7 @@ var comp = il.Build();
    PrintProgress(testIndex, testTotal, name, "fail", 0, 0,
                  phaseTotal, phaseTotal, globalStep, totalSteps, forceNewLine: true, failed: true);
    ```
-   `done=0, phaseTotal=0` — в `phaseStr` не используется (`phase == "fail"` → `$"{phase,-4}"`), но в `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, так что процент считается по `phaseStep/phaseTotal = 1.0`. Не баг, но параметры «0, 0» вводят в заблуждение — либо `phaseTotal, phaseTotal`, либо добавить комментарий.
+   `done=0, phaseTotal=0` — в `phaseStr` не используется (`phase == "fail"` -> `$"{phase,-4}"`), но в `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, так что процент считается по `phaseStep/phaseTotal = 1.0`. Не баг, но параметры «0, 0» вводят в заблуждение — либо `phaseTotal, phaseTotal`, либо добавить комментарий.
 
 7. **`Stats.Percentile`/`Median`/`TrimmedMean` — `OrderBy().ToArray()` на каждый вызов.**  
    Файл: `Stats.cs`, методы `Percentile`, `Median`, `TrimmedMean`.  

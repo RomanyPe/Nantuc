@@ -104,7 +104,7 @@ public class VmSecurityTests(ITestOutputHelper outPut)
     {
         using var host = VmHostFactory.CreateDefault();
         var (ctx, _) = RegisterVm(host, allowUnsafe: false);
-        // 8-байтное чтение с 0x3FFC залезает в 0x4004 → выход за буфер
+        // 8-байтное чтение с 0x3FFC залезает в 0x4004 -> выход за буфер
         LoadProgram(host, ctx, $"""
             LOAD.64 r0, {RamBytes - 4};
             END;

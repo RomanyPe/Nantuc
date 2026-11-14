@@ -10,7 +10,7 @@ namespace Nantuc.Compiler.C.CodeGenerator;
 // ============================================================
 // FunctionGenerator – генерация программы и функций
 // ============================================================
-public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayout> structTable, ThrowCompiler ThrowCompiler)
+public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayout> structTable, ErrorReporter ErrorReporter)
 {
     private readonly AssemblerBase _asm = asm;
     private GlobalMemoryManager _globalMem = null!;
@@ -81,7 +81,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         else if (structTable.TryGetValue(varNode.Type, out var layout))
             baseSize = layout.Size;
         else
-            baseSize = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(varNode.Type, ThrowCompiler), ThrowCompiler);
+            baseSize = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(varNode.Type, ErrorReporter), ErrorReporter);
 
         return varNode.IsArray ? baseSize * varNode.ArraySize : baseSize;
     }
@@ -89,8 +89,8 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
     private void FillArrayInitializerData(byte[] data, VariableNode varNode,
                                                   Dictionary<string, StructLayout> structTable)
     {
-        OpCodeSize elemSize = CodeGenUtils.GetSizeForType(varNode.Type, ThrowCompiler);
-        int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize, ThrowCompiler);
+        OpCodeSize elemSize = CodeGenUtils.GetSizeForType(varNode.Type, ErrorReporter);
+        int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize, ErrorReporter);
         int count = Math.Min(varNode.ArrayInitializer!.Count, varNode.ArraySize);
 
         for (int i = 0; i < count; i++)
@@ -112,9 +112,9 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         BinaryOpNode bin => ExpressionGenerator.ComputeConstant(
                                        EvaluateConstant(bin.Left, structTable),
                                        EvaluateConstant(bin.Right, structTable),
-                                       bin.Operator, ThrowCompiler),
+                                       bin.Operator, ErrorReporter),
         SizeofTypeNode st => GetSizeofTypeConstant(st, structTable),
-        _ => ThrowCompiler.Throw<long>(ErrorCode.NotSupported,
+        _ => ErrorReporter.Throw<long>(ErrorCode.NotSupported,
                  $"Non-constant initializer in array: {node.NameNode}")
     }; 
     
@@ -123,8 +123,8 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         if (st.IsPointer) return 8;
         if (structTable.TryGetValue(st.TypeName, out var layout)) return layout.Size;
         if (CodeGenUtils.IsPrimitiveType(st.TypeName))
-            return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(st.TypeName, ThrowCompiler), ThrowCompiler);
-        ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownTypeSize, st.TypeName);
+            return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(st.TypeName, ErrorReporter), ErrorReporter);
+        ErrorReporter.Throw(ErrorCode.CodeGen_UnknownTypeSize, st.TypeName);
         return 0;
     }
 
@@ -137,8 +137,8 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         BinaryOpNode bin => ExpressionGenerator.ComputeConstant(
                                                        EvaluateConstant(bin.Left),
                                                        EvaluateConstant(bin.Right),
-                                                       bin.Operator, ThrowCompiler),
-        _ => ThrowCompiler.Throw<long>(ErrorCode.NotSupported,
+                                                       bin.Operator, ErrorReporter),
+        _ => ErrorReporter.Throw<long>(ErrorCode.NotSupported,
                  $"Non-constant initializer in array: {node.NameNode}")
     };
     private void GenerateGlobalInit(ProgramNode program)
@@ -156,7 +156,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                 int elemBytes = 8;
                 for (int i = 0; i < global.ArrayInitializer.Count; i++)
                 {
-                    exprGen.GenerateExpression(global.ArrayInitializer[i]);   // → r0
+                    exprGen.GenerateExpression(global.ArrayInitializer[i]);   // -> r0
                     _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN,
                                  GlobalMemoryManager.GetLabel(global.Name));
                     _asm.EmitLdi(RegType.r1, (ulong)(i * elemBytes));
@@ -171,7 +171,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                     continue;
 
                 exprGen.GenerateExpression(global.Initializer);
-                OpCodeSize opSize = global.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(global.Type, ThrowCompiler);
+                OpCodeSize opSize = global.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(global.Type, ErrorReporter);
                 string label = GlobalMemoryManager.GetLabel(global.Name);
                 _asm.EmitStore(RegType.r0, opSize, label);
             }
@@ -187,7 +187,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
         CollectLocalVars(func.Body, localVarNodes);
 
         // Создание контекста функции
-        var funcCtx = FunctionContext.Create(func, localVarNodes, _structTable, ThrowCompiler);
+        var funcCtx = FunctionContext.Create(func, localVarNodes, _structTable, ErrorReporter);
         var varAccessor = new VariableAccessor(_asm, funcCtx, _globalMem);
         // Генераторы для тела функции
         var getLabel = GetLabel;
@@ -222,7 +222,7 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                 {
                     RegType incomingReg = (RegType)i;
                     if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc))
-                        ThrowCompiler.Throw(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+                        ErrorReporter.Throw(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
                     if (loc.IsRegister)
                     {
                         if (loc.Register != incomingReg)
@@ -238,11 +238,16 @@ public class FunctionGenerator(AssemblerBase asm, Dictionary<string, StructLayou
                 else
                 {
                     if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc) || !loc.IsRegister)
-                        ThrowCompiler.Throw(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+                        ErrorReporter.Throw(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+
                     string globalName = $"__param_{func.Name}_{param.Name}";
                     string label = GlobalMemoryManager.GetLabel(globalName);
-                    OpCodeSize size = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type, ThrowCompiler);
+                    OpCodeSize size = param.IsPointer ? OpCodeSize.S64
+                                                      : CodeGenUtils.GetSizeForType(param.Type, ErrorReporter);
                     _asm.EmitLoad(loc.Register, size, label);
+
+                    if (!param.IsPointer)
+                        _asm.EmitCastToType(loc.Register, size, CodeGenUtils.IsSignedType(param.Type));   // NEW
                 }
             }        
         }

@@ -165,11 +165,11 @@ var overrides = new Dictionary<ErrorCode, string>
 }.ToFrozenDictionary();
 
 var provider = new DefaultErrorMessageProvider(overrides);
-var thrower = new ThrowCompiler(provider);
+var thrower = new ErrorReporter(provider);
 
 // Then — as usual:
 thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo");
-// → CodeException: "Unknown type «Foo»"
+// -> CodeException: "Unknown type «Foo»"
 ```
 
 The semantics are a **merge over the defaults**, not a replacement: codes that are not in
@@ -177,7 +177,7 @@ The semantics are a **merge over the defaults**, not a replacement: codes that a
 `Overrides_MergeWithDefaults_Regression`.
 
 `IErrorMessageProvider.Default` is a singleton with the standard set. For
-global localization, replace the provider at the `ThrowCompiler` level
+global localization, replace the provider at the `ErrorReporter` level
 (create a new instance) — `Default` is not mutated.
 
 ## Examples
@@ -185,7 +185,7 @@ global localization, replace the provider at the `ThrowCompiler` level
 **Basic usage:**
 
 ```csharp
-var thrower = new ThrowCompiler(provider: null); // → Default
+var thrower = new ErrorReporter(provider: null); // -> Default
 
 // One argument
 thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo");
@@ -233,6 +233,6 @@ depend on the current thread culture.
 - [`ErrorCode.cs`](../../src/Nantuc.Kernel.Diagnostics/ErrorCode.cs) — definitions.
 - [`DefaultErrorMessageProvider.cs`](../../src/Nantuc.Kernel.Diagnostics/DefaultErrorMessageProvider.cs) — templates.
 - [`DiagnosticData.cs`](../../src/Nantuc.Kernel.Diagnostics/DiagnosticData.cs) — arguments.
-- [`ThrowCompiler.cs`](../../src/Nantuc.Kernel.Diagnostics/ThrowCompiler.cs) — facade.
+- [`ErrorReporter.cs`](../../src/Nantuc.Kernel.Diagnostics/ErrorReporter.cs) — facade.
 - [`CodeException.cs`](../../src/Nantuc.Kernel.Diagnostics/CodeException.cs) — exception.
 - [`Nantuc.Kernel.Diagnostics/README.md`](../../src/Nantuc.Kernel.Diagnostics/README.md) — module overview.

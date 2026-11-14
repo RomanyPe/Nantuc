@@ -292,10 +292,10 @@ Medium. Contracts are what the extension author and the `VmApplication` user see
 
 ### `IPortBus` vs `IPortUse`
 
-- `IPortBus.ReadPort(ulong address)` → `ReadPortResult (Data, Status)` — an address on the bus, the status is returned.
-- `IPortUse.ReadPort(ulong offset)` → `byte` — an offset within the device's sector, no status. Errors — either an exception or `0` (not documented).
-- `IPortBus.WritePort(ulong, byte)` → `BiosStatus` — the error is returned.
-- `IPortUse.WritePort(ulong, byte)` → `void` — errors are not returned; the implementation either throws or swallows.
+- `IPortBus.ReadPort(ulong address)` -> `ReadPortResult (Data, Status)` — an address on the bus, the status is returned.
+- `IPortUse.ReadPort(ulong offset)` -> `byte` — an offset within the device's sector, no status. Errors — either an exception or `0` (not documented).
+- `IPortBus.WritePort(ulong, byte)` -> `BiosStatus` — the error is returned.
+- `IPortUse.WritePort(ulong, byte)` -> `void` — errors are not returned; the implementation either throws or swallows.
 - The asymmetry is by design: the bus knows about errors, the device does not. The consumer must understand at which level they are working.
 
 ### Endianness
@@ -316,4 +316,4 @@ Not defined in `Nantuc.Contracts`. `OptimizationId` is character-based, not rela
 - It knows nothing about `ManagerDevices`, `MemoryBus`, `Processor` — only about `BiosStatus`/`ProcessorFault`/`RegType`/`OpCode` from `Common`.
 - It does not implement `IReadOnlyNativeBuffer` over `NativeMemory` — it only declares the interface; the implementation is in the layer that knows about `NativeMemory`.
 
-Rule for "where to put a type": a primitive without behavior → `Common`; an interface/contract → `Contracts`; anything that executes or stores state → `Kernel`.
+Rule for "where to put a type": a primitive without behavior -> `Common`; an interface/contract -> `Contracts`; anything that executes or stores state -> `Kernel`.

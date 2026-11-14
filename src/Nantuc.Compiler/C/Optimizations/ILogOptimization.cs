@@ -1,6 +1,6 @@
 ﻿using Nantuc.Contracts;
 
-namespace Nantuc.Compiler.C.Optimizators;
+namespace Nantuc.Compiler.C.Optimizations;
 
 public interface IRogOptimization : IReadOnlyLogOptimization
 {

@@ -198,7 +198,7 @@ $allResults | Export-Csv -Path $Output -NoTypeInformation -Encoding UTF8
 $jsonPath = [System.IO.Path]::ChangeExtension($Output, '.json')
 ($allResults | ConvertTo-Json -Depth 4) | Set-Content -Path $jsonPath -Encoding UTF8
 Write-Host ""
-Write-Host "Saved $($allResults.Count) results → $Output, $jsonPath" -ForegroundColor Green
+Write-Host "Saved $($allResults.Count) results -> $Output, $jsonPath" -ForegroundColor Green
 
 # ── summary pivot ─────────────────────────────────────────────────────────
 

@@ -31,7 +31,7 @@
 > **XML-документация почти полная. Два известных дефекта и одна breaking-правка относительно предыдущей версии.**  
 > - `DevicePortSize.cs` — **сломанные закрывающие теги** `</summary` (без `>`) у фабрик `B64`, `B128`, `B256` — XML не парсится.  
 > - `InstructionDecoder.HasNeed64IntData` — `<remarks>` описывает **старое поведение** (уязвимость к знаковому `OpCode`), хотя код уже защищён `(uint)`-приведением.  
-> - `IdState` — **семантика уточнена**: `Valid = 0` (значение по умолчанию), `Unknown = -5`. Код, который полагался на `IdState.Valid == default`, остаётся совместимым; код, который трактовал `Unknown` как `0`, должен быть обновлён.> - `DecodeInstructionResult` — **breaking change**: был `readonly struct` с публичными полями, стал `readonly record struct` с позиционными параметрами (поля → get-only свойства; сгенерированы `Equals`/`GetHashCode`/`==`).  
+> - `IdState` — **семантика уточнена**: `Valid = 0` (значение по умолчанию), `Unknown = -5`. Код, который полагался на `IdState.Valid == default`, остаётся совместимым; код, который трактовал `Unknown` как `0`, должен быть обновлён.> - `DecodeInstructionResult` — **breaking change**: был `readonly struct` с публичными полями, стал `readonly record struct` с позиционными параметрами (поля -> get-only свойства; сгенерированы `Equals`/`GetHashCode`/`==`).  
 > Подробности — в разделе [Что исправить](#что-исправить).
 
 ## Дерево локального проекта
@@ -78,7 +78,7 @@ Nantuc.Common/
 | `RamSize` | `readonly struct` | Размер ОЗУ, лог2, 64 B … 2 GiB, полный набор фабрик |
 | `PortSize` | `readonly struct` | Размер порт-пространства, лог2, 64 B … 512 KiB, **полный набор фабрик (включая `KB2`/`KB32`)** |
 | `DevicePortSize` | `readonly struct` | Размер блока портов устройства, лог2, 8 B … 256 B |
-| `DecodeInstructionResult` | `readonly record struct` | Результат декодирования (поля → get-only свойства) |
+| `DecodeInstructionResult` | `readonly record struct` | Результат декодирования (поля -> get-only свойства) |
 | `InstructionDecoder` | `static class` | Разбор 32-битной инструкции + таблица «требуется ли immediate» |
 | `AlignmentExtensions` | `static class` | `AlignUp`/`AlignDown`/`AlignUpArithmetic` для `IBinaryInteger<T>` |
 
@@ -91,11 +91,12 @@ Nantuc.Common/
 - Арифметика: `ADD`, `SUB`, `MULT_INT` (wrap-around), `SHR`/`SHL` (величина сдвига — младший байт `R2`), `INC`, `DEC`, `DIV` (`DivOnZero`), `MOD` (`DivOnZero`).
 - Логика: `AND`, `OR`, `XOR` (для обнуления `XOR R1, R1`), `NOT`.
 - Управление потоком: `JMP`, `JZ`, `JNZ`, `JG` (сброшены Zero и Negative), `JL` (установлен Negative), `JMP_IND` (косвенный переход по адресу из регистра, с проверкой границ).
-- Стек: `PUSH` (`rSP -= 8`, коллизия с кучей → `SegmentationFault`), `POP` (`rSP += 8`), `CALL` (сохраняет адрес возврата), `RET` (пустой стек → `StackUnderflow`), `CALL_IND` (косвенный вызов по адресу из регистра, с проверкой границ).
+- Стек: `PUSH` (`rSP -= 8`, коллизия с кучей -> `SegmentationFault`), `POP` (`rSP += 8`), `CALL` (сохраняет адрес возврата), `RET` (пустой стек -> `StackUnderflow`), `CALL_IND` (косвенный вызов по адресу из регистра, с проверкой границ).
 - I/O: `IN`, `OUT` (младший байт регистра-источника).
-- Сон: `HALT` (`IsSleeping = true`), `WAKE` (внешняя команда), `WAKE_INT` (через порт, нет порта → `NullDeviceOutput`).
+- Сон: `HALT` (`IsSleeping = true`), `WAKE` (внешняя команда), `WAKE_INT` (через порт, нет порта -> `NullDeviceOutput`).
 - Unsafe-варианты: `LOAD_UNSAFE`/`STORE_UNSAFE` (быстрый путь по абсолютному адресу без проверок), `STORE_IND_UNSAFE`/`LOAD_IND_UNSAFE` (косвенный по регистру, без проверок).
-- Сравнение: `CMP` (`R1 - R2` → флаги `rFL`), `TEST` (`R1 & R2` → флаги `rFL`), `MOD`.
+- Сравнение: `CMP` (`R1 - R2` -> флаги `rFL`), `TEST` (`R1 & R2` -> флаги `rFL`), `MOD`.
+- Привидение: `CASTZ`, `CASTS` приводит `ulong` из регистра к `S8` - 1 байту, `S16` - 2 байтам, `S32` - 4 байтам
 
 **`OpCodeSize`** — `S8 = 0b00` (8 бит = 1 байт), `S16 = 0b01` (2 байта), `S32 = 0b10` (4 байта), `S64 = 0b11` (8 байт). **Полный XML**, включая `<remarks>` на enum о битовой кодировке и о том, что значения менять нельзя без декодера. Дефект закрывающих тегов (`</summary` без `>`) исправлен.
 
@@ -196,7 +197,7 @@ public readonly record struct DecodeInstructionResult(
 | `AlignDown(T)` | вниз до кратного | только `DEBUG`, требует степень двойки |
 | `AlignUpArithmetic(T)` | вверх через `%` | всегда, требует `> 0` (не обязательно степень двойки) |
 
-`AlignUp`/`AlignDown` в **Release** не проверяют `alignment` — невалидное значение даст тихий мусор. Для гарантированной проверки — `AlignUpArithmetic`. XML на `AlignUp`/`AlignDown` есть, на `AlignUpArithmetic` — **нет**. Плюс опечатка в `<summary>` класса: «ресширение» → «расширение» (см. [Что исправить](#что-исправить), п. 7).
+`AlignUp`/`AlignDown` в **Release** не проверяют `alignment` — невалидное значение даст тихий мусор. Для гарантированной проверки — `AlignUpArithmetic`. XML на `AlignUp`/`AlignDown` есть, на `AlignUpArithmetic` — **нет**. Плюс опечатка в `<summary>` класса: «ресширение» -> «расширение» (см. [Что исправить](#что-исправить), п. 7).
 
 ## Примеры для API
 
@@ -292,7 +293,7 @@ int down    = addr.AlignDown(8);  // 8
 
 - Пользователь, который пишет программы на MiniC или NANASM, не должен импортировать `Nantuc.Common` напрямую — он работает через `VmApplication` / `Kernel`.
 - Автор расширений (дизассемблер, отладчик, кастомные устройства, собственные backend'ы) будет использовать этот модуль постоянно — здесь лежат опкоды, регистры и единицы измерения.
-- Автор компилятора (frontend MiniC → NANASM) обязан согласовывать генерацию с `OpCode` и `HasNeed64IntData`.
+- Автор компилятора (frontend MiniC -> NANASM) обязан согласовывать генерацию с `OpCode` и `HasNeed64IntData`.
 
 **Что стоит делать:**
 - Использовать фабрики `RamSize`/`PortSize`/`DevicePortSize` — не «магические» числа. Теперь набор фабрик у `PortSize` и `RamSize` совпадает.
@@ -320,9 +321,9 @@ int down    = addr.AlignDown(8);  // 8
        (12 бит)|  (2 бита) |  (5 бит)|  (5 бит)| (8 бит)
 ```
 
-- `OpCode` — 8 бит → до 256 опкодов, реально используется ~60.
-- `Reg1`, `Reg2` — по 5 бит → 32 регистра, ровно как в `RegType`.
-- `OpCodeSize` — 2 бита → 4 варианта (`S8`/`S16`/`S32`/`S64`).
+- `OpCode` — 8 бит -> до 256 опкодов, реально используется ~60.
+- `Reg1`, `Reg2` — по 5 бит -> 32 регистра, ровно как в `RegType`.
+- `OpCodeSize` — 2 бита -> 4 варианта (`S8`/`S16`/`S32`/`S64`).
 - Биты 20–31 не используются — задел на будущее.
 
 Полная длина инструкции:
@@ -375,4 +376,4 @@ int down    = addr.AlignDown(8);  // 8
 - Не сериализует байткод — формат `.bin`/`.nanas` определяется в `Kernel`/`Extensions`.
 - Не содержит `ToIdState`/`TryGetIdState` — только enum `IdState` (см. [Что исправить](#что-исправить), п. 6).
 
-Правило «куда положить тип»: примитив без поведения → `Common`; интерфейс/контракт → `Contracts`; всё, что исполняет или хранит состояние → `Kernel`.
+Правило «куда положить тип»: примитив без поведения -> `Common`; интерфейс/контракт -> `Contracts`; всё, что исполняет или хранит состояние -> `Kernel`.

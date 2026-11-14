@@ -28,7 +28,7 @@ public static class RegisterAllocator
             if (!ReservedRegs.Contains(reg))
                 regs.Add(reg);
         }
-        return regs;   // r5..r27 — 23 регистра под переменные
+        return regs;   // r5..r27 — 22 регистра под переменные
     }
 
     /// <summary>

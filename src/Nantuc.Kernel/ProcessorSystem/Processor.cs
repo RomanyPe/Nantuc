@@ -129,6 +129,26 @@ public sealed class Processor(MemoryBus ram,
         return data;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong MaskOf(OpCodeSize s) => s switch
+    {
+        OpCodeSize.S8 => 0x00000000_000000FFUL,
+        OpCodeSize.S16 => 0x00000000_0000FFFFUL,
+        OpCodeSize.S32 => 0x00000000_FFFFFFFFUL,
+        OpCodeSize.S64 => ulong.MaxValue,
+        _ => 0
+    };
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong SignExtend(ulong v, OpCodeSize s) => s switch
+    {
+        OpCodeSize.S8 => (ulong)(sbyte)(byte)v,
+        OpCodeSize.S16 => (ulong)(short)(ushort)v,
+        OpCodeSize.S32 => (ulong)(int)(uint)v,
+        OpCodeSize.S64 => v,
+        _ => 0
+    };
+
     /// <summary>
     /// Запускает исполнение программы с указанного адреса: сбрасывает <c>rFL</c>,
     /// инициализирует <c>rIP</c> и <c>rSP</c>, снимает спящий режим и выставляет <see cref="IsRunning"/>.
@@ -230,6 +250,8 @@ public sealed class Processor(MemoryBus ram,
                 OpCode.NOP => BiosStatus.Success,
                 OpCode.END => EndProgram(),
                 OpCode.MOV => InstructionMOV(GetReg1(rawInst), GetReg2(rawInst)),
+                OpCode.CASTZ => InstructionCASTZ(GetReg1(rawInst), GetDataSizeCode(rawInst)),
+                OpCode.CASTS => InstructionCASTS(GetReg1(rawInst), GetDataSizeCode(rawInst)),
 
                 OpCode.LOAD => InstructionLOAD(GetDataSizeCode(rawInst), GetReg1(rawInst)),
                 OpCode.STORE => InstructionSTORE(GetDataSizeCode(rawInst), GetReg1(rawInst)),
@@ -279,6 +301,7 @@ public sealed class Processor(MemoryBus ram,
                 OpCode.CMP => InstructionCMP(GetReg1(rawInst), GetReg2(rawInst)),
                 OpCode.TEST => InstructionTEST(GetReg1(rawInst), GetReg2(rawInst)),
                 OpCode.WAKE => BiosStatus.Success,
+
                 _ => SetStatusNotImplementedOpCode(opCode),
             };
         }
@@ -288,6 +311,19 @@ public sealed class Processor(MemoryBus ram,
             _faultData = new(dat, _lastFaultData, ip, opCode);
             Volatile.Write(ref _isRunning, !IsTerminal(dat) && _processorPolicy.ShouldContinue(_faultData));
         }
+    }
+
+    private BiosStatus InstructionCASTZ(RegType reg, OpCodeSize size)
+    {
+        ulong v = _registers[reg.Int()] & MaskOf(size);
+        _registers[reg.Int()] = v;   // zero-extend по построению
+        return BiosStatus.Success;
+    }
+
+    private BiosStatus InstructionCASTS(RegType reg, OpCodeSize size)
+    {
+        _registers[reg.Int()] = SignExtend(_registers[reg.Int()], size);
+        return BiosStatus.Success;
     }
 
     private BiosStatus InstructionMOD(RegType reg1, RegType reg2)

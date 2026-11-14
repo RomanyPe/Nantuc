@@ -197,8 +197,8 @@ Bit operations on 64-bit words. No `#include`, independent.
 | `upopcount` | `int upopcount(ulong x)` | Number of set bits (Kernighan) |
 | `uclz` | `int uclz(ulong x)` | Number of leading zeros, `0..64` (`64` for `x == 0`) |
 | `uctz` | `int uctz(ulong x)` | Number of trailing zeros, `0..64` (`64` for `x == 0`) |
-| `rotl64` | `ulong rotl64(ulong x, int n)` | Circular left shift (`n & 63`; `n == 0` → unchanged) |
-| `rotr64` | `ulong rotr64(ulong x, int n)` | Circular right shift (`n & 63`; `n == 0` → unchanged) |
+| `rotl64` | `ulong rotl64(ulong x, int n)` | Circular left shift (`n & 63`; `n == 0` -> unchanged) |
+| `rotr64` | `ulong rotr64(ulong x, int n)` | Circular right shift (`n & 63`; `n == 0` -> unchanged) |
 | `urev64` | `ulong urev64(ulong x)` | Bit reversal |
 | `unext_pow2` | `ulong unext_pow2(ulong x)` | Nearest power of two `>= x`; `0` — overflow (for `x > 2^63`) |
 

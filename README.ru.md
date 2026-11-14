@@ -107,7 +107,7 @@ if (fault.Status != BiosStatus.EndProgram)
 Подробный разбор (объяснение портов `0x10`/`0x12`, `QueuedIOStream`, диагностика) — в [`samples/Nantuc.Samples.Minimal/README.ru.md`](samples/Nantuc.Samples.Minimal/README.ru.md).
 
 
-**То же самое через CLI (`nantuc`)** — пакет ставится как .NET global tool и покрывает весь конвейер: `compile` → `run` → `disasm` + управление инклюдами через `lib`.
+**То же самое через CLI (`nantuc`)** — пакет ставится как .NET global tool и покрывает весь конвейер: `compile` -> `run` -> `disasm` + управление инклюдами через `lib`.
 
 ```bash
 # Установить CLI как .NET global tool
@@ -133,7 +133,7 @@ nantuc lib exist print.minic
 
 - **Два языка**: MiniC (C-подобный: структуры, указатели, массивы, `const`, `sizeof`, inline `asm`, `extern`, `#include`) и NANASM (ассемблер с метками и размерными суффиксами). Спецификации — в [`src/Nantuc.Compiler/README.ru.md`](src/Nantuc.Compiler/README.ru.md).
 - **Компилятор с нуля**: лексер, рекурсивный парсер, AST, жадная раскраска регистров, кодогенерация в 32-битный байткод, AST- и IR-оптимизации, `const`-correctness.
-- **VM с изолированным `unsafe`**: нативная RAM через `NativeMemory`, регистры в `InlineArray` (без аллокаций на шаг), порт-шина с маршрутизацией `address → (device, offset)`.
+- **VM с изолированным `unsafe`**: нативная RAM через `NativeMemory`, регистры в `InlineArray` (без аллокаций на шаг), порт-шина с маршрутизацией `address -> (device, offset)`.
 - **Безопасный API**: `TryRegisterDevice`/`TryGetDeviceContext` вместо `id < 0` + `!`, `IdState` вместо магических `-1..-4`, `ProcessorFault` из `Run`/`DebugRun`, `TryLoadProgram` вместо исключений, `Pause()`/`Resume()` для управления из другого потока.
 - **Устройства как first-class**: VM сама является устройством (`IPortController`) — можно вкладывать VM друг в друга, подключать UART, мониторы, клавиатуры.
 - **Публичный API без хаков**: `VmHost` / `DeviceContext` / `VmHostProject` — весь unsafe и нативные буферы спрятаны в `Nantuc.Kernel`.
@@ -148,10 +148,10 @@ nantuc lib exist print.minic
 
 | Сценарий | Старый (raw) путь | Безопасный путь |
 |---|---|---|
-| Регистрация устройства | `int id = RegisterDevice(...)` + проверка `id < 0` | `TryRegisterDevice(..., out int id)` → `IdState` |
+| Регистрация устройства | `int id = RegisterDevice(...)` + проверка `id < 0` | `TryRegisterDevice(..., out int id)` -> `IdState` |
 | Получение `DeviceContext` | `GetDeviceContext(id)!` | `TryGetDeviceContext(id, out ctx)` |
 | Загрузка программы | `LoadProgram(...)` (бросает) | `TryLoadProgram(..., out error)` |
-| Запуск VM | `Run()` → `void` | `Run(opt)` → `ProcessorFault` |
+| Запуск VM | `Run()` -> `void` | `Run(opt)` -> `ProcessorFault` |
 | Остановка по лимиту | `RunWithLimit(...)` | `Run(new LaunchOptions(StepLimit: N))` |
 | Пауза/возобновление | — (было только `Stop`) | `Pause()` / `Resume()` — queue-based, безопасно из другого потока |
 | Пошаговое исполнение | — | `Debugger` (в `VmApplication.Extensions`) поверх `RunStepMode`/`SingleStep` |
@@ -195,7 +195,7 @@ nantuc lib exist print.minic
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │  Nantuc.Common            Nantuc.Diagnostics                                     │
 │  (ISA, размеры, BiosStatus,      (ErrorCode, DiagnosticData,                     │
-│   ProcessorFault, IdState)        ThrowCompiler)                                 │
+│   ProcessorFault, IdState)        ErrorReporter)                                 │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -213,14 +213,14 @@ nantuc lib exist print.minic
 |---|---|---|
 | `Nantuc.Common` | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState` (default-safe), декодер | [README](src/Nantuc.Common/README.ru.md) |
 | `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.ru.md) |
-| `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ThrowCompiler`, `CodeException` | [README](src/Nantuc.Diagnostics/README.ru.md) |
-| `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` → `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` → `ProcessorFault`) | [README](src/Nantuc.Kernel/README.ru.md) |
+| `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ErrorReporter`, `CodeException` | [README](src/Nantuc.Diagnostics/README.ru.md) |
+| `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` -> `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` -> `ProcessorFault`) | [README](src/Nantuc.Kernel/README.ru.md) |
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.ru.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.ru.md) |
 | `Nantuc.VmApplication.Extensions` | Дизассемблер, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extensions/README.ru.md) |
 | `Nantuc.CLI` | CLI `nantuc`: `compile`, `run`, `disasm`, `lib`, `help`; ставится как .NET global tool | [README](src/Nantuc.CLI/README.ru.md) |
 
-**Зависимости (снизу вверх):** `Common` → `Contracts` → `Diagnostics` → `Kernel` → `Compiler` → `VmApplication` → `VmApplication.Extensions` → `Nantuc.CLI`.
+**Зависимости (снизу вверх):** `Common` -> `Contracts` -> `Diagnostics` -> `Kernel` -> `Compiler` -> `VmApplication` -> `VmApplication.Extensions` -> `Nantuc.CLI`.
 
 **Что ставить под сценарий:**
 
@@ -313,7 +313,7 @@ dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *C
 
 - **Нашли баг** — issue с минимальным примером (MiniC/NANASM + ожидаемое/фактическое поведение).
 - **Хотите фичу** — issue с описанием сценария (что делаете, что мешает).
-- **Правка** — fork → branch → PR. Для крупных изменений сначала issue (обсудить дизайн).
+- **Правка** — fork -> branch -> PR. Для крупных изменений сначала issue (обсудить дизайн).
 - **Стиль**: следуйте стилю соседних файлов; `Nullable=enable`, `ImplicitUsings=enable`; `unsafe` — только в `Nantuc.Kernel`.
 
 Перед PR:

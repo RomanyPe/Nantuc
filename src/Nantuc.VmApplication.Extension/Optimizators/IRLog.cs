@@ -1,11 +1,11 @@
 ﻿using Nantuc.Compiler.ASM.IR;
-using Nantuc.Compiler.C.Optimizators;
+using Nantuc.Compiler.C.Optimizations;
 using System.Text;
 using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Common;
 using Nantuc.Contracts;
 
-namespace Nantuc.VmApplication.Extensions.Optimizators;
+namespace Nantuc.VmApplication.Extensions.Optimizations;
 
 public class IRLog(OptimizationId id) : IRogOptimization
 {

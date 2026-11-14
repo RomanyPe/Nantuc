@@ -1,17 +1,6 @@
 ﻿using Nantuc.Common;
 
 namespace Nantuc.Compiler.ASM.IR;
-
-public abstract class AsmItem;
-public sealed class AsmLabel(string name) : AsmItem
-{
-    public string Name { get; } = name;
-}
-
-public sealed class AsmData(byte[] data, int alignment = 8) : AsmItem
-{
-    public byte[] Data { get; } = data; public int Alignment { get; set; } = alignment;
-}
 public sealed class AsmInstruction(uint rawInstruction) : AsmItem
 {
     public OpCode OpCode { get; } = InstructionDecoder.GetOpCode(rawInstruction);

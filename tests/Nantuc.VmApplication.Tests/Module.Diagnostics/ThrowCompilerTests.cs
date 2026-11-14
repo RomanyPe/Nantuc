@@ -9,7 +9,7 @@ public class ThrowCompilerTests
     [Fact]
     public void Throw_RaisesCodeExceptionWithCodeAndMessage()
     {
-        var thrower = new ThrowCompiler(null);
+        var thrower = new ErrorReporter(null);
         var ex = Assert.Throws<CodeException>(
             () => thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo"));
 
@@ -20,7 +20,7 @@ public class ThrowCompilerTests
     [Fact]
     public void Throw_NoArgs_UsesTemplateVerbatim()
     {
-        var thrower = new ThrowCompiler(null);
+        var thrower = new ErrorReporter(null);
         var ex = Assert.Throws<CodeException>(
             () => thrower.Throw(ErrorCode.Parser_InvalidAssignment));
         Assert.Equal("Invalid assignment target", ex.Message);
@@ -30,7 +30,7 @@ public class ThrowCompilerTests
     [Fact]
     public void ThrowGeneric_UsableInExpression()
     {
-        var thrower = new ThrowCompiler(null);
+        var thrower = new ErrorReporter(null);
         string? value = null;
 
         var ex = Assert.Throws<CodeException>(() => PassThrough(thrower, value));
@@ -39,13 +39,13 @@ public class ThrowCompilerTests
         Assert.StartsWith("Not supported:", ex.Message);
     }
 
-    private static string PassThrough(ThrowCompiler thrower, string? value)
+    private static string PassThrough(ErrorReporter thrower, string? value)
         => value ?? thrower.Throw<string>(ErrorCode.NotSupported, (DiagnosticData)"missing");
 
     [Fact]
     public void ThrowGeneric_NonNull_ReturnsValue()
     {
-        var thrower = new ThrowCompiler(null);
+        var thrower = new ErrorReporter(null);
         Assert.Equal("ok", PassThrough(thrower, "ok"));
     }
 
@@ -53,7 +53,7 @@ public class ThrowCompilerTests
     [Fact]
     public void Constructor_Null_UsesDefaultProvider()
     {
-        var thrower = new ThrowCompiler(provider: null);
+        var thrower = new ErrorReporter(provider: null);
         Assert.Same(IErrorMessageProvider.Default, thrower.ErrorMessageProvider);
     }
 
@@ -61,7 +61,7 @@ public class ThrowCompilerTests
     public void Constructor_Custom_StoresProvider()
     {
         var custom = new DefaultErrorMessageProvider();
-        var thrower = new ThrowCompiler(custom);
+        var thrower = new ErrorReporter(custom);
         Assert.Same(custom, thrower.ErrorMessageProvider);
     }
 
@@ -74,8 +74,8 @@ public class ThrowCompilerTests
             [ErrorCode.NotSupported] = "custom: {0}"
         }.ToFrozenDictionary());
 
-        var a = new ThrowCompiler(provider: null);
-        var b = new ThrowCompiler(custom);
+        var a = new ErrorReporter(provider: null);
+        var b = new ErrorReporter(custom);
 
         var exA = Assert.Throws<CodeException>(
             () => a.Throw(ErrorCode.NotSupported, (DiagnosticData)"X"));

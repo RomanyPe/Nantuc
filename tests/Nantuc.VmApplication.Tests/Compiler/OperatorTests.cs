@@ -110,5 +110,14 @@ public class OperatorTests(ITestOutputHelper outPut) : CompileTestBase(outPut)
     [InlineData("int main() { int a[1]; int *p = a; return sizeof(*p); }", 4)]
     [InlineData("int main() { return sizeof(int) * 2; }", 8)]
     [InlineData("struct P { int x; byte b; }; int main() { struct P p; return sizeof(p.x) + sizeof(p.b); }", 5)]
+    [InlineData("int main() { int x; return (x = 5) + 1; }", 6)]
+    [InlineData("int main() { int x = 3; return (x += 4) + 1; }", 8)]
+    [InlineData("int main() { int x = 3; return (x *= 5); }", 15)]
+    [InlineData("int main() { int x = 10; return (x -= 3) + 2; }", 9)]
+    [InlineData("int main() { int x = 10; return (x >>= 1) * 3; }", 15)]
+    [InlineData("int main() { int x, y, z; z = (y = (x = 5) + 1) + 2; return x + y + z; }", 19)]
+    [InlineData("int main() { int x, y; return (x = 3) + (y = 4); }", 7)]
+    [InlineData("int main() { int x = 5; int y = (x = 7) * 2; return x + y; }", 21)]
+    [InlineData("int main() { int x, y, z; x = y = z = 5; return x + y + z; }", 15)]
     public void Operators_And_Sizeof(string program, ulong res) => RunCompile(program, res);
 }

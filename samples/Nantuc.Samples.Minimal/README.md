@@ -1,7 +1,7 @@
 # Nantuc.Samples.Minimal — README
 
 > A minimal working example of the Nantuc platform: compiles a MiniC program "Hello world. Привет мир", runs it on the virtual machine, and prints a UTF-16 string to `Console.Out` via a port device.
-> Shows the full path "source → bytecode → VM → I/O" on a single screen.
+> Shows the full path "source -> bytecode -> VM -> I/O" on a single screen.
 > Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
 > `[← Root](../README.md) · [VmApplication](../../src/Nantuc.VmApplication/README.md) · [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md) · [Compiler](../../src/Nantuc.Compiler/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md)`
 
@@ -46,7 +46,7 @@ One file:
 
 ```
 Nantuc.Samples.Minimal/
-├── Nantuc.Samples.Minimal.csproj   # net10.0, Exe, ref → VmApplication.Extensions
+├── Nantuc.Samples.Minimal.csproj   # net10.0, Exe, ref -> VmApplication.Extensions
 └── Program.cs                       # top-level statements, ~55 lines
 ```
 
@@ -92,7 +92,7 @@ var iostream = new SynchronousIOStream(Console.Out, PortCharEncoding.Utf16);
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 ```
 
-and in `main.minic` call `print8(str)` instead of `print16(str)`. But `char` in MiniC is 16-bit, `print8` expects `char*` and does `write8(str[i])` — a 16→8 truncation. For ASCII (`"Hello world."`) it works, for Cyrillic (`"Привет мир"`) it does not: the characters U+041F…U+0440 do not fit in a byte. For non-ASCII, keep `Utf16`.
+and in `main.minic` call `print8(str)` instead of `print16(str)`. But `char` in MiniC is 16-bit, `print8` expects `char*` and does `write8(str[i])` — a 16->8 truncation. For ASCII (`"Hello world."`) it works, for Cyrillic (`"Привет мир"`) it does not: the characters U+041F…U+0440 do not fit in a byte. For non-ASCII, keep `Utf16`.
 
 **Add completion diagnostics:**
 
@@ -135,7 +135,7 @@ using var host = VmHostFactory.CreateDefault(fileService: fs);
 
 **What you should do:**
 - Run `dotnet run` in `Nantuc.Samples.Minimal` — the screen will print `Hello world. Привет мир` (UTF-16).
-- Use it as a template for your own examples: copy the structure `SaveFileProject` → `TryRegisterDevice` → `TryGetDeviceContext` → `CompileToIR` → `TryLoadProgram` → `Run`.
+- Use it as a template for your own examples: copy the structure `SaveFileProject` -> `TryRegisterDevice` -> `TryGetDeviceContext` -> `CompileToIR` -> `TryLoadProgram` -> `Run`.
 - Check the `IdState` from `TryRegisterDevice` — this replaces the old `deviceId < 0` check.
 - For debugging, replace `Run()` with `RunStepMode` + `SingleStep`, as in the `[VmApplication README](../../src/Nantuc.VmApplication/README.md)`.
 
@@ -170,8 +170,8 @@ These are **absolute addresses** in the VM's port space, not offsets. `PortBus` 
 
 - `PortsOnDevice = 1 << 4 = 16` (bytes).
 - `SectorCount = 1 << (16 - 4) = 4096`.
-- Sector 1 → base `1 * 16 = 16 = 0x10`.
-- `Data` (offset 0) → `0x10`, `Flush` (offset 2) → `0x12`.
+- Sector 1 -> base `1 * 16 = 16 = 0x10`.
+- `Data` (offset 0) -> `0x10`, `Flush` (offset 2) -> `0x12`.
 
 If you change `portsPerDevice` in `VmHostFactory.CreateDefault` (e.g., to `DevicePortSize.B32` = 32), the base of sector 1 becomes `0x20`, and `portWrite = 0x10` lands in **sector 0** (the VM itself), and the output will disappear or break. This is a limitation of the example, not of the platform.
 
@@ -186,7 +186,7 @@ if (pendingLowByte is null) { pendingLowByte = b; /* buffered */ continue; }
 char c = (char)(pendingLowByte.Value | (b << 8));
 ```
 
-`print16` (in `print.minic`) writes the low byte first (`write8(c)`), the high byte second (`write8(c >> 8)`). The order matches UTF-16LE. `flush()` at the end writes `1` to the `Flush` port → `QueuedIOStream.Flush()` waits up to 2 sec for `_pendingCount` to become 0, and does `_writer.Flush()`.
+`print16` (in `print.minic`) writes the low byte first (`write8(c)`), the high byte second (`write8(c >> 8)`). The order matches UTF-16LE. `flush()` at the end writes `1` to the `Flush` port -> `QueuedIOStream.Flush()` waits up to 2 sec for `_pendingCount` to become 0, and does `_writer.Flush()`.
 
 The string `"Hello world. Привет мир"` verifies that:
 - ASCII (`Hello world.`) goes as is (U+0048…U+0077, 2 bytes in UTF-16).
@@ -202,7 +202,7 @@ The string `"Hello world. Привет мир"` verifies that:
 
 ### `Run()` and `QueuedIOStream`
 
-`vm.Run()` blocks the thread until `END`/a fault. `print16` at the end calls `flush()` → `QueuedIOStream.Flush()` synchronously waits for an empty queue. So by the time `Run()` returns, everything has been output to `Console.Out`. `host.Dispose()` (via `using`) then calls `ManagerDevices.Dispose` → `iostream.Dispose` → `_drainTask.Wait(5s)` (in case something remains). The order is safe.
+`vm.Run()` blocks the thread until `END`/a fault. `print16` at the end calls `flush()` -> `QueuedIOStream.Flush()` synchronously waits for an empty queue. So by the time `Run()` returns, everything has been output to `Console.Out`. `host.Dispose()` (via `using`) then calls `ManagerDevices.Dispose` -> `iostream.Dispose` -> `_drainTask.Wait(5s)` (in case something remains). The order is safe.
 
 ### Platform limitations
 
@@ -229,5 +229,5 @@ The string `"Hello world. Привет мир"` verifies that:
    File: `Program.cs`. It works, but for C style `int main()` is better.  
    Fix: replace with `int main() { print16(str); return 0; }` — more familiar to the reader.
 
-5. **`LibraresIncludes` → `StdLibraries` — name synchronization.**  
+5. **`LibraresIncludes` -> `StdLibraries` — name synchronization.**  
    File: `Nantuc.VmApplication.Extensions/LibraresIncludes/LibraresForCompiler.cs`. The example already uses `using Nantuc.VmApplication.Extensions.StdLibraries;` and `Libraries.io_nanasm`. You need to make sure that in `VmApplication.Extensions` itself the namespace/folder/class are renamed to `StdLibraries`/`Libraries` (or, conversely, the example still uses the old path). The typos `Librares`/`Librare` — remove them in a single BREAKING commit.

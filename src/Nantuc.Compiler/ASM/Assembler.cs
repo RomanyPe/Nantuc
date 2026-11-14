@@ -15,7 +15,7 @@ public class Assembler : AssemblerBase
 
     private int _dataStart = -1;
 
-    public Assembler(ulong baseAddress, ThrowCompiler throwCompiler) : base(baseAddress, throwCompiler)
+    public Assembler(ulong baseAddress, ErrorReporter ErrorReporter) : base(baseAddress, ErrorReporter)
     {
         _stream = new MemoryStream();
         _writer = new BinaryWriter(_stream);
@@ -25,7 +25,7 @@ public class Assembler : AssemblerBase
     public override void MarkLabel(string name)
     {
         if (_labels.TryGetValue(name, out long existingPos))
-            ThrowCompiler.Throw(ErrorCode.Asm_DuplicateLabel, name, existingPos);
+            ErrorReporter.Throw(ErrorCode.Asm_DuplicateLabel, name, existingPos);
         _labels[name] = _stream.Position;
     }
 
@@ -103,8 +103,8 @@ public class Assembler : AssemblerBase
         foreach (var (pos, label) in _patches)
         {
             if (!_labels.TryGetValue(label, out long targetPos))
-                ThrowCompiler.Throw(ErrorCode.Asm_UndefinedLabel, label, pos);
-            ulong absoluteAddr = _baseAddress + (ulong)targetPos;
+                ErrorReporter.Throw(ErrorCode.Asm_UndefinedLabel, label, pos);
+            ulong absoluteAddr = BaseAddress + (ulong)targetPos;
             BitConverter.GetBytes(absoluteAddr).CopyTo(bytes, (int)pos);
         }
         _stream.Dispose();

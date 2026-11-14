@@ -1,7 +1,7 @@
 ﻿using Nantuc.Compiler.C.AST;
 using Nantuc.Contracts;
 
-namespace Nantuc.Compiler.C.Optimizators;
+namespace Nantuc.Compiler.C.Optimizations;
 
 
 public class OptimizationResult(OptimizationId type) : IRogOptimization

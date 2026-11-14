@@ -23,7 +23,7 @@ public class Token(TokenType type, string value, int line, int column)
     public override string ToString() => $"{Type.AsText}: '{Value}' at {Line}:{Column}";
 }
 
-public class Lexer(string source, ThrowCompiler ThrowCompiler)
+public class Lexer(string source, ErrorReporter ErrorReporter)
 {
     private readonly string _source = source;
     private int _position;
@@ -89,7 +89,7 @@ public class Lexer(string source, ThrowCompiler ThrowCompiler)
                 continue;
             }
 
-            ThrowCompiler.Throw(ErrorCode.Lexer_UnexpectedCharacter, c, _line, _column);
+            ErrorReporter.Throw(ErrorCode.Lexer_UnexpectedCharacter, c, _line, _column);
         }
 
         _tokens.Add(new Token(TokenType.EOF, "", _line, _column));
@@ -209,6 +209,16 @@ public class Lexer(string source, ThrowCompiler ThrowCompiler)
         int start = _position;
         int startCol = _column;
         char c = _source[_position];
+
+        // NEW: Трёхсимвольные операторы: <<=, >>=
+        if ((c == '<' || c == '>') && Peek() == c && Peek(2) == '=')
+        {
+            _position += 3;
+            _column += 3;
+            _tokens.Add(new Token(TokenType.Operator, _source.Substring(start, 3), _line, startCol));
+            return;
+        }
+
         // Двухсимвольные операторы (одинаковые символы)
         if ((c == '+' || c == '-' || c == '*' || c == '/' || c == '=' ||
              c == '!' || c == '<' || c == '>' || c == '&' || c == '|') && Peek() == c)

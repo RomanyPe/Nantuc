@@ -1,14 +1,14 @@
 ﻿using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.CodeGenerator;
-using Nantuc.Compiler.C.Optimizators;
+using Nantuc.Compiler.C.Optimizations;
 using Nantuc.Contracts;
 using Nantuc.Diagnostics;
 
-namespace Nantuc.VmApplication.Extensions.Optimizators.AstRules;
+namespace Nantuc.VmApplication.Extensions.Optimizations.AstRules;
 
 public class FoldConstantsRule : IAstOptimizationRule
 {
-    private readonly ThrowCompiler throwCompiler = new(null);
+    private readonly ErrorReporter ErrorReporter = new(null);
     public OptimizationId Type => AstOptimizerExtension.ConstantFolded;
 
     public IReadOnlyLogOptimization Optimize(ProgramNode program)
@@ -84,7 +84,7 @@ public class FoldConstantsRule : IAstOptimizationRule
                 {
                     long oldLeft = left.Value;
                     long oldRight = right.Value;
-                    long result = ExpressionGenerator.ComputeConstant(left.Value, right.Value, binop.Operator, throwCompiler);
+                    long result = ExpressionGenerator.ComputeConstant(left.Value, right.Value, binop.Operator, ErrorReporter);
                     log.Append(0, $"Folded constant: {oldLeft} {binop.Operator} {oldRight} = {result}");
                     return new NumberNode(result);
                 }

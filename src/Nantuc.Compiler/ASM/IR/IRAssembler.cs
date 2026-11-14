@@ -5,7 +5,7 @@ using Nantuc.Diagnostics;
 
 namespace Nantuc.Compiler.ASM.IR;
 
-public class IRAssembler(ulong baseAddress, ThrowCompiler throwCompiler) : AssemblerBase(baseAddress, throwCompiler)
+public class IRAssembler(ulong baseAddress, ErrorReporter ErrorReporter) : AssemblerBase(baseAddress, ErrorReporter)
 {
     private readonly List<AsmItem> _items = new(64);
     private readonly HashSet<string> _labelNames = new(StringComparer.Ordinal);
@@ -26,7 +26,7 @@ public class IRAssembler(ulong baseAddress, ThrowCompiler throwCompiler) : Assem
                 }
                 currentPos++;
             }
-            ThrowCompiler.Throw(ErrorCode.Asm_DuplicateLabel, name, existingPos);
+            ErrorReporter.Throw(ErrorCode.Asm_DuplicateLabel, name, existingPos);
             return;
         }
         _items.Add(new AsmLabel(name));
@@ -44,7 +44,7 @@ public class IRAssembler(ulong baseAddress, ThrowCompiler throwCompiler) : Assem
         var op = InstructionDecoder.GetOpCode(instruction);
         if (!InstructionDecoder.HasNeed64IntData(op))
         {
-            ThrowCompiler.Throw(ErrorCode.Asm_InvalidInstruction, op.OpName());
+            ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, op.OpName());
         }
         _items.Add(new AsmInstruction(instruction, data));
     }
@@ -83,7 +83,7 @@ public class IRAssembler(ulong baseAddress, ThrowCompiler throwCompiler) : Assem
             switch (item)
             {
                 case AsmLabel label:
-                    labelAddresses[label.Name] = _baseAddress + currentOffset;
+                    labelAddresses[label.Name] = BaseAddress + currentOffset;
                     break;
                 case AsmInstruction instr:
                     currentOffset += 4;
@@ -104,7 +104,7 @@ public class IRAssembler(ulong baseAddress, ThrowCompiler throwCompiler) : Assem
         }
 
         int totalSize = (int)currentOffset;
-        DataSectionStart = dataStart >= 0 ? dataStart : totalSize;  // нет data → пустая секция в конце
+        DataSectionStart = dataStart >= 0 ? dataStart : totalSize;  // нет data -> пустая секция в конце
         DataSectionSize = totalSize - DataSectionStart;
         CodeSectionSize = DataSectionStart;
 
@@ -144,7 +144,7 @@ public class IRAssembler(ulong baseAddress, ThrowCompiler throwCompiler) : Assem
                             if (instr.IsJump)
                             {
                                 if (!labelAddresses.TryGetValue(instr.TargetLabel!, out var targetAddr))
-                                    ThrowCompiler.Throw(ErrorCode.Asm_UndefinedLabel, instr.TargetLabel!, 0);
+                                    ErrorReporter.Throw(ErrorCode.Asm_UndefinedLabel, instr.TargetLabel!, 0);
                                 data = targetAddr;
                             }
                             else

@@ -173,7 +173,7 @@ public class HaltWakeTests
     {
         using var host = VmHostFactory.CreateDefault();
 
-        // Устройство в секторе 1 → базовый адрес 0x10 (16 портов на устройство).
+        // Устройство в секторе 1 -> базовый адрес 0x10 (16 портов на устройство).
         var wakeable = new FakeWakingDevice();
         host.Emulator.RegisterDevice(wakeable, name: "wakeable", sector: 1);
 

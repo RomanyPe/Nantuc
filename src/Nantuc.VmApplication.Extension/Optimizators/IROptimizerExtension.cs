@@ -1,9 +1,9 @@
 ﻿using Nantuc.Compiler.ASM;
-using Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
+using Nantuc.VmApplication.Extensions.Optimizations.IRAsmRules;
 using Nantuc.VmApplication.Project;
 using Nantuc.Contracts;
 
-namespace Nantuc.VmApplication.Extensions.Optimizators;
+namespace Nantuc.VmApplication.Extensions.Optimizations;
 
 public static class IROptimizerExtension
 {

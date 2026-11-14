@@ -23,6 +23,12 @@ public class ConstCorrectnessTests(ITestOutputHelper outPut) : CompileTestBase(o
     [InlineData("int main() { return sizeof(const int); }", 4)]
     [InlineData("int main() { return sizeof(const int*); }", 8)]
     [InlineData("int f(int x) { x = 100; return x; } const int a = 5; int main() { return f(a); }", 100)]
+    [InlineData("int main() { int x; return (x = 5) + 1; }", 6)]
+    [InlineData("int main() { int x = 3; return (x += 4) + 1; }", 8)]
+    [InlineData("int main() { int x = 3; int y; y = (x = 10); return x + y; }", 20)]
+    [InlineData("int main() { int a = 5; int * const p = &a; return (*p = 10) + 1; }", 11)]
+    [InlineData("int main() { int a = 5; int * const p = &a; return (*p += 5) * 2; }", 20)]
+    [InlineData("int main() { int a[3] = { 10, 20, 30 }; const int *p = a; return (p = p + 1) != 0; }", 1)]
     public void Const_Positive(string program, ulong res) => RunCompile(program, res);
 
     [Theory]
@@ -52,5 +58,18 @@ public class ConstCorrectnessTests(ITestOutputHelper outPut) : CompileTestBase(o
     [InlineData("int f(const int x) { x++; return x; } int main() { return f(10); }")]
     [InlineData("int f(const int *p) { *p = 10; return 0; } int main() { int a = 5; return f(&a); }")]
     [InlineData("int f(const int *p) { (*p)++; return 0; } int main() { int a = 5; return f(&a); }")]
+    [InlineData("const int x = 5; int main() { return (x = 6) + 1; }")]
+    [InlineData("int main() { const int x = 5; return (x = 6) * 2; }")]
+    [InlineData("const int G = 5; int main() { return (G = 10) + 1; }")]
+    [InlineData("const int x = 5; int main() { return (x += 1) + 2; }")]
+    [InlineData("const int x = 5; int main() { return (x *= 2); }")]
+    [InlineData("const int x = 5; int main() { return (x <<= 1) + 1; }")]
+    [InlineData("const int x = 5; int main() { if ((x = 6) > 0) return 1; return 0; }")]
+    [InlineData("const int x = 5; int main() { while ((x = x + 1) < 10) { } return x; }")]
+    [InlineData("int main() { const int arr[3] = { 1, 2, 3 }; return (arr[0] = 5) + 1; }")]
+    [InlineData("int main() { const int arr[3] = { 1, 2, 3 }; return (arr[1] += 1) * 2; }")]
+    [InlineData("int main() { int a = 5; const int *p = &a; return (*p = 10) + 1; }")]
+    [InlineData("int main() { int a = 5; const int *p = &a; return (*p += 1) * 2; }")]
+    [InlineData("int main() { int a = 5; int * const p = &a; return (p = &a) + 1; }")]
     public void Const_Violations(string program) => RunCompile_ConstViolation(program);
 }

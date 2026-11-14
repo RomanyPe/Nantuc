@@ -290,10 +290,10 @@ foreach (OptimizationLogEntry e in entries)
 
 ### `IPortBus` vs `IPortUse`
 
-- `IPortBus.ReadPort(ulong address)` → `ReadPortResult (Data, Status)` — адрес на шине, статус возвращается.
-- `IPortUse.ReadPort(ulong offset)` → `byte` — смещение внутри сектора устройства, статуса нет. Ошибки — либо исключение, либо `0` (не задокументировано).
-- `IPortBus.WritePort(ulong, byte)` → `BiosStatus` — ошибка возвращается.
-- `IPortUse.WritePort(ulong, byte)` → `void` — ошибки не возвращаются; реализация либо бросает, либо глотает.
+- `IPortBus.ReadPort(ulong address)` -> `ReadPortResult (Data, Status)` — адрес на шине, статус возвращается.
+- `IPortUse.ReadPort(ulong offset)` -> `byte` — смещение внутри сектора устройства, статуса нет. Ошибки — либо исключение, либо `0` (не задокументировано).
+- `IPortBus.WritePort(ulong, byte)` -> `BiosStatus` — ошибка возвращается.
+- `IPortUse.WritePort(ulong, byte)` -> `void` — ошибки не возвращаются; реализация либо бросает, либо глотает.
 - Асимметрия по дизайну: шина знает об ошибках, устройство — нет. Потребитель должен понимать, на каком уровне работает.
 
 ### Endianness
@@ -314,4 +314,4 @@ foreach (OptimizationLogEntry e in entries)
 - Не знает про `ManagerDevices`, `MemoryBus`, `Processor` — только про `BiosStatus`/`ProcessorFault`/`RegType`/`OpCode` из `Common`.
 - Не реализует `IReadOnlyNativeBuffer` над `NativeMemory` — только объявляет интерфейс; реализация — в слое, который знает про `NativeMemory`.
 
-Правило «куда положить тип»: примитив без поведения → `Common`; интерфейс/контракт → `Contracts`; всё, что исполняет или хранит состояние → `Kernel`.
+Правило «куда положить тип»: примитив без поведения -> `Common`; интерфейс/контракт -> `Contracts`; всё, что исполняет или хранит состояние -> `Kernel`.

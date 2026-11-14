@@ -1,5 +1,5 @@
 ﻿using Nantuc.VmApplication.Extensions.Host;
-using Nantuc.VmApplication.Extensions.Optimizators;
+using Nantuc.VmApplication.Extensions.Optimizations;
 using Nantuc.VmApplication.Project;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;

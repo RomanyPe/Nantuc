@@ -4,7 +4,7 @@ using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Contracts;
 
-namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
+namespace Nantuc.VmApplication.Extensions.Optimizations.IRAsmRules;
 
 public sealed class ReplaceSafeMemAccessWithUnsafeRule : IOptimizerIRRule
 {

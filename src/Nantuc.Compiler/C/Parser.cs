@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Nantuc.Compiler.C;
 
-public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
+public class Parser(List<Token> tokens, ErrorReporter erRep)
 {
     private readonly List<Token> _tokens = tokens;
     private readonly HashSet<string> _structNames = new(StringComparer.Ordinal);
@@ -51,7 +51,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
                 Expect(TokenType.Operator, "#");
                 string directive = Expect(TokenType.Identifier).Value; // "include"
                 if (directive != "include")
-                    ThrowCompiler.Throw(ErrorCode.Parser_UnknownDirective, directive);
+                    erRep.Throw(ErrorCode.Parser_UnknownDirective, directive);
                 string filePath = Expect(TokenType.String).Value.Trim('"');
                 program.IncludesList.Add(filePath);
                 // точка с запятой не требуется
@@ -122,7 +122,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
 
                 if (Current.Type == TokenType.Punctuation && Current.Value == "(")
                 {
-                    var func = ParseFunction(type, name);
+                    var func = ParseFunction(type, name, isPointer);            // NEW аргумент
                     program.FunctionNodes.Add(func);
                 }
                 else
@@ -134,7 +134,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
             }
             else
             {
-                ThrowCompiler.Throw(ErrorCode.Parser_UnexpectedToken, Current.Type.AsText, Current.Value, Current.Column);
+                erRep.Throw(ErrorCode.Parser_UnexpectedToken, Current.Type.AsText, Current.Value, Current.Column);
 
             }
         }
@@ -213,7 +213,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
             Advance();
             string name = Expect(TokenType.Identifier).Value;
             if (!_structNames.Contains(name))
-                ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, name);
+                erRep.Throw(ErrorCode.CodeGen_UnknownStructType, name);
             return name;
         }
         if (Current.Type == TokenType.Identifier && _structNames.Contains(Current.Value))
@@ -221,7 +221,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
         return Expect(TokenType.Keyword).Value;
     }
     // EOF
-    private FunctionNode ParseFunction(string returnType, string name)
+    private FunctionNode ParseFunction(string returnType, string name, bool isReturnPointer)
     {
         Expect(TokenType.Punctuation, "(");
         var parameters = new List<ParameterNode>();
@@ -247,7 +247,8 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
         var body = ParseBlock();
         var func = new FunctionNode(name, returnType, body)
         {
-            Parameters = parameters // Ключевая строка!
+            Parameters = parameters,
+            ReturnIsPointer = isReturnPointer,                     // NEW
         };
         return func;
     }
@@ -314,7 +315,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
                     IsPointer = isPointer,
                     PointedType = pointedType,
                     IsConst = ptrConst,             // int * const arr[] — экзотика
-                    IsPointedConst = prefixConst   // const int arr[] → элементы неизменяемы
+                    IsPointedConst = prefixConst   // const int arr[] -> элементы неизменяемы
                 };
                 // Инициализатор { ... }?
                 if (Current.Type == TokenType.Operator && Current.Value == "=")
@@ -331,7 +332,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
                         }
                         else if (initList.Count > size)
                         {
-                            ThrowCompiler.Throw(ErrorCode.Parser_InvalidAssignment, name);
+                            erRep.Throw(ErrorCode.Parser_InvalidAssignment, name);
                         }
                         return varNode;
                     }
@@ -354,14 +355,14 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
                     if (size < 0)
                         varNode.ArraySize = list.Count;          // int arr[] = {...}
                     else if (list.Count > size)
-                        ThrowCompiler.Throw(ErrorCode.Parser_InvalidAssignment, name); // слишком много инициализаторов
+                        erRep.Throw(ErrorCode.Parser_InvalidAssignment, name); // слишком много инициализаторов
 
                 }
 
                 else if (size < 0)
                 {
                     // int arr[]; без инициализатора — размер неизвестен
-                    ThrowCompiler.Throw(ErrorCode.Parser_ArraySizeNotConstant, name);
+                    erRep.Throw(ErrorCode.Parser_ArraySizeNotConstant, name);
                 }
 
                 return varNode;
@@ -439,7 +440,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
 
             i++;
             if (i >= inner.Length)
-                ThrowCompiler.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
+                erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
 
             char esc = inner[i];
             switch (esc) 
@@ -453,12 +454,12 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
                 case '"': nodes.Add(new NumberNode('"')); break;
                 case 'x':
                     if (i + 2 >= inner.Length)
-                        ThrowCompiler.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
+                        erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
                     nodes.Add(new NumberNode(Convert.ToInt64(inner.Substring(i + 1, 2), 16)));
                     i += 2;
                     break;
                 default:
-                    ThrowCompiler.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
+                    erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
                     break;
 
             }
@@ -584,7 +585,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
             }
 
             string name = Expect(TokenType.Identifier).Value;
-            // prefixConst применяется к каждому декларатору:  const int *a, b; → b тоже const
+            // prefixConst применяется к каждому декларатору:  const int *a, b; -> b тоже const
             result.Add(ParseVariableTail(type, name, isPtr, pointed, firstPrefixConst, ptrConst));
         }
         return result;
@@ -658,7 +659,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
                 ArrayAccessNode arr => new AssignmentNode(arr.ArrayName, right, arr.Index) { LValue = left, CompoundOp = op },
                 MemberAccessNode => new AssignmentNode(null!, right) { LValue = left, CompoundOp = op },
                 DereferenceNode => new AssignmentNode(null!, right) { LValue = left, CompoundOp = op },
-                _ => ThrowCompiler.Throw<ASTNode>(ErrorCode.Parser_InvalidAssignment),
+                _ => erRep.Throw<ASTNode>(ErrorCode.Parser_InvalidAssignment),
             };
         }
         return left;
@@ -918,7 +919,7 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
         }
         else
         {
-            ThrowCompiler.Throw(ErrorCode.Parser_UnexpectedToken, Current.Type.AsText, Current.Value, Current.Column);
+            erRep.Throw(ErrorCode.Parser_UnexpectedToken, Current.Type.AsText, Current.Value, Current.Column);
             return null!;
         }
 
@@ -963,9 +964,9 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
     private Token Expect(TokenType type, string? value = null)
     {
         if (Current.Type != type)
-            ThrowCompiler.Throw(ErrorCode.Parser_ExpectedToken, type.AsText, Current.Type.AsText, Current.Value, Current.Column);
+            erRep.Throw(ErrorCode.Parser_ExpectedToken, type.AsText, Current.Type.AsText, Current.Value, Current.Column);
         if (value != null && Current.Value != value)
-            ThrowCompiler.Throw(ErrorCode.Parser_ExpectedToken, value, Current.Type.AsText, Current.Value, Current.Column);
+            erRep.Throw(ErrorCode.Parser_ExpectedToken, value, Current.Type.AsText, Current.Value, Current.Column);
         Token token = Current;
         Advance();
         
@@ -975,19 +976,19 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
     private int ParseCharLiteral(string text)
     {
         if (string.IsNullOrEmpty(text))
-            ThrowCompiler.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
+            erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
 
         if (text[0] != '\\')
         {
             // Обычный символ – должен быть ровно один
             if (text.Length != 1)
-                ThrowCompiler.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
+                erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
             return text[0];
         }
 
         // Обработка escape-последовательности
         if (text.Length < 2)
-            ThrowCompiler.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
+            erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
 
         char escape = text[1];
         switch (escape)
@@ -1002,11 +1003,11 @@ public class Parser(List<Token> tokens, ThrowCompiler ThrowCompiler)
             case 'x':
                 // \xHH (две шестнадцатеричные цифры)
                 if (text.Length != 4)
-                    ThrowCompiler.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
+                    erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
                 string hex = text.Substring(2, 2);
                 return Convert.ToInt32(hex, 16);
             default:
-                return ThrowCompiler.Throw<int>(ErrorCode.Parser_InvalidCharLiteral, text);
+                return erRep.Throw<int>(ErrorCode.Parser_InvalidCharLiteral, text);
         }
     }
 

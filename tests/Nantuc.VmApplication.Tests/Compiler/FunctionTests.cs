@@ -60,7 +60,24 @@ public class FunctionTests(ITestOutputHelper outPut) : CompileTestBase(outPut)
     """, 13)]
     [InlineData("""
         int add(int a, int b) { return a + b; }
-        int main() { int x = 1; int y = 2; return add((x, y), 0); }   // (x,y) = comma → y=2; add(2, 0) = 2
+        int main() { int x = 1; int y = 2; return add((x, y), 0); }   // (x,y) = comma -> y=2; add(2, 0) = 2
         """, 2)]
+    // ---- assignment-as-expression в аргументах вызова ----
+    [InlineData("""
+    int add(int a, int b) { return a + b; }
+    int main() {
+        int x, y;
+        return add((x = 3), (y = 4)) + x + y;   // 7 + 3 + 4 = 14
+    }
+    """, 14)]
+
+    // ---- тот же приём с compound ----
+    [InlineData("""
+    int add(int a, int b) { return a + b; }
+    int main() {
+        int x = 10, y = 20;
+        return add((x -= 8), (y += 5)) + x + y;   // add(2,25)=27, + x(=2) + y(=25) = 54
+    }
+    """, 54)]
     public void Function_Calls(string program, ulong res) => RunCompile(program, res);
 }

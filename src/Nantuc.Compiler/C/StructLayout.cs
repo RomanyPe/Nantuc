@@ -8,26 +8,25 @@ public class StructLayout
 {
     public string Name { get; }
     public int Size { get; }
-    public IReadOnlyList<FieldInfo> Fields => _fields;
-    private readonly List<FieldInfo> _fields = [];
+    private readonly Dictionary<string,FieldInfo> _fields = [];
 
     public StructLayout(string name, List<(string type, string fieldName)> fieldDecls,
-                        Dictionary<string, StructLayout> structTable, ThrowCompiler ThrowCompiler)
+                        Dictionary<string, StructLayout> structTable, ErrorReporter ErrorReporter)
     {
         Name = name;
         int offset = 0;
         foreach (var (type, fieldName) in fieldDecls)
         {
             int align = CodeGenUtils.GetAlignment(type, structTable);
-            int size = CodeGenUtils.GetTypeSize(type, structTable, ThrowCompiler);
+            int size = CodeGenUtils.GetTypeSize(type, structTable, ErrorReporter);
             offset = (offset + align - 1) & ~(align - 1);
-            _fields.Add(new FieldInfo(fieldName, type, offset, size));
+            _fields.Add(fieldName, new FieldInfo(fieldName, type, offset, size));
             offset += size;
         }
         Size = (offset + 7) & ~7;
     }
 
-    public static Dictionary<string, StructLayout> Resolve(List<StructDeclNode> decls, ThrowCompiler ThrowCompiler)
+    public static Dictionary<string, StructLayout> Resolve(List<StructDeclNode> decls, ErrorReporter ErrorReporter)
     {
         var layouts = new Dictionary<string, StructLayout>();
         var remaining = new Queue<StructDeclNode>(decls);
@@ -51,7 +50,7 @@ public class StructLayout
                 }
                 if (canResolve)
                 {
-                    layouts[decl.Name] = new StructLayout(decl.Name, decl.Fields, layouts, ThrowCompiler);
+                    layouts[decl.Name] = new StructLayout(decl.Name, decl.Fields, layouts, ErrorReporter);
                     lastResolved++;
                 }
                 else
@@ -62,11 +61,15 @@ public class StructLayout
         } while (remaining.Count > 0 && lastResolved > 0);
 
         if (remaining.Count > 0)
-            ThrowCompiler.Throw(ErrorCode.Parser_StructNotDefined,string.Join(", ", remaining.Select(d => d.Name)));
+            ErrorReporter.Throw(ErrorCode.Parser_StructNotDefined,string.Join(", ", remaining.Select(d => d.Name)));
         return layouts;
     }
 
-    public FieldInfo? GetField(string name) => _fields.Find(f => f.Name == name);
+    public FieldInfo? GetField(string name)
+    {
+        _fields.TryGetValue(name, out var f);
+        return f;
+    }
 }
 
 public record FieldInfo(string Name, string Type, int Offset, int Size);

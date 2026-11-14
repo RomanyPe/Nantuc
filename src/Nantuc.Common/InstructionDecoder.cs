@@ -127,7 +127,7 @@ public static class InstructionDecoder
     /// </remarks>
     public static bool HasNeed64IntData(OpCode opCode)
     {
-        if ((uint)opCode > (uint)OpCode.MOD) throw new ArgumentOutOfRangeException(nameof(opCode));
+        if ((uint)opCode > (uint)OpCode.CASTS) throw new ArgumentOutOfRangeException(nameof(opCode));
         return _has[(int)opCode];
     }
 

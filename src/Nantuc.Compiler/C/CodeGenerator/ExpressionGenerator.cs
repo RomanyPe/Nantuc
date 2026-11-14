@@ -77,7 +77,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 GenerateIndirectCall(ic, RegType.r0);
                 break;
             default:
-                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported expression: {expr.NameNode}");
+                _asm.ErrorReporter.Throw(ErrorCode.NotSupported, $"Unsupported expression: {expr.NameNode}");
                 break;
         }
     }
@@ -152,10 +152,10 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (node.IsPointer) size = 8;
         else if (_structTable.TryGetValue(node.TypeName, out var layout)) size = layout.Size;
         else if (CodeGenUtils.IsPrimitiveType(node.TypeName))
-            size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(node.TypeName, _asm.ThrowCompiler), _asm.ThrowCompiler);
+            size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(node.TypeName, _asm.ErrorReporter), _asm.ErrorReporter);
         else 
         {
-            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownTypeSize, node.TypeName);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownTypeSize, node.TypeName);
             return;
         }
         _asm.EmitLdi(targetReg, (ulong)size);
@@ -173,7 +173,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         ArrayAccessNode arr => GetIndexedElemSizeBytes(arr.ArrayName),
         MemberAccessNode mem => GetMemberTypeSize(mem),
         NumberNode => 4,   // int
-        _ => _asm.ThrowCompiler.Throw<long>(ErrorCode.NotSupported,
+        _ => _asm.ErrorReporter.Throw<long>(ErrorCode.NotSupported,
                  $"sizeof of {expr.NameNode} not supported")
     };
 
@@ -183,7 +183,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             long elem = loc.IsPointer ? 8
                       : loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l) ? l.Size
-                      : CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
+                      : CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ErrorReporter);
             return loc.IsArray ? elem * loc.ArraySize : elem;
         }
         if (_globalMem.Contains(name))
@@ -191,10 +191,10 @@ public class ExpressionGenerator(AssemblerBase asm,
             var g = _globalMem.GetInfo(name)!.Value;
             long elem = g.IsPointer ? 8
                       : _structTable.TryGetValue(g.Type, out var l) ? l.Size
-                      : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ThrowCompiler), _asm.ThrowCompiler);
+                      : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter), _asm.ErrorReporter);
             return g.IsArray ? elem * g.ArraySize : elem;
         }
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, name);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, name);
         return 0;
     }
 
@@ -210,7 +210,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
             }
         }
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownPointedType);
         return 0;
     }
 
@@ -220,17 +220,17 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             if (loc.IsArray)
                 return loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l)
-                    ? l.Size : CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
+                    ? l.Size : CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ErrorReporter);
             if (loc.IsPointer && loc.PointedType != null) return GetTypeSizeBytes(loc.PointedType);
         }
         else if (_globalMem.Contains(arrayName))
         {
             var g = _globalMem.GetInfo(arrayName)!.Value;
             if (g.IsArray)
-                return _structTable.TryGetValue(g.Type, out var l) ? l.Size : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ThrowCompiler), _asm.ThrowCompiler);
+                return _structTable.TryGetValue(g.Type, out var l) ? l.Size : CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter), _asm.ErrorReporter);
             if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
         }
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         return 0;
     }
 
@@ -246,15 +246,15 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             case IdentifierNode id:
                 if (_varAccessor.IsConst(id.Name))
-                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_IncrementOfConst, id.Name);
+                    _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, id.Name);
                 break;
             case ArrayAccessNode arr:
                 if (_varAccessor.IsPointedConst(arr.ArrayName))
-                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_IncrementOfConst, arr.ArrayName);
+                    _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, arr.ArrayName);
                 break;
             case DereferenceNode dr when dr.Operand is IdentifierNode p:
                 if (_varAccessor.IsPointedConst(p.Name))
-                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_IncrementOfConst, p.Name);
+                    _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, p.Name);
                 break;
         }
         // dispatch по типу target
@@ -273,7 +273,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 GenerateIncrementMember(member, node.Delta, node.IsPrefix, targetReg);
                 break;
             default:
-                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+                _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
                                 $"Increment target must be lvalue: {node.Target.NameNode}");
                 break;
         }
@@ -281,9 +281,104 @@ public class ExpressionGenerator(AssemblerBase asm,
     private void GenerateIncrementArray(ArrayAccessNode arrAcc, int delta, bool isPrefix, RegType targetReg)
     {
         OpCodeSize size = GetIndexedElemSize(arrAcc.ArrayName);
+        bool isSigned = IsArrayElemSigned(arrAcc.ArrayName);
         GenerateIncrementIndirect(
             reg => ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, reg),
-            size, delta, isPrefix, targetReg);
+            size, isSigned, delta, isPrefix, targetReg);
+    }
+
+    private void GenerateIncrementDeref(DereferenceNode deref, int delta, bool isPrefix, RegType targetReg)
+    {
+        OpCodeSize size = GetPointedSize(deref.Operand);
+        bool isSigned = IsPointedSigned(deref.Operand);
+        GenerateIncrementIndirect(
+            reg => GenerateExpression(deref.Operand, reg),
+            size, isSigned, delta, isPrefix, targetReg);
+    }
+
+    private void GenerateIncrementMember(MemberAccessNode member, int delta, bool isPrefix, RegType targetReg)
+    {
+        var (_, field, _) = ResolveMemberAccessType(member);
+        OpCodeSize size = CodeGenUtils.GetSizeForType(field.Type, _asm.ErrorReporter);
+        bool isSigned = CodeGenUtils.IsSignedType(field.Type);
+        GenerateIncrementIndirect(
+            reg => GenerateMemberAddress(member, reg),
+            size, isSigned, delta, isPrefix, targetReg);
+    }
+
+    private void GenerateIncrementIdent(string name, int delta, bool isPrefix, RegType targetReg)
+    {
+        long step = GetIncrementStepBytes(name);
+
+        OpCodeSize typeSize = OpCodeSize.S64;
+        bool isSigned = false;
+        if (_funcCtx.VarMap.TryGetValue(name, out var loc))
+        { typeSize = loc.TypeSize; isSigned = loc.IsSigned; }
+        else if (_globalMem.Contains(name))
+        {
+            var g = _globalMem.GetInfo(name)!.Value;
+            if (!g.IsPointer)
+            { typeSize = CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter); isSigned = g.IsSigned; }
+        }
+
+        // Fast path: home register
+        if (_varAccessor.TryGetRegister(name, out RegType xReg))
+        {
+            if (!isPrefix) _asm.EmitMov(targetReg, xReg);          // old (canonical)
+            EmitIncrementStep(xReg, delta, step, avoid1: targetReg);
+            _asm.EmitCastToType(xReg, typeSize, isSigned);         // NEW
+            if (isPrefix && targetReg != xReg) _asm.EmitMov(targetReg, xReg);
+            return;
+        }
+
+        // Slow path
+        _varAccessor.LoadToRegister(name, targetReg);              // canonical old
+        if (!isPrefix)
+        {
+            RegType temp = (targetReg != RegType.r0) ? RegType.r0 : RegType.r1;
+            _asm.EmitMov(temp, targetReg);
+            EmitIncrementStep(temp, delta, step, avoid1: targetReg);
+            _varAccessor.StoreFromRegister(name, temp);            // memory truncates / register casts
+                                                                   // targetReg — old (canonical), возвращаем как есть
+        }
+        else
+        {
+            EmitIncrementStep(targetReg, delta, step, avoid1: targetReg);
+            _asm.EmitCastToType(targetReg, typeSize, isSigned);    // NEW
+            _varAccessor.StoreFromRegister(name, targetReg);
+        }
+    }
+
+    private void GenerateIncrementIndirect(
+        Action<RegType> computeAddress, OpCodeSize size, bool isSigned,
+        int delta, bool isPrefix, RegType targetReg)
+    {
+        RegType addrReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
+
+        computeAddress(addrReg);
+        int addrSlot = SaveRegToStack(addrReg);
+        _asm.EmitLoadInd(targetReg, addrReg, size);
+        _asm.EmitCastToType(targetReg, size, isSigned);            // NEW
+
+        if (!isPrefix)
+        {
+            RegType tempReg = (targetReg != RegType.r0 && addrReg != RegType.r0)
+                              ? RegType.r0 : RegType.r1;
+            _asm.EmitMov(tempReg, targetReg);
+            if (delta > 0) _asm.EmitInc(tempReg); else _asm.EmitDec(tempReg);
+            _asm.EmitCastToType(tempReg, size, isSigned);          // NEW (canonicalize before store)
+
+            RestoreRegFromStack(addrSlot, addrReg);
+            _asm.EmitStoreInd(tempReg, addrReg, size);
+            // targetReg = old (canonical) — правильно для постфикса
+        }
+        else
+        {
+            if (delta > 0) _asm.EmitInc(targetReg); else _asm.EmitDec(targetReg);
+            _asm.EmitCastToType(targetReg, size, isSigned);        // NEW
+            RestoreRegFromStack(addrSlot, addrReg);
+            _asm.EmitStoreInd(targetReg, addrReg, size);
+        }
     }
 
     private OpCodeSize GetIndexedElemSize(string name)
@@ -291,66 +386,18 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (_funcCtx.VarMap.TryGetValue(name, out var loc))
         {
             if (loc.IsArray) return loc.TypeSize;                                 // size of element
-            if (loc.IsPointer) return CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
+            if (loc.IsPointer) return CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ErrorReporter);
         }
         else if (_globalMem.Contains(name))
         {
             var gInfo = _globalMem.GetInfo(name)!.Value;
-            if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
-            if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ThrowCompiler);
+            if (gInfo.IsArray) return CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ErrorReporter);
+            if (gInfo.IsPointer) return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ErrorReporter);
         }
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, name);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, name);
         return default;
     }
 
-    private void GenerateIncrementDeref(DereferenceNode deref, int delta, bool isPrefix, RegType targetReg)
-    {
-        OpCodeSize size = GetPointedSize(deref.Operand);
-        GenerateIncrementIndirect(
-            reg => GenerateExpression(deref.Operand, reg),
-            size, delta, isPrefix, targetReg);
-    }
-
-    private void GenerateIncrementMember(MemberAccessNode member, int delta, bool isPrefix, RegType targetReg)
-    {
-        var (_, field, _) = ResolveMemberAccessType(member);
-        OpCodeSize size = CodeGenUtils.GetSizeForType(field.Type, _asm.ThrowCompiler);
-        GenerateIncrementIndirect(
-            reg => GenerateMemberAddress(member, reg),
-            size, delta, isPrefix, targetReg);
-    }
-    private void GenerateIncrementIdent(string name, int delta, bool isPrefix, RegType targetReg)
-    {
-        long step = GetIncrementStepBytes(name);
-
-        // Fast path: переменная в регистре
-        if (_varAccessor.TryGetRegister(name, out RegType xReg))
-        {
-            if (!isPrefix)
-                _asm.EmitMov(targetReg, xReg);                 // targetReg = old
-
-            EmitIncrementStep(xReg, delta, step, avoid1: targetReg);
-
-            if (isPrefix && targetReg != xReg)
-                _asm.EmitMov(targetReg, xReg);                 // targetReg = new
-            return;
-        }
-
-        // Slow path: стек/глобал
-        _varAccessor.LoadToRegister(name, targetReg);           // targetReg = old
-        if (!isPrefix)
-        {
-            RegType temp = (targetReg != RegType.r0) ? RegType.r0 : RegType.r1;
-            _asm.EmitMov(temp, targetReg);                     // temp = old
-            EmitIncrementStep(temp, delta, step, avoid1: targetReg);   // temp = new
-            _varAccessor.StoreFromRegister(name, temp);        // x = new
-        }
-        else
-        {
-            EmitIncrementStep(targetReg, delta, step, avoid1: targetReg);
-            _varAccessor.StoreFromRegister(name, targetReg);   // x = new
-        }
-    }
 
     private void EmitIncrementStep(RegType reg, int delta, long step, RegType avoid1)
     {
@@ -391,7 +438,7 @@ public class ExpressionGenerator(AssemblerBase asm,
     private long GetTypeSizeBytes(string type)
     {
         if (_structTable.TryGetValue(type, out var layout)) return layout.Size;
-        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(type, _asm.ThrowCompiler), _asm.ThrowCompiler);
+        return CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(type, _asm.ErrorReporter), _asm.ErrorReporter);
     }
 
     private void GenerateIncrementIndirect(
@@ -423,12 +470,265 @@ public class ExpressionGenerator(AssemblerBase asm,
     }
 
 
+    // ============================================================
+    // Присваивание в контексте выражения: результат (новое значение)
+    // остаётся в targetReg.  Покрывает все lvalue-формы и compound-op.
+    // ============================================================
     private void GenerateAssignmentExpr(AssignmentNode assign, RegType targetReg)
     {
-        GenerateExpression(assign.Value, targetReg);   // value → targetReg
+        CheckConstTarget(assign);
+
+        if (assign.CompoundOp != null && assign.CompoundOp != "=")
+        {
+            GenerateCompoundAssignmentExpr(assign, targetReg);
+            return;
+        }
+
+        // 1) arr[i] = value
+        if (assign.IndexExpr != null)
+        {
+            GenerateExpression(assign.Value, targetReg);
+            int slot = SaveRegToStack(targetReg);
+
+            if (targetReg != RegType.r0) _asm.EmitMov(RegType.r0, targetReg);
+            StoreR0ToArrayElement(assign.Name, assign.IndexExpr);
+
+            RestoreRegFromStack(slot, targetReg);
+            OpCodeSize size = GetIndexedElemSize(assign.Name);
+            bool isSigned = IsArrayElemSigned(assign.Name);
+            _asm.EmitCastToType(targetReg, size, isSigned);        // NEW
+            return;
+        }
+
+        // 2) *ptr = value
+        if (assign.LValue is DereferenceNode deref)
+        {
+            GenerateExpression(assign.Value, targetReg);
+            int slot = SaveRegToStack(targetReg);
+
+            GenerateExpression(deref.Operand, RegType.r0);
+            OpCodeSize size = GetPointedSize(deref.Operand);
+            bool isSigned = IsPointedSigned(deref.Operand);
+
+            RestoreRegFromStack(slot, RegType.r1);
+            _asm.EmitCastToType(RegType.r1, size, isSigned);       // NEW
+            _asm.EmitStoreInd(RegType.r1, RegType.r0, size);
+
+            if (targetReg != RegType.r1)
+                _asm.EmitMov(targetReg, RegType.r1);
+            return;
+        }
+
+        // 3) obj.field = value
+        if (assign.LValue is MemberAccessNode member)
+        {
+            GenerateExpression(assign.Value, targetReg);
+            int slot = SaveRegToStack(targetReg);
+
+            GenerateMemberAddress(member, RegType.r0);
+            var (_, field, _) = ResolveMemberAccessType(member);
+            OpCodeSize size = CodeGenUtils.GetSizeForType(field.Type, _asm.ErrorReporter);
+            bool isSigned = CodeGenUtils.IsSignedType(field.Type);
+
+            RestoreRegFromStack(slot, RegType.r1);
+            _asm.EmitCastToType(RegType.r1, size, isSigned);       // NEW
+            _asm.EmitStoreInd(RegType.r1, RegType.r0, size);
+
+            if (targetReg != RegType.r1)
+                _asm.EmitMov(targetReg, RegType.r1);
+            return;
+        }
+
+        // 4) x = value
+        GenerateExpression(assign.Value, targetReg);
         _varAccessor.StoreFromRegister(assign.Name, targetReg);
+
+        // canonical targetReg (для memory/global; для register StoreFromRegister уже кастит)
+        OpCodeSize resSize = OpCodeSize.S64;
+        bool resSigned = false;
+        if (_funcCtx.VarMap.TryGetValue(assign.Name, out var vloc) && !vloc.IsPointer)
+        { resSize = vloc.TypeSize; resSigned = vloc.IsSigned; }
+        else if (_globalMem.Contains(assign.Name))
+        {
+            var g = _globalMem.GetInfo(assign.Name)!.Value;
+            if (!g.IsPointer)
+            { resSize = CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter); resSigned = g.IsSigned; }
+        }
+        _asm.EmitCastToType(targetReg, resSize, resSigned);        // NEW
+    }
+    // ------------------------------------------------------------
+    // Compound: arr[i] op= rvalue, *p op= rvalue, obj.f op= rvalue, x op= rvalue
+    // ------------------------------------------------------------
+    private void GenerateCompoundAssignmentExpr(AssignmentNode assign, RegType targetReg)
+    {
+        string baseOp = assign.CompoundOp!.TrimEnd('=');
+
+        if (assign.IndexExpr != null)
+        {
+            OpCodeSize size = GetIndexedElemSize(assign.Name);
+            bool isSigned = IsArrayElemSigned(assign.Name);
+            GenerateCompoundIndirectExpr(
+                reg => ComputeArrayElementAddress(assign.Name, assign.IndexExpr, reg),
+                size, isSigned, baseOp, assign.Value, targetReg);
+            return;
+        }
+
+        if (assign.LValue is DereferenceNode deref)
+        {
+            OpCodeSize size = GetPointedSize(deref.Operand);
+            bool isSigned = IsPointedSigned(deref.Operand);
+            GenerateCompoundIndirectExpr(
+                reg => GenerateExpression(deref.Operand, reg),
+                size, isSigned, baseOp, assign.Value, targetReg);
+            return;
+        }
+
+        if (assign.LValue is MemberAccessNode member)
+        {
+            var (_, field, _) = ResolveMemberAccessType(member);
+            OpCodeSize size = CodeGenUtils.GetSizeForType(field.Type, _asm.ErrorReporter);
+            bool isSigned = CodeGenUtils.IsSignedType(field.Type);
+            GenerateCompoundIndirectExpr(
+                reg => GenerateMemberAddress(member, reg),
+                size, isSigned, baseOp, assign.Value, targetReg);
+            return;
+        }
+
+        GenerateCompoundIdentExpr(assign.Name, baseOp, assign.Value, targetReg);
     }
 
+    private bool IsArrayElemSigned(string arrayName)
+    {
+        if (_funcCtx.VarMap.TryGetValue(arrayName, out var loc))
+        {
+            if (loc.IsArray) return loc.IsSigned;
+            if (loc.IsPointer && loc.PointedType != null)
+                return CodeGenUtils.IsSignedType(loc.PointedType);
+        }
+        else if (_globalMem.Contains(arrayName))
+        {
+            var g = _globalMem.GetInfo(arrayName)!.Value;
+            if (g.IsArray) return !g.IsPointer && CodeGenUtils.IsSignedType(g.Type);
+            if (g.IsPointer && g.PointedType != null)
+                return CodeGenUtils.IsSignedType(g.PointedType);
+        }
+        return false;
+    }
+
+    private bool IsPointedSigned(ASTNode operand)
+    {
+        if (operand is IdentifierNode id)
+        {
+            if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc) && loc.IsPointer)
+                return loc.PointedType != null && CodeGenUtils.IsSignedType(loc.PointedType);
+            if (_globalMem.Contains(id.Name))
+            {
+                var g = _globalMem.GetInfo(id.Name)!.Value;
+                if (g.IsPointer && g.PointedType != null)
+                    return CodeGenUtils.IsSignedType(g.PointedType);
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Универсальный эмиттер для compound-op через адрес:
+    /// addrReg = computeAddress(); old = [addr]; v = rvalue; [addr] = old op v; targetReg = new.
+    /// </summary>
+    private void GenerateCompoundIndirectExpr(
+        Action<RegType> computeAddress, OpCodeSize size, bool isSigned,
+        string baseOp, ASTNode rvalue, RegType targetReg)
+    {
+        RegType addrReg = (targetReg != RegType.r1) ? RegType.r1 : RegType.r2;
+        computeAddress(addrReg);
+        int addrSlot = SaveRegToStack(addrReg);
+
+        _asm.EmitLoadInd(RegType.r0, addrReg, size);
+        _asm.EmitCastToType(RegType.r0, size, isSigned);            // NEW — load
+        int oldSlot = SaveRegToStack(RegType.r0);
+
+        GenerateExpression(rvalue, RegType.r0);
+
+        RestoreRegFromStack(oldSlot, RegType.r1);
+        EmitBinaryOperation(baseOp, RegType.r1, RegType.r0);
+        _asm.EmitCastToType(RegType.r1, size, isSigned);            // NEW — result
+
+        RestoreRegFromStack(addrSlot, RegType.r2);
+        _asm.EmitStoreInd(RegType.r1, RegType.r2, size);
+
+        if (targetReg != RegType.r1)
+            _asm.EmitMov(targetReg, RegType.r1);
+    }
+    private void GenerateCompoundIdentExpr(string name, string baseOp, ASTNode rvalue, RegType targetReg)
+    {
+        // Разрешаем (size, isSigned) один раз
+        OpCodeSize size = OpCodeSize.S64;
+        bool isSigned = false;
+        if (_funcCtx.VarMap.TryGetValue(name, out var loc))
+        {
+            size = loc.TypeSize; isSigned = loc.IsSigned;
+        }
+        else if (_globalMem.Contains(name))
+        {
+            var g = _globalMem.GetInfo(name)!.Value;
+            if (!g.IsPointer)
+            {
+                size = CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter);
+                isSigned = g.IsSigned;
+            }
+        }
+
+        if (_varAccessor.TryGetRegister(name, out RegType xReg))
+        {
+            RegType tempReg = (xReg != RegType.r0) ? RegType.r0 : RegType.r1;
+            GenerateExpression(rvalue, tempReg);
+            EmitBinaryOperation(baseOp, xReg, tempReg);
+            _asm.EmitCastToType(xReg, size, isSigned);             // NEW
+            if (targetReg != xReg)
+                _asm.EmitMov(targetReg, xReg);
+            return;
+        }
+
+        _varAccessor.LoadToRegister(name, targetReg);              // canonical old
+        int slot = SaveRegToStack(targetReg);
+        GenerateExpression(rvalue, RegType.r0);
+        RestoreRegFromStack(slot, RegType.r1);
+        EmitBinaryOperation(baseOp, RegType.r1, RegType.r0);
+        _asm.EmitCastToType(RegType.r1, size, isSigned);           // NEW
+        _varAccessor.StoreFromRegister(name, RegType.r1);
+        if (targetReg != RegType.r1)
+            _asm.EmitMov(targetReg, RegType.r1);
+    }
+    // ------------------------------------------------------------
+    // Единая точка проверки const для assignment.
+    // Используется и ExpressionGenerator, и StatementGenerator.
+    // ------------------------------------------------------------
+    internal void CheckConstTarget(AssignmentNode assign)
+    {
+        // arr[i] = ...
+        if (assign.IndexExpr != null)
+        {
+            if (_varAccessor.IsPointedConst(assign.Name))
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, assign.Name);
+            return;
+        }
+
+        // *p = ...
+        if (assign.LValue is DereferenceNode deref && deref.Operand is IdentifierNode ptrId)
+        {
+            if (_varAccessor.IsPointedConst(ptrId.Name))
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, ptrId.Name);
+            return;
+        }
+
+        // obj.field = ...   (TODO: const на полях struct пока не поддержан)
+        if (assign.LValue is MemberAccessNode)
+            return;
+
+        // простое имя
+        if (_varAccessor.IsConst(assign.Name))
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, assign.Name);
+    }
     private bool IsArrayIdentifier(string name)
     {
         if (_funcCtx.VarMap.TryGetValue(name, out var loc))
@@ -500,7 +800,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         // сворачивание констант
         if (binop.Left is NumberNode l && binop.Right is NumberNode r)
         {
-            long result = ComputeConstant(l.Value, r.Value, binop.Operator, _asm.ThrowCompiler);
+            long result = ComputeConstant(l.Value, r.Value, binop.Operator, _asm.ErrorReporter);
             _asm.EmitLdi(targetReg, (ulong)result);
             return;
         }
@@ -563,13 +863,13 @@ public class ExpressionGenerator(AssemblerBase asm,
 
         if (leftIsPtr && !rightIsPtr)
         {
-            // ptr ± int → scale int by sizeof(*ptr)
+            // ptr ± int -> scale int by sizeof(*ptr)
             if (leftSize > 1)
                 _asm.EmitMultiplyByConstant(rightReg, leftSize);
         }
         else if (rightIsPtr && !leftIsPtr && op == "+")
         {
-            // int + ptr → scale int by sizeof(*ptr)
+            // int + ptr -> scale int by sizeof(*ptr)
             if (rightSize > 1)
                 _asm.EmitMultiplyByConstant(leftReg, rightSize);
         }
@@ -585,7 +885,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             {
                 if (loc.IsArray)
                 {
-                    size = CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
+                    size = CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ErrorReporter);
                     return true;
                 }
                 if (loc.IsPointer && loc.PointedType != null)
@@ -600,7 +900,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 var g = _globalMem.GetInfo(id.Name)!.Value;
                 if (g.IsArray)
                 {
-                    size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ThrowCompiler), _asm.ThrowCompiler);
+                    size = CodeGenUtils.GetSizeInBytes(CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter), _asm.ErrorReporter);
                     return true;
                 }
                 if (g.IsPointer && g.PointedType != null)
@@ -644,7 +944,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                 break;
 
             default:
-                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+                _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
                     $"Unsupported unary operator: {unop.Operator}");
                 return;
         }
@@ -673,7 +973,7 @@ public class ExpressionGenerator(AssemblerBase asm,
 
             case DereferenceNode:
                 // (*ptr).field — пока не поддерживаем, но задел:
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
                     "Dereference member access not implemented yet");
                 return;
 
@@ -707,7 +1007,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                             structType = loc.StructTypeName;
                         else if (loc.IsPointer && loc.PointedType != null && _structTable.ContainsKey(loc.PointedType))
                             structType = loc.PointedType; // ptr->field
-                        else _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     }
                     else if (_globalMem.Contains(id.Name))
                     {
@@ -716,10 +1016,10 @@ public class ExpressionGenerator(AssemblerBase asm,
                             structType = gInfo.Type;
                         else if (gInfo.IsPointer && gInfo.PointedType != null && _structTable.ContainsKey(gInfo.PointedType))
                             structType = gInfo.PointedType;
-                        else _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     }
                     else
-                        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, id.Name);
+                        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, id.Name);
                     break;
                 }
 
@@ -729,20 +1029,21 @@ public class ExpressionGenerator(AssemblerBase asm,
                     GenerateMemberAddress(node, targetReg); // этот метод вычислит адрес поля
                                                             // Теперь r0 содержит адрес поля, загружаем значение
                     var (_, fieldMem, _) = ResolveMemberAccessType(node);
-                    OpCodeSize fieldSizeMem = CodeGenUtils.GetSizeForType(fieldMem.Type, _asm.ThrowCompiler);
+                    OpCodeSize fieldSizeMem = CodeGenUtils.GetSizeForType(fieldMem.Type, _asm.ErrorReporter);
                     _asm.EmitLoadInd(targetReg, targetReg, fieldSizeMem);
+                    _asm.EmitCastToType(targetReg, fieldSizeMem, CodeGenUtils.IsSignedType(fieldMem.Type));
                     return;
                 }
 
             case DereferenceNode:
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference member access not implemented yet");
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference member access not implemented yet");
                 return;
             case ArrayAccessNode arrAcc:
                 {
                     string? arrStructType = ResolveArrayStructType(arrAcc.ArrayName);
                     var layoutstr = _structTable[arrStructType!];
                     var fieldstr = layoutstr.GetField(node.FieldName)
-                                ?? _asm.ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
+                                ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, arrStructType!);
 
                     ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, targetReg);
 
@@ -752,8 +1053,9 @@ public class ExpressionGenerator(AssemblerBase asm,
                         _asm.EmitAdd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
                     }
 
-                    OpCodeSize fieldSizestr = CodeGenUtils.GetSizeForType(fieldstr.Type, _asm.ThrowCompiler);
+                    OpCodeSize fieldSizestr = CodeGenUtils.GetSizeForType(fieldstr.Type, _asm.ErrorReporter);
                     _asm.EmitLoadInd(targetReg, targetReg, fieldSizestr);
+                    _asm.EmitCastToType(targetReg, fieldSizestr, CodeGenUtils.IsSignedType(fieldstr.Type));
                     return;
                 }
             default:
@@ -761,19 +1063,20 @@ public class ExpressionGenerator(AssemblerBase asm,
                 {
                     GenerateMemberAddress(node, targetReg);
                     var (_, f, _) = ResolveMemberAccessType(node);
-                    OpCodeSize sz = CodeGenUtils.GetSizeForType(f.Type, _asm.ThrowCompiler);
+                    OpCodeSize sz = CodeGenUtils.GetSizeForType(f.Type, _asm.ErrorReporter);
                     _asm.EmitLoadInd(targetReg, targetReg, sz);
+                    _asm.EmitCastToType(targetReg, sz, CodeGenUtils.IsSignedType(f.Type));
                     return;
                 }
-                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, "Unsupported object for member access");
+                _asm.ErrorReporter.Throw(ErrorCode.NotSupported, "Unsupported object for member access");
                 break;
         }
 
         if (structType == null)
-            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
 
         var layout = _structTable[structType];
-        var field = layout.GetField(node.FieldName) ?? _asm.ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
+        var field = layout.GetField(node.FieldName) ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
 
         if (node.IsArrow)
         {
@@ -787,7 +1090,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             }
             else
             {
-                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, "Dot access only supported for simple variables currently");
+                _asm.ErrorReporter.Throw(ErrorCode.NotSupported, "Dot access only supported for simple variables currently");
             }
         }
 
@@ -798,8 +1101,9 @@ public class ExpressionGenerator(AssemblerBase asm,
         }
 
         // 4. Загрузить значение поля
-        OpCodeSize fieldSize = CodeGenUtils.GetSizeForType(field.Type, _asm.ThrowCompiler);
+        OpCodeSize fieldSize = CodeGenUtils.GetSizeForType(field.Type, _asm.ErrorReporter);
         _asm.EmitLoadInd(targetReg, targetReg, fieldSize);
+        _asm.EmitCastToType(targetReg, fieldSize, CodeGenUtils.IsSignedType(field.Type));
     }
 
     /// <summary>
@@ -831,7 +1135,7 @@ public class ExpressionGenerator(AssemblerBase asm,
                     }
 
                     if (structType == null)
-                        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
+                        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonStructAccess, id.Name);
                     break;
                 }
 
@@ -847,29 +1151,29 @@ public class ExpressionGenerator(AssemblerBase asm,
                 structType = ResolveArrayStructType(arrAcc.ArrayName);
                 break;
             case DereferenceNode:
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported");
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported");
                 break;
             case BinaryOpNode bin when bin.Operator == "+" || bin.Operator == "-":
                 structType = TryInferStructTypeFromPointerExpr(bin);
                 if (structType == null)
-                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType,
+                    _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
                         "Cannot determine struct type from pointer arithmetic");
                 break;
         }
 
         if (structType == null)
-            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type for member access");
 
         if (!_structTable.TryGetValue(structType, out var layout))
-            _asm.ThrowCompiler.Throw(ErrorCode.NotImplemented, structType);
+            _asm.ErrorReporter.Throw(ErrorCode.NotImplemented, structType);
 
         var field = layout.GetField(node.FieldName)
-                    ?? _asm.ThrowCompiler.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
+                    ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
 
         return (layout, field, field.Type);
     }
 
-    internal string? TryInferStructTypeFromPointerExpr(ASTNode expr)
+    public string? TryInferStructTypeFromPointerExpr(ASTNode expr)
     {
         if (expr is IdentifierNode id)
         {
@@ -916,7 +1220,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             if (_structTable.ContainsKey(gInfo.Type))
                 return gInfo.Type;
         }
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         return null;
     }
 
@@ -929,7 +1233,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (loc.IsPointer)
                 LoadPointerElementToR0(arrayName, loc, indexExpr, targetReg);
             else
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else if (_globalMem.Contains(arrayName))
         {
@@ -939,10 +1243,10 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (gInfo.IsPointer)
                 LoadPointerElementToR0(arrayName, null, indexExpr, targetReg);
             else
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else
-            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
     }
 
     public void StoreR0ToArrayElement(string arrayName, ASTNode indexExpr)
@@ -957,7 +1261,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (loc.IsPointer)
                 StorePointerElement(arrayName, loc, indexExpr, slot);
             else
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else if (_globalMem.Contains(arrayName))
         {
@@ -967,52 +1271,55 @@ public class ExpressionGenerator(AssemblerBase asm,
             else if (gInfo.IsPointer)
                 StorePointerElement(arrayName, null, indexExpr, slot);
             else
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
         }
         else
-            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
 
         ReleaseSaveSlot();
     }
     private void LoadArrayElementFromLocal(VarLocation loc, ASTNode indexExpr, RegType targetReg)
     {
         if (loc.IsArray && loc.StructTypeName != null)
-            _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+            _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
                 $"Cannot load struct value from array element (use member access)");
         var typeSize = loc.TypeSize;
+        bool isSigned = loc.IsSigned;                              // NEW
         GenerateExpression(indexExpr, targetReg);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
+            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ErrorReporter));
         _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, targetReg);
         _asm.EmitLoadInd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, typeSize);
+        _asm.EmitCastToType(targetReg, typeSize, isSigned);        // NEW
     }
     private void LoadArrayElementFromGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, RegType targetReg)
     {
-        var typeSize = gInfo.IsPointer
-            ? OpCodeSize.S64
-            : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler); GenerateExpression(indexExpr, targetReg);
-        if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
+        var typeSize = gInfo.IsPointer ? OpCodeSize.S64
+                                       : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ErrorReporter);
+        bool isSigned = !gInfo.IsPointer && gInfo.IsSigned;        // NEW
 
-        // БЫЛО: _asm.EmitInstruction64(EncodeLDI(TMP_REG), gInfo.Address);
+        GenerateExpression(indexExpr, targetReg);
+        if (typeSize != OpCodeSize.S8)
+            _asm.EmitMultiplyByConstant(targetReg, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ErrorReporter));
+
         string label = GlobalMemoryManager.GetLabel(arrayName);
         _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, label);
-
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, targetReg);
         _asm.EmitLoadInd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, typeSize);
+        _asm.EmitCastToType(targetReg, typeSize, isSigned);        // NEW
     }
 
     private void StoreArrayElementToGlobal(GlobalInfo gInfo, string arrayName, ASTNode indexExpr, int slot)
     {
         var typeSize = gInfo.IsPointer
             ? OpCodeSize.S64
-            : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+            : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ErrorReporter);
 
         GenerateExpression(indexExpr, RegType.r0);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
+            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ErrorReporter));
 
         string label = GlobalMemoryManager.GetLabel(arrayName);
         _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, label);
@@ -1026,37 +1333,48 @@ public class ExpressionGenerator(AssemblerBase asm,
     }
     private void LoadPointerElementToR0(string pointerName, VarLocation? loc, ASTNode indexExpr, RegType targetReg)
     {
-        // Получаем размер pointed типа
         OpCodeSize pointedSize;
+        bool isSigned;                                              // NEW
         if (loc != null)
-            pointedSize = CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
+        {
+            pointedSize = CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ErrorReporter);
+            isSigned = CodeGenUtils.IsSignedType(loc.PointedType!);
+        }
         else if (_globalMem.Contains(pointerName))
-            pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!, _asm.ThrowCompiler);
-        else pointedSize = CodeGenUtils.GetSizeForType("expection type", _asm.ThrowCompiler);
-        // 1. Вычисляем индекс → r1
+        {
+            var g = _globalMem.GetInfo(pointerName)!.Value;
+            pointedSize = CodeGenUtils.GetSizeForType(g.PointedType!, _asm.ErrorReporter);
+            isSigned = CodeGenUtils.IsSignedType(g.PointedType!);
+        }
+        else
+        {
+            pointedSize = CodeGenUtils.GetSizeForType("int", _asm.ErrorReporter);
+            isSigned = false;
+        }
+
         RegType idxReg = (targetReg != RegType.r2) ? RegType.r2 : RegType.r3;
         GenerateExpression(indexExpr, idxReg);
         _varAccessor.LoadToRegister(pointerName, targetReg);
         if (pointedSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(idxReg, CodeGenUtils.GetSizeInBytes(pointedSize, _asm.ThrowCompiler));
+            _asm.EmitMultiplyByConstant(idxReg, CodeGenUtils.GetSizeInBytes(pointedSize, _asm.ErrorReporter));
         _asm.EmitAdd(targetReg, idxReg);
         _asm.EmitLoadInd(targetReg, targetReg, pointedSize);
+        _asm.EmitCastToType(targetReg, pointedSize, isSigned);     // NEW
     }
-
     private void StoreArrayElementToLocal(VarLocation loc, ASTNode indexExpr, int slot)
     {
         var typeSize = loc.TypeSize;
 
-        // 1) index → r1, масштаб, + базовый адрес → r27
+        // 1) index -> r1, масштаб, + базовый адрес -> r27
         GenerateExpression(indexExpr, RegType.r0);
         if (typeSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler));
+            _asm.EmitMultiplyByConstant(RegType.r0, CodeGenUtils.GetSizeInBytes(typeSize, _asm.ErrorReporter));
         _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
         _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.r0);
         // ADDR_SCRATCH_REG_EN = &arr[index]
 
-        // 2) value из save-слота → r2
+        // 2) value из save-слота -> r2
         _asm.EmitLdi(RegType.r3, (ulong)slot);
         _asm.EmitAdd(RegType.r3, RegType.rSP);
         _asm.EmitLoadInd(RegType.r1, RegType.r3, OpCodeSize.S64);
@@ -1068,26 +1386,26 @@ public class ExpressionGenerator(AssemblerBase asm,
     {
         OpCodeSize pointedSize;
         if (loc != null)
-            pointedSize = CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
+            pointedSize = CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ErrorReporter);
         else if (_globalMem.Contains(pointerName))
-            pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!, _asm.ThrowCompiler);
+            pointedSize = CodeGenUtils.GetSizeForType(_globalMem.GetInfo(pointerName)!.Value.PointedType!, _asm.ErrorReporter);
         else
-            pointedSize = CodeGenUtils.GetSizeForType("expection type", _asm.ThrowCompiler);
+            pointedSize = CodeGenUtils.GetSizeForType("expection type", _asm.ErrorReporter);
 
-        // 1) index → r3
+        // 1) index -> r3
         GenerateExpression(indexExpr, RegType.r2);
 
-        // 2) pointer value → r1
+        // 2) pointer value -> r1
         _varAccessor.LoadToRegister(pointerName, RegType.r0);   // r1 = *pointer
 
         // 3) scale
         if (pointedSize != OpCodeSize.S8)
-            _asm.EmitMultiplyByConstant(RegType.r2, CodeGenUtils.GetSizeInBytes(pointedSize, _asm.ThrowCompiler));
+            _asm.EmitMultiplyByConstant(RegType.r2, CodeGenUtils.GetSizeInBytes(pointedSize, _asm.ErrorReporter));
 
         // 4) r1 = pointer + offset
         _asm.EmitAdd(RegType.r0, RegType.r2);
 
-        // 5) value из save-слота → r2
+        // 5) value из save-слота -> r2
         _asm.EmitLdi(RegType.r3, (ulong)slot);
         _asm.EmitAdd(RegType.r3, RegType.rSP);
         _asm.EmitLoadInd(RegType.r1, RegType.r3, OpCodeSize.S64);
@@ -1228,33 +1546,33 @@ public class ExpressionGenerator(AssemblerBase asm,
             case "<<": _asm.EmitShl(dest, src); break;
             case ">>": _asm.EmitShr(dest, src); break;
             case "%": _asm.EmitMod(dest, src); break;
-            default: _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, $"Unsupported operator in EmitBinaryOperation: {op}"); break;
+            default: _asm.ErrorReporter.Throw(ErrorCode.NotSupported, $"Unsupported operator in EmitBinaryOperation: {op}"); break;
         }
     }
-    public static long ComputeConstant(long value1, long value2, string op, ThrowCompiler ThrowCompiler)
+    public static long ComputeConstant(long value1, long value2, string op, ErrorReporter ErrorReporter)
     {
         long result = op switch
         {
             "+" => value1 + value2,
             "-" => value1 - value2,
             "*" => value1 * value2,
-            "/" => ComputeDiv(value1, value2, ThrowCompiler),
-            "%" => ComputeMod(value1, value2, ThrowCompiler),
+            "/" => ComputeDiv(value1, value2, ErrorReporter),
+            "%" => ComputeMod(value1, value2, ErrorReporter),
             "&" => value1 & value2,
             "|" => value1 | value2,
             "^" => value1 ^ value2,
             "<<" => value1 << (int)value2,
             ">>" => value1 >> (int)value2,
-            _ => ThrowCompiler.Throw<long>(ErrorCode.NotSupported, $"Unsupported operator: {op}"),
+            _ => ErrorReporter.Throw<long>(ErrorCode.NotSupported, $"Unsupported operator: {op}"),
         };
         return result;
     }
 
-    private static long ComputeDiv(long value1, long value2, ThrowCompiler ThrowCompiler) => value2 != 0 ? value1 / value2
-            : ThrowCompiler.Throw<long>(ErrorCode.NotSupported, $"Div on zero");
+    private static long ComputeDiv(long value1, long value2, ErrorReporter ErrorReporter) => value2 != 0 ? value1 / value2
+            : ErrorReporter.Throw<long>(ErrorCode.NotSupported, $"Div on zero");
 
-    private static long ComputeMod(long value1, long value2, ThrowCompiler ThrowCompiler) => value2 != 0 ? value1 % value2
-            : ThrowCompiler.Throw<long>(ErrorCode.NotSupported, $"Div on zero");
+    private static long ComputeMod(long value1, long value2, ErrorReporter ErrorReporter) => value2 != 0 ? value1 % value2
+            : ErrorReporter.Throw<long>(ErrorCode.NotSupported, $"Div on zero");
 
     /// <summary>
     /// Вычисляет адрес arr[index] (или p[index] для указателя) и кладёт в addrReg.
@@ -1270,7 +1588,7 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             int elemBytes = GetArrayElemBytes(loc);
 
-            // 1) index * elemBytes → indexReg
+            // 1) index * elemBytes -> indexReg
             GenerateExpression(indexExpr, indexReg);
             if (elemBytes > 1)
                 _asm.EmitMultiplyByConstant(indexReg, elemBytes);
@@ -1278,7 +1596,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             // 2) сохранить масштабированный индекс
             int slot = SaveRegToStack(indexReg);
 
-            // 3) база → addrReg
+            // 3) база -> addrReg
             if (loc.IsArray)
             {
                 _asm.EmitLdi(addrReg, (ulong)loc.StackOffset);
@@ -1314,7 +1632,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             return;
         }
 
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
     }
 
     /// <summary>Возвращает регистр для индекса, гарантированно отличный от addrReg.</summary>
@@ -1329,13 +1647,13 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (!loc.IsArray)
         {
             if (loc.PointedType == null)
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownPointedType);
             return (int)GetTypeSizeBytes(loc.PointedType);
         }
         if (loc.StructTypeName != null && _structTable.TryGetValue(loc.StructTypeName, out var l))
             return l.Size;
 
-        return CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ThrowCompiler);
+        return CodeGenUtils.GetSizeInBytes(loc.TypeSize, _asm.ErrorReporter);
     }
 
     private int GetArrayElemBytes(GlobalInfo gInfo)
@@ -1343,15 +1661,15 @@ public class ExpressionGenerator(AssemblerBase asm,
         if (!gInfo.IsArray)
         {
             if (gInfo.PointedType == null)
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownPointedType);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownPointedType);
             return (int)GetTypeSizeBytes(gInfo.PointedType);
         }
         if (_structTable.TryGetValue(gInfo.Type, out var l))
             return l.Size;
         var typeSize = gInfo.IsPointer
             ? OpCodeSize.S64
-            : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
-        return CodeGenUtils.GetSizeInBytes(typeSize, _asm.ThrowCompiler);
+            : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ErrorReporter);
+        return CodeGenUtils.GetSizeInBytes(typeSize, _asm.ErrorReporter);
     }
     private void GenerateAddressOf(AddressOfNode addrOf, RegType targetReg)
     {
@@ -1366,7 +1684,7 @@ public class ExpressionGenerator(AssemblerBase asm,
             if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
             {
                 if (loc.IsRegister)
-                    _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
+                    _asm.ErrorReporter.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
                 _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
                 _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
                 _asm.EmitMov(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
@@ -1377,39 +1695,41 @@ public class ExpressionGenerator(AssemblerBase asm,
                 _asm.EmitLdi(targetReg, label);
             }
             else
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
         }
         else
-            _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, "Address-of only supports simple variables currently");
+            _asm.ErrorReporter.Throw(ErrorCode.NotSupported, "Address-of only supports simple variables currently");
     }
 
     private void GenerateDereference(DereferenceNode deref, RegType targetReg)
     {
         GenerateExpression(deref.Operand, targetReg);
         OpCodeSize size = GetPointedSize(deref.Operand);
+        bool isSigned = IsPointedSigned(deref.Operand);
         _asm.EmitLoadInd(targetReg, targetReg, size);
+        _asm.EmitCastToType(targetReg, size, isSigned);            // NEW
     }
     private OpCodeSize GetPointedSize(ASTNode expr)
     {
         if (expr is IdentifierNode id)
         {
             if (_funcCtx.VarMap.TryGetValue(id.Name, out var loc) && loc.IsPointer)
-                return CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ThrowCompiler);
+                return CodeGenUtils.GetSizeForType(loc.PointedType!, _asm.ErrorReporter);
             if (_globalMem.Contains(id.Name))
             {
                 var gInfo = _globalMem.GetInfo(id.Name)!.Value;
                 if (gInfo.IsPointer)
-                    return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ThrowCompiler);
+                    return CodeGenUtils.GetSizeForType(gInfo.PointedType!, _asm.ErrorReporter);
             }
         }
-        return CodeGenUtils.GetSizeForType($"Cannot determine pointed type for dereference of '{expr}'", _asm.ThrowCompiler);
+        return CodeGenUtils.GetSizeForType($"Cannot determine pointed type for dereference of '{expr}'", _asm.ErrorReporter);
 
     }
     /// <summary>
     /// Косвенный вызов, где callee — произвольное выражение
     /// (arr[i], p->fp, другой косвенный вызов и т.п.).
     ///
-    /// Соглашение: args 0..3 → r0..r3, extras 4+ не поддерживаются
+    /// Соглашение: args 0..3 -> r0..r3, extras 4+ не поддерживаются
     /// (у direct FunctionCall они идут через __param_<callee>_<name>,
     /// а при косвенном вызове имя callee неизвестно).
     /// Возврат кладётся в r0, затем перекладывается в targetReg при необходимости.
@@ -1417,13 +1737,13 @@ public class ExpressionGenerator(AssemblerBase asm,
     private void GenerateIndirectCall(IndirectCallNode ic, RegType targetReg)
     {
         if (ic.Arguments.Count > 4)
-            _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+            _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
                 $"Indirect call with >4 args (calling convention limitation): {ic.Callee.NameNode}");
 
         int regCount = ic.Arguments.Count;
         var argSlots = new int[regCount];
 
-        // 1) Аргументы → r0..r3, каждый сразу сохраняем на стек.
+        // 1) Аргументы -> r0..r3, каждый сразу сохраняем на стек.
         //    После этого r0..r3 можно свободно затирать при вычислении callee.
         for (int i = 0; i < regCount; i++)
         {
@@ -1431,14 +1751,14 @@ public class ExpressionGenerator(AssemblerBase asm,
             argSlots[i] = SaveRegToStack((RegType)i);
         }
 
-        // 2) Callee → r0. НЕ в r4 напрямую: если callee — сложное выражение,
+        // 2) Callee -> r0. НЕ в r4 напрямую: если callee — сложное выражение,
         //    GenerateBinaryOp использует r4 как addrReg и затрёт его.
         //    r0..r3 сейчас безопасны — args уже на стеке.
         GenerateExpression(ic.Callee, RegType.r0);
         int calleeSlot = SaveRegToStack(RegType.r0);
 
-        // 3) LIFO: callee сохранялся последним → восстанавливаем первым.
-        //    callee → r4 (после CALL_IND r4 больше не нужен — caller-saved).
+        // 3) LIFO: callee сохранялся последним -> восстанавливаем первым.
+        //    callee -> r4 (после CALL_IND r4 больше не нужен — caller-saved).
         RestoreRegFromStack(calleeSlot, RegType.r4);
 
         // 4) Аргументы обратно в r0..r3.
@@ -1457,20 +1777,20 @@ public class ExpressionGenerator(AssemblerBase asm,
     private void GenerateIndirectCall(FunctionCallNode call)
     {
         if (call.Arguments.Count > 4)
-            _asm.ThrowCompiler.Throw(ErrorCode.NotSupported,
+            _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
                 $"Indirect call with >4 args (calling convention limitation): {call.Name}");
 
         int regCount = call.Arguments.Count;
         var slots = new int[regCount];
 
-        // 1. Аргументы → r0..r3, сразу сохраняем
+        // 1. Аргументы -> r0..r3, сразу сохраняем
         for (int i = 0; i < regCount; i++)
         {
             GenerateExpression(call.Arguments[i], (RegType)i);
             slots[i] = SaveRegToStack((RegType)i);
         }
 
-        // 2. Адрес функции → r4 (LoadToRegister не трогает r0..r3, scratch = r27)
+        // 2. Адрес функции -> r4 (LoadToRegister не трогает r0..r3, scratch = r27)
         _varAccessor.LoadToRegister(call.Name, RegType.r4);
 
         // 3. Восстанавливаем аргументы (r27 как scratch — r4 не пострадает)
@@ -1491,18 +1811,18 @@ public class ExpressionGenerator(AssemblerBase asm,
                 GenerateIndirectCall(call);
                 return;
             }
-            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UnknownFunction, call.Name);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownFunction, call.Name);
         }
         if (call.Arguments.Count != targetFunc.Parameters.Count)
-            _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
 
-        // 1) args 4+ → pseudo-globals (r0..r3 пусты, можно свободно)
+        // 1) args 4+ -> pseudo-globals (r0..r3 пусты, можно свободно)
         for (int i = 4; i < call.Arguments.Count; i++)
         {
-            GenerateExpression(call.Arguments[i]);         // → r0
+            GenerateExpression(call.Arguments[i]);         // -> r0
             var param = targetFunc.Parameters[i];
             string globalName = $"__param_{targetFunc.Name}_{param.Name}";
-            OpCodeSize opSize = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type, _asm.ThrowCompiler);
+            OpCodeSize opSize = param.IsPointer ? OpCodeSize.S64 : CodeGenUtils.GetSizeForType(param.Type, _asm.ErrorReporter);
             string label = GlobalMemoryManager.GetLabel(globalName);
             _asm.EmitStore(RegType.r0, opSize, label);
         }
@@ -1515,11 +1835,19 @@ public class ExpressionGenerator(AssemblerBase asm,
         {
             var param = targetFunc.Parameters[i];
             if (_structTable.ContainsKey(param.Type))
-                _asm.ThrowCompiler.Throw(ErrorCode.NotSupported, "Struct parameters via registers not yet supported");
-            GenerateExpression(call.Arguments[i], (RegType)i);
-            slots[i] = SaveRegToStack((RegType)i);   // ← сохраняем возвращаемый offset
-        }
+                _asm.ErrorReporter.Throw(ErrorCode.NotSupported, "Struct parameters via registers not yet supported");
 
+            GenerateExpression(call.Arguments[i], (RegType)i);
+
+            if (!param.IsPointer)                                                           // NEW
+            {
+                OpCodeSize pSize = CodeGenUtils.GetSizeForType(param.Type, _asm.ErrorReporter);
+                bool pSigned = CodeGenUtils.IsSignedType(param.Type);
+                _asm.EmitCastToType((RegType)i, pSize, pSigned);
+            }
+
+            slots[i] = SaveRegToStack((RegType)i);
+        }
         // 3) восстанавливаем по сохранённым offset'ам
         for (int i = 0; i < regCount; i++)
             RestoreRegFromStack(slots[i], (RegType)i);

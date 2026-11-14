@@ -1,5 +1,5 @@
 ﻿using Nantuc.Compiler.ASM.IR;
-using Nantuc.Compiler.C.Optimizators;
+using Nantuc.Compiler.C.Optimizations;
 
 namespace Nantuc.VmApplication.Project;
 

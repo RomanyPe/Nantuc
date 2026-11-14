@@ -40,7 +40,7 @@ Namespace `Nantuc.Samples.Scratch` (root) + `Nantuc.Samples.Scratch.SnakeGame` (
 
 ```
 Nantuc.Samples.Scratch/
-├── Nantuc.Samples.Scratch.csproj   # net10.0, Exe, ref → VmApplication.Extensions
+├── Nantuc.Samples.Scratch.csproj   # net10.0, Exe, ref -> VmApplication.Extensions
 ├── Program.cs                       # top-level: -snake dispatch + allocator test
 ├── launchSettings.json              # profiles Default / Game (-snake 150) / WSL
 └── SnakeGame/
@@ -51,7 +51,7 @@ Nantuc.Samples.Scratch/
 ```
 
 Organization notes:
-- `Program.cs` — top-level statements with CLI dispatch: `-snake <period>` → `SnakeGameOnNantuc`, otherwise — the allocator test. For a sandbox project this is fine, but as experiments grow it is worth moving each one into a separate `Sample*.cs` with an explicit `public static void Run()`.
+- `Program.cs` — top-level statements with CLI dispatch: `-snake <period>` -> `SnakeGameOnNantuc`, otherwise — the allocator test. For a sandbox project this is fine, but as experiments grow it is worth moving each one into a separate `Sample*.cs` with an explicit `public static void Run()`.
 - `KeyboardDevice.cs` is **not used** by `SnakeGameOnNantuc` in the current version — input goes through `portBus.WritePort(0, code)` (loopback into the `Device`'s own IO window). See [What to fix, item 6](#what-to-fix).
 
 ## API
@@ -87,7 +87,7 @@ If `-snake` is not passed (or there is only one argument), the allocator test ru
 | `CompileToIR(baseAddress: 0, optimize: true).Build()` | Compiles all files |
 | `RegisterDevice(spec, sector: 0)` / `RegisterDevice(ioDevice, "console", sector: 1)` | Registers the VM and the I/O |
 | `GetDeviceContext(deviceId)!` | `DeviceContext` for the VM |
-| `TryLoadProgram(program, loadAddress: 0, out error)` → `Run()` | Load and run |
+| `TryLoadProgram(program, loadAddress: 0, out error)` -> `Run()` | Load and run |
 | `GetRegistersSnapshot()` | Dump of `r0..r5`, `rSP`, `rHP` |
 | `GetRamAsNewArray(0, hpPrt)` + `StringDisassembler.Disassemble(ramSnap, resCompile.CodeSize)` | RAM disassembly up to the current `rHP` |
 
@@ -111,11 +111,11 @@ The sequence in `Run()`:
 1. `VmHostFactory.CreateDefault()`.
 2. `SaveFileProject("snake.minic", …)` / `SaveFileInclude` for `monitor.nanasm`, `halt.nanasm`, `input.nanasm`.
 3. `MonochromeMonitor(32, 16, RenderToConsole)`.
-4. `DeviceSpec.Create(ramSize: RamSize.MB16, name: "SnakeVM")` → `RegisterDevice(handle, sector: 0)`.
+4. `DeviceSpec.Create(ramSize: RamSize.MB16, name: "SnakeVM")` -> `RegisterDevice(handle, sector: 0)`.
 5. `RegisterDevice(monitor, name: "monitor", sector: 1)`.
 6. `GetDeviceContext(deviceId)!`.
 7. `CompileToIR(0, optimize: false).Build()`, `TryLoadProgram`.
-8. `inputThread` (background): `Console.ReadKey(intercept: true)` → arrows into `1..4`, `Q`/`Escape` → `running = false; ctx.Stop()`. Writes `portBus.WritePort(0, code)`.
+8. `inputThread` (background): `Console.ReadKey(intercept: true)` -> arrows into `1..4`, `Q`/`Escape` -> `running = false; ctx.Stop()`. Writes `portBus.WritePort(0, code)`.
 9. `Timer(..., null, 200, _period)` — `portBus.WakeProcessor(0)` every `_period` ms.
 10. `ctx.Run()` (blocks until `Stop`).
 11. `finally` — `running = false`, cursor visible, ANSI reset, cursor to line 18.
@@ -181,7 +181,7 @@ public sealed class KeyboardDevice : PortControlBase
 ```
 
 - `Press(key)` — writes `_key = key; _hasNew = true`.
-- `ReadPort(REG_KEY)` → `_key`. `ReadPort(REG_HAS_NEW)` → `1` if there is a new press, `0` otherwise (consume-on-read).
+- `ReadPort(REG_KEY)` -> `_key`. `ReadPort(REG_HAS_NEW)` -> `1` if there is a new press, `0` otherwise (consume-on-read).
 - `WritePort(REG_KEY, 0)` — resets `_key = 0`.
 - In the current `SnakeGameOnNantuc` it is **not registered**: input goes directly through `portBus.WritePort(0, code)` into the `Device`'s loopback window. See [Special information](#special-information).
 
@@ -224,7 +224,7 @@ RET;
 - `spawnFood` — tries `rng() % 32`, `rng() % 16` until it hits a free cell.
 - `resetGame` — `slen = 3`, `dir = 4` (right), `sx[0..2] = 16,15,14`, `sy = 8`, `rngState = 12345`.
 - `render` — `MonClear`, draws food, draws the snake, `MonFlush`.
-- `tick` — `ReadKey`, changes `dir` (with protection against a 180° reversal), moves the head, wraps at the edges (32×16 toroid), checks collision with itself → `resetGame`, otherwise shifts the tail, `slen++` if food was eaten.
+- `tick` — `ReadKey`, changes `dir` (with protection against a 180° reversal), moves the head, wraps at the edges (32×16 toroid), checks collision with itself -> `resetGame`, otherwise shifts the tail, `slen++` if food was eaten.
 - `main` — `resetGame(); render(); while (1) { Halt(); tick(); render(); }`.
 
 `Halt()` — `HALT; RET`. The processor goes to sleep, the ticker wakes it via `portBus.WakeProcessor(0)`.
@@ -310,8 +310,8 @@ Console.WriteLine("Allocator test PASSED");
 
 `SnakeGameOnNantuc` does **not** register `KeyboardDevice` on a separate sector. Instead:
 
-- `portBus.WritePort(0, code)` — writes to `Device._ioMemory[0]` (the VM itself is registered on `sector 0`, `Device` implements `IPortController`, `ResolveAddress(0)` → `_devices[0]` = `Device`, `Device.WritePort(0, code)`).
-- `input_nanasm` does `IN r0, r1` with `r1 = 0x00` → `portBus.ReadPort(0)` → `Device.ReadPort(0)` → returns `_ioMemory[0]`.
+- `portBus.WritePort(0, code)` — writes to `Device._ioMemory[0]` (the VM itself is registered on `sector 0`, `Device` implements `IPortController`, `ResolveAddress(0)` -> `_devices[0]` = `Device`, `Device.WritePort(0, code)`).
+- `input_nanasm` does `IN r0, r1` with `r1 = 0x00` -> `portBus.ReadPort(0)` -> `Device.ReadPort(0)` -> returns `_ioMemory[0]`.
 
 That is, **the VM is its own keyboard through its own IO window**. This works because `Device` is registered both in `ManagerDevices` (as a VM) and in `PortBus._devices` (as an `IPortController`). But:
 
@@ -321,7 +321,7 @@ That is, **the VM is its own keyboard through its own IO window**. This works be
 
 ### 32×16 toroid and monitor ports
 
-`snake_minic` uses wrap at the edges (`nx < 0 → 31`, `nx > 31 → 0`, `ny < 0 → 15`, `ny > 15 → 0`) — the snake teleports to the opposite edge. Classic Snake, not a bug.
+`snake_minic` uses wrap at the edges (`nx < 0 -> 31`, `nx > 31 -> 0`, `ny < 0 -> 15`, `ny > 15 -> 0`) — the snake teleports to the opposite edge. Classic Snake, not a bug.
 
 Monitor ports in `monitor_nanasm`: `0x10` (CURSOR_X), `0x11` (CURSOR_Y), `0x12` (PIXEL), `0x13` (COMMAND). With the default `DevicePortSize.B16` (`PortsOnDevice = 16 = 0x10`), `sector 1` starts at `1 * 16 = 0x10`. If you change `portsPerDevice` in `CreateDefault` (e.g., to `B32`), the base of `sector 1` becomes `0x20`, and all `OUT r0, 0x10` will go to **sector 0** (the VM itself), not to the monitor. This is a fragile spot tied to the default `DevicePortSize`. See [What to fix, item 8](#what-to-fix).
 
@@ -366,7 +366,7 @@ In descending order of severity. References to files and lines.
 2. **`Program.cs` (allocator path) — also `RegisterDevice` + `GetDeviceContext(deviceId)!`.**
    File: `Program.cs`, lines `int deviceId = host.Emulator.RegisterDevice(spec: handle, sector: 0);` + `var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;`.
    The same problem as item 1, plus **a divergence from `Nantuc.Samples.Minimal`**, where `TryRegisterDevice`/`TryGetDeviceContext` with `IdState` is already used. This confuses the reader: two samples show different APIs for the same task.
-   Fix: bring both samples to the new API (`TryRegisterDevice` → `IdState.Valid`, `TryGetDeviceContext` → `bool`), as in the Minimal README.
+   Fix: bring both samples to the new API (`TryRegisterDevice` -> `IdState.Valid`, `TryGetDeviceContext` -> `bool`), as in the Minimal README.
 
 3. **`Program.cs` — the return code `r0` is not checked.**
    File: `Program.cs`, lines after `deviceCtx.Run()`:
@@ -394,13 +394,13 @@ In descending order of severity. References to files and lines.
 
 7. **`SnakeGameOnNantuc` — `catch (Exception ex) when (running)` does not catch exceptions after `running = false`.**
    File: `SnakeGame/SnakeGameOnNantuc.cs`, line `catch (Exception ex) when (running) { Console.WriteLine($"\nVM error: {ex.Message}"); }`.
-   If `ctx.Run()` throws after `inputThread` has set `running = false` (race), the exception will not be caught → the process will crash.
+   If `ctx.Run()` throws after `inputThread` has set `running = false` (race), the exception will not be caught -> the process will crash.
    Fix: remove `when (running)` or use `catch (Exception ex) { if (running) Console.WriteLine(...); }`.
 
 8. **`SnakeGameOnNantuc` — monitor ports (`0x10..0x13`) are hardcoded for `DevicePortSize.B16`.**
    File: `SnakeGame/LibCode.cs`, `monitor_nanasm` + `SnakeGame/SnakeGameOnNantuc.cs` (`VmHostFactory.CreateDefault()` with no parameters).
    The base of `sector 1` = `1 * PortsOnDevice`. With the default `B16` = `0x10` — it matches. If `portsPerDevice` changes — it will break.
-   Fix: either document in a comment in `SnakeGameOnNantuc` ("requires DevicePortSize.B16, sector 1 → base 0x10"), or pass `portsPerDevice: DevicePortSize.B16` explicitly in `CreateDefault`, or compute the base in C# and pass it to `snake_minic` via a global.
+   Fix: either document in a comment in `SnakeGameOnNantuc` ("requires DevicePortSize.B16, sector 1 -> base 0x10"), or pass `portsPerDevice: DevicePortSize.B16` explicitly in `CreateDefault`, or compute the base in C# and pass it to `snake_minic` via a global.
 
 9. **`MonochromeMonitor` — `_renderer(_fb, Width, Height)` passes the live buffer.**
    File: `SnakeGame/MonochromeMonitor.cs`, line `_renderer(_fb, Width, Height);` in `WritePort(REG_COMMAND, CMD_FLUSH)`.

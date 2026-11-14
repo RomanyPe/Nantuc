@@ -15,41 +15,58 @@ public static class CodeGenUtils
 {
     public const RegType ADDR_SCRATCH_REG_EN = RegType.r27;
 
-    public static OpCodeSize GetSizeForType(string? type, ThrowCompiler ThrowCompiler) => type switch
+    public static bool IsSignedType(string type) => type switch
+    {
+        "char" or "short" or "int" or "long" => true,
+        _ => false   // byte, ushort, uint, ulong, указатели, структуры
+    };
+    extension(AssemblerBase asm)
+    {
+        public void EmitCastToType(RegType reg, OpCodeSize size, bool isSigned)
+        {
+            if (size == OpCodeSize.S64) return;
+            if (isSigned)
+                asm.EmitInstI(OpCode.CASTS, reg, size);
+            else
+                asm.EmitInstI(OpCode.CASTZ, reg, size);
+        }
+
+        public void EmitMultiplyByConstant(RegType reg, int multiplier)
+        {
+            if (multiplier <= 0 || multiplier == 1) return;
+            if (multiplier == 2) { asm.EmitAdd(reg, reg); return; }
+
+            bool isPow2 = (multiplier & (multiplier - 1)) == 0;
+            if (isPow2)
+            {
+                for (int i = 1; i < multiplier; i *= 2)
+                    asm.EmitAdd(reg, reg);
+                return;
+            }
+
+            // Общий случай: scratch * multiplier через MULT_INT
+            asm.EmitLdi(ADDR_SCRATCH_REG_EN, (ulong)multiplier);
+            asm.EmitMultInt(reg, ADDR_SCRATCH_REG_EN);
+        }
+    }
+
+    public static OpCodeSize GetSizeForType(string? type, ErrorReporter ErrorReporter) => type switch
     {
         "byte" => OpCodeSize.S8,
         "ushort" or "char" or "short" => OpCodeSize.S16,
         "ulong" or "long" => OpCodeSize.S64,
         "int" or "uint" => OpCodeSize.S32,
-        _ => ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownTypeSize, type!)
+        _ => ErrorReporter.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownTypeSize, type!)
     };
 
-    public static int GetSizeInBytes(OpCodeSize size, ThrowCompiler ThrowCompiler) => size switch
+    public static int GetSizeInBytes(OpCodeSize size, ErrorReporter ErrorReporter) => size switch
     {
         OpCodeSize.S8 => 1,
         OpCodeSize.S16 => 2,
         OpCodeSize.S32 => 4,
         OpCodeSize.S64 => 8,
-        _ => ThrowCompiler.Throw<int>(ErrorCode.CodeGen_UnknownOpCodeSize, (int)size)
+        _ => ErrorReporter.Throw<int>(ErrorCode.CodeGen_UnknownOpCodeSize, (int)size)
     };
-
-    public static void EmitMultiplyByConstant(this AssemblerBase asm, RegType reg, int multiplier)
-    {
-        if (multiplier <= 0 || multiplier == 1) return;
-        if (multiplier == 2) { asm.EmitAdd(reg, reg); return; }
-
-        bool isPow2 = (multiplier & (multiplier - 1)) == 0;
-        if (isPow2)
-        {
-            for (int i = 1; i < multiplier; i *= 2)
-                asm.EmitAdd(reg, reg);
-            return;
-        }
-
-        // Общий случай: scratch * multiplier через MULT_INT
-        asm.EmitLdi(ADDR_SCRATCH_REG_EN, (ulong)multiplier);
-        asm.EmitMultInt(reg, ADDR_SCRATCH_REG_EN);
-    }
 
     public static bool IsComparisonOperator(string op) => op is "==" or "!=" or "<" or ">" or "<=" or ">=";
 
@@ -71,11 +88,11 @@ public static class CodeGenUtils
         _ => false
     };
 
-    public static int GetTypeSize(string type, Dictionary<string, StructLayout> structTable, ThrowCompiler ThrowCompiler)
+    public static int GetTypeSize(string type, Dictionary<string, StructLayout> structTable, ErrorReporter ErrorReporter)
     {
         if (structTable.TryGetValue(type, out var layout))
             return layout.Size;
-        return GetSizeInBytes(GetSizeForType(type, ThrowCompiler), ThrowCompiler);
+        return GetSizeInBytes(GetSizeForType(type, ErrorReporter), ErrorReporter);
     }
 
     public static int GetAlignment(string type, Dictionary<string, StructLayout> structTable)

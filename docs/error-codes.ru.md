@@ -165,11 +165,11 @@ var overrides = new Dictionary<ErrorCode, string>
 }.ToFrozenDictionary();
 
 var provider = new DefaultErrorMessageProvider(overrides);
-var thrower = new ThrowCompiler(provider);
+var thrower = new ErrorReporter(provider);
 
 // Дальше — как обычно:
 thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo");
-// → CodeException: "Неизвестный тип «Foo»"
+// -> CodeException: "Неизвестный тип «Foo»"
 ```
 
 Семантика — **мерж поверх дефолтов**, не замена: коды, которых нет в
@@ -177,7 +177,7 @@ thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo");
 `Overrides_MergeWithDefaults_Regression`.
 
 `IErrorMessageProvider.Default` — синглтон со стандартным набором. Для
-глобальной локализации подмените провайдер на уровне `ThrowCompiler`
+глобальной локализации подмените провайдер на уровне `ErrorReporter`
 (создайте новый экземпляр) — `Default` не мутируется.
 
 ## Примеры
@@ -185,7 +185,7 @@ thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo");
 **Базовое использование:**
 
 ```csharp
-var thrower = new ThrowCompiler(provider: null); // → Default
+var thrower = new ErrorReporter(provider: null); // -> Default
 
 // Один аргумент
 thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo");
@@ -233,6 +233,6 @@ catch (CodeException ex)
 - [`ErrorCode.cs`](../../src/Nantuc.Kernel.Diagnostics/ErrorCode.cs) — определения.
 - [`DefaultErrorMessageProvider.cs`](../../src/Nantuc.Kernel.Diagnostics/DefaultErrorMessageProvider.cs) — шаблоны.
 - [`DiagnosticData.cs`](../../src/Nantuc.Kernel.Diagnostics/DiagnosticData.cs) — аргументы.
-- [`ThrowCompiler.cs`](../../src/Nantuc.Kernel.Diagnostics/ThrowCompiler.cs) — фасад.
+- [`ErrorReporter.cs`](../../src/Nantuc.Kernel.Diagnostics/ErrorReporter.cs) — фасад.
 - [`CodeException.cs`](../../src/Nantuc.Kernel.Diagnostics/CodeException.cs) — исключение.
 - [`Nantuc.Kernel.Diagnostics/README.md`](../../src/Nantuc.Kernel.Diagnostics/README.md) — обзор модуля.

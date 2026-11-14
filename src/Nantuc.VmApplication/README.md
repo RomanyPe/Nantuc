@@ -20,8 +20,8 @@
 `Nantuc.VmApplication` is a facade over two subsystems: the compiler (`Nantuc.Compiler`) and the runtime (`Nantuc.Kernel`). All core types that the user is "not supposed" to see (`Processor`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Assembler`) are hidden behind a thin layer of wrappers. The user works with five main abstractions:
 
 - `VmHost` — "all in one": project (`VmHostProject`) + emulator (`VmEmulator`). Created via `VmHostFactory.CreateDefault()`.
-- `VmHostProject` — compilation: `GetSourceFiles()` → `Compile()` / `CompileToIR()` → `CompilationResult` / `CompilationToIRResult`. Configured via `CompilerContext` (built by `VmHostProjectBuilder`).
-- `CompilerContext` — an immutable snapshot of the compiler configuration: `Optimizator` + `Paths` + `FileService` + `ThrowCompiler`.
+- `VmHostProject` — compilation: `GetSourceFiles()` -> `Compile()` / `CompileToIR()` -> `CompilationResult` / `CompilationToIRResult`. Configured via `CompilerContext` (built by `VmHostProjectBuilder`).
+- `CompilerContext` — an immutable snapshot of the compiler configuration: `Optimizator` + `Paths` + `FileService` + `ErrorReporter`.
 - `VmEmulator` — execution: device registration, including the VM (`DeviceSpec`), issuing `DeviceContext`, access to `IPortBus`. Configured via `VmEmulatorBuilder`.
 - `DeviceContext` — managing a specific VM: `LoadProgram`, `Run`, `RunStepMode`/`SingleStep`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, modes (Step/Continuous/None).
 
@@ -32,10 +32,10 @@ The module targets `net10.0`
 The API follows the "Try + IdState + ProcessorFault" pattern:
 - `TryRegisterDevice` / `TryGetDeviceContext` — without `!` and magic `-1..-4`.
 - `IdState` — classification of `TryRegisterDevice` return values.
-- `Run` / `DebugRun` → `ProcessorFault` — completion status instead of a manual `IProcessorPolicy`.
+- `Run` / `DebugRun` -> `ProcessorFault` — completion status instead of a manual `IProcessorPolicy`.
 - `TryLoadProgram` — safe loading without exceptions.
 - `GetLastFault` — access to the last `ProcessorFault` without `AsRawDevice`.
-- `ThrowCompiler` (in `CompilerContext`) — a unified compiler exception policy via `IErrorMessageProvider`.
+- `ErrorReporter` (in `CompilerContext`) — a unified compiler exception policy via `IErrorMessageProvider`.
 
 ## Local project tree
 
@@ -43,7 +43,7 @@ Namespaces correspond to folders:
 
 ```
 Nantuc.VmApplication/
-├── Nantuc.VmApplication.csproj        # net10.0, unsafe, ref → Compiler, Contracts, Kernel
+├── Nantuc.VmApplication.csproj        # net10.0, unsafe, ref -> Compiler, Contracts, Kernel
 ├── VmHost.cs                           # record VmHost(Project, Emulator) : IDisposable
 ├── VmHostFactory.cs                    # CreateDefault(...) with optimizator and provider
 ├── Default/
@@ -59,12 +59,12 @@ Nantuc.VmApplication/
 │   └── VmEmulatorBuilder.cs            # fluent: WithPortBusSize / WithPortsPerDevice
 ├── Project/                            (namespace Nantuc.VmApplication.Project)
 │   ├── CompilationResult.cs            # byte[] + section metrics + errors
-│   ├── CompilationToIRResult.cs        # IRAssembler + Build() → CompilationResult
-│   ├── CompilerContext.cs              # record: Optimizator + Paths + FileService + ThrowCompiler
+│   ├── CompilationToIRResult.cs        # IRAssembler + Build() -> CompilationResult
+│   ├── CompilerContext.cs              # record: Optimizator + Paths + FileService + ErrorReporter
 │   ├── IFileService.cs                 # FS abstraction
 │   ├── IProjectFilesConfig.cs          # paths + extensions; static Default
 │   ├── OptimizationResultLog.cs        # Dictionary<OptimizationId, IReadOnlyLogOptimization>
-│   ├── ProjectBuilder.cs               # orchestration: parse → AST-merge → includes → generate
+│   ├── ProjectBuilder.cs               # orchestration: parse -> AST-merge -> includes -> generate
 │   ├── SourceFile.cs                   # record struct (Name, Content, Language)
 │   ├── SourceLanguage.cs               # enum { Asm, C, None }
 │   ├── VmAstOptimizer.cs               # wrapper over AstOptimizer
@@ -92,7 +92,7 @@ public static class VmHostFactory
         IProjectFilesConfig? projectConfig = null,
         IFileService? fileService = null,
         VmCompilerOptimizator? optimizator = null,
-        IErrorMessageProvider? provider = null,      // exception policy → ThrowCompiler
+        IErrorMessageProvider? provider = null,      // exception policy -> ErrorReporter
         PortSize? portBusSize = null,
         DevicePortSize? portsPerDevice = null);
 }
@@ -108,7 +108,7 @@ Optional parameters:
 - `projectConfig` — paths and extensions (`IProjectFilesConfig.Default`).
 - `fileService` — `RamFileService` by default (in-memory, emulates the path semantics of a real FS: both separators, `.`/`..`, case-insensitive by default); `DefaultFileService` — for the real FS.
 - `optimizator` — a ready-made `VmCompilerOptimizator` with rules. If `null`, `VmHostProjectBuilder.Build()` creates a new `VmCompilerOptimizator()` (`?? new()`).
-- `provider` — `IErrorMessageProvider?`, wrapped in `ThrowCompiler` inside `VmHostProjectBuilder`.
+- `provider` — `IErrorMessageProvider?`, wrapped in `ErrorReporter` inside `VmHostProjectBuilder`.
 - `portBusSize` — port-space size (`PortSize.KB64`).
 - `portsPerDevice` — size of the port block per device (`DevicePortSize.B16`).
 
@@ -167,7 +167,7 @@ public sealed record class CompilerContext(
     VmCompilerOptimizator Optimizator,
     IProjectFilesConfig Paths,
     IFileService FileService,
-    ThrowCompiler ThrowCompiler);
+    ErrorReporter ErrorReporter);
 
 public sealed class VmHostProject(CompilerContext ctx)
 {
@@ -178,7 +178,7 @@ public sealed class VmHostProject(CompilerContext ctx)
     public VmCompilerOptimizator Optimizator { get; }
     public IProjectFilesConfig Paths { get; }
     public IFileService FileService { get; }
-    public ThrowCompiler ThrowCompilerPolicy { get; }
+    public ErrorReporter ThrowCompilerPolicy { get; }
 
     public IEnumerable<SourceFile> GetSourceFiles();
 
@@ -198,11 +198,11 @@ public class VmHostProjectBuilder
 ```
 
 - `CompilerContext` — the only constructor argument of `VmHostProject`. Assembled by `VmHostProjectBuilder.Build()`.
-- `Compile` — single-stage assembly: `Assembler` (direct emit) → `byte[]`.
-- `CompileToIR` — two-stage: `IRAssembler` (list of `AsmItem`) → `CompilationToIRResult`, then `OptimizationIR(result, maxPasses)` runs the IR and `result.Build()` assembles the bytes.
+- `Compile` — single-stage assembly: `Assembler` (direct emit) -> `byte[]`.
+- `CompileToIR` — two-stage: `IRAssembler` (list of `AsmItem`) -> `CompilationToIRResult`, then `OptimizationIR(result, maxPasses)` runs the IR and `result.Build()` assembles the bytes.
 - `optimize: true` — enables AST optimizations from `Optimizator.VmAstOptimizer`. Logs are collected in `OptimizationResultLog`.
 - `GetSourceFiles` — reads all `.c`/`.minic`/`.asm`/`.nanasm` from `FileService.GetNameFiles(Paths)`.
-- `WithThrowProvider` — optional exception policy (`IErrorMessageProvider?`), wrapped in `ThrowCompiler`.
+- `WithThrowProvider` — optional exception policy (`IErrorMessageProvider?`), wrapped in `ErrorReporter`.
 
 `VmHostProject` exposes static regexes for syntax highlighting: `AsmMnemonics`, `AsmRegisters`, `MiniCMnemonics`.
 
@@ -585,7 +585,7 @@ var state = host.Emulator.TryRegisterDevice(uart, name: "UART0", sector: 1, out 
 **Custom AST optimization rule:**
 
 ```csharp
-using Nantuc.Compiler.C.Optimizators;
+using Nantuc.Compiler.C.Optimizations;
 using Nantuc.Contracts;
 
 public sealed class MyRule : IAstOptimizationRule
@@ -661,11 +661,11 @@ Maximum. This is the platform's primary API. After compilation, the MiniC/NANASM
 ### `DeviceContext` modes
 
 Inside `DeviceContext` — `private enum Mode { Step, Continuous, None }` and `volatile Mode _mode`:
-- `Run`/`DebugRun` → `ThrowByMode(Continuous)` → blocking loop → `SetNoneMode()`.
-- `RunStepMode` → `ThrowByMode(Step)` → `BreakPointerLaunchDevice`.
-- `SingleStep`/`MultiStep` → `ThrowIfNotStepMode` → `Device.NextStepProcessor`/`NextStepProcessorCount`.
-- `EndStepMode` → `ThrowIfNotStepMode` → `Device.Stop()` + one `NextStepProcessor(null)` + `SetNoneMode()`.
-- `Stop` → `Device.Stop()` + `SetNoneMode()` — can be called from any mode.
+- `Run`/`DebugRun` -> `ThrowByMode(Continuous)` -> blocking loop -> `SetNoneMode()`.
+- `RunStepMode` -> `ThrowByMode(Step)` -> `BreakPointerLaunchDevice`.
+- `SingleStep`/`MultiStep` -> `ThrowIfNotStepMode` -> `Device.NextStepProcessor`/`NextStepProcessorCount`.
+- `EndStepMode` -> `ThrowIfNotStepMode` -> `Device.Stop()` + one `NextStepProcessor(null)` + `SetNoneMode()`.
+- `Stop` -> `Device.Stop()` + `SetNoneMode()` — can be called from any mode.
 
 `Stop`, `Pause`, `Resume` can be called from another thread (`Pause`/`Resume` put the command into the `EnqueueExternalCommand` queue). `Run`/`Step` — single-threaded.
 

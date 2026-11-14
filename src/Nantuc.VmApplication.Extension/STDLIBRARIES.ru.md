@@ -197,8 +197,8 @@ host.Emulator.RegisterDevice(uart, name: "UART0", sector: 1);
 | `upopcount` | `int upopcount(ulong x)` | Число установленных бит (Kernighan) |
 | `uclz` | `int uclz(ulong x)` | Число ведущих нулей, `0..64` (`64` для `x == 0`) |
 | `uctz` | `int uctz(ulong x)` | Число хвостовых нулей, `0..64` (`64` для `x == 0`) |
-| `rotl64` | `ulong rotl64(ulong x, int n)` | Циклический сдвиг влево (`n & 63`; `n == 0` → без изменений) |
-| `rotr64` | `ulong rotr64(ulong x, int n)` | Циклический сдвиг вправо (`n & 63`; `n == 0` → без изменений) |
+| `rotl64` | `ulong rotl64(ulong x, int n)` | Циклический сдвиг влево (`n & 63`; `n == 0` -> без изменений) |
+| `rotr64` | `ulong rotr64(ulong x, int n)` | Циклический сдвиг вправо (`n & 63`; `n == 0` -> без изменений) |
 | `urev64` | `ulong urev64(ulong x)` | Зеркальное отражение бит |
 | `unext_pow2` | `ulong unext_pow2(ulong x)` | Ближайшая степень двойки `>= x`; `0` — переполнение (для `x > 2^63`) |
 

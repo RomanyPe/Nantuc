@@ -37,7 +37,7 @@ Namespace — `Nantuc.Benchmarks` (all files in one folder):
 
 ```
 Nantuc.Benchmarks/
-├── Nantuc.Benchmarks.csproj            # net10.0, Exe, ref → VmApplication.Extensions
+├── Nantuc.Benchmarks.csproj            # net10.0, Exe, ref -> VmApplication.Extensions
 ├── Program.cs                          # Main + BenchCase[] array + output/progress
 ├── SourceCasesMiniC.cs                 # all 14 MiniC sources (callMc…sortMc)
 ├── BenchRunner.cs                      # BenchRunner + ListExtensions.ComputeVariance
@@ -58,8 +58,8 @@ The project is an `Exe` and has no public API. Below is the internal structure u
 
 `Program.Main()` (private static):
 
-1. `VmHostFactory.CreateDefault()` → `host`.
-2. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` → `deviceId`.
+1. `VmHostFactory.CreateDefault()` -> `host`.
+2. `host.Emulator.RegisterDevice(DeviceSpec.Create(RamSize.MB64, "ConsoleVM"), sector: 0)` -> `deviceId`.
 3. `BenchCase[]` array (14 cases, `_runs=20`, `_runsWarmup=5`).
 4. For each case: `new BenchRunner(host, deviceId, case)`, `TryPrepare()`, warmup, runs, statistics collection.
 5. `File.WriteAllText` to `logs/`, `Console.WriteLine`, `Console.ReadLine()`.
@@ -98,7 +98,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
     public double StepsVariance { get; }    // variance of StepsLogs (extension)
     public CompilationResult? Program { get; private set; }
 
-    public bool TryPrepare();        // CompileToIR(SourceLanguage.C, optimize: true) → TryLoadProgram
+    public bool TryPrepare();        // CompileToIR(SourceLanguage.C, optimize: true) -> TryLoadProgram
     public void RunOnce();           // Launch(MipsLogs, ElapsedLog, StepsLogs, ctx)
     public void Warmup();            // Launch([], [], [], ctx) — log discarded
     public static void Launch(List<double> mips, List<double> elapsed,
@@ -292,7 +292,7 @@ In descending order of severity. File/method references.
 2. **`BenchRunner.PeakMips`/`StepsOnce` — uses `StepsLogs[0]`, not the minimum/median.**  
    File: `BenchRunner.cs`, properties `PeakMips` and `StepsOnce`.  
    `StepsOnce = _stepsLogs[0]` — if the first run behaved differently (for example, GC between `TryPrepare` and the first `RunOnce`), the step count may differ from later runs. `PeakMips = StepsOnce / Min(Elapsed)` mixes steps from one run with time from another.  
-   Fix: `StepsOnce` → `_stepsLogs.Min()` (or `Median`), `PeakMips` → `_stepsLogs.Zip(_elapsedSecondsLogs).Max(p => p.First / p.Second / 1e6)`.
+   Fix: `StepsOnce` -> `_stepsLogs.Min()` (or `Median`), `PeakMips` -> `_stepsLogs.Zip(_elapsedSecondsLogs).Max(p => p.First / p.Second / 1e6)`.
 
 3. **`BenchRunner.Warmup`/`RunOnce` — warmup writes to empty lists.**  
    File: `BenchRunner.cs`, methods `Warmup` and `RunOnce`.  
@@ -315,7 +315,7 @@ In descending order of severity. File/method references.
    PrintProgress(testIndex, testTotal, name, "fail", 0, 0,
                  phaseTotal, phaseTotal, globalStep, totalSteps, forceNewLine: true, failed: true);
    ```
-   `done=0, phaseTotal=0` — not used in `phaseStr` (`phase == "fail"` → `$"{phase,-4}"`), but in `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, so the percentage is computed as `phaseStep/phaseTotal = 1.0`. Not a bug, but the “0, 0” parameters are misleading — either pass `phaseTotal, phaseTotal` or add a comment.
+   `done=0, phaseTotal=0` — not used in `phaseStr` (`phase == "fail"` -> `$"{phase,-4}"`), but in `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, so the percentage is computed as `phaseStep/phaseTotal = 1.0`. Not a bug, but the “0, 0” parameters are misleading — either pass `phaseTotal, phaseTotal` or add a comment.
 
 7. **`Stats.Percentile`/`Median`/`TrimmedMean` — `OrderBy().ToArray()` on every call.**  
    File: `Stats.cs`, methods `Percentile`, `Median`, `TrimmedMean`.  

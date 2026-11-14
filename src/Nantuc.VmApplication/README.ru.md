@@ -20,8 +20,8 @@
 `Nantuc.VmApplication` — фасад над двумя подсистемами: компилятором (`Nantuc.Compiler`) и рантаймом (`Nantuc.Kernel`). Все типы ядра, которые пользователю «не положено» видеть (`Processor`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Assembler`), спрятаны за тонким слоем обёрток. Пользователь работает с пятью основными абстракциями:
 
 - `VmHost` — «всё в одном»: проект (`VmHostProject`) + эмулятор (`VmEmulator`). Создаётся через `VmHostFactory.CreateDefault()`.
-- `VmHostProject` — компиляция: `GetSourceFiles()` → `Compile()` / `CompileToIR()` → `CompilationResult` / `CompilationToIRResult`. Конфигурируется через `CompilerContext` (строится `VmHostProjectBuilder`).
-- `CompilerContext` — неизменяемый снимок конфигурации компилятора: `Optimizator` + `Paths` + `FileService` + `ThrowCompiler`.
+- `VmHostProject` — компиляция: `GetSourceFiles()` -> `Compile()` / `CompileToIR()` -> `CompilationResult` / `CompilationToIRResult`. Конфигурируется через `CompilerContext` (строится `VmHostProjectBuilder`).
+- `CompilerContext` — неизменяемый снимок конфигурации компилятора: `Optimizator` + `Paths` + `FileService` + `ErrorReporter`.
 - `VmEmulator` — исполнение: регистрация устройств, включая VM (`DeviceSpec`), выдача `DeviceContext`, доступ к `IPortBus`. Настраивается через `VmEmulatorBuilder`.
 - `DeviceContext` — управление конкретной VM: `LoadProgram`, `Run`, `RunStepMode`/`SingleStep`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, режимы (Step/Continuous/None).
 
@@ -32,10 +32,10 @@
 API следует паттерну «Try + IdState + ProcessorFault»:
 - `TryRegisterDevice` / `TryGetDeviceContext` — без `!` и магических `-1..-4`.
 - `IdState` — классификация возвратов `TryRegisterDevice`.
-- `Run` / `DebugRun` → `ProcessorFault` — статус завершения вместо ручного `IProcessorPolicy`.
+- `Run` / `DebugRun` -> `ProcessorFault` — статус завершения вместо ручного `IProcessorPolicy`.
 - `TryLoadProgram` — безопасная загрузка без исключений.
 - `GetLastFault` — доступ к последнему `ProcessorFault` без `AsRawDevice`.
-- `ThrowCompiler` (в `CompilerContext`) — единая политика исключений компилятора через `IErrorMessageProvider`.
+- `ErrorReporter` (в `CompilerContext`) — единая политика исключений компилятора через `IErrorMessageProvider`.
 
 ## Дерево локального проекта
 
@@ -43,7 +43,7 @@ Namespace'ы соответствуют папкам:
 
 ```
 Nantuc.VmApplication/
-├── Nantuc.VmApplication.csproj        # net10.0, unsafe, ref → Compiler, Contracts, Kernel
+├── Nantuc.VmApplication.csproj        # net10.0, unsafe, ref -> Compiler, Contracts, Kernel
 ├── VmHost.cs                           # record VmHost(Project, Emulator) : IDisposable
 ├── VmHostFactory.cs                    # CreateDefault(...) с optimizator и provider
 ├── Default/
@@ -59,12 +59,12 @@ Nantuc.VmApplication/
 │   └── VmEmulatorBuilder.cs            # fluent: WithPortBusSize / WithPortsPerDevice
 ├── Project/                            (namespace Nantuc.VmApplication.Project)
 │   ├── CompilationResult.cs            # byte[] + метрики секций + ошибки
-│   ├── CompilationToIRResult.cs        # IRAssembler + Build() → CompilationResult
-│   ├── CompilerContext.cs              # record: Optimizator + Paths + FileService + ThrowCompiler
+│   ├── CompilationToIRResult.cs        # IRAssembler + Build() -> CompilationResult
+│   ├── CompilerContext.cs              # record: Optimizator + Paths + FileService + ErrorReporter
 │   ├── IFileService.cs                 # FS-абстракция
 │   ├── IProjectFilesConfig.cs          # пути + расширения; static Default
 │   ├── OptimizationResultLog.cs        # Dictionary<OptimizationId, IReadOnlyLogOptimization>
-│   ├── ProjectBuilder.cs               # оркестрация: parse → AST-merge → includes → generate
+│   ├── ProjectBuilder.cs               # оркестрация: parse -> AST-merge -> includes -> generate
 │   ├── SourceFile.cs                   # record struct (Name, Content, Language)
 │   ├── SourceLanguage.cs               # enum { Asm, C, None }
 │   ├── VmAstOptimizer.cs               # обёртка AstOptimizer
@@ -92,7 +92,7 @@ public static class VmHostFactory
         IProjectFilesConfig? projectConfig = null,
         IFileService? fileService = null,
         VmCompilerOptimizator? optimizator = null,
-        IErrorMessageProvider? provider = null,      // политика исключений → ThrowCompiler
+        IErrorMessageProvider? provider = null,      // политика исключений -> ErrorReporter
         PortSize? portBusSize = null,
         DevicePortSize? portsPerDevice = null);
 }
@@ -107,7 +107,7 @@ using var host = VmHostFactory.CreateDefault();
 Опциональные параметры:
 - `projectConfig` — пути и расширения (`IProjectFilesConfig.Default`).
 - `fileService` — `RamFileService` по умолчанию (in-memory, эмулирует семантику путей реальной ФС: оба разделителя, `.`/`..`, регистронезависимость по умолчанию); `DefaultFileService` — для реальной ФС.- `optimizator` — готовый `VmCompilerOptimizator` с правилами. Если `null` — `VmHostProjectBuilder.Build()` создаст новый `VmCompilerOptimizator()` (`?? new()`).
-- `provider` — `IErrorMessageProvider?`, оборачивается в `ThrowCompiler` внутри `VmHostProjectBuilder`.
+- `provider` — `IErrorMessageProvider?`, оборачивается в `ErrorReporter` внутри `VmHostProjectBuilder`.
 - `portBusSize` — размер порт-пространства (`PortSize.KB64`).
 - `portsPerDevice` — размер блока портов на устройство (`DevicePortSize.B16`).
 
@@ -166,7 +166,7 @@ public sealed record class CompilerContext(
     VmCompilerOptimizator Optimizator,
     IProjectFilesConfig Paths,
     IFileService FileService,
-    ThrowCompiler ThrowCompiler);
+    ErrorReporter ErrorReporter);
 
 public sealed class VmHostProject(CompilerContext ctx)
 {
@@ -177,7 +177,7 @@ public sealed class VmHostProject(CompilerContext ctx)
     public VmCompilerOptimizator Optimizator { get; }
     public IProjectFilesConfig Paths { get; }
     public IFileService FileService { get; }
-    public ThrowCompiler ThrowCompilerPolicy { get; }
+    public ErrorReporter ThrowCompilerPolicy { get; }
 
     public IEnumerable<SourceFile> GetSourceFiles();
 
@@ -197,11 +197,11 @@ public class VmHostProjectBuilder
 ```
 
 - `CompilerContext` — единственный аргумент конструктора `VmHostProject`. Собирается `VmHostProjectBuilder.Build()`.
-- `Compile` — одностадийная сборка: `Assembler` (прямой эмит) → `byte[]`.
-- `CompileToIR` — двухстадийная: `IRAssembler` (список `AsmItem`) → `CompilationToIRResult`, затем `OptimizationIR(result, maxPasses)` прогоняет IR и `result.Build()` собирает байты.
+- `Compile` — одностадийная сборка: `Assembler` (прямой эмит) -> `byte[]`.
+- `CompileToIR` — двухстадийная: `IRAssembler` (список `AsmItem`) -> `CompilationToIRResult`, затем `OptimizationIR(result, maxPasses)` прогоняет IR и `result.Build()` собирает байты.
 - `optimize: true` — включает AST-оптимизации из `Optimizator.VmAstOptimizer`. Логи собираются в `OptimizationResultLog`.
 - `GetSourceFiles` — читает все `.c`/`.minic`/`.asm`/`.nanasm` из `FileService.GetNameFiles(Paths)`.
-- `WithThrowProvider` — опциональная политика исключений (`IErrorMessageProvider?`), оборачивается в `ThrowCompiler`.
+- `WithThrowProvider` — опциональная политика исключений (`IErrorMessageProvider?`), оборачивается в `ErrorReporter`.
 
 `VmHostProject` отдаёт статические regex'ы для подсветки синтаксиса: `AsmMnemonics`, `AsmRegisters`, `MiniCMnemonics`.
 
@@ -584,7 +584,7 @@ var state = host.Emulator.TryRegisterDevice(uart, name: "UART0", sector: 1, out 
 **Своё AST-правило оптимизации:**
 
 ```csharp
-using Nantuc.Compiler.C.Optimizators;
+using Nantuc.Compiler.C.Optimizations;
 using Nantuc.Contracts;
 
 public sealed class MyRule : IAstOptimizationRule
@@ -660,11 +660,11 @@ var project = new VmHostProjectBuilder()
 ### Режимы `DeviceContext`
 
 Внутри `DeviceContext` — `private enum Mode { Step, Continuous, None }` и `volatile Mode _mode`:
-- `Run`/`DebugRun` → `ThrowByMode(Continuous)` → блокирующий цикл → `SetNoneMode()`.
-- `RunStepMode` → `ThrowByMode(Step)` → `BreakPointerLaunchDevice`.
-- `SingleStep`/`MultiStep` → `ThrowIfNotStepMode` → `Device.NextStepProcessor`/`NextStepProcessorCount`.
-- `EndStepMode` → `ThrowIfNotStepMode` → `Device.Stop()` + один `NextStepProcessor(null)` + `SetNoneMode()`.
-- `Stop` → `Device.Stop()` + `SetNoneMode()` — можно вызвать из любого режима.
+- `Run`/`DebugRun` -> `ThrowByMode(Continuous)` -> блокирующий цикл -> `SetNoneMode()`.
+- `RunStepMode` -> `ThrowByMode(Step)` -> `BreakPointerLaunchDevice`.
+- `SingleStep`/`MultiStep` -> `ThrowIfNotStepMode` -> `Device.NextStepProcessor`/`NextStepProcessorCount`.
+- `EndStepMode` -> `ThrowIfNotStepMode` -> `Device.Stop()` + один `NextStepProcessor(null)` + `SetNoneMode()`.
+- `Stop` -> `Device.Stop()` + `SetNoneMode()` — можно вызвать из любого режима.
 
 `Stop`, `Pause`, `Resume` можно вызывать из другого потока (`Pause`/`Resume` кладут команду в очередь `EnqueueExternalCommand`). `Run`/`Step` — однопоточные.
 

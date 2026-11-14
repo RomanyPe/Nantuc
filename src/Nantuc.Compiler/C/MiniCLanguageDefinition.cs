@@ -8,9 +8,8 @@ namespace Nantuc.Compiler.C;
 /// </summary>
 public static partial class MiniCLanguageDefinition
 {
-    public static readonly FrozenSet<string> Keywords;
-    public static readonly FrozenSet<char> Operators;
-    public static readonly FrozenSet<char> Punctuation;
+    public static FrozenSet<string> Keywords { get; }
+    public static FrozenSet<char> Operators { get; }
 
     static MiniCLanguageDefinition()
     {
@@ -21,35 +20,10 @@ public static partial class MiniCLanguageDefinition
         // Операторы (одиночные символы)
         Operators = ['+', '-', '*', '/', '%', '=', '!', '<', '>', '&', '|', '^', '~', '#'];
 
-        // Знаки пунктуации
-        Punctuation = ['(', ')', '{', '}', '[', ']', ';', ',', '.', ':'];
-            }
-
-    /// <summary>
-    /// Паттерн для поиска ключевых слов.
-    /// </summary>
-    public static string GetKeywordPattern() =>
-        $@"\b({string.Join("|", Keywords)})\b";
-
-    /// <summary>
-    /// Паттерн для поиска операторов – символьный класс из экранированных символов.
-    /// </summary>
-    public static string GetOperatorsPattern()
-    {
-        string escapedChars = string.Concat(Operators.Select(c => Regex.Escape(c.ToString())));
-        return $"[{escapedChars}]";
-    }
-
-    /// <summary>
-    /// Паттерн для поиска пунктуации – символьный класс.
-    /// </summary>
-    public static string GetPunctuationPattern()
-    {
-        string escapedChars = string.Concat(Punctuation.Select(c => Regex.Escape(c.ToString())));
-        return $"[{escapedChars}]";
     }
 
     private const string KeywordPattern = @"\b(int|char|void|if|else|do|while|for|return|break|struct|byte|ushort|ulong|new|asm|extern|continue|short|long|uint|sizeof|const)\b";
+
 
     [GeneratedRegex(KeywordPattern, RegexOptions.None)]
     public static partial Regex GetKeywordRegex();

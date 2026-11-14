@@ -14,8 +14,10 @@ public class GlobalMemoryManager
                          string? pointedType = null, int arraySize = 0,
                          bool isConst = false, bool isPointedConst = false)
     {
+        bool isSigned = !isPointer && CodeGenUtils.IsSignedType(type);
         _globals[name] = new GlobalInfo(0, type, isArray, isPointer,
-                                        pointedType, arraySize, isConst, isPointedConst);
+                                        pointedType, arraySize, isConst, isPointedConst,
+                                        isSigned);
     }
     public void AllocatePseudoGlobals(FunctionNode func)
     {

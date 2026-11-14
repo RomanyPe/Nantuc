@@ -13,7 +13,7 @@ namespace Nantuc.VmApplication.Project;
 /// <remarks>
 /// Инкапсулирует доступ к <see cref="IProjectFilesConfig"/>,
 /// <see cref="IFileService"/>, <see cref="VmCompilerOptimizator"/>
-/// и <see cref="ThrowCompiler"/> из переданного <see cref="CompilerContext"/>,
+/// и <see cref="ErrorReporter"/> из переданного <see cref="CompilerContext"/>,
 /// а также предоставляет высокоуровневые операции компиляции.
 /// </remarks>
 /// <param name="ctx">Контекст компилятора.</param>
@@ -58,7 +58,7 @@ public sealed class VmHostProject(CompilerContext ctx)
     /// <summary>
     /// Политика исключений компилятора.
     /// </summary>
-    public ThrowCompiler ThrowCompilerPolicy => _ctx.ThrowCompiler;
+    public ErrorReporter ThrowCompilerPolicy => _ctx.ErrorReporter;
 
     /// <summary>
     /// Перечисляет исходные файлы проекта.

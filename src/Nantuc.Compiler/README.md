@@ -1,238 +1,303 @@
 # Nantuc.Compiler — README
 
-> MiniC → Nantuc bytecode compiler: lexer, parser, AST, code generator with register coloring, assembler (two backends — direct and IR) and optimization infrastructure.
+> MiniC -> Nantuc bytecode compiler: lexer, parser, AST, code generator with register coloring, assembler (two backends — direct and IR), and optimization infrastructure.
 > `[← Root](../README.md) · [Common](../../src/Nantuc.Common/README.md) · [Contracts](../../src/Nantuc.Contracts/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md)`
 
-## Table of contents
+## Table of Contents
 - [About this module](#about-this-module)
 - [Local project tree](#local-project-tree)
 - [API](#api)
 - [API examples](#api-examples)
-- [How close the module is to the user](#how-close-the-module-is-to-the-user)
+- [Proximity of the module to the user](#proximity-of-the-module-to-the-user)
 - [Special information](#special-information)
-  - [Constness (`const`) — semantics and limitations](#constness-const--semantics-and-limitations) **[NEW]**
+  - [AST node catalog](#ast-node-catalog)
+  - [Overflow of narrow integer types](#overflow-of-narrow-integer-types) **[NEW]**
+  - [Constness (`const`) — semantics and limitations](#constness-const--semantics-and-limitations)
   - [NANASM assembler: data sections](#nanasm-assembler-data-sections)
-  - [Diagnostics: `DiagnosticData` and AOT](#diagnostics-diagnosticdata-and-aot) **[NEW]**
+  - [Instruction format and `InstructionEncoder`](#instruction-format-and-instructionencoder)
+  - [Diagnostics: `DiagnosticData` and AOT](#diagnostics-diagnosticdata-and-aot)
 - [What to fix](#what-to-fix)
 
 ## About this module
 
-`Nantuc.Compiler` is the frontend and backend of the Nantuc platform compiler. The frontend accepts MiniC source (a subset of C: integer types, `struct`, pointers, arrays, `sizeof`, `asm` blocks, **`const` qualifiers** **[NEW]**), builds an AST and generates bytecode through a two-stage scheme: code generator → assembler → 32-bit ISA words. The backend is two-level: either direct writing to a `MemoryStream` (`Assembler`) or building a list of IR instructions (`IRAssembler`) with IR optimization capability.
+`Nantuc.Compiler` is the frontend and backend of the Nantuc platform compiler. The frontend accepts MiniC source (a subset of C: integer types, `struct`, pointers, arrays, `sizeof`, `asm` blocks, **`const` qualifiers**, **overflow semantics of narrow integers**), builds an AST, and generates bytecode via a two-stage scheme: code generator -> assembler -> 32-bit ISA words. The backend is two-level: either direct writing to a `MemoryStream` (`Assembler`), or building a list of IR instructions (`IRAssembler`) with the possibility of IR optimizations.
 
-The module depends on `Common` (`OpCode`/`RegType`/`OpCodeSize`/`InstructionDecoder`), `Contracts` (`OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`) and `Diagnostics` (`ThrowCompiler`/`ErrorCode`, **`DiagnosticData`** **[NEW]**). It contains no `unsafe` code itself — `stackalloc` only in `Assembler.Align8` (0–7 bytes, WASM-safe).
+The module depends on `Common` (`OpCode`/`RegType`/`OpCodeSize`/`InstructionDecoder`), `Contracts` (`OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`), and `Diagnostics` (`ErrorReporter`/`ErrorCode`, **`DiagnosticData`**). It contains no `unsafe` code itself — `stackalloc` only in `Assembler.Align8` (0–7 bytes, WASM-safe).
 
 Key roles of the module:
-- Frontend: `Lexer`, `Parser`, `ASTNode` hierarchy (28 types), `MiniCLanguageDefinition`, **`TokenTypeExtension`** **[NEW]**.
-- Code generator: `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator` (greedy coloring of the interference graph), `FunctionContext`, `VariableAccessor`.
-- Assembler: `AssemblerBase` (abstraction), `Assembler` (direct), `IRAssembler` (IR), `AssemblerParser`, `InstructionEncoder`, `AsmExtensions`.
-  **`AssemblerParser` supports `.data`/`.text` sections and data directives** (`.byte`, `.word`, `.dword`, `.quad`, `.ascii`, `.asciz`, `.zero`).
+- Frontend: `Lexer`, `Parser`, **`Nantuc.Compiler.C.AST`** — 28 AST nodes in separate files, `MiniCLanguageDefinition`, **`TokenTypeExtension`**.
+- Code generator: `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator` (greedy interference-graph coloring), `FunctionContext`, `VariableAccessor`, **overflow casts via `CASTZ`/`CASTS`**.
+- Assembler: `AssemblerBase` (abstraction), `Assembler` (direct), `IRAssembler` (IR), `AssemblerParser`, `InstructionEncoder`, `AsmExtensions`, `AsmLanguageDefinition`.
+  **`AssemblerParser` supports `.data`/`.bss`/`.text`/`.code` sections and data directives** (`.byte`, `.word`, `.dword`, `.quad`, `.ascii`, `.asciz`, `.zero`).
 - Optimizations: `AstOptimizer`, `IROptimizer` — a framework with `IAstOptimizationRule`/`IOptimizerIRRule` interfaces; **there are no concrete rules in this batch**.
 - Struct layout: `StructLayout`, `FieldInfo` — field alignment to 8 bytes, `Resolve` with iterative dependency resolution.
 
-> **XML documentation is fragmentary.** `AssemblerParser` (class header), `Assembler` (partially), `IOptimizerIRRule`, `IAstOptimizationRule` are fully documented. Without `///` — the entire AST hierarchy (28 types, only inline `//` comments in the file header), `Lexer`, `Parser`, `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator`, `CodeGenUtils`, `GlobalMemoryManager`, `VariableAccessor`, `AsmLanguageDefinition`. Details and defects — in the [What to fix](#what-to-fix) section.
+> **XML documentation is fragmentary.** Fully documented: `AssemblerParser` (class header — but not synchronized with new opcodes, see item 25), `Assembler` (partially), `IOptimizerIRRule`, `IAstOptimizationRule`, `InstructionEncoder` (format + regions). Without `///` — the entire AST hierarchy (28 types in `C/AST/`, only inline `//` comments in the file header), `Lexer`, `Parser`, `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator`, `RegisterAllocator`, `CodeGenUtils`, `GlobalMemoryManager`, `VariableAccessor`, `IRAssembler`, `IROptimizer`, `AsmExtensions`. Details and defects — in the [What to fix](#what-to-fix) section.
 
 ## Local project tree
-
-Namespaces by layer, files flat within them:
 
 ```
 Nantuc.Compiler/
 ├── Nantuc.Compiler.csproj            # net10.0, refs Common+Contracts+Diagnostics
 │
 ├── C/                                 # Frontend (namespace Nantuc.Compiler.C)
-│   ├── ASTNode.cs                     # ASTNode + 28 descendants
-│   ├── Lexer.cs                       # Token, TokenType, Lexer
-│   ├── Parser.cs                      # Parser (recursive descent)
-│   ├── MiniCLanguageDefinition.cs     # Keywords/Operators/Punctuation (FrozenSet)
-│   ├── StructLayout.cs                # StructLayout, FieldInfo
-│   ├── TokenTypeExtension.cs          # TokenType.AsText — switch without reflection, AOT-safe [NEW]
+│   ├── Lexer.cs                       # Token, TokenType, Lexer + 3-character operators (<<=, >>=)
+│   ├── Parser.cs                      # Parser (recursive descent); ParseFunction(..., isReturnPointer)
+│   ├── MiniCLanguageDefinition.cs     # Keywords/Operators (FrozenSet)
+│   ├── StructLayout.cs                # StructLayout (Dictionary<string, FieldInfo>), FieldInfo
+│   ├── TokenTypeExtension.cs          # TokenType.AsText — switch without reflection, AOT-safe
+│   │
+│   ├── AST/                           # namespace Nantuc.Compiler.C.AST
+│   │   ├── ASTNode.cs
+│   │   ├── ProgramNode.cs
+│   │   ├── StructDeclNode.cs
+│   │   ├── FunctionNode.cs            # + ReturnIsPointer
+│   │   ├── ParameterNode.cs           # + IsConst/IsPointedConst
+│   │   ├── VariableNode.cs            # + IsConst/IsPointedConst
+│   │   ├── BlockNode.cs
+│   │   ├── IfNode.cs / WhileNode.cs / DoWhileNode.cs / ForNode.cs
+│   │   ├── ReturnNode.cs / BreakNode.cs / ContinueNode.cs / InlineAsmNode.cs
+│   │   ├── NumberNode.cs / IdentifierNode.cs
+│   │   ├── AssignmentNode.cs          # Name, IndexExpr, LValue, CompoundOp
+│   │   ├── BinaryOpNode.cs / UnaryOpNode.cs / IncrementNode.cs
+│   │   ├── FunctionCallNode.cs / IndirectCallNode.cs
+│   │   ├── ArrayAccessNode.cs / AddressOfNode.cs / DereferenceNode.cs
+│   │   ├── MemberAccessNode.cs        # IsArrow
+│   │   └── SizeofTypeNode.cs / SizeofExprNode.cs
 │   │
 │   ├── CodeGenerator/                 # namespace Nantuc.Compiler.C.CodeGenerator
-│   │   ├── CodeGenUtils.cs            # static size/alignment utilities
-│   │   ├── ExpressionGenerator.cs     # expression generation + const checks [CONST]
-│   │   ├── FunctionContext.cs         # function context + save depth analysis + const flags [CONST]
-│   │   ├── FunctionGenerator.cs       # prologue/epilogue, function traversal + const → GlobalMemoryManager [CONST]
-│   │   ├── GlobalInfo.cs              # DTO for globals + IsConst/IsPointedConst [CONST]
-│   │   ├── GlobalMemoryManager.cs     # global registry + labels + const flags [CONST]
-│   │   ├── RegisterAllocator.cs       # greedy graph coloring + CollectAddressTakenVars [FIX]
-│   │   ├── StatementGenerator.cs      # statement generation + CheckConstTarget [CONST]
-│   │   ├── VarLocation.cs             # VarLocation + RegisterAllocationResult + const flags [CONST]
-│   │   └── VariableAccessor.cs        # variable load/store + IsConst/IsPointedConst [CONST]
+│   │   ├── CodeGenUtils.cs            # size/alignment utilities + IsSignedType + EmitCastToType
+│   │   ├── ExpressionGenerator.cs     # expressions + CheckConstTarget + overflow casts
+│   │   ├── FunctionContext.cs         # context + ReturnSize/ReturnIsSigned/ReturnIsVoid
+│   │   ├── FunctionGenerator.cs       # prologue/epilogue, argument and return casts
+│   │   ├── GlobalInfo.cs              # + IsSigned
+│   │   ├── GlobalMemoryManager.cs     # global registry, IsSigned is computed
+│   │   ├── RegisterAllocator.cs       # greedy coloring + CollectAddressTakenVars
+│   │   ├── StatementGenerator.cs      # statements + overflow casts on all lvalues
+│   │   ├── VarLocation.cs             # + IsSigned
+│   │   └── VariableAccessor.cs        # load/store with canonicalization via CASTZ/CASTS
 │   │
-│   └── Optimizators/                  # namespace Nantuc.Compiler.C.Optimizators
-│       ├── AstOptimizer.cs            # AstOptimizer + OptimizationResult
+│   └── Optimizations/                  # namespace Nantuc.Compiler.C.Optimizations
+│       ├── AstOptimizer.cs
 │       ├── IAstOptimizationRule.cs
 │       └── IRogOptimization.cs
 │
 └── ASM/                               # Backend (namespace Nantuc.Compiler.ASM)
-    ├── Assembler.cs                    # direct writing to MemoryStream
-    ├── AssemblerParser.cs              # text assembler → AssemblerBase
-    │                                   # + AsmLanguageDefinition (Mnemonics/Registers)
-    │                                   # + .data / .text support (buffering, EmitData at the end)
+    ├── Assembler.cs                    # direct writing to MemoryStream + label patching
+    ├── AssemblerParser.cs              # text -> AssemblerBase; .data/.bss/.text/.code;
+    │                                   # data directives; NormalizeSizeExtension
+    │                                   # _opMapLex + CASTZ/CASTS; FormatIWithSize
     │
     ├── Base/
-    │   └── AssemblerBase.cs            # emitter abstraction
+    │   └── AssemblerBase.cs            # BaseAddress/ErrorReporter/SectionSize/DataSectionStart
     │
     ├── IR/
-    │   ├── AsmInstruction.cs           # AsmItem, AsmLabel, AsmData, AsmInstruction
-    │   ├── IRAssembler.cs              # IR collector, two-pass Build()
+    │   ├── AsmInstruction.cs
+    │   ├── IRAssembler.cs
     │   ├── IOptimizerIRRule.cs
     │   └── IROptimizer.cs
     │
     └── Utils/
-        └── InstructionEncoder.cs       # Encode*, extension blocks on RegType/OpCode/OpCodeSize
-                                        # + AsmExtensions (Emit* on AssemblerBase)
+        └── InstructionEncoder.cs       # Encode/Decode (incl. CASTZ/CASTS)
+                                        # + extension blocks on RegType/OpCode/OpCodeSize
+                                        # + AsmExtensions (Emit* + EmitInstI)
 ```
 
 Organization notes:
-- The frontend (`C/*`) knows about bytecode through `OpCode`/`RegType`/`OpCodeSize`, but not about `Assembler`/`IRAssembler` — the code generator works through `AssemblerBase` extension methods from `Utils/InstructionEncoder.cs`.
+- The frontend (`C/*` and `C/AST/*`) knows about bytecode via `OpCode`/`RegType`/`OpCodeSize`, but not about `Assembler`/`IRAssembler` — the code generator works through `AssemblerBase` extension methods from `Utils/InstructionEncoder.cs`.
+- **AST nodes are moved into a separate namespace `Nantuc.Compiler.C.AST` and physically split into files in `C/AST/` (one node per file, except the base `ASTNode.cs`)**.
 - Two backends: `Assembler` (direct, `MemoryStream` + `BinaryWriter`) and `IRAssembler` (list of `AsmItem`). `AssemblerParser` works with either through `AssemblerBase`.
 - Optimizations: `AstOptimizer` (AST-level) and `IROptimizer` (IR-level) — both frameworks, awaiting concrete rules.
 - **`TokenTypeExtension.AsText`** — the only place where `TokenType` is turned into a string; used everywhere in diagnostics instead of `Enum.ToString()` (AOT-safe, no reflection, no boxing).
+- **`AsmLanguageDefinition.Mnemonics`/`Registers`** — the source of truth for NANASM scripts, but **not synchronized with the XML header of `AssemblerParser`** (see item 22).
 
 ## API
 
-### Overall picture
+### General picture
 
 | Type | Namespace | Kind | Purpose |
 |---|---|---|---|
-| `ASTNode` + 28 descendants | `C` | `abstract class` / `class` | AST hierarchy: `ProgramNode`, `FunctionNode`, `BlockNode`, `VariableNode`, `AssignmentNode`, `BinaryOpNode`, `IfNode`, `WhileNode`, `ForNode`, `ReturnNode`, `FunctionCallNode`, `ArrayAccessNode`, `AddressOfNode`, `DereferenceNode`, `InlineAsmNode`, `StructDeclNode`, `MemberAccessNode`, `BreakNode`, `ContinueNode`, `DoWhileNode`, `IncrementNode`, `SizeofTypeNode`, `SizeofExprNode` |
-| `Lexer` | `C` | `class` | Tokenization; `Token`, `TokenType` |
-| `Parser` | `C` | `class` | Recursive descent → `ProgramNode`; **`ParseDeclSpec` for `const` qualifiers** [CONST] |
-| `MiniCLanguageDefinition` | `C` | `static partial class` | `Keywords`/`Operators`/`Punctuation` (`FrozenSet`); **`const` in `Keywords`** [CONST] |
-| `StructLayout` / `FieldInfo` | `C` | `class` / `record` | Struct layout, `Resolve` with iterative resolution |
-| `TokenTypeExtension` | `C` | `static class` | **`extension(TokenType).AsText`** — manual switch, AOT-safe [NEW] |
-| `CodeGenUtils` | `C.CodeGenerator` | `static class` | `GetSizeForType`/`GetSizeInBytes`/`GetAlignment`/`IsPrimitiveType`/`EmitMultiplyByConstant` |
-| `ExpressionGenerator` | `C.CodeGenerator` | `class` | Expression generation (2 `GenerateExpression` overloads); **`const` checks in `GenerateIncrement`** [CONST] |
-| `StatementGenerator` | `C.CodeGenerator` | `class` | Statement generation (`GenerateBlock`, `GenerateIf`, ...); **`CheckConstTarget` at the start of `GenerateAssignment`** [CONST] |
-| `FunctionGenerator` | `C.CodeGenerator` | `class` | Entry point: `Generate(ProgramNode)`, prologue/epilogue, `CollectLocalVars`; **passes `IsConst`/`IsPointedConst` to `GlobalMemoryManager.Allocate`** [CONST] |
-| `FunctionContext` | `C.CodeGenerator` | `class` | `Create(FunctionNode, ...)` → `VarMap`, `TotalLocalSize`, `SaveAreaSize` (via `ComputeMaxBinaryDepth`); **`IsConst`/`IsPointedConst` in `VarLocation`** [CONST] |
-| `RegisterAllocator` | `C.CodeGenerator` | `static class` | `AllocateRegisters(...)` → `RegisterAllocationResult` (greedy coloring); **`CollectAddressTakenVars`** [FIX] |
-| `VariableAccessor` | `C.CodeGenerator` | `class` | `LoadToRegister`/`StoreFromRegister`/`LoadAddressToRegister`/`TryGetRegister`; **`IsConst`/`IsPointedConst`** [CONST] |
-| `GlobalMemoryManager` | `C.CodeGenerator` | `class` | `Allocate`/`Contains`/`GetInfo`/`GetLabel`; **`isConst`/`isPointedConst` in `Allocate`** [CONST] |
-| `VarLocation` / `RegisterAllocationResult` | `C.CodeGenerator` | `class` | Variable metadata; **`IsConst`/`IsPointedConst`** [CONST] |
-| `AstOptimizer` | `C.Optimizators` | `class` | `Add`/`Insert`/`Remove`/`Optimize(ProgramNode)` → `IEnumerable<IReadOnlyLogOptimization>` |
-| `IAstOptimizationRule` / `IRogOptimization` | `C.Optimizators` | `interface` | Rule contract / log contract |
-| `OptimizationResult` | `C.Optimizators` | `class : IRogOptimization` | Simple log implementation |
-| `AssemblerBase` | `ASM.Base` | `abstract class` | `EmitInstruction`/`EmitInstruction64`/`EmitJump`/`MarkLabel`/`EmitData`/`Build` |
-| `Assembler` | `ASM` | `class : AssemblerBase` | Direct writing; `_patches` for labels |
-| `AssemblerParser` | `ASM` | `partial class` | Text → bytes; `Assemble(code, baseAddress, ThrowCompiler)`; `.data`/`.text` sections |
-| `AsmLanguageDefinition` | `ASM` | `static class` | `Mnemonics`/`Registers` (`FrozenSet`), `GetMnemonicRegex`/`GetRegisterRegex` |
-| `IRAssembler` | `ASM.IR` | `class : AssemblerBase` | IR collector: `GetItems()`, two-pass `Build()` |
-| `AsmItem`/`AsmLabel`/`AsmData`/`AsmInstruction` | `ASM.IR` | `class` | IR elements; `AsmInstruction` parses `raw` via `InstructionDecoder` |
-| `IOptimizerIRRule` | `ASM.IR` | `interface` | `TryOptimize(items, index, passCount, out newIndex)` |
-| `IROptimizer` | `ASM.IR` | `class` | `Optimize(items, maxPasses)` to a fixed point |
-| `InstructionEncoder` | `ASM.Utils` | `static class` | `Encode`/`EncodeR`/`EncodeI`/`EncodeU`/`EncodeJ`, `Decode`, extension blocks |
-| `AsmExtensions` | `ASM.Utils` | `static class` | `EmitMov`/`EmitAdd`/`EmitLdi`/`EmitJmp`/`EmitLoad`/`EmitStore`/… on `AssemblerBase` |
+| `ASTNode` + 28 descendants | `C.AST` | `abstract class` / `class` | AST hierarchy. Full catalog — in the [AST node catalog](#ast-node-catalog) section |
+| `Lexer` | `C` | `class` | Tokenization; `Token`, `TokenType`; **3-character operators `<<=`/`>>=`** |
+| `Parser` | `C` | `class` | Recursive descent -> `ProgramNode`; **`ParseDeclSpec` for `const`**, **`ParseFunction(..., isReturnPointer)`** |
+| `MiniCLanguageDefinition` | `C` | `static partial class` | `Keywords`/`Operators` (`FrozenSet`); `const` in `Keywords` |
+| `StructLayout` / `FieldInfo` | `C` | `class` / `record` | Struct layout; `_fields` — `Dictionary<string, FieldInfo>` |
+| `TokenTypeExtension` | `C` | `static class` | `extension(TokenType).AsText` — manual switch, AOT-safe |
+| `CodeGenUtils` | `C.CodeGenerator` | `static class` | `GetSizeForType`/`GetSizeInBytes`/`GetAlignment`/`IsPrimitiveType`/`IsSignedType`; extension `EmitCastToType`, `EmitMultiplyByConstant` |
+| `ExpressionGenerator` | `C.CodeGenerator` | `class` | Expression generation; **`GenerateAssignmentExpr` with 4 lvalue branches**, **`CheckConstTarget`** (internal), **overflow casts** |
+| `StatementGenerator` | `C.CodeGenerator` | `class` | Statement generation; **calls `_exprGen.CheckConstTarget`**; **overflow casts on all lvalues** |
+| `FunctionGenerator` | `C.CodeGenerator` | `class` | `Generate(ProgramNode)`, prologue/epilogue; **cast of arguments r0..r3 and pseudo-globals** |
+| `FunctionContext` | `C.CodeGenerator` | `class` | `Create(...)` -> `VarMap`, `TotalLocalSize`, `SaveAreaSize`; **`ReturnSize`/`ReturnIsSigned`/`ReturnIsVoid`**, **`VarLocation.IsSigned`** |
+| `RegisterAllocator` | `C.CodeGenerator` | `static class` | `AllocateRegisters(...)` -> `RegisterAllocationResult`; `CollectAddressTakenVars` |
+| `VariableAccessor` | `C.CodeGenerator` | `class` | `LoadToRegister`/`StoreFromRegister` with **`EmitCastToType`** after LOAD and after MOV into the home register |
+| `GlobalMemoryManager` | `C.CodeGenerator` | `class` | `Allocate`/`Contains`/`GetInfo`/`GetLabel`; **`IsSigned` is computed in `Allocate`** |
+| `VarLocation` / `RegisterAllocationResult` | `C.CodeGenerator` | `class` | Variable metadata; **`IsSigned`** |
+| `AstOptimizer` | `C.Optimizations` | `class` | `Add`/`Insert`/`Remove`/`Optimize(ProgramNode)` -> `IEnumerable<IReadOnlyLogOptimization>` |
+| `IAstOptimizationRule` / `IRogOptimization` | `C.Optimizations` | `interface` | Rule contract / log contract |
+| `OptimizationResult` | `C.Optimizations` | `class : IRogOptimization` | Simple log implementation |
+| `AssemblerBase` | `ASM.Base` | `abstract class` | `Build`/`EmitInstruction`/`EmitInstruction64`/`EmitInstruction64WithLabel`/`EmitJump`/`EmitJumpToAbsolute`/`MarkLabel`/`EmitData`; properties `BaseAddress`/`ErrorReporter`/`CodeSectionSize`/`DataSectionStart`/`DataSectionSize` |
+| `Assembler` | `ASM` | `class : AssemblerBase` | Direct writing; `_patches`; `DataSection*`/`CodeSectionSize` in `Build()` |
+| `AssemblerParser` | `ASM` | `partial class` | `Assemble(code, baseAddress, ErrorReporter)`, `Build(code, asm)`, `Assemble(code, asm, allowDataSection)`; `.data`/`.bss`/`.text`/`.code` sections; **`FormatIWithSize` for `CASTZ`/`CASTS`** |
+| `AsmLanguageDefinition` | `ASM` | `static class` | `Mnemonics`/`Registers` (`FrozenSet`); regexes without `Compiled` |
+| `IRAssembler` | `ASM.IR` | `class : AssemblerBase` | `GetItems()`, two-pass `Build()`, padding `AsmData` |
+| `AsmItem`/`AsmLabel`/`AsmData`/`AsmInstruction` | `ASM.IR` | `class` | IR elements; `AsmInstruction` auto-decodes fields via `InstructionDecoder` |
+| `IOptimizerIRRule` | `ASM.IR` | `interface` | `TryOptimize(items, index, passCount, out newIndex)`, `GetLogs()`, `Clear()` |
+| `IROptimizer` | `ASM.IR` | `class` | `Optimize(items, maxPasses = 5)` — until fixed point; `Clear()` on entry |
+| `InstructionEncoder` | `ASM.Utils` | `static class` | `Encode`/`EncodeR`/`EncodeI`/`EncodeU`/`EncodeJ` + `EncodeLDI`/…; **`Decode(uint)`** with cases for `CASTZ`/`CASTS`; extension blocks |
+| `AsmExtensions` | `ASM.Utils` | `static class` | `EmitMov`/…/`EmitInstI`/`EmitInstR`/`EmitInstU`/`EmitInstJ`/`EmitInstWithData` |
 
 ### Frontend
 
-**`Lexer(source, ThrowCompiler)`** — `Tokenize() → List<Token>`. Supports `//`/`/* */`, hex (`0x`), char/string literals, `->` as a separate `TokenType.Arrow`. Operators — from `MiniCLanguageDefinition.Operators`; punctuation — from `Punctuation`. `Peek(offset = 1)` — the only lookahead; depth > 1 is not supported.
+**`Lexer(source, ErrorReporter)`** — `Tokenize() -> List<Token>`. Supports `//`/`/* */`, hex (`0x`), char/string literals, `->` as a separate `TokenType.Arrow`. **3-character operators `<<=`/`>>=` are recognized in `ReadOperator` before checking for 2-character ones** — otherwise `x >>= 1` is split into `>>` + `=` and fails in `Parser.ParseAssignment`. `Peek(offset = 1)` — the only lookahead.
 
-**`Parser(tokens, ThrowCompiler)`** — `Parse() → ProgramNode`. Handles:
-- `struct Name { ... };` — `_structNames` is filled as encountered; both `Name` and `struct Name` are supported.
+**`Parser(tokens, ErrorReporter)`** — `Parse() -> ProgramNode` (namespace `Nantuc.Compiler.C.AST`). Handles:
+- `struct Name { ... };` — `_structNames` is populated as they are encountered; both `Name` and `struct Name` are supported.
 - `#include "path"` — added to `IncludesList`.
-- `extern <type> <name>(<params>);` — `FunctionNode` with `IsExternal = true`, `Body = null!` (nobody checks afterwards).
+- `extern <type> <name>(<params>);` — `FunctionNode` with `IsExternal = true`, `Body = null!`.
 - Functions and global variables via `ParseDeclSpec`/`ParseDeclarators`.
-- `asm { ... }` — inline asm, `InlineAsmNode` with text.
-- Operator precedence: `ParseAssignment` → `ParseLogicalOr` → `ParseLogicalAnd` → `ParseBitwiseOr` → `ParseBitwiseXor` → `ParseBitwiseAnd` → `ParseEquality` → `ParseRelational` → `ParseShift` → `ParseAdditive` → `ParseMultiplicative` → `ParseUnary` → `ParsePrimary`.
+- `asm { ... }` — `InlineAsmNode` with the text.
+- Precedence: `ParseAssignment` -> `ParseLogicalOr` -> `ParseLogicalAnd` -> `ParseBitwiseOr` -> `ParseBitwiseXor` -> `ParseBitwiseAnd` -> `ParseEquality` -> `ParseRelational` -> `ParseShift` -> `ParseAdditive` -> `ParseMultiplicative` -> `ParseUnary` -> `ParsePrimary`.
 - Postfix `++`/`--`, `.`/`->`, `[i]`, `(args)` — in the `ParsePrimary` loop.
-- **`sizeof` — in `ParseUnary`, including `sizeof(const T)` and `sizeof(const T*)`** [CONST].
-- **`const` qualifiers — `ParseDeclSpec`** [CONST] (see the separate section).
+- `sizeof` — in `ParseUnary`, including `sizeof(const T)` and `sizeof(const T*)`.
+- `const` qualifiers — `ParseDeclSpec`.
+- **`ParseFunction(type, name, isReturnPointer)` — `isReturnPointer` is passed into `FunctionNode.ReturnIsPointer`** (needed for the overflow cast of `return`).
 
-**AST hierarchy** — 28 classes. `AssignmentNode` contains `LValue`, `CompoundOp` (`+=`, `<<=`, etc.), `IndexExpr` (for `arr[i] = x`). `VariableNode` contains `IsPointer`/`PointedType`/`IsArray`/`ArraySize`/`ArrayInitializer` **+ `IsConst`/`IsPointedConst`** [CONST]. `ParameterNode` **+ `IsConst`/`IsPointedConst`** [CONST]. `FunctionNode` — `LocalSize`, `IsExternal`.
+**AST hierarchy (`Nantuc.Compiler.C.AST`)** — 28 classes, split into files in `C/AST/`. The base `ASTNode` — the only abstract property is `NameNode` (`=> nameof(XxxNode)`). `AssignmentNode` contains `LValue`, `CompoundOp`, `IndexExpr`. `VariableNode` contains `IsPointer`/`PointedType`/`IsArray`/`ArraySize`/`ArrayInitializer` + `IsConst`/`IsPointedConst`. `ParameterNode` + `IsConst`/`IsPointedConst`. **`FunctionNode` — `LocalSize`, `IsExternal`, `ReturnIsPointer`**.
 
-**`TokenTypeExtension`** [NEW] — `extension(TokenType).AsText` returns a readable name (`"Identifier"`, `"Keyword"`, …) via a manual `switch`, without `Enum.ToString()`. Used in all parser messages (`Parser_ExpectedToken`, `Parser_UnexpectedToken`) — **AOT-safe, no reflection, no boxing**.
+**`TokenTypeExtension`** — `extension(TokenType).AsText` returns a readable name via a manual `switch`, without `Enum.ToString()`. Used in all parser messages — **AOT-safe, no reflection, no boxing**.
 
 ### Code generator
 
 **`FunctionGenerator.Generate(ProgramNode)`** — sequence:
-1. `GlobalMemoryManager` + `Allocate` for all `GlobalVarNodes`, **`IsConst`/`IsPointedConst` are passed** [CONST].
+1. `GlobalMemoryManager` + `Allocate` for all `GlobalVarNodes`; `IsConst`/`IsPointedConst`/`IsSigned` are computed automatically.
 2. `_functionTable` is filled from `FunctionNodes`.
-3. `MarkLabel("__global_init")` + `GenerateGlobalInit` — global initialization (scalars only, structs are skipped).
-4. `EmitJmp("func_main")` if `main` exists.
+3. `MarkLabel("__global_init")` + `GenerateGlobalInit` — initialization of globals (scalars only, structs are skipped).
+4. `EmitJmp("func_main")`.
 5. `GenerateFunction` for each non-external function.
 6. `EmitData` for globals (with `ArrayInitializer`).
-7. `EmitData` for pseudo-globals of parameters 4+ (8 bytes each).
+7. `EmitData` for pseudo-globals of parameters 4+.
 
 **`FunctionContext.Create`** — computes:
-- `VarMap`: `VarLocation` for each parameter and local variable.
+- `VarMap`: `VarLocation` for each parameter and local variable, including **`IsSigned`** (for non-pointer, non-struct).
 - `TotalLocalSize` — total size of stack variables, aligned to 8.
-- `SaveAreaSize = (ComputeMaxBinaryDepth(body) + 1) * 8` — the size of the "save area" for intermediate values in binary operations.
-- `UsedRegisters` — registers occupied by variables (from `RegisterAllocator`).
-- **`VarLocation.IsConst`/`IsPointedConst` — passed from `VariableNode`/`ParameterNode`** [CONST].
+- `SaveAreaSize = (ComputeMaxBinaryDepth(body) + 1) * 8`.
+- `UsedRegisters` — registers from `RegisterAllocator`.
+- **`ReturnSize`/`ReturnIsSigned`/`ReturnIsVoid`** — for the `return` cast in `GenerateReturn`.
 
-**`RegisterAllocator.AllocateRegisters`** — greedy coloring of the interference graph:
-- Reserves `r0..r4`, `r27`, `rFL`, `rSP`, `rHP`, `rIP` — **22 available** (`r5..r26`; the comment "23 registers" is incorrect, `r27` is reserved).
-- **Excludes variables whose address is taken (`&x`) — they must live in memory. `CollectAddressTakenVars` recursively traverses the AST and collects the names of such variables BEFORE coloring.** [FIX]
-- Builds the graph by "live ranges" (`[firstDef, lastUse]`) from a linear AST traversal via `CollectVarEvents`. If ranges intersect — an edge.
-- Coloring order — by descending degree (Welsh-Powell heuristic).
-- Candidates — scalars only, not arrays, not structs, not pointers to structs.
+**`RegisterAllocator.AllocateRegisters`** — greedy coloring:
+- Reserves `r0..r4`, `r27`, `rFL`, `rSP`, `rHP`, `rIP` — **22 available** (`r5..r26`; the comment in the code “23 registers” is incorrect, see item 6).
+- **Excludes variables whose address is taken (`&x`)** — `CollectAddressTakenVars` before coloring.
+- Builds the graph by `[firstDef, lastUse]`; coloring order is by descending degree.
 
-**`ExpressionGenerator.GenerateExpression(expr)`** (without `targetReg`) — always generates into `r0`. The second overload `(expr, targetReg)`:
-- If `targetReg == r0` — delegates to the first.
-- Otherwise — a `switch` on type; for unknown — `GenerateExpression(expr); EmitMov(targetReg, r0)`.
+**`ExpressionGenerator.GenerateExpression(expr)`** (without `targetReg`) — always into `r0`. The second overload `(expr, targetReg)`:
+- `targetReg == r0` — delegates to the first.
+- Otherwise `switch` by type; unknown — `GenerateExpression(expr); EmitMov(targetReg, r0)`.
 
-Specifics:
-- `BinaryOpNode` with `IsComparisonOperator` — `Cmp` + jumps → `1`/`0` into `targetReg`.
+**`GenerateAssignmentExpr(assign, targetReg)`** — **assignment-as-expression** (result = new value). Covers:
+- `arr[i] = value` (via `StoreR0ToArrayElement`)
+- `*ptr = value` (via `GenerateExpression(operand, r0)` + `STORE_IND`)
+- `obj.field = value` (via `GenerateMemberAddress(member, r0)` + `STORE_IND`)
+- `x = value` (via `StoreFromRegister`)
+- compound: `arr[i] op= value`, `*p op= value`, `obj.f op= value`, `x op= value` — via `GenerateCompoundAssignmentExpr` -> `GenerateCompoundIndirectExpr` / `GenerateCompoundIdentExpr`.
+- **`CheckConstTarget` at the beginning** — the single point of `const` checking.
+- **`EmitCastToType` after each write** — overflow for narrow types.
+
+Specifics of `GenerateBinaryOp`:
+- Comparisons — `Cmp` + jumps -> `1`/`0`.
 - `&&`/`||` — `GenerateLogicalAndOr`, result in `r0`, then `Mov(targetReg, r0)`.
-- Constant folding: `NumberNode op NumberNode` → `Ldi(targetReg, result)`.
-- Optimization `targetReg == left operand`: right operand in `r1`/`r2`, `ApplyPointerArithmeticScaling` for `+`/`-` with pointers, `EmitBinaryOperation`.
-- Pointer arithmetic: `ptr + int` — scaling `int` by `sizeof(*ptr)`; `int + ptr` (for `+`) — same. `ptr - ptr` is not scaled (byte difference, no division).
-- **`GenerateIncrement` performs `const` checks at the start (see the `const` section)** [CONST].
+- Constant folding: `NumberNode op NumberNode`.
+- Optimization `targetReg == left operand`: right into `r1`/`r2`, `ApplyPointerArithmeticScaling` for `+`/`-` with pointers.
+- Pointer arithmetic: `ptr ± int` — scaling `int` by `sizeof(*ptr)`; `int + ptr` — the same. `ptr - ptr` is not scaled.
 
-**`SaveRegToStack`/`RestoreRegFromStack`** — use `ExpressionSaveDepth` (incremented on `Save`, decremented on `Restore`). Slot: `TotalLocalSize + ExpressionSaveDepth * 8`. Address via `ADDR_SCRATCH_REG_EN = r27`, `Ldi(slot) + Add(rSP)`.
+**`GenerateIncrement`** — `++`/`--` for `Identifier`/`ArrayAccess`/`Dereference`/`MemberAccess`. At the beginning — `const` checks. After `Inc`/`Dec` and after load — `EmitCastToType`.
 
-**`StatementGenerator`** — `GenerateBlock`, `GenerateIf`, `GenerateWhile`, `GenerateFor`, `GenerateDoWhile`, `GenerateReturn`, `GenerateBreak`, `GenerateContinue`. For loops — `_loopStack` (`(breakLabel, continueLabel)`), `while` → `continue = startLabel`, `for` → `continue = continueLabel` (before increment), `do-while` → `continue = continueLabel` (before condition).
-- **`GenerateAssignment` calls `CheckConstTarget` at the very beginning — a single point for `x = ...`, `x += ...`, `arr[i] = ...`, `*p = ...`** [CONST].
+**`SaveRegToStack`/`RestoreRegFromStack`** — `ExpressionSaveDepth`, slot = `TotalLocalSize + ExpressionSaveDepth * 8`, address via `ADDR_SCRATCH_REG_EN = r27`.
+
+**`StatementGenerator`** — `GenerateBlock`, `GenerateIf`, `GenerateWhile`, `GenerateFor`, `GenerateDoWhile`, `GenerateReturn` (with `EmitCastToType` to the return type), `GenerateBreak`, `GenerateContinue`. For loops — `_loopStack`.
+- **`GenerateAssignment` calls `_exprGen.CheckConstTarget` at the beginning**.
+- **`GenerateCompound*` — `GenerateCompoundArrayElement` / `GenerateCompoundDeref` / `GenerateCompoundMember`** with `IsArrayElemSigned`/`IsPointedSigned`/`IsFieldSigned`.
 
 ### Assembler
 
-**`Assembler`** — direct writing to `MemoryStream`/`BinaryWriter`:
+**`AssemblerBase`** — emitter abstraction. Public properties:
+- `BaseAddress` — address for jump patching.
+- `ErrorReporter` — public readonly field.
+- `CodeSectionSize` / `DataSectionStart` / `DataSectionSize` — `{ get; protected set; }`, filled in `Build()`.
+
+**`Assembler`** — direct writing to `MemoryStream`:
 - `EmitInstruction(uint)` — 4 bytes.
-- `EmitInstruction64(uint, ulong)` — 4 bytes + `Align8()` + 8 bytes.
-- `EmitJump(uint, string)` — 4 bytes + `Align8()` + placeholder, patched in `Build()`.
-- `EmitInstruction64WithLabel(uint, string)` — like jump, but for non-jump opcodes (e.g., `LDI` with a label).
+- `EmitInstruction64(uint, ulong)` — 4 + `Align8()` + 8.
+- `EmitInstruction64WithLabel(uint, string)` / `EmitJump(uint, string)` — 4 + `Align8()` + placeholder, patch in `Build()`.
+- `EmitJumpToAbsolute(uint, ulong)` — 4 + `Align8()` + 8, no patch.
 - `EmitData(string, byte[])` — `Align8()`, `MarkLabel`, write.
-- `Build()` — patches all `_patches` with absolute addresses (`_baseAddress + targetPos`), returns `byte[]`.
+- `Build()` — fixes `DataSectionStart`/`DataSectionSize`/`CodeSectionSize`, patches `_patches`.
+- `Align8()` — `stackalloc byte[pad]` (0..7 bytes).
+
+**`AssemblerParser`** — text assembler. **Full instruction set:**
+- No operands: `NOP`, `END`, `RET`, `HALT`, `WAKE`.
+- R-format (2 registers): `MOV`, `MOD`, `ADD`, `SUB`, `AND`, `OR`, `XOR`, `IN`, `OUT`, `SHR`, `SHL`, `DIV`, `MULT_INT`, `CMP`, `TEST`.
+- U-format (1 register): `JMP_IND`, `CALL_IND`, `WAKE_INT`, `INC`, `DEC`, `NOT`, `PUSH`, `POP`.
+- **I+size format (1 register + `DataSize`): `CASTZ[.S8|.S16|.S32|.S64]`, `CASTS[...]`** — new `FormatIWithSize`, emits `EmitInstI`.
+- `LDI reg, const|label` — constant (`0x...` hex) or label.
+- `LOAD[.size] reg, addr` / `LOAD_UNSAFE ...`, `STORE[.size] reg, addr` / `STORE_UNSAFE ...`.
+- `LOAD_IND[.size] regDst, regAddr` / `STORE_IND[.size] regSrc, regAddr` (+unsafe).
+- `JMP`/`JZ`/`JNZ`/`JG`/`JL`/`CALL` — label or absolute address.
+
+**Size normalization:** `NormalizeSizeExtension` fixes `LOAD . S8` -> `LOAD.S8` via `[GeneratedRegex(@"(\w)\s*\.\s*(\w)")]` (AOT-safe). There is a fast path: if there is no `' . '`, it returns the string without allocations.
+
+**Parser state is instance-level:** `_asm`, `_allowDataSection`, `_pendingData`, `_inDataSection`, `_pendingLabel`, `_currentLine` are mutated in `Assemble`. **Not thread-safe** (see item 16).
+
+**`AsmLanguageDefinition`** — `Mnemonics`/`Registers` (`FrozenSet`), regexes without `Compiled`. `_regMapLex`/`_opMapLex` — regular `Dictionary`, **plus** their `FrozenDictionary` copies `_regMap`/`_opMap` (see item 14).
 
 **`IRAssembler`** — list of `AsmItem`:
-- `EmitInstruction64(uint, ulong)` checks `HasNeed64IntData(op)` — if not, throws `Asm_InvalidInstruction`.
-- `EmitJump(uint, string)` → `AsmInstruction` with `TargetLabel`.
-- `EmitData` adds an empty `AsmData(alignment: 8)` (for alignment before the label) + `MarkLabel` + `AsmData(data, alignment: 1)`.
-- `Build()` — two-pass: first computes label addresses (`labelAddresses`), then writes bytes, patches jumps.
+- `EmitInstruction64(uint, ulong)` validates `HasNeed64IntData(op)`.
+- `EmitJump(uint, string)` -> `AsmInstruction` with `TargetLabel`.
+- `EmitJumpToAbsolute(uint, ulong)` -> `AsmInstruction(..., isAbsolute: true)`.
+- `EmitData(string, byte[])` -> padding `AsmData(alignment: 8)` + `MarkLabel` + `AsmData(data, alignment: 1)`.
+- `MarkLabel` — duplicates via `HashSet<string>`; on collision — `Asm_DuplicateLabel` with position.
+- `Build()` — two-pass: `labelAddresses`, then bytes and jump patching; `emptyPadding = new byte[7]`.
+- `GetItems()` — **internal** `List<AsmItem>`, mutations are visible to `Build()`.
 
-**`AssemblerParser`** — text assembler. See [NANASM assembler: data sections](#nanasm-assembler-data-sections).
+**`InstructionEncoder`** — encoding of a 32-bit word:
+- `Encode`/`EncodeR`/`EncodeI`/`EncodeU`/`EncodeJ` — formats.
+- Specialized: `EncodeLDI`/`EncodeLOAD`/`EncodeSTORE`/`EncodeLOAD_IND`/`EncodeSTORE_IND`/`EncodeCALL`/`EncodeRET`/`EncodeHALT`/`EncodeWAKE`/`EncodeEND`/`EncodeNOP`.
+- **`Decode(uint)`** — covers all opcodes, including `LOAD_UNSAFE`/`STORE_UNSAFE`/`LOAD_IND_UNSAFE`/`STORE_IND_UNSAFE`/`CMP`/`TEST`/`WAKE_INT`/`CASTZ`/`CASTS` (`CASTZ.S8 r0`, `CASTS.S32 r1`).
+- Extension blocks: `OpCode.ToUint()`/`OpName()`, `RegType.ToUint()`/`RegName()`, `OpCodeSize.ToUint()`/`SizeName()`.
+- Extension block on `BinaryWriter`: `WriteInstruction(uint)`, `Align8()`, `WriteInstructionWithData64(uint, ulong)`. **Not used in `Assembler`** (it has its own methods), but available for custom backends.
 
-**`InstructionEncoder`** — 32-bit word encoding:
-- `Encode(opcode, regDst, regSrc, sizeCode)` — R-format.
-- `EncodeI(opcode, reg, sizeCode)` — I-format (`LDI`/`LOAD`/`STORE`).
-- `EncodeU(opcode, reg)` — U-format (`INC`/`DEC`/`NOT`/`PUSH`/`POP`/`JMP_IND`/`CALL_IND`).
-- `EncodeJ(opcode)` — J-format (always `S64`).
-- `Decode(uint)` — reverse decomposition for debugging.
-- Extension blocks on `OpCode` (`ToUint`/`OpName`), `RegType` (`ToUint`/`RegName`), `OpCodeSize` (`ToUint`/`SizeName`).
+**`AsmExtensions`** — extension block on `AssemblerBase`. The code generator works only through these methods:
+- R-format: `EmitMov`, `EmitMult`, `EmitAdd`, `EmitSub`, `EmitMultInt`, `EmitDiv`, `EmitAnd`, `EmitOr`, `EmitXOr`, `EmitShl`, `EmitShr`, `EmitMod`, `EmitCmp`.
+- U-format: `EmitPush`, `EmitPop`, `EmitNot`, `EmitInc`, `EmitDec`.
+- Special: `EmitLdi(ulong)`, `EmitLdi(string)`, `EmitLoadInd`, `EmitStoreInd`, `EmitLoad`, `EmitStore` (2 overloads).
+- Jumps: `EmitJmp`, `EmitJz`, `EmitJnz`, `EmitJl`, `EmitJg`, `EmitCall`; `EmitInstJAbsolute`.
+- No operands: `EmitEnd`, `EmitRet`, `EmitNop`, `EmitHalt`, `EmitWake`.
+- General: `EmitInst`, `EmitInstU`, `EmitInstR`, **`EmitInstI`** (used for `CASTZ`/`CASTS`), `EmitInstJ`, `EmitInstJAbsolute`, `EmitInstWithData`.
 
-**`AsmExtensions`** — extension block on `AssemblerBase` with `Emit*` methods. The code generator works only through these methods.
+**`CodeGenUtils.EmitCastToType(reg, size, isSigned)`** — extension on `AssemblerBase`:
+- `size == S64` -> no-op;
+- `isSigned == true` -> `EmitInstI(OpCode.CASTS, reg, size)`;
+- `isSigned == false` -> `EmitInstI(OpCode.CASTZ, reg, size)`.
 
 ### Optimizations
 
 **`AstOptimizer`** — `Add`/`Insert`/`Remove`/`RemoveAt`, `Count`, `GetType(i)`. `Optimize(program)` returns `IEnumerable<IReadOnlyLogOptimization>` — one per rule. There are no rules in this batch.
 
-**`IROptimizer`** — `Optimize(items, maxPasses = 5)` — loop to a fixed point. Skips `AsmLabel`, applies the first matching rule, `i = nextIndex`.
+**`IROptimizer`** — `Optimize(items, maxPasses = 5)` — until fixed point. Skips `AsmLabel`, applies the first matching rule. `Clear()` on all rules at the beginning.
 
 ## API examples
 
-**Full pipeline: text → bytes:**
+**Full pipeline:**
 
 ```csharp
 using Nantuc.Compiler.C;
+using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.CodeGenerator;
-using Nantuc.Compiler.C.Optimizators;
+using Nantuc.Compiler.C.Optimizations;
 using Nantuc.Compiler.ASM.IR;
 using Nantuc.Common;
 using Nantuc.Diagnostics;
 
-var throwCompiler = new ThrowCompiler();
+var ErrorReporter = new ErrorReporter();
 string source = """
     const int LIMIT = 10;
     int main() {
@@ -241,183 +306,205 @@ string source = """
     }
     """;
 
-var tokens = new Lexer(source, throwCompiler).Tokenize();
-var program = new Parser(tokens, throwCompiler).Parse();
+var tokens = new Lexer(source, ErrorReporter).Tokenize();
+var program = new Parser(tokens, ErrorReporter).Parse();
 new AstOptimizer().Optimize(program);
 
-var structTable = StructLayout.Resolve(program.StructNodes, throwCompiler);
-var asm = new IRAssembler(baseAddress: 0x1000, throwCompiler);
-new FunctionGenerator(asm, structTable, throwCompiler).Generate(program);
+var structTable = StructLayout.Resolve(program.StructNodes, ErrorReporter);
+var asm = new IRAssembler(baseAddress: 0x1000, ErrorReporter);
+new FunctionGenerator(asm, structTable, ErrorReporter).Generate(program);
 
 var items = asm.GetItems();
 new IROptimizer().Optimize(items);
 
 byte[] bytecode = asm.Build();
+Console.WriteLine($"code: {asm.CodeSectionSize}, data: {asm.DataSectionSize} @ {asm.DataSectionStart}");
 ```
 
-**`const` — what now compiles:**
+**Overflow of narrow types:**
 
-```csharp
+```c
+int main() { byte b = 250; b += 10; return b; }            // 4
+int main() { byte b = 0; b--; return b; }                 // 255
+int main() { char c = 32767; c += 1; return c; }          // -32768 (char = S16)
+int main() { short s = 30000; s += 10000; return s; }     // -25536
+int main() { ushort u = 65535; u += 1; return u; }        // 0
+int main() { int i = 0x7FFFFFFF; i += 1; return i; }      // INT_MIN
+byte f() { return 300; }                                  // 44
+int g(byte x) { return x; } g(300);                       // x = 44
+byte a[2]; a[0] = 250; a[0] += 10;                        // a[0] == 4
+```
+
+**Assignment-as-expression:**
+
+```c
+int main() { int x = 10; return (x >>= 1) * 3; }          // 15 (x = 5)
+int main() { int x; return (x = 5) + 1; }                 // 6
+int main() { int x; y = (x = 3) + 1; return x + y; }      // 7
+int main() { int a[3]; int x = (a[1] = 25) + 5; ... }     // writes to a[1], not a[0]
+```
+
+**`const`:**
+
+```c
 const int LIMIT = 100;
-int * const p = &a;              // p cannot be reassigned, *p can be changed
-const int *q = &a;               // q can be reassigned, *q cannot be changed
-const int * const r = &a;        // neither
-const int arr[3] = { 1, 2, 3 };  // arr[i] cannot be changed
-void f(const int x);             // x cannot be changed in the body
-void g(const int *p);            // *p cannot be changed in the body
+int * const p = &a;              // p cannot be reassigned, *p can
+const int *q = &a;               // q can, *q cannot
+const int arr[3] = { 1, 2, 3 };  // arr[i] cannot
 
-const int x = 5;
 x = 6;              // ❌ CodeGen_AssignmentToConst (1316)
 x++;                // ❌ CodeGen_IncrementOfConst  (1317)
-x += 1;             // ❌ CodeGen_AssignmentToConst
-arr[0] = 10;        // ❌ CodeGen_AssignmentToConst
-*p = 10;            // ❌ CodeGen_AssignmentToConst (if p = const int*)
-p = &b;             // ❌ CodeGen_AssignmentToConst (if p = int* const)
+(x = 6) + 1;        // ❌ too — via GenerateAssignmentExpr
+arr[0] = 10;        // ❌
+*p = 10;            // ❌ (if p = const int*)
+p = &b;             // ❌ (if p = int* const)
 ```
 
-**Direct assembler without AST:**
-
-```csharp
-var parser = new AssemblerParser();
-byte[] bytecode = parser.Assemble("""
-    LDI r0, 42
-    LDI r1, 10
-    ADD r0, r1
-    END
-    """, baseAddress: 0x0, throwCompiler);
-```
-
-**NANASM with a data section — full example:**
+**Direct assembler + NANASM:**
 
 ```csharp
 var parser = new AssemblerParser();
 byte[] bytecode = parser.Assemble("""
     .data
-    msg:        .asciz "Hello, NANASM!\n"
-    counter:    .quad 0
-    table:      .byte 1, 2, 3, 4, 5
-    big_buf:    .zero 64
-
+    msg:   .asciz "Hello, NANASM!\n"
+    n:     .quad 0
     .text
     _start:
         LDI r0, msg
         LOAD.S8 r1, msg
-        LDI r2, 42
-        STORE.S64 r2, counter
+        CASTS.S32 r1            ; sign extension
         END
-    """, baseAddress: 0x1000, throwCompiler);
+    """, baseAddress: 0x1000, ErrorReporter);
 ```
 
-**NANASM with `.data` via explicit `allowDataSection`:**
+**Disassembly:**
 
 ```csharp
-var asm = new Assembler(baseAddress: 0x0, throwCompiler);
-var parser = new AssemblerParser();
-parser.Assemble("""
-    .data
-    v:   .dword 0xDEADBEEF
-    .text
-    _start:
-        LOAD.S32 r0, v
-        END
-    """, asm, allowDataSection: true);
-byte[] bytes = asm.Build();
+InstructionEncoder.Decode(raw);   // "ADD r1, r2" / "CASTS.S32 r0" / no more "UNKNOWN"
 ```
 
-**Inline asm in MiniC — `.data` forbidden (by default):**
+## Proximity of the module to the user
 
-```csharp
-// StatementGenerator.GenerateInlineAsm → AssemblerParser.Assemble(code, _asm, allowDataSection: false)
-// So in MiniC you cannot:
-//   asm { .data msg: .asciz "x" }  → NotSupported
-```
+Medium. A MiniC user works through `VmApplication.Compile(source)`; a language/extension author works here.
 
-## How close the module is to the user
-
-Medium. The MiniC user works with the compiler through `VmApplication` (e.g., `VmApplication.Compile(source)`), not directly with `Nantuc.Compiler`. But the language/extension author works exactly here.
-
-- Author of new syntax — `Lexer`/`Parser`/`ASTNode`.
+- Author of new syntax — `Lexer`/`Parser`/`ASTNode` (`C/AST/`).
 - Author of optimizations — `IAstOptimizationRule`/`IOptimizerIRRule`.
-- Author of a new backend — `AssemblerBase` (implement `Build`, `EmitInstruction64`, etc.).
+- Author of a new backend — `AssemblerBase`.
 - Author of a new ISA target — `InstructionEncoder` + `AsmExtensions`.
-- Author of NANASM scripts — `AssemblerParser` with `.data`/`.text` sections.
+- Author of NANASM scripts — `AssemblerParser` with `.data`/`.bss`/`.text`/`.code` sections.
 
 **What you should do:**
-- Use `IRAssembler` for the production pipeline (two-pass, supports IR); `Assembler` — only for tests/debugging.
-- Custom optimizations — via `Add` in `AstOptimizer`/`IROptimizer`; rules must be idempotent (`Clear()` is called at the start of each `Optimize`).
-- For inline asm use `AsmLanguageDefinition.Mnemonics`/`Registers` as the source of truth.
-- For static data in NANASM — `.data` + directives (`.asciz`, `.zero`, `.quad`, …).
-- **`const` — use as a guarantee of immutability in APIs and internal data** (see the `const` section).
+- Use `IRAssembler` for the production pipeline; `Assembler` — for tests.
+- Custom optimizations — via `Add` in `AstOptimizer`/`IROptimizer`; rules are idempotent (`Clear()` on entry).
+- For inline asm — `AsmLanguageDefinition.Mnemonics`/`Registers` as the source of truth.
+- **`const`** — use as an immutability guarantee in APIs and internal data.
+- **Overflow** — write to narrow types (byte/char/short/int/uint/ushort) as in normal C; casts are inserted by the code generator.
+- `InstructionEncoder.Decode(uint)` — for debugging.
 
 **What you should not do:**
-- Rely on `FunctionNode.Body` for `extern` functions — it is `null!`, nobody checks it.
-- Rely on `RegisterAllocator` for large functions (>22 simultaneously live scalars) — greedy coloring will spill to the stack.
-- Use `MiniCLanguageDefinition.GetKeywordRegex()` — dead code, may throw on WASM AOT.
-- Use `.data` in inline asm — forbidden.
-- **Use `const` on `struct` fields — not supported** (see the `const` section).
+- Rely on `FunctionNode.Body` for `extern` — it is `null!`.
+- Rely on `RegisterAllocator` for >22 simultaneously live scalars.
+- Use `MiniCLanguageDefinition.GetKeywordRegex()` — dead code.
+- `.data` in inline asm — forbidden.
+- `const` on `struct` fields — not supported.
+- One `AssemblerParser` across multiple threads — not thread-safe.
+- **Rely on compile-time folding of `const`** — it does not exist; `const int N = 10; int arr[N];` — parse error.
 
 ## Special information
 
-### WASM / cross-platform
+### AST node catalog
 
-| Aspect | Status | Comment |
+All nodes are in **`Nantuc.Compiler.C.AST`**, files in `C/AST/`. The base `ASTNode` — only `NameNode`. `Parser.Parse()` returns `ProgramNode`.
+
+**Root / declarations**
+
+| Node | Contains | Created in |
 |---|---|---|
-| Building for WASM | ✅ | No `unsafe`, `DllImport`, `LibraryImport`. `stackalloc` only in `Assembler.Align8` (0–7 bytes, WASM-safe). |
-| `NativeMemory` | ✅ | Not used. |
-| `stackalloc` / `InlineArray` | ✅ | `stackalloc byte[pad]` in `Assembler.Align8` — bounded 0..7 bytes, WASM-safe. |
-| `Interlocked` / `Volatile` | ✅ | Not used. |
-| `System.Collections.Frozen` | ✅ | `FrozenSet` in `MiniCLanguageDefinition` and `AsmLanguageDefinition`. AOT-friendly. |
-| `RegexOptions.None` | ✅ | generated via `[GeneratedRegex(KeywordPattern, RegexOptions.None)]` |
-| `[GeneratedRegex]` | ✅ | `AssemblerParser.GetRexExtensionAsm()` — AOT-safe. |
-| `Regex` without `Compiled` | ✅ | `AsmLanguageDefinition._mnemonicsRegex`/`regex` — `RegexOptions.IgnoreCase` without `Compiled`, works in AOT. |
-| `Enum.ToString()` | ⚠️ | **Removed from diagnostics** — replaced by `TokenTypeExtension.AsText` and `OpCode.OpName()` (manual switches) [FIX]. In other places (`ErrorCode` as a key) — does not leak. |
-| `DiagnosticData` | ✅ | **The string representation of the argument is built at creation, no `string.Format(object[])` with boxing, no reflection.** [NEW] |
-| Trimming | ⚠️ | `using System.Security.Cryptography;` in `ASTNode.cs` — unused, but may pull in crypto assemblies; trimming will cope, but it's sloppy. |
-| AOT | ⚠️ | The main risk is `RegexOptions.Compiled`. Everything else (switch patterns, `readonly record struct DiagnosticData`, switch expressions) — AOT-friendly. |
-| `switch` on `OpCode`/`TokenType` | ✅ | Compiles to a jump table, AOT-friendly. |
+| `ProgramNode` | `GlobalVarNodes`, `FunctionNodes`, `StructNodes`, `IncludesList` | `Parse()` |
+| `StructDeclNode` | `Name`, `Fields: List<(type, name)>` | `struct Name { ... }` branch |
+| `FunctionNode` | `Name`, `ReturnType`, `Parameters`, `Body`, `IsExternal`, `LocalSize`, **`ReturnIsPointer`** | `ParseFunction`, `extern` branch |
+| `ParameterNode` | `Type`, `Name`, `IsPointer`, `PointedType`, `IsConst`, `IsPointedConst` | `ParseFunction` |
+| `VariableNode` | `Type`, `Name`, `Initializer`, `ArrayInitializer`, `IsArray`, `ArraySize`, `IsPointer`, `PointedType`, `StructTypeName`, `IsConst`, `IsPointedConst` | `ParseVariableTail` |
 
-**Bottom line:** the compiler builds for WASM and AOT **if you remove `RegexOptions.Compiled`**. In its current form, `MiniCLanguageDefinition` is an AOT blocker on browser-wasm.
+**Statements**
 
-### Compilation pipeline
+| Node | Contains | Created in |
+|---|---|---|
+| `BlockNode` | `Statements` | `ParseBlock`, `ParseBody` |
+| `IfNode` | `Condition`, `ThenBlock`, `ElseBlock?` | `ParseIf` |
+| `WhileNode` | `Condition`, `Body` | `ParseWhile` |
+| `DoWhileNode` | `Body`, `Condition` | `ParseDoWhile` |
+| `ForNode` | `Init`, `Condition`, `Increment`, `Body` | `ParseFor` |
+| `ReturnNode` | `Value?` | `ParseReturn` |
+| `BreakNode` / `ContinueNode` | — | `ParseBreak` / `ParseContinue` |
+| `InlineAsmNode` | `AsmCode: string` | `ParseInlineAsm` |
 
-```
-source (MiniC)
-  │
-  ▼
-Lexer.Tokenize() → List<Token>
-  │
-  ▼
-Parser.Parse() → ProgramNode
-  │  (ParseDeclSpec → [const] Type [* [const]] → IsConst/IsPointedConst)
-  │
-  ├── StructLayout.Resolve(program.StructNodes)
-  │
-  ▼
-FunctionGenerator.Generate(program)
-  ├── GlobalMemoryManager.Allocate(...) — with IsConst/IsPointedConst
-  ├── GenerateGlobalInit (scalars only)
-  ├── EmitJmp("func_main")
-  ├── foreach func in FunctionNodes:
-  │     ├── CollectLocalVars(func.Body)
-  │     ├── FunctionContext.Create(...) → VarMap + const flags
-  │     ├── RegisterAllocator.AllocateRegisters(...) — &var → stack
-  │     ├── prologue: push savedRegs, sub rSP, stackAlloc, params → registers
-  │     ├── StatementGenerator.GenerateBlock(func.Body)
-  │     └── epilogue: add rSP, pop savedRegs, ret (or END for main)
-  └── EmitData for globals and pseudo-globals
-  │
-  ▼
-AssemblerBase (Assembler | IRAssembler)
-  │
-  ▼
-byte[] (32-bit ISA words)
-```
+**Expressions**
 
-> **NANASM as a separate stream:** `AssemblerParser.Assemble(...)` buffers the `.data` section and calls `_asm.EmitData(...)` at the end.
+| Node | Contains | Created in |
+|---|---|---|
+| `NumberNode` | `Value: long` | `ParsePrimary` |
+| `IdentifierNode` | `Name` | `ParsePrimary` |
+| `AssignmentNode` | `Name`, `IndexExpr?`, `LValue`, `CompoundOp?`, `Value` | `ParseAssignment` |
+| `BinaryOpNode` | `Operator`, `Left`, `Right` | `ParseLogicalOr`/`And`, `ParseBitwiseOr`/`Xor`/`And`, `ParseEquality`, `ParseRelational`, `ParseShift`, `ParseAdditive`, `ParseMultiplicative`, `ParseComma` |
+| `UnaryOpNode` | `Operator`, `Operand` | `ParseUnary` |
+| `IncrementNode` | `Target`, `Delta`, `IsPrefix` | `ParseUnary` (prefix), `ParsePrimary` (postfix) |
+| `FunctionCallNode` | `Name`, `Arguments` | `ParsePrimary` |
+| `IndirectCallNode` | `Callee`, `Arguments` | `ParsePrimary` (postfix call) |
+| `ArrayAccessNode` | `ArrayName`, `Index` | `ParsePrimary` |
+| `AddressOfNode` / `DereferenceNode` | `Operand` | `ParseUnary` |
+| `MemberAccessNode` | `Object`, `FieldName`, `IsArrow` | `ParsePrimary` |
+| `SizeofTypeNode` / `SizeofExprNode` | `TypeName`/`IsPointer`, `Operand` | `ParseUnary` |
 
-### Constness (`const`) — semantics and limitations **[NEW]**
+Total 28 descendants. **Who walks the AST in the code generator:** `ExpressionGenerator`, `StatementGenerator`, `FunctionContext.ComputeMaxBinaryDepth`, `RegisterAllocator` (`CollectVarEvents`, `CollectAddressTakenVars`), `FunctionGenerator.CollectLocalVars`. When adding a node — update all these places.
 
-`const` in MiniC is a **compile-time immutability guarantee** (not .rodata, not constant folding). The value is stored in the usual way; the prohibition on writing is diagnosed at the code generation stage.
+### Overflow of narrow integer types **[NEW]**
+
+The code generator emits `CASTZ`/`CASTS` (opcodes 43/44) after writing to a variable/register/field/array element/return — so that the value in the register is always in the canonical form of its type.
+
+**Canonical forms:**
+
+| Type | `OpCodeSize` | Signed | Range |
+|---|---|---|---|
+| `byte` | S8 | no | `0..255` (upper 56 bits — zeros) |
+| `char` | **S16** | yes | `−32768..32767`, sign-extended |
+| `short` | S16 | yes | `−32768..32767` |
+| `ushort` | S16 | no | `0..65535` |
+| `int` | S32 | yes | `−2³¹..2³¹−1`, sign-extended |
+| `uint` | S32 | no | `0..2³²−1` |
+| `long` | S64 | yes | as is |
+| `ulong` | S64 | no | as is |
+
+> **`char` in MiniC is 16-bit signed (`S16`)**, not 8-bit as in standard C. Consequences: `sizeof(char) == 2`; `char c = 120; c += 100;` -> `220` (fits in int16); `char c = 32767; c += 1;` -> `−32768` (wrap).
+
+**Where casts are inserted (`Nantuc.Compiler.C.CodeGenerator`):**
+
+| Event | Cast |
+|---|---|
+| `LOAD[.size]` from memory | `LOAD` zero-extends -> **`CASTS.S<size>`** for signed types |
+| `STORE[.size]` to memory | `STORE` itself truncates — cast not needed |
+| `x = value`, `x op= value`, `x++` (register) | after the operation — `CASTZ`/`CASTS` in the home register |
+| `(x = value)`, `(x op= value)`, `x++` in an expression | after the operation — `CASTZ`/`CASTS` in `targetReg` |
+| `arr[i] = value`, `*p = value`, `obj.f = value` | after load and after the operation — `CASTZ`/`CASTS` |
+| `arr[i]++`, `(*p)++`, `(obj.f)++` | after load and after `INC`/`DEC` — `CASTZ`/`CASTS` |
+| Call-site (argument -> `r0..r3`) | `CASTZ`/`CASTS` to the parameter type |
+| Prologue (parameter 4+ from pseudo-global) | after `LOAD` — `CASTZ`/`CASTS` |
+| `RETURN` (value in `r0`) | before `JMP epilogue` / `END` — `CASTZ`/`CASTS` to the return type (non-pointer scalar) |
+
+**What is NOT cast:**
+- Intermediate arithmetic result — C semantics: `byte + byte` yields `int`; truncation only on the next write.
+- `long`/`ulong` — `S64`, `EmitCastToType` no-op.
+- Pointers and structs.
+
+**Implementation:**
+- `CodeGenUtils.IsSignedType(type)` — `char/short/int/long` -> `true`.
+- `CodeGenUtils.EmitCastToType(reg, size, isSigned)` — extension on `AssemblerBase`.
+- `VarLocation.IsSigned` / `GlobalInfo.IsSigned` — computed in `FunctionContext.Create` / `GlobalMemoryManager.Allocate`.
+- `VariableAccessor.LoadToRegister` — `CASTS` after `LOAD`; `StoreFromRegister` — cast of the home register.
+
+### Constness (`const`) — semantics and limitations
+
+`const` in MiniC is a **compile-time immutability guarantee** (not .rodata, not constant folding). The value is stored normally; the write prohibition is diagnosed at the code generation stage.
 
 **Supported forms**
 
@@ -427,85 +514,143 @@ byte[] (32-bit ISA words)
 | `int * const p` | `p = ...; p++; p += ...;` (`*p = ...` allowed) | `IsConst = true`, `IsPointedConst = false` |
 | `const int *p` | `*p = ...; (*p)++; p[i] = ...` (`p = ...` allowed) | `IsConst = false`, `IsPointedConst = true` |
 | `const int * const p` | both | both `true` |
-| `const int arr[N]` | `arr[i] = ...; arr[i]++` | `IsPointedConst = true` (elements), `IsConst = false` |
-| `void f(const int x)` | `x = ...` in the body | `ParameterNode.IsConst = true` |
-| `void f(const int *p)` | `*p = ...` in the body | `ParameterNode.IsPointedConst = true` |
+| `const int arr[N]` | `arr[i] = ...; arr[i]++` | `IsPointedConst = true`, `IsConst = false` |
+| `void f(const int x)` | `x = ...` | `ParameterNode.IsConst = true` |
+| `void f(const int *p)` | `*p = ...` | `ParameterNode.IsPointedConst = true` |
 
-**Parsing syntax**
+**Syntax:** `Parser.ParseDeclSpec` -> `(type, isPointer, pointedType, prefixConst, ptrConst)`; `[const] type`, `type const`, `*`, `[* const]`.
 
-`Parser.ParseDeclSpec` → `(type, isPointer, pointedType, prefixConst, ptrConst)`:
-1. `[const] type` — prefixConst;
-2. `type const` — equivalent (prefixConst);
-3. `*` — isPointer;
-4. `[* const]` — ptrConst.
+**Checks in the code generator:**
+- `ExpressionGenerator.CheckConstTarget(assign)` — **internal, single point**; called from `GenerateAssignmentExpr` (expression context) and from `StatementGenerator.GenerateAssignment` (statement context).
+  - `assign.IndexExpr != null` -> `IsPointedConst(name)`;
+  - `assign.LValue is DereferenceNode` -> `IsPointedConst(ptrName)`;
+  - `assign.LValue is MemberAccessNode` -> currently skipped (TODO, item 4);
+  - simple name -> `IsConst(name)`.
+- `ExpressionGenerator.GenerateIncrement` — `IsConst`/`IsPointedConst` for `Identifier`/`ArrayAccess`/`Dereference`.
 
-`ParseVariableTail` (scalar):
-```csharp
-IsConst        = isPointer ? ptrConst : prefixConst,
-IsPointedConst = isPointer && prefixConst
-```
-
-`ParseVariableTail` (array):
-```csharp
-IsConst        = ptrConst,        // exotic: int * const arr[]
-IsPointedConst = prefixConst      // const int arr[] → elements immutable
-```
-
-`ParseFunction` (parameter) — the same formula as in the scalar branch.
-
-**Checks in the code generator**
-
-- `StatementGenerator.CheckConstTarget(assign)` — called **at the start** of `GenerateAssignment` (before compound dispatch):
-  - `assign.IndexExpr != null` → `IsPointedConst(name)`
-  - `assign.LValue is DereferenceNode` → `IsPointedConst(ptrName)`
-  - `assign.LValue is MemberAccessNode` → skipped for now (see limitations)
-  - simple name → `IsConst(name)`
-- `ExpressionGenerator.GenerateIncrement(node, targetReg)` — at the start:
-  - `IdentifierNode` → `IsConst`
-  - `ArrayAccessNode` → `IsPointedConst(name)`
-  - `DereferenceNode` → `IsPointedConst(ptrName)`
-
-**New `ErrorCode`s**
-
+**New `ErrorCode`s:**
 ```csharp
 CodeGen_AssignmentToConst = 1316,   // "Cannot assign to const '{0}'"
 CodeGen_IncrementOfConst  = 1317,   // "Cannot increment/decrement const '{0}'"
 ```
 
-Both templates are registered in `DefaultErrorMessageProvider` (`Nantuc.Diagnostics`).
+**Not supported:**
+1. `const` on `struct` fields — `CheckConstTarget` for `MemberAccessNode` does `return` (TODO).
+2. `const` at call-site — `const int*` -> `int*` is not diagnosed.
+3. Constant folding — `const int N; int arr[N];` — parse error.
+4. `const` in `extern` declarations.
+5. `&x` from `const x` yields a regular `int*`.
 
-**What is NOT supported (deliberately)**
+**With registers:** `RegisterAllocator` does not exclude `const` from candidates — writing is blocked at the code generation level, before the `Store`/`Inc`/`Dec` instruction. `&x` — `CollectAddressTakenVars` ensures such variables live in memory.
 
-1. **`const` on `struct` fields** — would require extending `FieldInfo`/`StructLayout` and checking `obj.field = ...` / `p->field = ...`. Currently `CheckConstTarget` for `MemberAccessNode` does `return` (TODO comment in the code).
-2. **`const` at call-site** — `const int*` → `int*` is not diagnosed (no argument type system).
-3. **Constant folding** — `const` does not make a variable a compile-time constant. `for (int i = 0; i < N; i++)` with `const int N` is not optimized.
-4. **`const` in `extern` declarations** — the `if (Current.Value == "extern")` block in `Parser.Parse` skips only `*`, not `const`. If needed — symmetrically.
-5. **`&x` from `const x`** — yields a regular `int*`; protection works only if the user explicitly declared `const int *p = &x`.
+### WASM / cross-platform
 
-**Interaction with registers**
+| Aspect | Status | Comment |
+|---|---|---|
+| Build to WASM | ✅ | No `unsafe`, `DllImport`, `LibraryImport`. `stackalloc` only in `Assembler.Align8` (0–7 bytes). |
+| `NativeMemory` | ✅ | Not used. |
+| `stackalloc` / `InlineArray` | ✅ | `stackalloc byte[pad]` (0..7 bytes) in `Assembler.Align8`. |
+| `Interlocked` / `Volatile` | ✅ | Not used. |
+| `System.Collections.Frozen` | ✅ | `FrozenSet` + **`FrozenDictionary`** (`_regMap`/`_opMap`). |
+| `[GeneratedRegex]` | ✅ | `AssemblerParser.GetRexExtensionAsm()` — the only regex in the hot path. |
+| `Regex` without `Compiled` | ✅ | `AsmLanguageDefinition._mnemonicsRegex`/`regex` — without `Compiled`. |
+| `Enum.ToString()` | ⚠️ | **Removed from diagnostics** — replaced with `TokenTypeExtension.AsText` / `OpCode.OpName()`. |
+| `DiagnosticData` | ✅ | Ready string at creation, no boxing or reflection. |
+| `AsmInstruction(uint, ulong, bool)` | ⚠️ | `TargetLabel = absoluteTarget.ToString()` — fallback, dead branch (item 10). |
+| Trimming | ⚠️ | `using System.Security.Cryptography;` in one of the `C/AST/` files — unused, but sloppy. |
+| AOT | ⚠️ | Main risk — `RegexOptions.Compiled`. |
+| `switch` on `OpCode`/`TokenType` | ✅ | Jump-table, AOT-friendly. |
 
-`RegisterAllocator` **does not exclude `const` variables from register candidates** — this is safe because writes to them are blocked at the `StatementGenerator`/`ExpressionGenerator` level (no `Store`/`Inc`/`Dec` instruction reaches the register of a `const` variable). The address of a `const` variable to which `&` is applied is resolved via `CollectAddressTakenVars` — also without problems.
+**Bottom line:** builds for WASM and AOT if `RegexOptions.Compiled` is removed.
+
+### Compilation pipeline
+
+```
+source (MiniC)
+  │
+  ▼
+Lexer.Tokenize() -> List<Token>                  // <<=, >>= — 3-character
+  │
+  ▼
+Parser.Parse() -> ProgramNode                     // C.AST; 28 nodes
+  │  (ParseDeclSpec: [const] Type [* [const]]; ParseFunction: isReturnPointer)
+  │
+  ├── StructLayout.Resolve(program.StructNodes)
+  │
+  ▼
+FunctionGenerator.Generate(program)
+  ├── GlobalMemoryManager.Allocate(...) — IsSigned is computed
+  ├── GenerateGlobalInit (scalars only)
+  ├── EmitJmp("func_main")
+  ├── foreach func in FunctionNodes:
+  │     ├── CollectLocalVars(func.Body)
+  │     ├── FunctionContext.Create(...) -> VarMap + IsSigned + ReturnSize/ReturnIsSigned
+  │     ├── RegisterAllocator.AllocateRegisters(...) — &var -> stack
+  │     ├── prologue: push savedRegs, sub rSP, stackAlloc, params -> registers
+  │     ├── StatementGenerator.GenerateBlock(func.Body)
+  │     └── epilogue: add rSP, pop savedRegs, ret / END for main
+  └── EmitData for globals and pseudo-globals
+  │
+  ▼
+AssemblerBase (Assembler | IRAssembler)
+  │  Assembles in Build():
+  │  - label patching
+  │  - DataSectionStart / DataSectionSize / CodeSectionSize
+  │
+  ▼
+byte[] (32-bit ISA words + 8-aligned data)
+```
+
+### Instruction format and `InstructionEncoder`
+
+32-bit ISA word:
+
+```
+Bits  0-7   : OpCode         (8 bits, up to 256 opcodes)
+Bits  8-12  : Reg1           (5 bits, destination/main register)
+Bits 13-17  : Reg2           (5 bits, second source register)
+Bits 18-19  : OpCodeSize     (2 bits: 0=S8, 1=S16, 2=S32, 3=S64)
+Bits 20-31  : unused
+```
+
+**Formats:**
+
+| Format | Method | Examples | Operands |
+|---|---|---|---|
+| R | `EncodeR(op, regDst, regSrc)` | `MOV`, `ADD`, `SUB`, `AND`, `OR`, `XOR`, `MUL`, `DIV`, `MOD`, `SHL`, `SHR`, `CMP`, `TEST`, `IN`, `OUT` | 2 registers |
+| R+size | `Encode(op, regDst, regSrc, size)` | `LOAD_IND`, `STORE_IND` (+unsafe) | 2 registers + size |
+| I | `EncodeI(op, reg, size)` | `LDI`, `LOAD`, `STORE` (+unsafe), **`CASTZ`, `CASTS`** | 1 register + size (+64-bit immediate after alignment for LDI/LOAD/STORE) |
+| U | `EncodeU(op, reg)` | `INC`, `DEC`, `NOT`, `PUSH`, `POP`, `CALL_IND`, `JMP_IND`, `WAKE_INT` | 1 register |
+| J | `EncodeJ(op)` | `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `CALL` | 64-bit address after alignment |
+| — | `EncodeEND/NOP/RET/HALT/WAKE` | — | no operands |
+
+**64-bit operands:** after the instruction — `Align8()`, then 8 bytes little-endian.
+
+**`Decode(uint)`** — reverse decomposition (for debugging):
+```csharp
+InstructionEncoder.Decode(raw);   // "ADD r1, r2" / "LOAD.S32 r0, [data64]" / "CASTS.S16 r5"
+```
 
 ### NANASM assembler: data sections
-
-`AssemblerParser` can parse `.data`/`.text` sections and data directives. This is needed so that NANASM scripts can describe static data (strings, arrays, buffers) without manually generating `.byte`.
 
 **Section directives**
 
 | Directive | Action |
 |---|---|
 | `.data`, `.bss`, `.section .data`, `.section .bss` | open the data section |
-| `.text`, `.code`, `.section .text`, `.section .code` | close the data section (then — regular code) |
+| `.text`, `.code`, `.section .text`, `.section .code` | close the data section |
 
-**Data directives** (only inside `.data`)
+`.bss` is semantically identical to `.data`.
+
+**Data directives** (only inside `.data`/`.bss`)
 
 | Directive | Alias | Width | Example | Result |
 |---|---|---|---|---|
 | `.byte` | `db` | 1 | `.byte 1, 2, 3` | `[01 02 03]` |
 | `.byte` | — | 1 | `.byte "abc"` | `[61 62 63]` |
-| `.word` | `dw` | 2 | `.word 0x1234, 0x5678` | `[34 12 78 56]` |
+| `.word` | `dw` | 2 | `.word 0x1234` | `[34 12]` |
 | `.dword` | `dd` | 4 | `.dword 0xDEADBEEF` | `[EF BE AD DE]` |
-| `.quad` | `dq` | 8 | `.quad 0x1122334455667788` | 8 bytes little-endian |
+| `.quad` | `dq` | 8 | `.quad 0x...` | 8 bytes little-endian |
 | `.ascii` | — | 1 | `.ascii "Hi"` | `[48 69]` |
 | `.asciz` | `.string` | 1 (+NUL) | `.asciz "Hi"` | `[48 69 00]` |
 | `.zero` | `.space` | N | `.zero 256` | 256 zero bytes |
@@ -514,171 +659,111 @@ Both templates are registered in `DefaultErrorMessageProvider` (`Nantuc.Diagnost
 
 | Limitation | Reason | What to do |
 |---|---|---|
-| `.data` forbidden in MiniC inline asm | `allowDataSection: false` by default | Move `.data` to a separate NANASM file |
-| `.quad <label>` not supported | The `EmitData` patch mechanism cannot handle label operands | `.quad 0` + initialization in `__global_init` |
-| `.align N` not supported | `EmitData` always aligns to 8 | Rely on automatic 8-byte alignment |
-| `;` inside a string is truncated | `Split(['\n', ';'])` | Do not use `;` in `.ascii`/`.asciz` |
-| Little-endian only for now | Nantuc platform | — |
+| `.data` forbidden in inline asm | `allowDataSection: false` | Move `.data` into a NANASM file |
+| `.quad <label>` not supported | No label patching in `EmitData` | `.quad 0` + initialization in `__global_init` |
+| `.align N` not supported | `EmitData` always aligns to 8 | Rely on auto-8 |
+| `;` in a string is truncated | `Split(['\n', ';'])` | Do not use `;` in `.ascii`/`.asciz` |
+| Little-endian only | Nantuc platform | — |
 
-### Diagnostics: `DiagnosticData` and AOT **[NEW]**
+### Diagnostics: `DiagnosticData` and AOT
 
-Diagnostic arguments are now passed as `ReadOnlySpan<DiagnosticData>`, not `ReadOnlySpan<object>`:
+Diagnostic arguments — `ReadOnlySpan<DiagnosticData>` (not `object[]`):
 
 ```csharp
 public readonly record struct DiagnosticData
 {
     public string Text { get; }
-    // ...
 }
 ```
 
 What this gives for AOT:
+- No boxing of `int`/`char`/enum.
+- No virtual `Object.ToString()` — the string is already ready.
+- `Enum.ToString()` is removed from diagnostics (`TokenTypeExtension.AsText` / `OpCode.OpName()`).
+- `Type.Name` is not passed to diagnostics.
 
-- **No boxing** of `int`/`char`/enum when packing into `object`.
-- **No virtual `Object.ToString()`** at format time — the string is already ready.
-- **`Enum.ToString()` in diagnostics is removed** — all enums are converted via `TokenTypeExtension.AsText` / `OpCode.OpName()` (manual switches, zero reflection).
-- **`Type.Name` is not passed to diagnostics** — the caller passes a ready string.
-
-Remaining reflection-adjacent places in the BCL (not in this module):
-- `ErrorCode` as a key in `FrozenDictionary` — does not leak into `Enum.ToString()`.
-- `DiagnosticData.Of<T>(T?)` — if `T` has not overridden `ToString()`, the BCL may read metadata. Use only for known types.
-
-**Bottom line:** `DiagnosticData` is fully AOT-safe for all current `ThrowCompiler.Throw` calls.
+**Bottom line:** `DiagnosticData` is fully AOT-safe.
 
 ### `Assembler` vs `IRAssembler`
 
 | | `Assembler` | `IRAssembler` |
 |---|---|---|
 | Storage | `MemoryStream` + `BinaryWriter` | `List<AsmItem>` |
-| Label patching | `_patches` in `Build()` | `labelAddresses` in the first pass of `Build()` |
+| Label patching | `_patches` in `Build()` | `labelAddresses` in the first pass |
 | IR | ❌ | ✅ |
-| `HasNeed64IntData` check | ❌ | ✅ |
+| `HasNeed64IntData` check | ❌ (only in `EmitInstruction64`; `EmitInstruction64WithLabel` does not check — item 15) | ✅ in `EmitInstruction64` (also not in `EmitInstruction64WithLabel`) |
 | Duplicate label validation | ✅ | ✅ |
 | Two-pass Build | ❌ | ✅ |
 | `.data` via `AssemblerParser` | ✅ | ✅ |
+| `EmitData` | `Align8()` + `MarkLabel` + bytes | padding `AsmData` + `MarkLabel` + `AsmData(data)` |
+| `GetItems()` mutable | — | ✅ (internal `List<AsmItem>`) |
 
 ## What to fix
 
-In descending order of importance. `[WASM]` — risks for browser-WASM/AOT; `[API]` — public surface; `[CONST]` — incompleteness of const semantics; `[Defect]` — behavior that does not match expectations/XML; `[Housekeeping]` — code organization; `[XML]` — documentation.
+In descending order of importance.
 
-### `const` — incompleteness of semantics **[CONST]** **[NEW]**
+### `const` — incomplete semantics
 
-3. **[CONST] Expression-context `const` violation is not diagnosed.**  
-   File: `ExpressionGenerator.GenerateAssignmentExpr`.  
-   ```csharp
-   private void GenerateAssignmentExpr(AssignmentNode assign, RegType targetReg)
-   {
-       GenerateExpression(assign.Value, targetReg);
-       _varAccessor.StoreFromRegister(assign.Name, targetReg);   // ← no CheckConstTarget
-   }
-   ```
-   `StatementGenerator.CheckConstTarget` is called **only** for statement-level `AssignmentNode`. But `AssignmentNode` can also appear in an expression: `(x = 5) + 1`, `(x += 1) * 2`. In this case:
-   - `x` may be `const` → the check is skipped → the write occurs.
-   - For `MemberAccessNode`/`DereferenceNode` in `assign.Name == null!` → `StoreFromRegister` throws `UndefinedVariable` (this is item 4 below).
-   
-   **Fix:** in `GenerateAssignmentExpr`, either delegate to `StatementGenerator.GenerateAssignment`, or duplicate `CheckConstTarget` (the former is better — it will also eliminate the NRE for `MemberAccessNode`).
-
-4. **[CONST] `CheckConstTarget` for `MemberAccessNode` — TODO.**  
-   File: `StatementGenerator.CheckConstTarget`: `if (assign.LValue is MemberAccessNode) return;   // TODO`.  
+1. **[CONST] `CheckConstTarget` for `MemberAccessNode` — TODO.**  
+   File: `ExpressionGenerator.CheckConstTarget`: `if (assign.LValue is MemberAccessNode) return;   // TODO`.  
    **Consequence:** `struct Point p; p.x = 5` is not checked, even if the field is declared as `const int x` (which is currently impossible — `const` on struct fields is also not supported).  
-   **Fix:** extend `FieldInfo` with `IsConst`/`IsPointedConst` fields, thread them through `StructLayout`, check in `CheckConstTarget`.
+   **Fix:** extend `FieldInfo` with `IsConst`/`IsPointedConst` fields, pass through `StructLayout`, check in `CheckConstTarget`.
 
-5. **[CONST] `const` qualifier in `extern` declarations — not parsed.**  
-   File: `Parser.Parse`, block `if (Current.Value == "extern")`. Skips `*`, but not `const`.  
-   **Fix:** mirror `ParseDeclSpec`.
+2. **[CONST] `const` qualifier in `extern` declarations — not parsed.**  
+   File: `Parser.Parse`, `extern` block. Skips `*`, but not `const`.  
+   **Fix:** symmetrically to `ParseDeclSpec`.
 
 ### API / Defects
 
-6. **[API] `RegisterAllocator` — the comment "23 registers" is incorrect.**  
-   File: `RegisterAllocator.cs`, `GetAvailableRegisters()`: `return regs;   // r5..r27 — 23 registers for variables`. In `ReservedRegs`, `RegType.r27` is explicitly listed, so there are **22** available (`r5..r26`).  
-   Fix: correct the comment.
+4. **[API] `StatementGenerator.GenerateAssignment` — case 4 (direct assign) — dead code.**  
+   The condition `assign.LValue == null` never holds: `Parser.ParseAssignment` for `IdentifierNode` creates `new AssignmentNode(...) { LValue = left, ... }` — `LValue` is always set.  
+   **Fix:** replace with `assign.LValue is IdentifierNode` or `assign.Name != null && assign.IndexExpr == null && assign.CompoundOp == null`.
 
-7. **[API] `StatementGenerator.GenerateAssignment` — case 4 (direct assign) — dead code.**  
-   File: `StatementGenerator.cs`, `case 4`: condition `assign.LValue == null`. But `Parser.ParseAssignment` for `IdentifierNode` creates `new AssignmentNode(id.Name, right) { LValue = left, ... }` — `LValue` is **always** set. The condition never executes.  
-   Fix: remove the `assign.LValue == null` check; check `assign.LValue is IdentifierNode` or `assign.Name != null && assign.IndexExpr == null && assign.CompoundOp == null`.
+7. **[API] `AsmInstruction(uint, ulong, bool)` — fallback via `ToString()`.**  
+   `TargetLabel = absoluteTarget.ToString()` — dead branch (`IRAssembler.EmitJumpToAbsolute` always `isAbsolute: true`).  
+   **Fix:** remove `isAbsolute` from the constructor, split by argument type.
 
-8. **[API] `RegisterAllocator.BuildInterferenceGraph` — linear live ranges, does not account for loops.**  
-   File: `RegisterAllocator.cs`. `CollectVarEvents` numbers positions in the AST traversal; a variable defined in a loop but not used afterwards will get the range `[defPos, defPos]`.  
-   Fix: either document as "best effort", or implement real live-range analysis.
+8. **[API] `ExpressionGenerator.GenerateBinaryOp` — `&&`/`||` into `targetReg` via `Mov`.**  
+   **Fix:** `GenerateLogicalAndOr(binop, targetReg)`.
 
-9. **[API] `FunctionGenerator.GenerateGlobalInit` — struct initialization is silently unsupported.**  
-   File: `FunctionGenerator.cs`: `if (CodeGenUtils.IsStructType(global.Type, _structTable)) continue;`. A global struct with an `Initializer` (`Point origin = {0, 0};`) will be ignored.  
-   Fix: support it or throw `NotSupported`.
+9. **[API] `AssemblerParser.TryAddIntegerData` — `.quad <label>` is not supported yet.**  
+   **Fix:** label patching mechanism in `EmitData`/`Build()`.
 
-10. **[API] `AsmInstruction(uint, ulong, bool)` — fallback via `ToString()`.**  
-    File: `AsmInstruction.cs`: `TargetLabel = absoluteTarget.ToString();`. If `isAbsolute: false`, `Build()` will not find the label → `Asm_UndefinedLabel`.  
-    Fix: remove the fallback, always `Immediate = absoluteTarget`.
+10. **[API] `AssemblerParser.TryAddStringData` — `;` inside a string is truncated.**  
+    **Fix:** move string parsing out of the common `Split` or add hex escape.
 
-11. **[API] `ExpressionGenerator.GenerateBinaryOp` — `&&`/`||` into `targetReg` via `Mov`.**  
-    File: `ExpressionGenerator.cs`: `GenerateLogicalAndOr(binop); if (targetReg != r0) EmitMov(targetReg, r0);`. Extra instructions for chains.  
-    Fix: `GenerateLogicalAndOr(binop, targetReg)`.
+11. **[API] `AssemblerParser` — double dictionaries `_regMapLex`/`_opMapLex` + `_regMap`/`_opMap`.**  
+    `_regMapLex`/`_opMapLex` are dead after the static constructor.  
+    **Fix:** initialize `FrozenDictionary` directly.
 
-12. **[API] `AssemblerParser.TryAddIntegerData` — `.quad <label>` is not supported yet.**  
-    Fix: a label patch mechanism in `EmitData`/`Build()`.
+12. **[API] `IRAssembler.EmitInstruction64WithLabel` does not check `HasNeed64IntData`.**  
+    **Fix:** move the check into a common helper `Validate64BitOp(op)`.
 
-13. **[API] `AssemblerParser.TryAddStringData` — `;` inside a string is truncated.**  
-    Fix: move string parsing out of the common `Split`, or add hex escaping (`\x3B`).
+13. **[API] `AssemblerParser` is not thread-safe.**  
+    Fields are instance-level. `StatementGenerator.GenerateInlineAsm` creates `new AssemblerParser()` for each `asm` — but the contract is not documented.  
+    **Fix:** `[ThreadStatic]`/`lock`, or explicitly document.
+
+14. **[API] `RegisterAllocator.BuildInterferenceGraph` — linear live ranges, does not account for loops.**  
+    **Fix:** document as “best effort” or implement real live-range analysis.
+
+15. **[API] `FunctionGenerator.GenerateGlobalInit` — initialization of structs is silently unsupported.**  
+    `if (CodeGenUtils.IsStructType(global.Type, _structTable)) continue;` — a global struct with an `Initializer` is ignored.  
+    **Fix:** support it or throw `NotSupported`.
 
 ### Housekeeping
 
-14. **[Housekeeping] `Nantuc.Compiler.C.Optimizators` — namespace with a typo.**  
-    Files: `AstOptimizer.cs`, `IAstOptimizationRule.cs`, `IRogOptimization.cs`. Should be `Optimizers` (or `Optimizations`). Public surface.  
-    Fix: rename (breaking change) or leave with `<remarks>`.
-
-15. **[Housekeeping] `AsmLanguageDefinition` and `MiniCLanguageDefinition` — parallel dictionaries.**  
-    Regex helpers in `MiniCLanguageDefinition` — dead code.  
-    Fix: move the common part into a single `LanguageDefinition` module, remove the dead code.
-
-16. **[Housekeeping] `FieldInfo` — `record` with `Name`/`Type`/`Offset`/`Size`.**  
-    `GetField` uses `List.Find` — O(n).  
-    Fix: `Dictionary<string, FieldInfo>` in `StructLayout`.
+16. **[Housekeeping] AST is split into files in `C/AST/`, but without a “map” in the folder header.**  
+    **Fix:** add `C/AST/README.md` or a `#region` map.
 
 ### XML
 
-17. **[XML] AST hierarchy — no `///`.**  
-    Including **`VariableNode.IsConst`/`IsPointedConst` and `ParameterNode.IsConst`/`IsPointedConst`** — new fields without documentation.  
-    Fix: `///` on key nodes, mark nullable fields.
+17. **[XML] AST hierarchy — without `///`.**  
+    Including `VariableNode.IsConst`/`IsPointedConst`, `ParameterNode.IsConst`/`IsPointedConst`, `FunctionNode.ReturnIsPointer`.
 
-18. **[XML] `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator` — no `///`.**  
-    Especially **`CheckConstTarget`** — the single `const` check point for assignment, and **`GenerateIncrement`** — for `++`/`--`.  
-    Fix: `<summary>` on public methods; for `CheckConstTarget` — `<remarks>` listing the checked forms.
+18. **[XML] `ExpressionGenerator`, `StatementGenerator`, `FunctionGenerator` — without `///`.**  
+    Especially `CheckConstTarget`, `GenerateIncrement`, `GenerateAssignmentExpr`.
 
-19. **[XML] `CodeGenUtils` — no `///`.**  
-    `GetAlignment(type, structTable)` for structs returns a hardcoded `8` — not described.  
-    Fix: `///` on each method.
+19. **[XML] `CodeGenUtils` — without `///`.**  
+    `IsSignedType`, `EmitCastToType`, `GetAlignment(type, structTable)` (hardcoded `8` for structs).
 
-20. **[XML] `AssemblerParser` — the class header does not list `.data` and does not mention `allowDataSection`.**  
-    Fix: extend `<summary>`/`<remarks>`.
-
-### What has already been done (for history)
-
-- **`const` qualifiers** (`const int`, `int * const`, `const int *`, `const int * const`, `const int arr[]`, `const` parameters, `sizeof(const T)`):
-  - `Lexer`/`MiniCLanguageDefinition` — `const` in `Keywords`.
-  - `Parser.ParseDeclSpec` — parsing `[const] type [* [const]]` → `(type, isPointer, pointedType, prefixConst, ptrConst)`.
-  - `Parser.ParseVariableTail`/`ParseDeclarators`/`ParseFunction` — passing flags to `VariableNode`/`ParameterNode`.
-  - `VariableNode`/`ParameterNode`/`VarLocation`/`GlobalInfo` — `IsConst`/`IsPointedConst` fields.
-  - `FunctionContext.Create`/`FunctionGenerator.Generate`/`GlobalMemoryManager.Allocate` — flag propagation.
-  - `VariableAccessor.IsConst`/`IsPointedConst`.
-  - `StatementGenerator.CheckConstTarget` — at the start of `GenerateAssignment`.
-  - `ExpressionGenerator.GenerateIncrement` — checks for `Identifier`/`ArrayAccess`/`Dereference`.
-  - `ErrorCode.CodeGen_AssignmentToConst = 1316`, `CodeGen_IncrementOfConst = 1317` + templates in `DefaultErrorMessageProvider`.
-
-- **`TokenTypeExtension.AsText`** — manual switch instead of `Enum.ToString()`, AOT-safe, used in all parser messages.
-
-- **`RegisterAllocator.CollectAddressTakenVars`** — variables whose address is taken (`&x`) are excluded from register candidates before coloring. Fixes `Cannot take address of register variable 'a'` for `&local`.
-
-- **`Parser.ParseUnary`** — restored the `sizeof` block (was lost when adding `const`); added support for `sizeof(const T)` and `sizeof(const T*)`.
-
-- **`Parser.ParseVariableTail` (scalar)** — fixed the formula: `IsConst = isPointer ? ptrConst : prefixConst` (previously `IsConst = ptrConst`, which is why `const int x` was not caught).
-
-- **`DiagnosticData`** — unification of diagnostic arguments via `ReadOnlySpan<DiagnosticData>` (no boxing, no reflection, AOT-safe). Merge of `overrides` over standard templates in `DefaultErrorMessageProvider`.
-
-- `InstructionEncoder` — extension blocks on `OpCode`/`RegType`/`OpCodeSize` + `AsmExtensions` on `AssemblerBase`.
-
-- `IRAssembler` — two-pass `Build()` with precomputed `labelAddresses`, IR support.
-
-- `AssemblerParser.GetRexExtensionAsm()` — `[GeneratedRegex]` (AOT-safe), normalization of `LOAD . S8` → `LOAD.S8`.
-
-- `AssemblerParser` — `.data`/`.text` sections + data directives; data is buffered in `_pendingData` and merged via `EmitData` at the end.
-
-- `StructLayout.Resolve` — iterative dependency resolution.
+20. **[XML] `AssemblerParser` — class header does not list `.data`, `allowDataSection`, `CASTZ`/`CASTS`.**

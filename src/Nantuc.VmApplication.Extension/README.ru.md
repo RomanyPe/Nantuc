@@ -35,7 +35,7 @@ Namespace'ы соответствуют папкам:
 
 ```
 Nantuc.VmApplication.Extensions/
-├── Nantuc.VmApplication.Extensions.csproj   # net10.0, ref → VmApplication
+├── Nantuc.VmApplication.Extensions.csproj   # net10.0, ref -> VmApplication
 ├── Bytecode/
 │   └── BytecodeExtension.cs                  # extension on CompilationResult: GetOpCodeSafety / GetUnsafeOpCodes + OpCodeSafety + UnsafeOpCodeLocation + IsUnsafeOpcode
 ├── Diagnostics/
@@ -50,10 +50,10 @@ Nantuc.VmApplication.Extensions/
 ├── Disassembler/
 │   ├── DecodedDataChunk.cs                   # record struct (Address, Value, Bytes, DecodedString, ByteLength)
 │   ├── DecodedInstruction.cs                 # record struct (Address, RawInstruction, OpCode, Reg1, Reg2, DataSize, Data64?, ByteLength)
-│   ├── Disassembler.cs                       # public static: extension(res).Disassemble(int?) → DisassemblyResult
+│   ├── Disassembler.cs                       # public static: extension(res).Disassemble(int?) -> DisassemblyResult
 │   ├── DisassemblyResult.cs                  # sealed: Instructions, DataChunks, BaseAddress, CodeSize, TotalSize, BytesConsumed, HasDataSection
 │   ├── InstructionFormatter.cs               # static: Format(DisassemblyResult | DecodedInstruction); Format(StringBuilder, ...)
-│   └── StringDisassembler.cs                 # static: Disassemble(ReadOnlySpan<byte>, int, ulong) → string; extension(res).DisassembleToString()
+│   └── StringDisassembler.cs                 # static: Disassemble(ReadOnlySpan<byte>, int, ulong) -> string; extension(res).DisassembleToString()
 ├── Emulator/IO/
 │   ├── NumericIOStream.cs                    # синхронный: пишет числовые коды символов
 │   ├── OutputPortLayout.cs                   # const: WindowSize=8, Data=0, Status=1, Flush=2
@@ -66,7 +66,7 @@ Nantuc.VmApplication.Extensions/
 │   └── ProjectExtension.cs                   # Compile/CompileToIR по строке/строкам + SaveFileInclude/SaveFileProject
 ├── StdLibraries/
 │   └── Libraries.cs                          # static class Libraries: heap_nanasm, alloc_minic, io_nanasm, print_minic, imath_minic, bitops_minic, ovf_minic
-└── Optimizators/
+└── Optimizations/
     ├── AstOptimizerExtension.cs              # extension(VmAstOptimizer).AddStdRules() + WithASTNodePrefix + OptimizationId-константы
     ├── IROptimizerExtension.cs               # extension(VmIROptimizer).AddStdRules() + WithIRPrefix / WithRule + OptimizationId-константы
     ├── IRLog.cs                              # IRLog : IRogOptimization — форматирование лога оптимизаций
@@ -89,7 +89,7 @@ Nantuc.VmApplication.Extensions/
 Замечания по организации:
 - Папка и namespace — `StdLibraries`, файл и публичный класс — `Libraries`. Исторически папка называлась `Librares`, в старых доках встречалось `Librare` — обе опечатки исправлены. Namespace `Nantuc.VmApplication.Extensions.StdLibraries`, класс `Libraries`.
 - `AstOptimizerExtension.cs` и `IROptimizerExtension.cs` содержат не только extension-методы, но и `OptimizationId`-константы. Они — часть публичного контракта: по этим ID вы ищете логи в `OptimizationResultLog`.
-- `IRLog.cs` — отдельный файл (namespace `Nantuc.VmApplication.Extensions.Optimizators`), вынесен из `IROptimizerExtension.cs`.
+- `IRLog.cs` — отдельный файл (namespace `Nantuc.VmApplication.Extensions.Optimizations`), вынесен из `IROptimizerExtension.cs`.
 - `Diagnostics/DiagnosticsCompilerExtension.cs` — расширение над `IReadOnlyDictionary<ErrorCode, string>` (`ValidateAllCodesCovered`/`TryValidateAllCodesCovered`). По changelog 0.7.2 эти методы помечены как удалённые; в коде файл пока присутствует — см. [Что исправить](#что-исправить), п.3.
 - `Debugging/` — новый слой поверх `DeviceContext`, не меняет `Nantuc.VmApplication`. Отладчик не потокобезопасен (кроме `RequestStop`), что совпадает с моделью `DeviceContext`. Стек вызовов восстанавливается эвристически — VM не хранит frame pointer. Подробности — в [Особенная информация](#особенная-информация).
 - `Bytecode/` — статический разбор `CompilationResult.Program`, не трогает `DeviceContext`/`VmEmulator`. `IsUnsafeOpcode` — тот же набор, что использует `ReplaceSafeMemAccessWithUnsafeRule`, поэтому модуль можно использовать для верификации результата IR-правила (после применения — все `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` заменены на `*_UNSAFE`).
@@ -289,7 +289,7 @@ public sealed class Debugger : IDisposable
 - **`Step`** — одна инструкция через `ctx.SingleStep(onStep)`; результат — `DebugStop` со снимком процессора из callback'а (`ProcessorSnapshot` из VM — с корректным `IsSleeping`).
 - **`StepOver`** — если текущая инструкция — `CALL`/`CALL_IND`, доходит до адреса возврата (`ip + 4` для `CALL_IND`, `AlignUp(ip + 4, 8) + 8` для `CALL`), иначе ведёт себя как `Step`.
 - **`StepOut`** — крутит `Step`, пока `rSP` не станет больше значения на момент вызова. Best-effort: если функция использует `PUSH`/`POP` для временных значений, семантика ломается — см. [Что исправить](#что-исправить), п. 12.
-- **`Continue`** — крутит `SingleStep` до `Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`. На старте проверяет `_skipBreakpointOnce` (см. [Особенная информация](#особенная-информация)), чтобы `Continue` → breakpoint → `Continue` не зацикливался.
+- **`Continue`** — крутит `SingleStep` до `Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`. На старте проверяет `_skipBreakpointOnce` (см. [Особенная информация](#особенная-информация)), чтобы `Continue` -> breakpoint -> `Continue` не зацикливался.
 - **`ContinueTo(addr)`** — временно добавляет breakpoint на `addr`, вызывает `Continue`, снимает breakpoint. Если на `addr` уже был пользовательский breakpoint — он сохраняется.
 - **`RunToEnd`** — `Continue` с временно очищенным набором breakpoints (для «догнать до конца, игнорируя точки»).
 - **`RequestStop`** — единственный метод, безопасный из другого потока: `volatile bool _stopRequested`. Циклы `Continue`/`StepOver`/`StepOut` проверяют его на каждой итерации.
@@ -320,7 +320,7 @@ public const ulong Flush  = 2;   // запись 1 — сбросить буфе
 public SynchronousIOStream(TextWriter writer, PortCharEncoding encoding);
 ```
 
-`WritePort(Data, value)` → `_writer.Write(...)` + `Flush()`. `WritePort(Flush, _)` → `_writer.Flush()`. `ReadPort(_)` → 0. `WakeProcessor()` → `_writer.Flush()`.
+`WritePort(Data, value)` -> `_writer.Write(...)` + `Flush()`. `WritePort(Flush, _)` -> `_writer.Flush()`. `ReadPort(_)` -> 0. `WakeProcessor()` -> `_writer.Flush()`.
 
 **`NumericIOStream : PortControlBase`** — синхронный, пишет **числовые коды** символов:
 
@@ -328,7 +328,7 @@ public SynchronousIOStream(TextWriter writer, PortCharEncoding encoding);
 public NumericIOStream(TextWriter writer, PortCharEncoding encoding, bool hex = false);
 ```
 
-`BytePerChar` → `EmitNumber(value)` (0..255). `Utf8`/`Utf16` → `EmitNumber(codePoint)`. Формат: `"42 "` или `"0x2A "`.
+`BytePerChar` -> `EmitNumber(value)` (0..255). `Utf8`/`Utf16` -> `EmitNumber(codePoint)`. Формат: `"42 "` или `"0x2A "`.
 
 **`QueuedIOStream : PortControlBase`** — асинхронный через `Channel<byte>`:
 
@@ -336,7 +336,7 @@ public NumericIOStream(TextWriter writer, PortCharEncoding encoding, bool hex = 
 public QueuedIOStream(TextWriter writer, PortCharEncoding encoding);
 ```
 
-`WritePort(Data, value)` → `Channel.Writer.TryWrite(value)` + `Interlocked.Increment`. `ReadPort(Status)` → `1` если pending, `0` иначе. `WritePort(Flush, _)` → polling до 2 сек. `Dispose` → `Complete` + `_drainTask.Wait(5s)`.
+`WritePort(Data, value)` -> `Channel.Writer.TryWrite(value)` + `Interlocked.Increment`. `ReadPort(Status)` -> `1` если pending, `0` иначе. `WritePort(Flush, _)` -> polling до 2 сек. `Dispose` -> `Complete` + `_drainTask.Wait(5s)`.
 
 ### Оптимизации
 
@@ -361,8 +361,8 @@ public static readonly OptimizationId VariableRemoved;      // astnode-opt.remov
 ```
 
 Стандартные AST-правила (`AddStdRules`):
-1. `PropagateConstantsRule` — `IdentifierNode` → `NumberNode` если переменная объявлена с константой и не переприсваивается (нигде в функции).
-2. `FoldConstantsRule` — `Number op Number` → `Number`, включая унарные `-`/`!`/`~` и рекурсивно по всем выражениям (`FunctionCallNode`, `ArrayAccessNode`, `MemberAccessNode`, `AddressOfNode`, `DereferenceNode`).
+1. `PropagateConstantsRule` — `IdentifierNode` -> `NumberNode` если переменная объявлена с константой и не переприсваивается (нигде в функции).
+2. `FoldConstantsRule` — `Number op Number` -> `Number`, включая унарные `-`/`!`/`~` и рекурсивно по всем выражениям (`FunctionCallNode`, `ArrayAccessNode`, `MemberAccessNode`, `AddressOfNode`, `DereferenceNode`).
 3. `RemoveUnusedVariablesRule` — убирает `VariableNode`, которые нигде не читаются и никуда не присваиваются (присваивание считается использованием), только если initializer side-effect-free. Side-effect-free: `NumberNode`, `IdentifierNode`, `BinaryOpNode`, `UnaryOpNode`, а также `null`.
 4. `RemoveUnreachableCodeRule` — убирает код после `return`; `if(false)` заменяет содержимым `else` (или удаляет); `if(true)` заменяет содержимым `then`; `while(false)` и `for(...; false; ...)` удаляет. Рекурсивно по вложенным блокам.
 5. `InlineSmallVoidFunctionsRule` — инлайнит `void`-функции с `CountStatements(body) ≤ 10` (считая вложенные), без прямой self-recursion (`!ContainsCallTo(body, name)`). Взаимная рекурсия двух кандидатов (`A` вызывает `B`, `B` вызывает `A`) **не** отсеивается — возможна дублирующая экспансия, но не бесконечная (один проход). Тела `main` не инлайнятся.
@@ -395,9 +395,9 @@ public static readonly OptimizationId ReplaceSafeAccess;        // IR.replace-sa
 1. `RemoveNoopMovRule` — `MOV rX, rX` (не сразу после метки).
 2. `RemovePushPopPairRule` — `PUSH rX; POP rX` (ни `PUSH`, ни `POP` не сразу после метки).
 3. `RemoveSwapMovPairRule` — `MOV rA, rB; MOV rB, rA` (не сразу после метки). См. примечание в [Что исправить](#что-исправить), п. 15: при типичной семантике `MOV dst, src` паттерн не является no-op, правило сохраняется для обратной совместимости и должно быть проверено на реальной семантике `OpCode.MOV`.
-4. `RemoveJumpToNextLabelRule` — `JMP label; label:` → удалить `JMP`.
-5. `ConstantFoldingRule` — `LDI rA, X; LDI rB, Y; OP rA, rB` → `LDI opInstr.FirstReg, X op Y` (без меток между `ldi1`, `ldi2`, `op`). Поддерживаемые опкоды: `ADD`, `SUB`, `MULT_INT`, `DIV`, `AND`, `OR`, `XOR`, `SHR`. Допускается «обратный» порядок регистров (`ldi1.FirstReg == op.SecondReg && ldi2.FirstReg == op.FirstReg`). При `DIV` с `right == 0` правило **no-op** (не трогает инструкции).
-6. `RemoveMultiEndPairRule` — `END; END` → один `END` (цепочки из >2 `END` схлопываются последовательно, потому что `newIndex == index`).
+4. `RemoveJumpToNextLabelRule` — `JMP label; label:` -> удалить `JMP`.
+5. `ConstantFoldingRule` — `LDI rA, X; LDI rB, Y; OP rA, rB` -> `LDI opInstr.FirstReg, X op Y` (без меток между `ldi1`, `ldi2`, `op`). Поддерживаемые опкоды: `ADD`, `SUB`, `MULT_INT`, `DIV`, `AND`, `OR`, `XOR`, `SHR`. Допускается «обратный» порядок регистров (`ldi1.FirstReg == op.SecondReg && ldi2.FirstReg == op.FirstReg`). При `DIV` с `right == 0` правило **no-op** (не трогает инструкции).
+6. `RemoveMultiEndPairRule` — `END; END` -> один `END` (цепочки из >2 `END` схлопываются последовательно, потому что `newIndex == index`).
 
 **`ReplaceSafeMemAccessWithUnsafeRule`** — **не входит** в `AddStdRules`, добавляется вручную:
 
@@ -589,7 +589,7 @@ public static class BytecodeExtension
   - `HasUnsafe` — если найден хотя бы один `*_UNSAFE` опкод.
   - `Safe` — если программа просканирована до `actualCodeSize` и unsafe-опкодов нет.
 - **`GetUnsafeOpCodes()`** — возвращает список всех `*_UNSAFE` опкодов с их `OpCode`, `Offset` (в `Program`) и `Ip` (виртуальный адрес = `StartAdress + pos`). При ошибках/усечении — возвращает то, что успело накопиться; полный список гарантирован, только если `fullyScanned == true`.
-- **`GetUnsafeOpCodes(out bool fullyScanned)`** — вариант с флагом: `fullyScanned == false` означает «разбор остановился на усечённой/битой программе, список может быть неполным». `!res.Success` → `fullyScanned = false`, пустой список.
+- **`GetUnsafeOpCodes(out bool fullyScanned)`** — вариант с флагом: `fullyScanned == false` означает «разбор остановился на усечённой/битой программе, список может быть неполным». `!res.Success` -> `fullyScanned = false`, пустой список.
 - **`IsUnsafeOpcode`** — `true` для `LOAD_UNSAFE`, `STORE_UNSAFE`, `STORE_IND_UNSAFE`, `LOAD_IND_UNSAFE`. Тот же набор, что и у `ReplaceSafeMemAccessWithUnsafeRule`.
 
 Разбор учитывает длину инструкции: 4 байта для обычной, плюс паддинг до `AlignUp(8)` плюс 8 байт immediate для опкодов с `HasNeed64IntData` (например, `LDI`, `SYSCALL`, `CALL`). Это соответствует §3.2 [`bytecode.md`](../docs/bytecode.md).
@@ -698,7 +698,7 @@ var stop = runner.Result;                         // Reason == UserStop
 
 > `RequestStop` — единственный потокобезопасный метод `Debugger`; остальные (`Step`/`Continue`/`Load`) должны вызываться из одного потока-координатора.
 
-**Останов на HALT → продолжить:**
+**Останов на HALT -> продолжить:**
 
 ```csharp
 var stop = dbg.Continue();
@@ -706,7 +706,7 @@ if (stop.Reason == DebugStopReason.Sleeping)
 {
     // VM в HALT, ждёт WAKE_INT от устройства
     // … обработка сна снаружи …
-    dbg.Wake();                                    // Resume() → OpCode.WAKE в очередь
+    dbg.Wake();                                    // Resume() -> OpCode.WAKE в очередь
     stop = dbg.Continue();
 }
 ```
@@ -739,7 +739,7 @@ host.Emulator.RegisterDevice(uart, name: "UART0", sector: 1);
 **Стандартные AST-оптимизации:**
 
 ```csharp
-using Nantuc.VmApplication.Extensions.Optimizators;
+using Nantuc.VmApplication.Extensions.Optimizations;
 
 host.Project.Optimizator.VMAstOptimizer.AddStdRules();
 
@@ -874,7 +874,7 @@ if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
 - Выставлять `ReplaceSafeMemAccessWithUnsafeRule.SizeRam` под реальный размер RAM у `Device`.
 - `SaveFileProject`/`SaveFileInclude` — с проверкой `localPath` на отсутствие `..`.
 - Своим оптимизационным правилам — присваивать `OptimizationId` через `WithIRPrefix()` / `WithRule()` / `WithASTNodePrefix()`, чтобы префикс совпадал со встроенными.
-- Для отладки — `Debugger` поверх `DeviceContext`: `dbg.Load(program)` → `dbg.Step()`/`StepOver()`/`StepOut()`/`Continue()`, `dbg.AddBreakpoint(addr)`, `dbg.CurrentInstruction`, `dbg.GetCallStack()`. Для останова длинного прогона — `dbg.RequestStop()` из другого потока.
+- Для отладки — `Debugger` поверх `DeviceContext`: `dbg.Load(program)` -> `dbg.Step()`/`StepOver()`/`StepOut()`/`Continue()`, `dbg.AddBreakpoint(addr)`, `dbg.CurrentInstruction`, `dbg.GetCallStack()`. Для останова длинного прогона — `dbg.RequestStop()` из другого потока.
 - Для отладки в IDE — подписаться на `dbg.Stopped`, чтобы обновлять панель регистров/стека/RAM на каждом останове.
 - Для «догнать до конца» (например, CI-прогон) — `dbg.RunToEnd(stepLimit: N)`, не `Continue` (последний застрянет на первой точке останова).
 - Для типовых целочисленных операций и проверок переполнения — `imath.minic`, `bitops.minic`, `ovf.minic` вместо ручных реализаций.
@@ -904,16 +904,16 @@ if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
 ### Отладчик: `_skipBreakpointOnce` и повторный `Continue`
 
 `Continue` на старте проверяет два условия:
-1. `_skipBreakpointOnce == rIP` → сбрасывает флаг и **не** останавливается на текущем адресе (это тот же breakpoint, что сработал в прошлый раз).
-2. `HasBreakpoint(rIP)` → возвращает `DebugStopReason.Breakpoint` без шага.
+1. `_skipBreakpointOnce == rIP` -> сбрасывает флаг и **не** останавливается на текущем адресе (это тот же breakpoint, что сработал в прошлый раз).
+2. `HasBreakpoint(rIP)` -> возвращает `DebugStopReason.Breakpoint` без шага.
 
 `StepOneOrFinish` после каждого `SingleStep` выставляет `_skipBreakpointOnce = newIp`, если на новом `rIP` есть breakpoint. Это даёт корректную семантику:
 
 ```
-Load → Continue (hit bp at 0x00) → Continue (skip 0x00, идёт дальше)
+Load -> Continue (hit bp at 0x00) -> Continue (skip 0x00, идёт дальше)
 ```
 
-Без `_skipBreakpointOnce` `Continue` → breakpoint → `Continue` крутился бы бесконечно на том же `rIP`.
+Без `_skipBreakpointOnce` `Continue` -> breakpoint -> `Continue` крутился бы бесконечно на том же `rIP`.
 
 `ContinueTo(addr)` использует ту же логику: добавляет `addr` в `_breakpoints`, вызывает `Continue`, снимает breakpoint. Если `addr` уже был пользовательским breakpoint'ом — он сохраняется после вызова.
 
@@ -949,7 +949,7 @@ VM не хранит frame pointer и не ведёт отдельный call st
 +16..sz-8: продолжение payload / unused
 +sz-8..sz: size | FREE_BIT(бит0)        — футер (для слияния влево)
 ```
-`payload` начинается с `+8`. Минимальный блок — 24 байта. `HDR_FTR = 16` (8 hdr + 8 ftr) прибавляется к выровненному `payload`'у в `alloc`: `need = ((size + 7) & ~7) + HDR_FTR`, но не меньше `MIN_BLOCK`. При освобождении: `blkMark(b, size, 1)` → `mergeRight(b)` → `mergeLeft(b)` → `blkPush(b)`. При аллокации: first-fit по `heapFreeList`, при достаточном размере — `split` (если `csz - need >= MIN_BLOCK`), иначе `blkMark(curr, csz, 0)` (без split); иначе bump через `GetSP()`.
+`payload` начинается с `+8`. Минимальный блок — 24 байта. `HDR_FTR = 16` (8 hdr + 8 ftr) прибавляется к выровненному `payload`'у в `alloc`: `need = ((size + 7) & ~7) + HDR_FTR`, но не меньше `MIN_BLOCK`. При освобождении: `blkMark(b, size, 1)` -> `mergeRight(b)` -> `mergeLeft(b)` -> `blkPush(b)`. При аллокации: first-fit по `heapFreeList`, при достаточном размере — `split` (если `csz - need >= MIN_BLOCK`), иначе `blkMark(curr, csz, 0)` (без split); иначе bump через `GetSP()`.
 
 **Известный баг в текущей версии:** в начале `free` стоит `if (blkFree(b)) return;` **до** объявления `ulong b = ptr - 8;` — обращение к необъявленной переменной. См. [Что исправить](#что-исправить), п. 14.
 
@@ -976,8 +976,8 @@ VM не хранит frame pointer и не ведёт отдельный call st
 ### `BytecodeExtension`: усечённая программа и `fullyScanned`
 
 `GetOpCodeSafety`/`GetUnsafeOpCodes` идут по `Program` до `actualCodeSize = CodeSize ?? Program.Length`, но **границы** проверяют по `Program.Length` (а не по `actualCodeSize`):
-- `pos + 4 > Program.Length` → разбор останавливается (для `GetOpCodeSafety` — `Unknown`, для `GetUnsafeOpCodes` — `fullyScanned = false`);
-- для опкодов с `HasNeed64IntData`: `nextPos + 8 > Program.Length` → то же самое.
+- `pos + 4 > Program.Length` -> разбор останавливается (для `GetOpCodeSafety` — `Unknown`, для `GetUnsafeOpCodes` — `fullyScanned = false`);
+- для опкодов с `HasNeed64IntData`: `nextPos + 8 > Program.Length` -> то же самое.
 
 Причина: `Program` — это `byte[]`, и усечение означает, что либо `Program` битый, либо `CodeSize` не соответствует `Program`. В первом случае `actualCodeSize > size` уже отсеивается как `Unknown`. Во втором — `CodeSize < Program.Length` (нормально: в хвосте `Program` может быть data-секция; `BytecodeExtension` её не сканирует, потому что `actualCodeSize` ограничивает цикл, но паддинг/усечение на границе всё равно проверяется по `Program.Length`).
 
@@ -1003,11 +1003,11 @@ VM не хранит frame pointer и не ведёт отдельный call st
    Фикс: валидировать `localPath` (`Path.IsPathRooted` + отсутствие `..` в сегментах) или задокументировать, что вызов — trusted input.
 
 8. **[XML] `ReplaceSafeMemAccessWithUnsafeRule.SizeRam` — дефолт занижен.**  
-   Файл: `Optimizators/IRAsmRules/ReplaceSafeMemAccessWithUnsafeRule.cs`. `RamSize.B128` — не «безопасный» дефолт, а минимальный; правило молча no-op, если пользователь не выставит размер.  
+   Файл: `Optimizations/IRAsmRules/ReplaceSafeMemAccessWithUnsafeRule.cs`. `RamSize.B128` — не «безопасный» дефолт, а минимальный; правило молча no-op, если пользователь не выставит размер.  
    Фикс: либо дефолт на `RamSize` из `Device` (но правило не знает про `Device`), либо `<remarks>` с явным «you must set `SizeRam` to the device RAM size, otherwise the rule is a no-op».
 
 9. **[API] `AddStdRules` для AST содержит `RemoveUnreachableCodeRule` дважды.**  
-   Файл: `Optimizators/AstOptimizerExtension.cs`. Дублирование намеренное (после инлайна), но неочевидное.  
+   Файл: `Optimizations/AstOptimizerExtension.cs`. Дублирование намеренное (после инлайна), но неочевидное.  
    Фикс: `<remarks>` на `AddStdRules` с пояснением, зачем второй проход, либо вынести в отдельный композитный метод `AddStdRulesWithCleanup()`.
 
 10. **[API] `Debugger` — одноразовый на один `Load`.**  
@@ -1031,7 +1031,7 @@ VM не хранит frame pointer и не ведёт отдельный call st
     Фикс: убрать лишнюю строку `if (blkFree(b)) return;` (двойное освобождение и так не поддерживается, а проверка `if (ptr == 0) return;` уже есть), либо перенести её **после** объявления `b`: `ulong b = ptr - 8; if (blkFree(b)) return;`.
 
 15. **[API/семантика] `RemoveSwapMovPairRule` удаляет `MOV rA, rB; MOV rB, rA`, предполагая «нетто-эффект нулевой».**  
-    Файл: `Optimizators/IRAsmRules/RemoveSwapMovPairRule.cs`. Для типичной семантики `MOV dst, src` (`dst = src`) этот паттерн **не** является no-op: после `MOV A, B` имеем `A = old B`, после `MOV B, A` — `B = old B`; итог `A = old B, B = old B`. Правило корректно только если `OpCode.MOV` в VM имеет семантику swap (крайне нетипично) или если автор правила опирался на иную конвенцию.  
+    Файл: `Optimizations/IRAsmRules/RemoveSwapMovPairRule.cs`. Для типичной семантики `MOV dst, src` (`dst = src`) этот паттерн **не** является no-op: после `MOV A, B` имеем `A = old B`, после `MOV B, A` — `B = old B`; итог `A = old B, B = old B`. Правило корректно только если `OpCode.MOV` в VM имеет семантику swap (крайне нетипично) или если автор правила опирался на иную конвенцию.  
     Фикс: (а) уточнить семантику `OpCode.MOV` в `docs/bytecode.md`; (б) либо убрать правило из `AddStdRules`, либо переписать его под swap (`XCHG`/`SWAP`), если такой опкод есть; (в) как минимум — добавить `<remarks>` с явным предупреждением.
 
 16. **[API] `RunOnce`/`RunAndCleanup` не освобождают UART, зарегистрированный на `sector + 1`.**  

@@ -92,5 +92,50 @@ public class PointerTests(ITestOutputHelper outPut) : CompileTestBase(outPut)
         return (arr + 1)->x;
     }
     """, 20)]
+    [InlineData("""
+    int main() {
+        int a[1] = { 0 };
+        int *p = a;
+        int x = (*p = 9) + 1;
+        return x + a[0];   // (9+1) + 9 = 19
+    }
+    """, 19)]
+
+    [InlineData("""
+    int main() {
+        int a[1] = { 7 };
+        int *p = a;
+        return (*p = 3) * 2;   // 6; a[0] = 3
+    }
+    """, 6)]
+
+    // ---- *p op= v как выражение ----
+    [InlineData("""
+    int main() {
+        int a[1] = { 3 };
+        int *p = a;
+        int x = (*p += 4) * 2;
+        return x + a[0];   // 14 + 7 = 21
+    }
+    """, 21)]
+
+    [InlineData("""
+    int main() {
+        int a[1] = { 20 };
+        int *p = a;
+        int x = (*p >>= 1) + 1;
+        return x + a[0];   // 11 + 10 = 21
+    }
+    """, 21)]
+
+    // Проверка: фикс не пишет в *p целиком, а именно по адресу
+    [InlineData("""
+    int main() {
+        int a[2] = { 100, 200 };
+        int *p = a + 1;
+        int x = (*p = 42) + 1;
+        return a[0] + a[1] + x;   // 100 + 42 + 43 = 185
+    }
+    """, 185)]
     public void Pointer_Operations(string program, ulong res) => RunCompile(program, res);
 }

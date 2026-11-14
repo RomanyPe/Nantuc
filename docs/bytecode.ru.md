@@ -1,7 +1,7 @@
 # Спецификация байт-кода виртуальной машины Nantuc
 
-> Версия формата: 1  
-> Целевая платформа: `Nantuc.Kernel.Common` / `Nantuc.Compiler.ASM`  
+> Версия формата: 1
+> Целевая платформа: `Nantuc.Kernel.Common` / `Nantuc.Compiler.ASM`
 > Статус: реализовано в эталонном интерпретаторе (`Processor.Step`, `InstructionDecoder`) и в кодогенераторе MiniC/NANASM.
 
 ---
@@ -69,7 +69,7 @@
 - **OpCode** (8 бит) — код операции (`OpCode`).
 - **Reg1** (5 бит) — первый регистр-операнд, обычно приёмник.
 - **Reg2** (5 бит) — второй регистр-операнд, обычно источник.
-- **DataSize** (2 бита) — только для группы LOAD/STORE (`OpCodeSize`).
+- **DataSize** (2 бита) — размер данных (`OpCodeSize`): для группы LOAD/STORE **и для CASTZ/CASTS**.
 - **Биты 20–31** — зарезервированы, должны быть нулевыми.
 
 Декодер (эталон): `InstructionDecoder.GetOpCode/GetReg1/GetReg2/GetDataSizeCode`.
@@ -78,17 +78,19 @@
 
 | Форма | Длина | Когда |
 |-------|-------|-------|
-| Регистр–регистр / без операндов | **4 байта** | все, кроме перечисленных ниже |
+| Регистр–регистр / без операндов / один регистр + size | **4 байта** | все, кроме перечисленных ниже |
 | Инструкция + immediate | **12 байт** (4 + 4 паддинга + 8) | если `InstructionDecoder.HasNeed64IntData(opCode) == true` |
 
 **Immediate** читается по адресу `AlignUp(rIP_after_instr, 8)`. Паддинг между инструкцией и immediate игнорируется (может быть любым, обычно 0). После чтения `rIP = immediate_addr + 8`.
+
+**CASTZ/CASTS — 4-байтные инструкции** без immediate (используют DataSize как параметр).
 
 ### 3.3. Операнды-регистры по опкодам
 
 | Операнд | Что кодирует |
 |---------|--------------|
-| `Reg1`  | приёмник (dst) / левый операнд / единственный операнд |
-| `Reg2`  | источник (src) / правый операнд / порт (для IN/OUT) |
+| `Reg1`  | приёмник (dst) / левый операнд / единственный операнд (в т.ч. для CASTZ/CASTS) |
+| `Reg2`  | источник (src) / правый операнд / порт (для IN/OUT); **не используется** для CASTZ/CASTS |
 
 Конкретные соглашения см. в таблице опкодов (§ 4).
 
@@ -101,13 +103,13 @@
 | `10` | `S32` | 4 байта | 4 (`addr & 3 == 0`) |
 | `11` | `S64` | 8 байт  | 8 (`addr & 7 == 0`) |
 
-Используется только `LOAD`, `STORE`, `LOAD_IND`, `STORE_IND` и их `_UNSAFE`-вариантами.
+Используется `LOAD`, `STORE`, `LOAD_IND`, `STORE_IND`, их `_UNSAFE`-вариантами, **а также `CASTZ` и `CASTS`** (в последних означает ширину усечения/расширения).
 
 ---
 
 ## 4. Опкоды (реестр)
 
-Все значения — от 0 до 42; исходное перечисление `OpCode : byte`. Значения зафиксированы порядком объявления и не могут быть переставлены без обновления декодера и сохранённых образов.
+Все значения — от 0 до **44**; исходное перечисление `OpCode : byte`. Значения зафиксированы порядком объявления и не могут быть переставлены без обновления декодера и сохранённых образов.
 
 | # | Мнемоника | Reg1 | Reg2 | Size | Immediate | Краткий смысл |
 |--:|-----------|------|------|:----:|:---------:|---------------|
@@ -154,8 +156,21 @@
 | 40 | `CMP`            | left | right | — | — | обновляет `rFL` по `left - right` |
 | 41 | `TEST`           | left | right | — | — | обновляет `rFL` по `left & right` |
 | 42 | `MOD`            | dst | src | — | — | `dst %= src` (unsigned), `DivOnZero` при 0 |
+| **43** | **`CASTZ`**  | reg | — | ✓ | — | `reg = zero-extend(reg, size)` — маска младших `size` байт [NEW] |
+| **44** | **`CASTS`**  | reg | — | ✓ | — | `reg = sign-extend(reg, size)` — знаковое расширение [NEW] |
 
-Непосредственный операнд присутствует **только** у опкодов, отмеченных `HasNeed64IntData = true` (в эталоне: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `LOAD_UNSAFE`, `STORE_UNSAFE`, `LOAD_IND`, `STORE_IND`, `LOAD_IND_UNSAFE`, `STORE_IND_UNSAFE`).
+> **Важно:** опкод `NOP = 0` и `END = 1` — семантически несовместимы с обычным «нет операции» в контексте `ProcessorFault`; см. § 12 п. 3.
+
+Непосредственный операнд присутствует **только** у опкодов, отмеченных `HasNeed64IntData = true`. В эталоне:
+
+```
+LDI, LOAD, STORE, LOAD_UNSAFE, STORE_UNSAFE,
+CALL, JMP, JZ, JNZ, JG, JL
+```
+
+> **Исправление:** в прежней версии спецификации в этот список ошибочно попадали `LOAD_IND`/`STORE_IND` и их `_UNSAFE`-варианты. Эти опкоды берут адрес из `Reg2` и **immediate не читают**. Таблица `_has` в `InstructionDecoder.CreateNeedsUlongOperandTable()` содержит ровно 11 записей, перечисленных выше.
+
+> **Проверка границ `HasNeed64IntData`:** реализована по `_has.Length` (256), а не по `OpCode.MOD` (42) — иначе `CASTZ`/`CASTS`/`CMP`/`TEST`/`WAKE_INT`/`JMP_IND`/`CALL_IND`/`HALT`/`WAKE` (все выше `MOD`) приводили бы к `ArgumentOutOfRangeException` в дизассемблере.
 
 ---
 
@@ -170,9 +185,9 @@
 
 ### 5.2. Пересылки и загрузка-сохранение
 
-**`MOV Reg1, Reg2`** → `Reg1 = Reg2` (полные 64 бита).
+**`MOV Reg1, Reg2`** -> `Reg1 = Reg2` (полные 64 бита).
 
-**`LDI Reg1, imm`** → `Reg1 = imm` (64-битный immediate из потока).
+**`LDI Reg1, imm`** -> `Reg1 = imm` (64-битный immediate из потока).
 
 **`LOAD[.size] Reg1, [imm]`** — проверяемое чтение:
 1. `addr = imm`
@@ -193,6 +208,25 @@
 **`STORE_IND[.size] Reg1, Reg2`** — то же, что `STORE`, но `addr = Reg2`.
 
 **`*_UNSAFE`-варианты** — без проверок. Поведение при выходе за границы или нарушении выравнивания — **неопределённое** (`Unsafe.ReadUnaligned`/`WriteUnaligned` по указателю за пределами буфера).
+
+### 5.2.1. Приведение размера **[NEW]**
+
+**`CASTZ[.size] Reg1`** — zero-extend (маска):
+1. `mask = MaskOf(size)` — младшие `size` байт (для `S8` — `0xFF`, `S16` — `0xFFFF`, `S32` — `0xFFFFFFFF`, `S64` — `0xFFFFFFFFFFFFFFFF`)
+2. `Reg1 = Reg1 & mask`
+
+Результат: значение в диапазоне `[0, 2^(8·size) − 1]`.
+
+**`CASTS[.size] Reg1`** — sign-extend (знаковое расширение):
+1. `Reg1 = (signed)(Reg1 & mask)` — старшие биты регистра заполняются знаковым битом `size`-разрядного значения
+2. Для `S64` — тождественная операция
+3. Результат: значение в диапазоне `[−2^(8·size−1), 2^(8·size−1) − 1]` для signed-интерпретации
+
+Обе инструкции:
+- **4 байта**, без immediate
+- Используют только `Reg1` и `DataSize`
+- Не меняют `rFL` и другие регистры
+- Используются кодогенератором MiniC для реализации **переполнения узких типов** (см. Приложение A)
 
 ### 5.3. Арифметика (беззнаковая, 64-бит, wrap-around)
 
@@ -239,7 +273,7 @@
 
 > проверка `target < RAM.Length`; при провале — `SegmentationFault`; иначе `rIP = target`
 
-**`JMP target`** → `rIP = target`.
+**`JMP target`** -> `rIP = target`.
 
 **`JZ target`** — если `Z=1`, `rIP = target`.
 
@@ -252,16 +286,16 @@
 **`JMP_IND Reg1`** — `target = Reg1`.
 
 **`CALL target`** — вызов подпрограммы:
-1. `if rSP < 8 → SegmentationFault`
+1. `if rSP < 8 -> SegmentationFault`
 2. `sp = rSP - 8`
-3. `if rHP >= sp → SegmentationFault` (коллизия стека с кучей)
+3. `if rHP >= sp -> SegmentationFault` (коллизия стека с кучей)
 4. `RAM[sp] = rIP` (unchecked write, little-endian)
 5. `rSP = sp; rIP = target`
 
 **`CALL_IND Reg1`** — `target = Reg1`; проверка `target < RAM.Length`; при провале — `SegmentationFault`; иначе — эквивалент `CALL target`.
 
 **`RET`** — возврат:
-1. `if rSP >= stackBase → StackUnderflow`
+1. `if rSP >= stackBase -> StackUnderflow`
 2. `rIP = RAM[rSP]` (unchecked read, 8 байт LE)
 3. `rSP += 8`
 
@@ -271,25 +305,25 @@
 
 **`PUSH Reg1`**:
 1. `sp = rSP - 8`
-2. `if rHP >= sp → SegmentationFault`
+2. `if rHP >= sp -> SegmentationFault`
 3. `RAM[sp] = Reg1` (checked write 8 байт)
-4. если запись провалилась → вернуть её статус
+4. если запись провалилась -> вернуть её статус
 5. `rSP = sp`
 
 **`POP Reg1`**:
 1. `value = RAM[rSP]` (checked read 8 байт LE)
-2. если чтение провалилось → вернуть статус
+2. если чтение провалилось -> вернуть статус
 3. `Reg1 = value; rSP += 8`
 
 ### 5.8. Порты ввода-вывода
 
 Порт-пространство: `PortBus.TotalPorts = 2^ports.Log2`, размер сектора `2^portsOnDev.Log2`. Адрес = `(sector << shift) | offset`, где `shift = portsOnDev.Log2`.
 
-**`IN Reg1, Reg2`** — `addr = Reg2`; `Reg1 = PortBus.ReadPort(addr)`. Если устройство по адресу не зарегистрировано → `NullDeviceInput`, `FaultData = addr`. Устройство возвращает **1 байт**, расширенный до 64 бит нулями.
+**`IN Reg1, Reg2`** — `addr = Reg2`; `Reg1 = PortBus.ReadPort(addr)`. Если устройство по адресу не зарегистрировано -> `NullDeviceInput`, `FaultData = addr`. Устройство возвращает **1 байт**, расширенный до 64 бит нулями.
 
-**`OUT Reg1, Reg2`** — `addr = Reg2`; `PortBus.WritePort(addr, (byte)Reg1)`. При отсутствии устройства → `NullDeviceOutput`. Передаётся только младший байт `Reg1`.
+**`OUT Reg1, Reg2`** — `addr = Reg2`; `PortBus.WritePort(addr, (byte)Reg1)`. При отсутствии устройства -> `NullDeviceOutput`. Передаётся только младший байт `Reg1`.
 
-**`WAKE_INT Reg1`** — `addr = Reg1`; `PortBus.WakeProcessor(addr)`. Если устройство не найдено → `NullDeviceOutput`. Устройство получает сигнал `WakeProcessor()`, снимающий `IsSleeping` на следующем шаге.
+**`WAKE_INT Reg1`** — `addr = Reg1`; `PortBus.WakeProcessor(addr)`. Если устройство не найдено -> `NullDeviceOutput`. Устройство получает сигнал `WakeProcessor()`, снимающий `IsSleeping` на следующем шаге.
 
 ### 5.9. Сон
 
@@ -335,7 +369,7 @@
 - Адрес: `sector = addr >> shift`, `offset = addr & (PortsOnDevice - 1)`, `shift = log2(PortsOnDevice)`.
 - Сектор 0..`SectorCount-1`. Если сектор не зарегистрирован — ошибка (`NullDeviceInput`/`NullDeviceOutput`).
 
-Устройство реализует `ReadPort(offset) → byte` и `WritePort(offset, value)`.
+Устройство реализует `ReadPort(offset) -> byte` и `WritePort(offset, value)`.
 
 ---
 
@@ -388,7 +422,7 @@ ProcessorFault(BiosStatus Status,
      b. Обработать все внешние статусы (_statusFromSimulation):
         - при ненулевом статусе — сформировать ProcessorFault и опросить политику.
      c. _hasCommand = false.
-2. Если !IsRunning || IsSleeping → выход.
+2. Если !IsRunning || IsSleeping -> выход.
 3. rIP_cur = rIP
 4. rawInst = RAM[rIP_cur]                     // unchecked, 32 бита LE
 5. opCode = Decode(rawInst).OpCode
@@ -415,12 +449,20 @@ ProcessorFault(BiosStatus Status,
 
 - Без операндов: `NOP`, `END`, `RET`, `HALT`, `WAKE`.
 - Один регистр: `INC`, `DEC`, `NOT`, `PUSH`, `POP`, `JMP_IND`, `CALL_IND`, `WAKE_INT`.
+- **Один регистр + size: `CASTZ[.size] reg`, `CASTS[.size] reg`** [NEW].
 - Два регистра: `MOV`, `ADD`, `SUB`, `AND`, `OR`, `XOR`, `IN`, `OUT`, `SHR`, `SHL`, `DIV`, `MULT_INT`, `MOD`, `CMP`, `TEST`.
 - `LDI reg, imm`: `imm` — число (`0x…` или десятичное) или метка.
 - `LOAD[.size] reg, addr`, `STORE[.size] addr, reg`: `addr` — число или метка.
 - `LOAD_IND[.size] reg, reg`, `STORE_IND[.size] reg, reg` — аналогично.
 - `LOAD_UNSAFE[.size]`, `STORE_UNSAFE[.size]`, `LOAD_IND_UNSAFE[.size]`, `STORE_IND_UNSAFE[.size]` — аналогично без проверок.
 - Переходы: `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `CALL` — метка или абсолютный адрес.
+
+**Пример (CASTZ/CASTS):**
+```asm
+CASTZ.S8 r0     ; маска 8 бит: r0 &= 0xFF
+CASTS.S32 r1    ; знаковое расширение 32->64: r1 = (int)(r1 & 0xFFFFFFFF)
+CASTZ r2        ; эквивалент CASTZ.S64 — no-op (size по умолчанию S64)
+```
 
 ### 10.3. Суффиксы размера
 
@@ -494,13 +536,28 @@ raw = 0x08 | (1 << 8) | (2 << 13) = 0x00004108
 Байты: 08 41 00 00
 ```
 
+### 11.6. `CASTS.S16 r5` **[NEW]**
+
+```
+OpCode = 44 (0x2C)
+Reg1   = 5
+Size   = S16 (1)
+raw = 0x2C | (5 << 8) | (1 << 18) = 0x0004052C
+Байты: 2C 05 04 00
+```
+
+Дизассемблер: `CASTS.S16 r5` (раньше — `UNKNOWN 0x2C`).
+
 ---
 
 ## 12. Ограничения и известные особенности реализации
 
-5. **`WAKE` как инструкция в теле — no-op.** Пробуждение из `HALT` возможно только через `EnqueueExternalCommand(OpCode.WAKE)` или `PortBus.WakeProcessor`.
-7. **`InstructionLOAD`/`InstructionSTORE` не возвращают `AlignmentFault` для невалидного `OpCodeSize`** (там `default` → `SegmentationFault` у LOAD и `AlignmentFault` у STORE); на практике `OpCodeSize` имеет ровно 4 значения — `default` недостижим.
-9. **`OpCode.NOP` = 0 используется как маркер «неизвестного опкода»** в `ProcessorFault` (`ProcessSimulationStatusSlow`). Это спорное соглашение; при появлении реального NOP-сбоя отличить его от «пустого» значения будет невозможно.
+1. **`NOP` (0) как маркер «неизвестного опкода»** в `ProcessorFault` (`ProcessSimulationStatusSlow`). Спорное соглашение; при появлении реального NOP-сбоя отличить его от «пустого» значения будет невозможно.
+2. **`WAKE` как инструкция в теле — no-op.** Пробуждение из `HALT` возможно только через `EnqueueExternalCommand(OpCode.WAKE)` или `PortBus.WakeProcessor`.
+3. **`InstructionLOAD`/`InstructionSTORE` не возвращают `AlignmentFault` для невалидного `OpCodeSize`** (там `default` -> `SegmentationFault` у LOAD и `AlignmentFault` у STORE); на практике `OpCodeSize` имеет ровно 4 значения — `default` недостижим.
+4. **`InstructionDecoder.HasNeed64IntData` валидирует `opCode` по `_has.Length` (256), а не по `OpCode.MOD`.** Раньше bound-check был `opCode > OpCode.MOD`, из-за чего любой опкод выше 42 (`CASTZ`, `CASTS`, `CMP`, `TEST`, `HALT`, `WAKE`, `WAKE_INT`, `JMP_IND`, `CALL_IND`) вызывал `ArgumentOutOfRangeException` при дизассемблировании. Исправлено.
+5. **`AssemblerParser` не потокобезопасен.** Поля `_asm`, `_inDataSection`, `_pendingData`, `_pendingLabel`, `_currentLine` — instance-level. `StatementGenerator.GenerateInlineAsm` создаёт `new AssemblerParser()` на каждый `asm`-блок, но контракт не задокументирован.
+6. **`IRAssembler.EmitInstruction64WithLabel` не валидирует `HasNeed64IntData`** (в отличие от `EmitInstruction64`). При добавлении label-aware опкодов с 64-битным операндом проверку придётся добавить вручную.
 
 ---
 
@@ -511,9 +568,70 @@ raw = 0x08 | (1 << 8) | (2 << 13) = 0x00004108
 | Порядок байт | little-endian везде |
 | Формат слова | `[7:0]=op, [12:8]=reg1, [17:13]=reg2, [19:18]=size, [31:20]=0` |
 | Immediate | всегда 64 бита, 8-байтное выравнивание после инструкции |
-| Длина инструкции | 4 или 12 байт |
+| Длина инструкции | 4 байта (без immediate) или 12 байт (с immediate) |
 | Регистры | 32 × 64 бита, `rIP` — адрес следующей инструкции |
 | Флаги | обновляются только `CMP` и `TEST` |
 | Стек | 8-байтные слоты, `rSP` растёт вниз, `rHP` — верхняя граница кучи |
 | Ошибка доступа | `AlignmentFault` / `SegmentationFault`, не исключения |
-| Политика | `IProcessorPolicy.ShouldContinue` — последняя инстанция, `IProcessorPolicy.AllowUnsafeOpCodes` - разрешение использовать небезопасные опкоды |
+| Политика | `IProcessorPolicy.ShouldContinue` — последняя инстанция, `IProcessorPolicy.AllowUnsafeOpCodes` — разрешение использовать небезопасные опкоды |
+| CASTZ/CASTS | 4-байтные, размер в DataSize, без immediate, не меняют `rFL` |
+
+---
+
+## Приложение A. Модель переполнения целых типов в MiniC **[NEW]**
+
+### A.1. Каноническая форма
+
+После любой записи в переменную или регистр значение приводится к канонической форме своего типа через `CASTZ`/`CASTS`:
+
+| Тип | Размер | Знаковый | Канон в регистре |
+|-----|:------:|:--------:|------------------|
+| `byte` | S8 | нет | `0 .. 255` (верхние 56 бит нули) |
+| `char` | S16 | да | `−32768 .. 32767`, sign-extended до 64 бит |
+| `short` | S16 | да | `−32768 .. 32767`, sign-extended |
+| `ushort` | S16 | нет | `0 .. 65535` |
+| `int` | S32 | да | `−2³¹ .. 2³¹−1`, sign-extended |
+| `uint` | S32 | нет | `0 .. 2³²−1` |
+| `long` | S64 | да | `−2⁶³ .. 2⁶³−1` |
+| `ulong` | S64 | нет | `0 .. 2⁶⁴−1` |
+
+> **`char` в MiniC — 16-битный знаковый (`S16`)**, не 8-битный как в стандартном C. Следствия:
+> - `sizeof(char) == 2`
+> - `char c = 120; c += 100;` -> `c == 220` (обёртки нет, влезает в `int16`)
+> - `char c = 32767; c += 1;` -> `c == −32768` (обёртка `S16`)
+
+### A.2. Где вставляются касты (кодогенератор `Nantuc.Compiler.C.CodeGenerator`)
+
+| Событие | Каст |
+|---------|------|
+| `LOAD[.size]` из памяти | `LOAD` zero-extends -> **`CASTS.S<size>`** для signed-типов (иначе значение знакового типа окажется «положительным») |
+| `STORE[.size]` в память | `STORE` сам усекает -> каст не нужен |
+| `x = value` (register-переменная) | после `MOV`/`ADD`/`INC` — **`CASTZ`/`CASTS`** |
+| `x op= value`, `x++` | после операции — **`CASTZ`/`CASTS`** в home-регистре |
+| `(x = value)` / `(x op= value)` в выражении | после операции — **`CASTZ`/`CASTS`** в `targetReg` |
+| `arr[i] = value`, `*p = value`, `obj.f = value` | после load — **`CASTZ`/`CASTS`**; после операции — **`CASTZ`/`CASTS`**; `STORE_IND` усекает |
+| `arr[i]++`, `(*p)++`, `(obj.f)++` | после load и после `INC`/`DEC` — **`CASTZ`/`CASTS`** |
+| Call-site: аргумент -> `r0..r3` | после генерации выражения — **`CASTZ`/`CASTS`** к типу параметра |
+| Prologue: параметр 4+ из pseudo-global | после `LOAD` — **`CASTZ`/`CASTS`** |
+| `RETURN`: значение в `r0` | перед `JMP epilogue` / `END` — **`CASTZ`/`CASTS`** к типу возврата (для non-pointer scalar) |
+
+### A.3. Что **не** кастуется
+
+- **Промежуточный результат арифметики.** C-семантика: `byte + byte` даёт `int`; `int + int` даёт `int` с wrap-around `S32`; усечение происходит только на **следующей** записи.
+- **`long`/`ulong`** — `S64`, `EmitCastToType` для них no-op.
+- **Указатели и структуры** — каст не применяется (канон — 8-байтный адрес).
+
+### A.4. Примеры
+
+```c
+byte b = 250;   b += 10;   // b == 4    (CASTZ.S8 после ADD)
+byte b = 0;     b--;       // b == 255  (CASTZ.S8 после DEC)
+char c = 32767; c += 1;    // c == -32768  (CASTS.S16 после ADD)
+short s = 30000; s += 10000; // s == -25536 (CASTS.S16)
+int  i = 0x7FFFFFFF; i += 1; // i == INT_MIN (CASTS.S32)
+ushort u = 65535; u += 1;  // u == 0    (CASTZ.S16)
+byte f() { return 300; }   // -> 44       (CASTZ.S8 перед END/RET)
+int  g(byte x) { return x; }
+g(300);                    // x == 44    (CASTZ.S8 на call-site)
+byte a[2]; a[0] = 250; a[0] += 10; // a[0] == 4 (CASTZ.S8 на load и на result)
+```

@@ -5,10 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Order of sections within a version:
-**Added → Changed → Deprecated → Removed → Fixed → Documentation**.
+**Added -> Changed -> Deprecated -> Removed -> Fixed -> Documentation**.
 
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
+
+## [0.14.0] - 2026-11-14
+
+### Added
+- new opcodes added to the end of the `enum` — `CASTS` and `CASTZ`
+- new opcodes added to the assembler parser
+- the compiler now uses casts to simulate overflow of `Int8`, `Int16`, `Int32` and their `UInt*` versions
+- new tests for the compiler
+
+### Changed
+- `Lisr<FieldInfo>` replaced with `Dictionary<string, FieldInfo>` in the `StructLayout` class
+- **BREAKING:** renamed `ThrowCompiler` -> `ErrorReporter`
+- **BREAKING:** renamed `Optimizators` -> `Optimizations`
 
 ## [0.13.2] - 2026-11-13
 
@@ -137,7 +150,7 @@ Short labels:
 	- `RegType FirstRegister { get; }` — decoded `Reg1`
 	- `RegType SecondRegister { get; }` — decoded `Reg2`
 	- `OpCodeSize DataSizeCode { get; }` — decoded `OpCodeSize` (meaningful for `LOAD`/`STORE`/`*_IND`)
-- added file [`docs/error-code.md`](docs/error-code.md) with a table “code → arguments → template”
+- added file [`docs/error-code.md`](docs/error-code.md) with a table “code -> arguments -> template”
 - added an approximate translation for the documentation; the Russian documentation remains — just add `*.ru.*` before `*.md`
 
 
@@ -191,8 +204,8 @@ Short labels:
 - Tests for `const` (positive + negative — `RunCompile_ConstViolation`).
 
 ### Changed
-- **BREAKING:** `ThrowCompiler` — instance class (previously `static`).
-- **BREAKING:** `IErrorMessageProvider.GetMessage` and `ThrowCompiler.Throw` accept `ReadOnlySpan<DiagnosticData>` (previously `object`).
+- **BREAKING:** `ErrorReporter` — instance class (previously `static`).
+- **BREAKING:** `IErrorMessageProvider.GetMessage` and `ErrorReporter.Throw` accept `ReadOnlySpan<DiagnosticData>` (previously `object`).
 - `DefaultErrorMessageProvider` merges `overrides` on top of the standard templates (previously replacement).
 - AST nodes have been split into separate files in `C/AST/`.
 - `RegisterAllocationResult` has been moved to a separate file.
@@ -203,7 +216,7 @@ Short labels:
 
 ### Documentation
 - **Compiler README:** new sections “Constness (`const`)” and “Diagnostics: `DiagnosticData`”; updated tree, API table, pipeline, “What to fix”, “What has been done”.
-- **Kernel.Diagnostics README:** new section about `DiagnosticData` and AOT; `ThrowCompiler` described as instance; updated `ErrorCode`, `DefaultErrorMessageProvider`, examples.
+- **Kernel.Diagnostics README:** new section about `DiagnosticData` and AOT; `ErrorReporter` described as instance; updated `ErrorCode`, `DefaultErrorMessageProvider`, examples.
 
 ## [0.7.1] - 2026-10-30
 

@@ -8,6 +8,7 @@ namespace Nantuc.Compiler.C.CodeGenerator;
 
 public class VarLocation
 {
+    public bool IsSigned;
     public bool IsRegister;
     public RegType Register;
     public int StackOffset;

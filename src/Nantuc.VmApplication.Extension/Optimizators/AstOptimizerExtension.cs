@@ -1,8 +1,8 @@
 ﻿using Nantuc.Contracts;
-using Nantuc.VmApplication.Extensions.Optimizators.AstRules;
+using Nantuc.VmApplication.Extensions.Optimizations.AstRules;
 using Nantuc.VmApplication.Project;
 
-namespace Nantuc.VmApplication.Extensions.Optimizators;
+namespace Nantuc.VmApplication.Extensions.Optimizations;
 
 public static class AstOptimizerExtension
 {

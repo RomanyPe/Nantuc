@@ -172,9 +172,9 @@ The immediate operand is present **only** for opcodes marked `HasNeed64IntData =
 
 ### 5.2. Moves and load/store
 
-**`MOV Reg1, Reg2`** → `Reg1 = Reg2` (full 64 bits).
+**`MOV Reg1, Reg2`** -> `Reg1 = Reg2` (full 64 bits).
 
-**`LDI Reg1, imm`** → `Reg1 = imm` (64-bit immediate from the stream).
+**`LDI Reg1, imm`** -> `Reg1 = imm` (64-bit immediate from the stream).
 
 **`LOAD[.size] Reg1, [imm]`** — checked read:
 1. `addr = imm`
@@ -241,7 +241,7 @@ All instructions modify only `Reg1`.
 
 > check `target < RAM.Length`; on failure — `SegmentationFault`; otherwise `rIP = target`
 
-**`JMP target`** → `rIP = target`.
+**`JMP target`** -> `rIP = target`.
 
 **`JZ target`** — if `Z=1`, `rIP = target`.
 
@@ -254,16 +254,16 @@ All instructions modify only `Reg1`.
 **`JMP_IND Reg1`** — `target = Reg1`.
 
 **`CALL target`** — subroutine call:
-1. `if rSP < 8 → SegmentationFault`
+1. `if rSP < 8 -> SegmentationFault`
 2. `sp = rSP - 8`
-3. `if rHP >= sp → SegmentationFault` (stack/heap collision)
+3. `if rHP >= sp -> SegmentationFault` (stack/heap collision)
 4. `RAM[sp] = rIP` (unchecked write, little-endian)
 5. `rSP = sp; rIP = target`
 
 **`CALL_IND Reg1`** — `target = Reg1`; check `target < RAM.Length`; on failure — `SegmentationFault`; otherwise equivalent to `CALL target`.
 
 **`RET`** — return:
-1. `if rSP >= stackBase → StackUnderflow`
+1. `if rSP >= stackBase -> StackUnderflow`
 2. `rIP = RAM[rSP]` (unchecked read, 8 bytes LE)
 3. `rSP += 8`
 
@@ -273,25 +273,25 @@ All instructions modify only `Reg1`.
 
 **`PUSH Reg1`**:
 1. `sp = rSP - 8`
-2. `if rHP >= sp → SegmentationFault`
+2. `if rHP >= sp -> SegmentationFault`
 3. `RAM[sp] = Reg1` (checked write of 8 bytes)
-4. if the write fails → return its status
+4. if the write fails -> return its status
 5. `rSP = sp`
 
 **`POP Reg1`**:
 1. `value = RAM[rSP]` (checked read of 8 bytes LE)
-2. if the read fails → return status
+2. if the read fails -> return status
 3. `Reg1 = value; rSP += 8`
 
 ### 5.8. I/O ports
 
 Port space: `PortBus.TotalPorts = 2^ports.Log2`, sector size `2^portsOnDev.Log2`. Address = `(sector << shift) | offset`, where `shift = portsOnDev.Log2`.
 
-**`IN Reg1, Reg2`** — `addr = Reg2`; `Reg1 = PortBus.ReadPort(addr)`. If no device is registered at the address → `NullDeviceInput`, `FaultData = addr`. The device returns **1 byte**, zero-extended to 64 bits.
+**`IN Reg1, Reg2`** — `addr = Reg2`; `Reg1 = PortBus.ReadPort(addr)`. If no device is registered at the address -> `NullDeviceInput`, `FaultData = addr`. The device returns **1 byte**, zero-extended to 64 bits.
 
-**`OUT Reg1, Reg2`** — `addr = Reg2`; `PortBus.WritePort(addr, (byte)Reg1)`. If no device is present → `NullDeviceOutput`. Only the least significant byte of `Reg1` is transferred.
+**`OUT Reg1, Reg2`** — `addr = Reg2`; `PortBus.WritePort(addr, (byte)Reg1)`. If no device is present -> `NullDeviceOutput`. Only the least significant byte of `Reg1` is transferred.
 
-**`WAKE_INT Reg1`** — `addr = Reg1`; `PortBus.WakeProcessor(addr)`. If the device is not found → `NullDeviceOutput`. The device receives the `WakeProcessor()` signal, which clears `IsSleeping` on the next step.
+**`WAKE_INT Reg1`** — `addr = Reg1`; `PortBus.WakeProcessor(addr)`. If the device is not found -> `NullDeviceOutput`. The device receives the `WakeProcessor()` signal, which clears `IsSleeping` on the next step.
 
 ### 5.9. Sleep
 
@@ -337,7 +337,7 @@ Port space: `PortBus.TotalPorts = 2^ports.Log2`, sector size `2^portsOnDev.Log2`
 - Address: `sector = addr >> shift`, `offset = addr & (PortsOnDevice - 1)`, `shift = log2(PortsOnDevice)`.
 - Sector 0..`SectorCount-1`. If the sector is not registered — error (`NullDeviceInput`/`NullDeviceOutput`).
 
-The device implements `ReadPort(offset) → byte` and `WritePort(offset, value)`.
+The device implements `ReadPort(offset) -> byte` and `WritePort(offset, value)`.
 
 ---
 
@@ -390,7 +390,7 @@ Pseudocode for one step:
      b. Process all external statuses (_statusFromSimulation):
         - if status is non-zero — form ProcessorFault and query the policy.
      c. _hasCommand = false.
-2. If !IsRunning || IsSleeping → exit.
+2. If !IsRunning || IsSleeping -> exit.
 3. rIP_cur = rIP
 4. rawInst = RAM[rIP_cur]                     // unchecked, 32 bits LE
 5. opCode = Decode(rawInst).OpCode
@@ -501,7 +501,7 @@ Bytes: 08 41 00 00
 ## 12. Limitations and known implementation features
 
 5. **`WAKE` as an instruction in the body is a no-op.** Waking from `HALT` is possible only via `EnqueueExternalCommand(OpCode.WAKE)` or `PortBus.WakeProcessor`.
-7. **`InstructionLOAD`/`InstructionSTORE` do not return `AlignmentFault` for invalid `OpCodeSize`** (there `default` → `SegmentationFault` in LOAD and `AlignmentFault` in STORE); in practice `OpCodeSize` has exactly 4 values — `default` is unreachable.
+7. **`InstructionLOAD`/`InstructionSTORE` do not return `AlignmentFault` for invalid `OpCodeSize`** (there `default` -> `SegmentationFault` in LOAD and `AlignmentFault` in STORE); in practice `OpCodeSize` has exactly 4 values — `default` is unreachable.
 9. **`OpCode.NOP` = 0 is used as the “unknown opcode” marker** in `ProcessorFault` (`ProcessSimulationStatusSlow`). This is a controversial convention; if a real NOP fault appears, it will be impossible to distinguish it from an “empty” value.
 
 ---

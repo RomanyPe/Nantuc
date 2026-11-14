@@ -1,8 +1,8 @@
 ﻿using Nantuc.Compiler.C.AST;
-using Nantuc.Compiler.C.Optimizators;
+using Nantuc.Compiler.C.Optimizations;
 using Nantuc.Contracts;
 
-namespace Nantuc.VmApplication.Extensions.Optimizators.AstRules;
+namespace Nantuc.VmApplication.Extensions.Optimizations.AstRules;
 
 public class PropagateConstantsRule : IAstOptimizationRule
 {

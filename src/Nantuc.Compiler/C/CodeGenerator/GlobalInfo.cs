@@ -7,8 +7,9 @@ public struct GlobalInfo(
     bool isPointer = false,
     string? pointedType = null,
     int arraySize = 0,
-    bool isConst = false,           // ←
-    bool isPointedConst = false)    // ←
+    bool isConst = false,
+    bool isPointedConst = false,
+    bool isSigned = false)
 {
     public ulong Address = address;
     public string Type = type;
@@ -18,4 +19,5 @@ public struct GlobalInfo(
     public int ArraySize = arraySize;
     public bool IsConst = isConst;
     public bool IsPointedConst = isPointedConst;
+    public bool IsSigned = isSigned;
 }

@@ -2,7 +2,7 @@
 using Nantuc.Compiler.ASM.IR;
 using Nantuc.Contracts;
 
-namespace Nantuc.VmApplication.Extensions.Optimizators.IRAsmRules;
+namespace Nantuc.VmApplication.Extensions.Optimizations.IRAsmRules;
 
 public sealed class RemoveJumpToNextLabelRule : IOptimizerIRRule
 {

@@ -187,7 +187,7 @@ def main() -> int:
         ])
         w.writeheader()
         w.writerows(all_results)
-    print(f"\nSaved {len(all_results)} results → {out}, {csv_path}")
+    print(f"\nSaved {len(all_results)} results -> {out}, {csv_path}")
 
     # ── pivot summary ─────────────────────────────────────────────────────
     print("\n=== Summary (seconds per case, min across runs) ===")

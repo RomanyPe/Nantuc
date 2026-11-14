@@ -47,5 +47,56 @@ public class StructTests(ITestOutputHelper outPut) : CompileTestBase(outPut)
         int main() { struct P p; p.x = 5; p.x++; return p.x; }   // 6
         """, 6)]
     [InlineData("struct P { int x; }; int main() { struct P p; p.x = 10; int y = p.x++; return y + p.x; }", 21)]
+    // ---- p.x = v как выражение (раньше был NRE: assign.Name == null) ----
+    [InlineData("""
+    struct P { int x; };
+    int main() {
+        struct P p;
+        p.x = 0;
+        int y = (p.x = 7) + 3;
+        return y + p.x;   // 10 + 7 = 17
+    }
+    """, 17)]
+
+    [InlineData("""
+    struct P { int x; };
+    int main() {
+        struct P p;
+        return (p.x = 5) * 2;   // 10
+    }
+    """, 10)]
+
+    // ---- p.x op= v как выражение ----
+    [InlineData("""
+    struct P { int x; };
+    int main() {
+        struct P p;
+        p.x = 3;
+        int y = (p.x += 4) * 2;
+        return y + p.x;   // 14 + 7 = 21
+    }
+    """, 21)]
+
+    [InlineData("""
+    struct P { int x; };
+    int main() {
+        struct P p;
+        p.x = 16;
+        int y = (p.x >>= 2) + 1;
+        return y + p.x;   // 5 + 4 = 9
+    }
+    """, 9)]
+
+    // Вложенный: p->x через указатель
+    [InlineData("""
+    struct P { int x; };
+    int main() {
+        struct P p;
+        struct P *q = &p;
+        q->x = 0;
+        int y = (q->x = 9) + 1;
+        return y + p.x;   // 10 + 9 = 19
+    }
+    """, 19)]
     public void Struct_Operations(string program, ulong res) => RunCompile(program, res);
 }

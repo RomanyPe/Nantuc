@@ -120,5 +120,31 @@ public class ControlFlowTests(ITestOutputHelper outPut) : CompileTestBase(outPut
     int classify(int x) { if (x > 0) { return 1; } else { return -1;} }
     int main() { return classify(5) + classify(-3) + classify(0); }   // 1 + (-1) + (-1) = -1
     """, unchecked((ulong)-1))]
+    // ---- assignment в if-условии (не const) ----
+    [InlineData("""
+    int main() {
+        int x = 0;
+        if ((x = 20) > 15) return x;
+        return 0;
+    }
+    """, 20)]
+
+    // ---- assignment в while-условии ----
+    [InlineData("""
+    int main() {
+        int i = 0, s = 0;
+        while ((i = i + 1) < 4) s = s + i;
+        return s;   // 1 + 2 + 3 = 6
+    }
+    """, 6)]
+
+    // ---- compound в while-условии ----
+    [InlineData("""
+    int main() {
+        int i = 10, s = 0;
+        while ((i -= 3) > 0) s = s + i;
+        return s;   // 7 + 4 + 1 = 12
+    }
+    """, 12)]
     public void Control_Flow(string program, ulong res) => RunCompile(program, res);
 }

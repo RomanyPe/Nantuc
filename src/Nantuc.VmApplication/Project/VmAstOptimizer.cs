@@ -1,4 +1,4 @@
-﻿using Nantuc.Compiler.C.Optimizators;
+﻿using Nantuc.Compiler.C.Optimizations;
 using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Project;

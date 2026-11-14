@@ -1,7 +1,7 @@
 ﻿# Nantuc.Samples.Minimal — README
 
 > Минимальный рабочий пример платформы Nantuc: компилирует MiniC-программу «Hello world. Привет мир», запускает её на виртуальной машине и выводит UTF-16 строку в `Console.Out` через порт-устройство.
-> Показывает полный путь «исходник → байткод → VM → I/O» на одном экране.
+> Показывает полный путь «исходник -> байткод -> VM -> I/O» на одном экране.
 > Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
 > `[← Корень](../README.ru.md) · [VmApplication](../../src/Nantuc.VmApplication/README.ru.md) · [Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md)`
 
@@ -46,7 +46,7 @@ void main() { print16(str); }
 
 ```
 Nantuc.Samples.Minimal/
-├── Nantuc.Samples.Minimal.csproj   # net10.0, Exe, ref → VmApplication.Extensions
+├── Nantuc.Samples.Minimal.csproj   # net10.0, Exe, ref -> VmApplication.Extensions
 └── Program.cs                       # top-level statements, ~55 строк
 ```
 
@@ -92,7 +92,7 @@ var iostream = new SynchronousIOStream(Console.Out, PortCharEncoding.Utf16);
 var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
 ```
 
-и в `main.minic` вызвать `print8(str)` вместо `print16(str)`. Но `char` в MiniC — 16-bit, `print8` ожидает `char*` и делает `write8(str[i])` — truncation 16→8. Для ASCII (`"Hello world."`) работает, для кириллицы (`"Привет мир"`) — нет: символы U+041F…U+0440 не влезают в байт. Для не-ASCII оставляйте `Utf16`.
+и в `main.minic` вызвать `print8(str)` вместо `print16(str)`. Но `char` в MiniC — 16-bit, `print8` ожидает `char*` и делает `write8(str[i])` — truncation 16->8. Для ASCII (`"Hello world."`) работает, для кириллицы (`"Привет мир"`) — нет: символы U+041F…U+0440 не влезают в байт. Для не-ASCII оставляйте `Utf16`.
 
 **Добавить диагностику завершения:**
 
@@ -135,7 +135,7 @@ using var host = VmHostFactory.CreateDefault(fileService: fs);
 
 **Что стоит делать:**
 - Запустить `dotnet run` в `Nantuc.Samples.Minimal` — на экран выведется `Hello world. Привет мир` (UTF-16).
-- Использовать как шаблон для своих примеров: копировать структуру `SaveFileProject` → `TryRegisterDevice` → `TryGetDeviceContext` → `CompileToIR` → `TryLoadProgram` → `Run`.
+- Использовать как шаблон для своих примеров: копировать структуру `SaveFileProject` -> `TryRegisterDevice` -> `TryGetDeviceContext` -> `CompileToIR` -> `TryLoadProgram` -> `Run`.
 - Проверять `IdState` от `TryRegisterDevice` — это заменяет старую проверку `deviceId < 0`.
 - Для отладки заменить `Run()` на `RunStepMode` + `SingleStep`, как в `[VmApplication README](../../src/Nantuc.VmApplication/README.ru.md)`.
 
@@ -170,8 +170,8 @@ int portFlush = 0x12;
 
 - `PortsOnDevice = 1 << 4 = 16` (байт).
 - `SectorCount = 1 << (16 - 4) = 4096`.
-- Сектор 1 → база `1 * 16 = 16 = 0x10`.
-- `Data` (offset 0) → `0x10`, `Flush` (offset 2) → `0x12`.
+- Сектор 1 -> база `1 * 16 = 16 = 0x10`.
+- `Data` (offset 0) -> `0x10`, `Flush` (offset 2) -> `0x12`.
 
 Если поменять `portsPerDevice` в `VmHostFactory.CreateDefault` (например, на `DevicePortSize.B32` = 32), база сектора 1 станет `0x20`, а `portWrite = 0x10` попадёт в **сектор 0** (VM самого себя), и вывод пропадёт или сломается. Это ограничение примера, не платформы.
 
@@ -186,7 +186,7 @@ if (pendingLowByte is null) { pendingLowByte = b; /* buffered */ continue; }
 char c = (char)(pendingLowByte.Value | (b << 8));
 ```
 
-`print16` (в `print.minic`) пишет low byte первым (`write8(c)`), high — вторым (`write8(c >> 8)`). Порядок совпадает с UTF-16LE. `flush()` в конце пишет `1` в `Flush`-порт → `QueuedIOStream.Flush()` ждёт до 2 сек, пока `_pendingCount` не станет 0, и делает `_writer.Flush()`.
+`print16` (в `print.minic`) пишет low byte первым (`write8(c)`), high — вторым (`write8(c >> 8)`). Порядок совпадает с UTF-16LE. `flush()` в конце пишет `1` в `Flush`-порт -> `QueuedIOStream.Flush()` ждёт до 2 сек, пока `_pendingCount` не станет 0, и делает `_writer.Flush()`.
 
 Строка `"Hello world. Привет мир"` проверяет, что:
 - ASCII (`Hello world.`) идёт как есть (U+0048…U+0077, 2 байта в UTF-16).
@@ -202,7 +202,7 @@ char c = (char)(pendingLowByte.Value | (b << 8));
 
 ### `Run()` и `QueuedIOStream`
 
-`vm.Run()` блокирует поток до `END`/fault'а. `print16` в конце вызывает `flush()` → `QueuedIOStream.Flush()` синхронно ждёт пустой очереди. Так что к моменту возврата из `Run()` всё выведено в `Console.Out`. `host.Dispose()` (через `using`) затем вызывает `ManagerDevices.Dispose` → `iostream.Dispose` → `_drainTask.Wait(5s)` (на случай, если что-то осталось). Порядок безопасен.
+`vm.Run()` блокирует поток до `END`/fault'а. `print16` в конце вызывает `flush()` -> `QueuedIOStream.Flush()` синхронно ждёт пустой очереди. Так что к моменту возврата из `Run()` всё выведено в `Console.Out`. `host.Dispose()` (через `using`) затем вызывает `ManagerDevices.Dispose` -> `iostream.Dispose` -> `_drainTask.Wait(5s)` (на случай, если что-то осталось). Порядок безопасен.
 
 ### Ограничения платформ
 
@@ -229,6 +229,6 @@ char c = (char)(pendingLowByte.Value | (b << 8));
    Файл: `Program.cs`. Работает, но для стиля C лучше `int main()`.  
    Фикс: заменить на `int main() { print16(str); return 0; }` — читателю привычнее.
 
-5. **`LibraresIncludes` → `StdLibraries` — синхронизация имён.**  
+5. **`LibraresIncludes` -> `StdLibraries` — синхронизация имён.**  
    Файл: `Nantuc.VmApplication.Extensions/LibraresIncludes/LibraresForCompiler.cs`. В примере уже используется `using Nantuc.VmApplication.Extensions.StdLibraries;` и `Libraries.io_nanasm`. Нужно убедиться, что в самом `VmApplication.Extensions` namespace/папка/класс переименованы в `StdLibraries`/`Libraries` (или, наоборот, в примере остался старый путь). Опечатки `Librares`/`Librare` — убрать одним BREAKING-коммитом.
 ```

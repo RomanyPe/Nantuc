@@ -9,7 +9,7 @@ namespace Nantuc.Diagnostics;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Инкапсулирует связку «получить текст сообщения по <see cref="ErrorCode"/> → бросить
+/// Инкапсулирует связку «получить текст сообщения по <see cref="ErrorCode"/> -> бросить
 /// <see cref="CodeException"/>». Избавляет места вызова от повторяющегося кода
 /// <c>throw new CodeException(code, provider.GetMessage(code, args))</c>.
 /// </para>
@@ -17,7 +17,7 @@ namespace Nantuc.Diagnostics;
 /// Экземпляр считается неизменяемым после конструирования: поле
 /// <see cref="ErrorMessageProvider"/> инициализируется один раз в конструкторе
 /// и дальше используется только для чтения. Если требуется горячая замена политики
-/// (например, в тестах), создавайте новый экземпляр <see cref="ThrowCompiler"/>.
+/// (например, в тестах), создавайте новый экземпляр <see cref="ErrorReporter"/>.
 /// </para>
 /// <para>
 /// Оба метода помечены <see cref="DoesNotReturnAttribute"/> и
@@ -30,7 +30,7 @@ namespace Nantuc.Diagnostics;
 /// Провайдер сообщений об ошибках. Если передан <see langword="null"/>,
 /// используется <see cref="IErrorMessageProvider.Default"/>.
 /// </param>
-public class ThrowCompiler(IErrorMessageProvider? provider)
+public sealed class ErrorReporter(IErrorMessageProvider? provider)
 {
     /// <summary>
     /// Текущая политика ошибок компилятора — провайдер, из которого берутся
@@ -40,7 +40,7 @@ public class ThrowCompiler(IErrorMessageProvider? provider)
     /// Никогда не <see langword="null"/>: при конструировании подставляется
     /// <see cref="IErrorMessageProvider.Default"/>, если аргумент не задан.
     /// </remarks>
-    public IErrorMessageProvider ErrorMessageProvider = provider ?? IErrorMessageProvider.Default;
+    public IErrorMessageProvider ErrorMessageProvider { get; } = provider ?? IErrorMessageProvider.Default;
 
     /// <summary>
     /// Формирует сообщение по коду ошибки и выбрасывает <see cref="CodeException"/>.

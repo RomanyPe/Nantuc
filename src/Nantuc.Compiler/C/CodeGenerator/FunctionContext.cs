@@ -17,9 +17,11 @@ public class FunctionContext
     public List<RegType> UsedRegisters { get; private set; } = [];
     public int SaveAreaSize { get; private set; } = 0;
     public int ExpressionSaveDepth { get; set; } = 0;
+    public OpCodeSize ReturnSize { get; private set; } = OpCodeSize.S64;
+    public bool ReturnIsSigned { get; private set; }
+    public bool ReturnIsVoid { get; private set; }
 
-
-    public static FunctionContext Create(FunctionNode func, Dictionary<string, VariableNode> localVarNodes, Dictionary<string, StructLayout> structTable, ThrowCompiler ThrowCompiler)
+    public static FunctionContext Create(FunctionNode func, Dictionary<string, VariableNode> localVarNodes, Dictionary<string, StructLayout> structTable, ErrorReporter ErrorReporter)
     {
         var ctx = new FunctionContext
         {
@@ -88,8 +90,8 @@ public class FunctionContext
             }
             else
             {
-                size = CodeGenUtils.GetSizeForType(type, ThrowCompiler);
-                varSize = isArray ? CodeGenUtils.GetSizeInBytes(size, ThrowCompiler) * arraySize : 8;
+                size = CodeGenUtils.GetSizeForType(type, ErrorReporter);
+                varSize = isArray ? CodeGenUtils.GetSizeInBytes(size, ErrorReporter) * arraySize : 8;
             }
 
             if (isArray && isStruct)
@@ -105,13 +107,15 @@ public class FunctionContext
                 {
                     IsRegister = true,
                     Register = reg.Value,
-                    TypeSize = CodeGenUtils.GetSizeForType(type, ThrowCompiler),
+                    TypeSize = CodeGenUtils.GetSizeForType(type, ErrorReporter),
                     IsArray = false,
                     ArraySize = 0,
                     IsPointer = isPointer,
                     PointedType = pointedType,
                     IsConst = isConst,
                     IsPointedConst = isPointedConst,
+                    IsSigned = !isPointer && !structTable.ContainsKey(type)
+               && CodeGenUtils.IsSignedType(type),
                 };
             }
             else
@@ -128,11 +132,18 @@ public class FunctionContext
                     PointedType = pointedType,
                     IsConst = isConst,
                     IsPointedConst = isPointedConst,
+                    IsSigned = !isPointer && !structTable.ContainsKey(type)
+               && CodeGenUtils.IsSignedType(type),
                 };
                 stackOffset += varSize;
             }
         }
-
+        ctx.ReturnIsVoid = func.ReturnType == "void";
+        if (!ctx.ReturnIsVoid && !func.ReturnIsPointer && !structTable.ContainsKey(func.ReturnType))
+        {
+            ctx.ReturnSize = CodeGenUtils.GetSizeForType(func.ReturnType, ErrorReporter);
+            ctx.ReturnIsSigned = CodeGenUtils.IsSignedType(func.ReturnType);
+        }
         ctx.VarMap = varMap;
         ctx.TotalLocalSize = stackOffset;   // теперь только для стековых переменных
         ctx.SaveAreaSize = (ComputeMaxBinaryDepth(func.Body) + 1) * 8;
@@ -144,7 +155,7 @@ public class FunctionContext
         if (node is null) return 0;
         return node switch
         {
-            // Binary: left сохранён в save-slot, пока генерируется right → +1
+            // Binary: left сохранён в save-slot, пока генерируется right -> +1
             BinaryOpNode b => 1 + Math.Max(
                                   ComputeMaxBinaryDepth(b.Left),
                                   ComputeMaxBinaryDepth(b.Right)),
@@ -152,8 +163,8 @@ public class FunctionContext
             UnaryOpNode u => ComputeMaxBinaryDepth(u.Operand),
 
             // Assignment:
-            // - arr[i] = value: value в r1, save, затем index → +1
-            // - *ptr = value / obj.field = value: value в r1, save, затем адрес → +1
+            // - arr[i] = value: value в r1, save, затем index -> +1
+            // - *ptr = value / obj.field = value: value в r1, save, затем адрес -> +1
             AssignmentNode a => a.IndexExpr != null
                 ? Math.Max(ComputeMaxBinaryDepth(a.Value),
                            1 + ComputeMaxBinaryDepth(a.IndexExpr))
@@ -166,7 +177,7 @@ public class FunctionContext
                                           ? fc.Arguments.Max(ComputeMaxBinaryDepth)
                                           : 0),
 
-            // If: left условия сохраняется на время генерации right → +1
+            // If: left условия сохраняется на время генерации right -> +1
             IfNode i => Math.Max(
                 1 + ComputeMaxBinaryDepth(i.Condition),
                 Math.Max(ComputeMaxBinaryDepth(i.ThenBlock),

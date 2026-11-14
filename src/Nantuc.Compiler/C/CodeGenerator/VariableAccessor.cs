@@ -18,9 +18,8 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
     {
         if (TryGetRegister(varName, out var locReg))
         {
-            if (locReg != targetReg)
-                _asm.EmitMov(targetReg, locReg);
-            return;
+            if (locReg != targetReg) _asm.EmitMov(targetReg, locReg);
+            return;   // register уже канонический (см. 5.2)
         }
 
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
@@ -28,22 +27,23 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
             _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
             _asm.EmitLoadInd(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, loc.TypeSize);
+            // NEW: LOAD.S8/S16/S32 zero-extends — для signed нужен CASTS
+            _asm.EmitCastToType(targetReg, loc.TypeSize, loc.IsSigned);
             return;
         }
 
         if (_globalMem.Contains(varName))
         {
             var gInfo = _globalMem.GetInfo(varName)!.Value;
-            // NEW: указатель всегда 8 байт, независимо от Type ("void", "int", …)
-            var size = gInfo.IsPointer
-                ? OpCodeSize.S64
-                : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
-            string label = GlobalMemoryManager.GetLabel(varName);
-            _asm.EmitLoad(targetReg, size, label);
+            var size = gInfo.IsPointer ? OpCodeSize.S64
+                                       : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ErrorReporter);
+            _asm.EmitLoad(targetReg, size, GlobalMemoryManager.GetLabel(varName));
+            // NEW
+            _asm.EmitCastToType(targetReg, size, gInfo.IsSigned);
             return;
         }
 
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
     }
     public bool IsConst(string name)
     {
@@ -67,8 +67,10 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
     {
         if (TryGetRegister(varName, out var locReg))
         {
-            if (locReg != sourceReg)
-                _asm.EmitMov(locReg, sourceReg);
+            if (locReg != sourceReg) _asm.EmitMov(locReg, sourceReg);
+            // NEW: home-регистр должен быть каноническим
+            if (_funcCtx.VarMap.TryGetValue(varName, out var loch))
+                _asm.EmitCastToType(locReg, loch.TypeSize, loch.IsSigned);
             return;
         }
 
@@ -86,20 +88,20 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             // NEW: указатель всегда 8 байт
             var size = gInfo.IsPointer
                 ? OpCodeSize.S64
-                : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ThrowCompiler);
+                : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ErrorReporter);
             string label = GlobalMemoryManager.GetLabel(varName);
             _asm.EmitStore(sourceReg, size, label);
             return;
         }
 
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
     }
     public void LoadAddressToRegister(string varName, RegType targetReg)
     {
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
         {
             if (loc.IsRegister)
-                _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
             _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
             _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
             if (CodeGenUtils.ADDR_SCRATCH_REG_EN != targetReg)
@@ -114,7 +116,7 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             return;
         }
 
-        _asm.ThrowCompiler.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
     }
 
     public OpCodeSize GetVariableSize(string varName)
@@ -127,9 +129,9 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             // NEW: указатель всегда 8 байт
             return g.IsPointer
                 ? OpCodeSize.S64
-                : CodeGenUtils.GetSizeForType(g.Type, _asm.ThrowCompiler);
+                : CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter);
         }
-        return _asm.ThrowCompiler.Throw<OpCodeSize>(ErrorCode.CodeGen_UndefinedVariable, varName);
+        return _asm.ErrorReporter.Throw<OpCodeSize>(ErrorCode.CodeGen_UndefinedVariable, varName);
     }
     public bool TryGetRegister(string varName, out RegType reg)
     {
