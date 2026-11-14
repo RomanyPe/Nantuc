@@ -1,22 +1,22 @@
-Here is the English translation. No `.ru` localization prefixes were present in the source.
+Here is the English translation of the provided specification document:
 
 # Nantuc Virtual Machine Bytecode Specification
 
-> Format version: 1  
-> Target platform: `Nantuc.Kernel.Common` / `Nantuc.Compiler.ASM`  
+> Format version: 1
+> Target platform: `Nantuc.Kernel.Common` / `Nantuc.Compiler.ASM`
 > Status: implemented in the reference interpreter (`Processor.Step`, `InstructionDecoder`) and in the MiniC/NANASM code generator.
 
 ---
 
 ## 1. Terminology and conventions
 
-- **Bytecode** — a sequence of 32-bit instruction words and 64-bit immediate operands, placed in RAM.
+- **Bytecode** — a sequence of 32-bit instruction words and 64-bit immediate operands placed in RAM.
 - **Instruction word** — a 32-bit `uint`, read from memory as **little-endian** (`MemoryBus.ReadInt32LE*`).
 - **Immediate** — a 64-bit value, read from memory as **little-endian unaligned** (`ReadInt64LEUnSafe`).
 - **VM** — the virtual processor implemented in `Processor`.
-- **Loader** — `Device.LoadProgram` (copies program bytes into RAM and initializes `rHP`).
+- **Loader** — `Device.LoadProgram` (copies the program bytes into RAM and initializes `rHP`).
 
-Key requirement: **the base load address of the program must be a multiple of 8** for correct immediate reads.
+Key requirement: **the base address of the program load must be a multiple of 8** for correct immediate reading.
 
 ---
 
@@ -27,34 +27,34 @@ Key requirement: **the base load address of the program must be a multiple of 8*
 32 registers of 64 bits each (`[InlineArray(32)]` in `Processor`). Indexing is by `RegType` (0..31).
 
 | Index | Name   | Purpose |
-|------:|--------|---------|
-| 0–27  | `r0..r27` | General-purpose registers |
-| 28    | `rFL` | Flags: bit 0 = Zero, bit 1 = Negative |
-| 29    | `rSP` | Stack Pointer — stack pointer (grows downward) |
-| 30    | `rHP` | Heap Pointer — heap pointer |
-| 31    | `rIP` | Instruction Pointer — address of the next instruction |
+|-------:|-------|------------|
+| 0–27   | `r0..r27` | General-purpose registers |
+| 28     | `rFL` | Flags: bit 0 = Zero, bit 1 = Negative |
+| 29     | `rSP` | Stack Pointer — stack pointer (grows downwards) |
+| 30     | `rHP` | Heap Pointer |
+| 31     | `rIP` | Instruction Pointer — address of the next instruction |
 
-**`rFL` flags are updated only by `CMP` and `TEST`.** Arithmetic and logical instructions do not change flags.
+**`rFL` flags are updated only by `CMP` and `TEST`.** Arithmetic and logical instructions do not change the flags.
 
 ### 2.2. Processor state
 
 - `IsRunning` — whether the program is executing.
-- `IsSleeping` — the processor is in `HALT` mode (waiting for wakeup).
+- `IsSleeping` — processor is in `HALT` mode (waiting for wake-up).
 
 ### 2.3. Initial initialization (`LaunchProgramm`)
 
-| Field | Value |
-|-------|-------|
-| `rIP` | argument `startAddress` (address of the first instruction) |
+| Field  | Value |
+|-------|----------|
+| `rIP` | `startAddress` argument (address of the first instruction) |
 | `rSP` | `AlignDown(RAM.Length, 8)` — top of RAM |
 | `rFL` | `0` |
 | `IsRunning` | `true`, `IsSleeping = false` |
-| `rHP` | set by `Device.LoadProgram` / `InitRegHP` to `AlignUp(loadAddress + programLength, 8)` |
+| `rHP` | set by `Device.LoadProgram` / `InitRegHP` equal to `AlignUp(loadAddress + programLength, 8)` |
 
 ### 2.4. Address format
 
-- RAM is byte-addressed; length is `RAM.Length` (power of two, ≥ 64 bytes).
-- Ports are a separate byte space divided into sectors of `PortsOnDevice` ports each.
+- RAM is byte-addressed, length is `RAM.Length` (power of two, ≥ 64 bytes).
+- Ports are a separate byte space divided into sectors of `PortsOnDevice` ports.
 
 ---
 
@@ -71,7 +71,7 @@ bits:  31 … 20  |  19 … 18   |  17 … 13   |  12 … 8   |  7 … 0
 - **OpCode** (8 bits) — operation code (`OpCode`).
 - **Reg1** (5 bits) — first register operand, usually the destination.
 - **Reg2** (5 bits) — second register operand, usually the source.
-- **DataSize** (2 bits) — only for the LOAD/STORE group (`OpCodeSize`).
+- **DataSize** (2 bits) — data size (`OpCodeSize`): for the LOAD/STORE group **and for CASTZ/CASTS**.
 - **Bits 20–31** — reserved, must be zero.
 
 Decoder (reference): `InstructionDecoder.GetOpCode/GetReg1/GetReg2/GetDataSizeCode`.
@@ -79,40 +79,42 @@ Decoder (reference): `InstructionDecoder.GetOpCode/GetReg1/GetReg2/GetDataSizeCo
 ### 3.2. Total instruction length
 
 | Form | Length | When |
-|------|--------|------|
-| Register–register / no operands | **4 bytes** | all except those listed below |
+|-------|-------|-------|
+| Register–register / no operands / one register + size | **4 bytes** | all except those listed below |
 | Instruction + immediate | **12 bytes** (4 + 4 padding + 8) | if `InstructionDecoder.HasNeed64IntData(opCode) == true` |
 
-**Immediate** is read at address `AlignUp(rIP_after_instr, 8)`. Padding between the instruction and the immediate is ignored (may be arbitrary, usually 0). After reading, `rIP = immediate_addr + 8`.
+**Immediate** is read at address `AlignUp(rIP_after_instr, 8)`. Padding between the instruction and immediate is ignored (can be anything, usually 0). After reading, `rIP = immediate_addr + 8`.
 
-### 3.3. Register operands by opcode
+**CASTZ/CASTS are 4-byte instructions** without immediate (use DataSize as a parameter).
+
+### 3.3. Register operands by opcodes
 
 | Operand | What it encodes |
-|---------|-----------------|
-| `Reg1`  | destination (dst) / left operand / only operand |
-| `Reg2`  | source (src) / right operand / port (for IN/OUT) |
+|---------|--------------|
+| `Reg1`  | destination (dst) / left operand / single operand (including for CASTZ/CASTS) |
+| `Reg2`  | source (src) / right operand / port (for IN/OUT); **not used** for CASTZ/CASTS |
 
-See the opcode table for specific conventions.
+See the opcode table (§ 4) for specific conventions.
 
 ### 3.4. DataSize (`OpCodeSize`)
 
 | Code (`b2b1`) | Value | Size | Address alignment requirement |
-|:-------------:|-------|-----:|-------------------------------|
+|:------------:|----------|-------:|-------------------------------|
 | `00` | `S8`  | 1 byte  | — |
 | `01` | `S16` | 2 bytes | 2 (`addr & 1 == 0`) |
 | `10` | `S32` | 4 bytes | 4 (`addr & 3 == 0`) |
 | `11` | `S64` | 8 bytes | 8 (`addr & 7 == 0`) |
 
-Used only by `LOAD`, `STORE`, `LOAD_IND`, `STORE_IND`, and their `_UNSAFE` variants.
+Used by `LOAD`, `STORE`, `LOAD_IND`, `STORE_IND`, their `_UNSAFE` variants, **as well as `CASTZ` and `CASTS`** (in the latter, it means the truncation/extension width).
 
 ---
 
 ## 4. Opcodes (registry)
 
-All values are 0 through 42; the original enum is `OpCode : byte`. Values are fixed by declaration order and cannot be reordered without updating the decoder and saved images.
+All values are from 0 to **44**; the original enum is `OpCode : byte`. Values are fixed by declaration order and cannot be reordered without updating the decoder and saved images.
 
 | # | Mnemonic | Reg1 | Reg2 | Size | Immediate | Brief meaning |
-|--:|----------|------|------|:----:|:---------:|---------------|
+|--:|-----------|------|------|:----:|:---------:|---------------|
 | 0  | `NOP`            | — | — | — | — | no operation |
 | 1  | `END`            | — | — | — | — | normal program termination |
 | 2  | `MOV`            | dst | src | — | — | `dst = src` |
@@ -128,7 +130,7 @@ All values are 0 through 42; the original enum is `OpCode : byte`. Values are fi
 | 12 | `SHL`            | dst | shift | — | — | `dst <<= (byte)shift` |
 | 13 | `INC`            | reg | — | — | — | `reg += 1` |
 | 14 | `DEC`            | reg | — | — | — | `reg -= 1` |
-| 15 | `DIV`            | dst | src | — | — | `dst /= src` (unsigned), `DivOnZero` if 0 |
+| 15 | `DIV`            | dst | src | — | — | `dst /= src` (unsigned), `DivOnZero` at 0 |
 | 16 | `AND`            | dst | src | — | — | `dst &= src` |
 | 17 | `OR`             | dst | src | — | — | `dst \|= src` |
 | 18 | `XOR`            | dst | src | — | — | `dst ^= src` |
@@ -147,17 +149,30 @@ All values are 0 through 42; the original enum is `OpCode : byte`. Values are fi
 | 31 | `CALL_IND`       | addr | — | — | — | `CALL [Reg1]` (checked) |
 | 32 | `JMP_IND`        | addr | — | — | — | `JMP [Reg1]` (checked) |
 | 33 | `HALT`           | — | — | — | — | `IsSleeping = true` |
-| 34 | `WAKE`           | — | — | — | — | no-op in stream; as an external command — wakeup |
-| 35 | `WAKE_INT`       | port | — | — | — | wake device at `port[Reg1]` |
+| 34 | `WAKE`           | — | — | — | — | no-op in stream; as an external command — wake-up |
+| 35 | `WAKE_INT`       | port | — | — | — | wake device by `port[Reg1]` |
 | 36 | `LOAD_UNSAFE`    | dst | — | ✓ | ✓ | `dst = [addr]` (unchecked) |
 | 37 | `STORE_UNSAFE`   | src | — | ✓ | ✓ | `[addr] = src` (unchecked) |
 | 38 | `STORE_IND_UNSAFE` | src | addr | ✓ | — | `[Reg2] = Reg1` (unchecked) |
 | 39 | `LOAD_IND_UNSAFE`  | dst | addr | ✓ | — | `dst = [Reg2]` (unchecked) |
-| 40 | `CMP`            | left | right | — | — | updates `rFL` based on `left - right` |
-| 41 | `TEST`           | left | right | — | — | updates `rFL` based on `left & right` |
-| 42 | `MOD`            | dst | src | — | — | `dst %= src` (unsigned), `DivOnZero` if 0 |
+| 40 | `CMP`            | left | right | — | — | updates `rFL` by `left - right` |
+| 41 | `TEST`           | left | right | — | — | updates `rFL` by `left & right` |
+| 42 | `MOD`            | dst | src | — | — | `dst %= src` (unsigned), `DivOnZero` at 0 |
+| **43** | **`CASTZ`**  | reg | — | ✓ | — | `reg = zero-extend(reg, size)` — mask of the lower `size` bytes [NEW] |
+| **44** | **`CASTS`**  | reg | — | ✓ | — | `reg = sign-extend(reg, size)` — sign extension [NEW] |
 
-The immediate operand is present **only** for opcodes marked `HasNeed64IntData = true` (in the reference: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `LOAD_UNSAFE`, `STORE_UNSAFE`, `LOAD_IND`, `STORE_IND`, `LOAD_IND_UNSAFE`, `STORE_IND_UNSAFE`).
+> **Important:** opcodes `NOP = 0` and `END = 1` are semantically incompatible with the usual "no operation" in the context of `ProcessorFault`; see § 12 item 3.
+
+An immediate operand is present **only** for opcodes marked with `HasNeed64IntData = true`. In the reference:
+
+```
+LDI, LOAD, STORE, LOAD_UNSAFE, STORE_UNSAFE,
+CALL, JMP, JZ, JNZ, JG, JL
+```
+
+> **Correction:** in a previous version of the specification, this list erroneously included `LOAD_IND`/`STORE_IND` and their `_UNSAFE` variants. These opcodes take the address from `Reg2` and **do not read an immediate**. The `_has` table in `InstructionDecoder.CreateNeedsUlongOperandTable()` contains exactly 11 entries listed above.
+
+> **`HasNeed64IntData` bounds check:** implemented by `_has.Length` (256), not by `OpCode.MOD` (42) — otherwise `CASTZ`/`CASTS`/`CMP`/`TEST`/`WAKE_INT`/`JMP_IND`/`CALL_IND`/`HALT`/`WAKE` (all above `MOD`) would cause an `ArgumentOutOfRangeException` in the disassembler.
 
 ---
 
@@ -166,11 +181,11 @@ The immediate operand is present **only** for opcodes marked `HasNeed64IntData =
 ### 5.1. System
 
 | Opcode | Action |
-|--------|--------|
-| `NOP` | no operation, `rIP` has already advanced by 4 |
-| `END` | `IsRunning = false`; returns `BiosStatus.EndProgram`; then `IProcessorPolicy.ShouldContinue`, whose response overwrites `IsRunning` |
+|-------|----------|
+| `NOP` | empty operation, `rIP` already shifted by 4 |
+| `END` | `IsRunning = false`; returns `BiosStatus.EndProgram`; then — `IProcessorPolicy.ShouldContinue`, its response overwrites `IsRunning` |
 
-### 5.2. Moves and load/store
+### 5.2. Moves and load-store
 
 **`MOV Reg1, Reg2`** -> `Reg1 = Reg2` (full 64 bits).
 
@@ -180,42 +195,61 @@ The immediate operand is present **only** for opcodes marked `HasNeed64IntData =
 1. `addr = imm`
 2. alignment check by `size` (`addr & (N-1) == 0`)
 3. check `addr + N <= RAM.Length`
-4. read `N` bytes little-endian, zero-extended to 64 bits
+4. read `N` bytes little-endian, extension to 64 bits is **unsigned** (zero extension)
 5. `Reg1 = value`
 
 Errors: `AlignmentFault` (with `FaultData = addr`), `SegmentationFault` (with `FaultData = addr`).
 
 **`STORE[.size] [imm], Reg1`** — checked write:
 1. `addr = imm`
-2. the same checks
-3. write the least significant `N` bytes of `Reg1` little-endian to `[addr]`
+2. same checks
+3. write the lower `N` bytes of `Reg1` little-endian to `[addr]`
 
 **`LOAD_IND[.size] Reg1, Reg2`** — same as `LOAD`, but `addr = Reg2`.
 
 **`STORE_IND[.size] Reg1, Reg2`** — same as `STORE`, but `addr = Reg2`.
 
-**`*_UNSAFE` variants** — without checks. Behavior on out-of-bounds or misalignment is **undefined** (`Unsafe.ReadUnaligned`/`WriteUnaligned` on a pointer outside the buffer).
+**`*_UNSAFE` variants** — without checks. Behavior when going out of bounds or violating alignment is **undefined** (`Unsafe.ReadUnaligned`/`WriteUnaligned` via a pointer outside the buffer).
+
+### 5.2.1. Size casting **[NEW]**
+
+**`CASTZ[.size] Reg1`** — zero-extend (mask):
+1. `mask = MaskOf(size)` — lower `size` bytes (for `S8` — `0xFF`, `S16` — `0xFFFF`, `S32` — `0xFFFFFFFF`, `S64` — `0xFFFFFFFFFFFFFFFF`)
+2. `Reg1 = Reg1 & mask`
+
+Result: value in the range `[0, 2^(8·size) − 1]`.
+
+**`CASTS[.size] Reg1`** — sign-extend:
+1. `Reg1 = (signed)(Reg1 & mask)` — upper bits of the register are filled with the sign bit of the `size`-bit value
+2. For `S64` — identity operation
+3. Result: value in the range `[−2^(8·size−1), 2^(8·size−1) − 1]` for signed interpretation
+
+Both instructions:
+- **4 bytes**, without immediate
+- Use only `Reg1` and `DataSize`
+- Do not change `rFL` and other registers
+- Used by the MiniC code generator to implement **narrow type overflow** (see Appendix A)
 
 ### 5.3. Arithmetic (unsigned, 64-bit, wrap-around)
 
-All instructions modify only `Reg1`.
+All instructions change only `Reg1`.
 
 | Opcode | Formula |
-|--------|---------|
+|-------|---------|
 | `ADD Reg1, Reg2` | `Reg1 = Reg1 + Reg2` |
 | `SUB Reg1, Reg2` | `Reg1 = Reg1 - Reg2` |
 | `MULT_INT Reg1, Reg2` | `Reg1 = Reg1 * Reg2` (overflow discarded) |
-| `DIV Reg1, Reg2` | `Reg1 = Reg1 / Reg2` (unsigned); `DivOnZero` if `Reg2 == 0` |
-| `MOD Reg1, Reg2` | `Reg1 = Reg1 % Reg2` (unsigned); `DivOnZero` if `Reg2 == 0` |
+| `DIV Reg1, Reg2` | `Reg1 = Reg1 / Reg2` (unsigned); `DivOnZero`, if `Reg2 == 0` |
+| `MOD Reg1, Reg2` | `Reg1 = Reg1 % Reg2` (unsigned); `DivOnZero`, if `Reg2 == 0` |
 | `INC Reg1` | `Reg1 += 1` |
 | `DEC Reg1` | `Reg1 -= 1` |
-| `SHR Reg1, Reg2` | `Reg1 >>= (byte)Reg2` (least significant byte) |
-| `SHL Reg1, Reg2` | `Reg1 <<= (byte)Reg2` (least significant byte) |
+| `SHR Reg1, Reg2` | `Reg1 >>= (byte)Reg2` (low byte) |
+| `SHL Reg1, Reg2` | `Reg1 <<= (byte)Reg2` (low byte) |
 
 ### 5.4. Logical
 
 | Opcode | Formula |
-|--------|---------|
+|-------|---------|
 | `AND Reg1, Reg2` | `Reg1 &= Reg2` |
 | `OR Reg1, Reg2`  | `Reg1 \|= Reg2` |
 | `XOR Reg1, Reg2` | `Reg1 ^= Reg2` (typically for zeroing: `XOR Rn, Rn`) |
@@ -223,19 +257,19 @@ All instructions modify only `Reg1`.
 
 ### 5.5. Comparisons (update `rFL`)
 
-`rFL` (28): bit 0 — **Zero (Z)**, bit 1 — **Negative (N)**. Other bits are 0.
+`rFL` (28): bit 0 — **Zero (Z)**, bit 1 — **Negative (N)**. Other bits — 0.
 
-**`CMP Reg1, Reg2`** — computes `res = Reg1 - Reg2` (64-bit, unsigned):
+**`CMP Reg1, Reg2`** — `res = Reg1 - Reg2` is calculated (64-bit, unsigned):
 - `Z = (res == 0)`
 - `N = (res >> 63) & 1`
 
-`Reg1`/`Reg2` are not modified.
+`Reg1`/`Reg2` are not changed.
 
-**`TEST Reg1, Reg2`** — computes `res = Reg1 & Reg2`:
+**`TEST Reg1, Reg2`** — `res = Reg1 & Reg2` is calculated:
 - `Z = (res == 0)`
 - `N = (res >> 63) & 1`
 
-`Reg1`/`Reg2` are not modified.
+`Reg1`/`Reg2` are not changed.
 
 ### 5.6. Control flow
 
@@ -247,55 +281,55 @@ All instructions modify only `Reg1`.
 
 **`JNZ target`** — if `Z=0`, `rIP = target`.
 
-**`JG target`** — if `Z=0` and `N=0`, `rIP = target` (unsigned “greater”).
+**`JG target`** — if `Z=0` and `N=0`, `rIP = target` (unsigned "greater").
 
-**`JL target`** — if `N=1`, `rIP = target` (unsigned “less”).
+**`JL target`** — if `N=1`, `rIP = target` (unsigned "less").
 
 **`JMP_IND Reg1`** — `target = Reg1`.
 
 **`CALL target`** — subroutine call:
 1. `if rSP < 8 -> SegmentationFault`
 2. `sp = rSP - 8`
-3. `if rHP >= sp -> SegmentationFault` (stack/heap collision)
+3. `if rHP >= sp -> SegmentationFault` (stack-heap collision)
 4. `RAM[sp] = rIP` (unchecked write, little-endian)
 5. `rSP = sp; rIP = target`
 
-**`CALL_IND Reg1`** — `target = Reg1`; check `target < RAM.Length`; on failure — `SegmentationFault`; otherwise equivalent to `CALL target`.
+**`CALL_IND Reg1`** — `target = Reg1`; check `target < RAM.Length`; on failure — `SegmentationFault`; otherwise — equivalent to `CALL target`.
 
 **`RET`** — return:
 1. `if rSP >= stackBase -> StackUnderflow`
 2. `rIP = RAM[rSP]` (unchecked read, 8 bytes LE)
 3. `rSP += 8`
 
-`stackBase` is the value of `rSP` immediately after `LaunchProgramm` (top of RAM, aligned down to 8).
+`stackBase` — value of `rSP` right after `LaunchProgramm` (top of RAM, aligned down by 8).
 
 ### 5.7. Stack
 
 **`PUSH Reg1`**:
 1. `sp = rSP - 8`
 2. `if rHP >= sp -> SegmentationFault`
-3. `RAM[sp] = Reg1` (checked write of 8 bytes)
-4. if the write fails -> return its status
+3. `RAM[sp] = Reg1` (checked write 8 bytes)
+4. if write failed -> return its status
 5. `rSP = sp`
 
 **`POP Reg1`**:
-1. `value = RAM[rSP]` (checked read of 8 bytes LE)
-2. if the read fails -> return status
+1. `value = RAM[rSP]` (checked read 8 bytes LE)
+2. if read failed -> return status
 3. `Reg1 = value; rSP += 8`
 
 ### 5.8. I/O ports
 
 Port space: `PortBus.TotalPorts = 2^ports.Log2`, sector size `2^portsOnDev.Log2`. Address = `(sector << shift) | offset`, where `shift = portsOnDev.Log2`.
 
-**`IN Reg1, Reg2`** — `addr = Reg2`; `Reg1 = PortBus.ReadPort(addr)`. If no device is registered at the address -> `NullDeviceInput`, `FaultData = addr`. The device returns **1 byte**, zero-extended to 64 bits.
+**`IN Reg1, Reg2`** — `addr = Reg2`; `Reg1 = PortBus.ReadPort(addr)`. If no device is registered at the address -> `NullDeviceInput`, `FaultData = addr`. The device returns **1 byte** extended to 64 bits with zeros.
 
-**`OUT Reg1, Reg2`** — `addr = Reg2`; `PortBus.WritePort(addr, (byte)Reg1)`. If no device is present -> `NullDeviceOutput`. Only the least significant byte of `Reg1` is transferred.
+**`OUT Reg1, Reg2`** — `addr = Reg2`; `PortBus.WritePort(addr, (byte)Reg1)`. If no device -> `NullDeviceOutput`. Only the low byte of `Reg1` is passed.
 
-**`WAKE_INT Reg1`** — `addr = Reg1`; `PortBus.WakeProcessor(addr)`. If the device is not found -> `NullDeviceOutput`. The device receives the `WakeProcessor()` signal, which clears `IsSleeping` on the next step.
+**`WAKE_INT Reg1`** — `addr = Reg1`; `PortBus.WakeProcessor(addr)`. If device not found -> `NullDeviceOutput`. The device receives the `WakeProcessor()` signal, which clears `IsSleeping` on the next step.
 
 ### 5.9. Sleep
 
-**`HALT`** — `IsSleeping = true`. External commands continue to be processed, but program-body steps are not executed.
+**`HALT`** — `IsSleeping = true`. Processing of external commands continues, but program body steps are not executed.
 
 **`WAKE`** — as an instruction in the program body: no-op (`Success`). As an **external command** via `EnqueueExternalCommand` or `PortBus.WakeProcessor` — clears `IsSleeping`.
 
@@ -307,7 +341,7 @@ Port space: `PortBus.TotalPorts = 2^ports.Log2`, sector size `2^portsOnDev.Log2`
 
 ### 6.1. RAM
 
-- Single byte-addressable space `[0, RAM.Length)`.
+- Single byte address space `[0, RAM.Length)`.
 - Byte order: **little-endian** (endianness is fixed by `NativeMemoryBuffer` on all platforms).
 - Size: `RamSize` (power of two, 64 B … 2 GiB). By default allocated via `NativeMemory.AllocZeroed`.
 
@@ -325,7 +359,7 @@ Port space: `PortBus.TotalPorts = 2^ports.Log2`, sector size `2^portsOnDev.Log2`
 
 - Read via `ReadInt64LEUnSafe` (unchecked, unaligned).
 - Address = `AlignUp(rIP_after_instr, 8)`.
-- After reading, `rIP = addr + 8`.
+- After reading `rIP = addr + 8`.
 
 ---
 
@@ -348,7 +382,7 @@ The device implements `ReadPort(offset) -> byte` and `WritePort(offset, value)`.
 | Code | Name | Meaning |
 |----:|-----|-------|
 | 0  | `Success` | success (default, safe value) |
-| 1  | `SegmentationFault` | RAM out-of-bounds / stack-heap collision |
+| 1  | `SegmentationFault` | out of RAM bounds / stack-heap collision |
 | 2  | `AlignmentFault` | incorrect address alignment |
 | 3  | `EndProgram` | normal termination (`END`) |
 | 4  | `HostStopped` | host-side stop (`Stop`) |
@@ -357,13 +391,13 @@ The device implements `ReadPort(offset) -> byte` and `WritePort(offset, value)`.
 | 7  | `NullDeviceOutput` | no output device / wake port |
 | 8  | `InfinityLoop` | step limit / policy triggered |
 | 9  | `DivOnZero` | division by zero (`DIV`, `MOD`) |
-| 10 | `NotSupportedOpCode` | opcode is known but unsupported |
-| 11 | `StackUnderflow` | `RET` on an empty stack / stack overflow |
-| 12 | `UnsafeOpCodeForbidden` | use of an unsafe `OpCode` when the `IProcessorPolicy.AllowUnsafeOpCodes` policy has preemptively forbidden it |
+| 10 | `NotSupportedOpCode` | opcode is known but not supported |
+| 11 | `StackUnderflow` | `RET` on empty stack / stack overflow |
+| 12 | `UnsafeOpCodeForbidden`| use of unsafe `OpCode` when the `IProcessorPolicy.AllowUnsafeOpCodes` policy prohibits it |
 
 ### 8.2. `ProcessorFault`
 
-When a status ≠ `Success` is received (including the “normal” `EndProgram`, `HostStopped`, `InfinityLoop`), a snapshot is formed:
+When a status ≠ `Success` is received (including "normal" `EndProgram`, `HostStopped`, `InfinityLoop`), a snapshot is formed:
 
 ```csharp
 ProcessorFault(BiosStatus Status,
@@ -373,22 +407,22 @@ ProcessorFault(BiosStatus Status,
 ```
 
 - `InstructionPointer` — `rIP` immediately after reading the 4-byte instruction word.
-- `OpCode` — the real opcode; the value `OpCode.NOP` (0) is reserved for “unknown/no opcode” (a controversial decision, but fixed).
+- `OpCode` — real opcode; the value `OpCode.NOP` (0) is reserved for "unknown/no opcode" (controversial decision, but fixed).
 - `FaultData` — context: memory address, port number, opcode, etc.
 
-Then `IProcessorPolicy.ShouldContinue(fault)` is called; its response is written to `IsRunning`. The policy **must** distinguish “real errors” from “normal” `EndProgram`/`HostStopped`/`InfinityLoop`.
+Then `IProcessorPolicy.ShouldContinue(fault)` is called; its response is written to `IsRunning`. The policy **must** distinguish "real errors" from "normal" `EndProgram`/`HostStopped`/`InfinityLoop`.
 
 ---
 
 ## 9. Step execution (`Processor.Step`)
 
-Pseudocode for one step:
+Pseudocode of one step:
 
 ```
 1. If _hasCommand:
      a. Process all external commands (_externalCommands).
      b. Process all external statuses (_statusFromSimulation):
-        - if status is non-zero — form ProcessorFault and query the policy.
+        - on non-zero status — form ProcessorFault and poll the policy.
      c. _hasCommand = false.
 2. If !IsRunning || IsSleeping -> exit.
 3. rIP_cur = rIP
@@ -401,7 +435,7 @@ Pseudocode for one step:
      IsRunning = policy.ShouldContinue(_faultData)
 ```
 
-Important: `_lastFaultData` is set inside the handler before returning the status (for example, `FaultData` from `MemoryBus`, port number, opcode `NotImplementedOpCode`).
+Important: `_lastFaultData` is set inside the handler before returning the status (for example, `FaultData` from `MemoryBus`, port number, `NotImplementedOpCode` opcode).
 
 ---
 
@@ -417,20 +451,28 @@ Implemented in `AssemblerParser` (NANASM-compatible text). **Case-insensitive** 
 
 - No operands: `NOP`, `END`, `RET`, `HALT`, `WAKE`.
 - One register: `INC`, `DEC`, `NOT`, `PUSH`, `POP`, `JMP_IND`, `CALL_IND`, `WAKE_INT`.
+- **One register + size: `CASTZ[.size] reg`, `CASTS[.size] reg`** [NEW].
 - Two registers: `MOV`, `ADD`, `SUB`, `AND`, `OR`, `XOR`, `IN`, `OUT`, `SHR`, `SHL`, `DIV`, `MULT_INT`, `MOD`, `CMP`, `TEST`.
-- `LDI reg, imm`: `imm` — a number (`0x…` or decimal) or a label.
-- `LOAD[.size] reg, addr`, `STORE[.size] addr, reg`: `addr` — a number or a label.
+- `LDI reg, imm`: `imm` — number (`0x…` or decimal) or label.
+- `LOAD[.size] reg, addr`, `STORE[.size] addr, reg`: `addr` — number or label.
 - `LOAD_IND[.size] reg, reg`, `STORE_IND[.size] reg, reg` — similarly.
-- `LOAD_UNSAFE[.size]`, `STORE_UNSAFE[.size]`, `LOAD_IND_UNSAFE[.size]`, `STORE_IND_UNSAFE[.size]` — similarly, without checks.
-- Branches: `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `CALL` — label or absolute address.
+- `LOAD_UNSAFE[.size]`, `STORE_UNSAFE[.size]`, `LOAD_IND_UNSAFE[.size]`, `STORE_IND_UNSAFE[.size]` — similarly without checks.
+- Jumps: `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `CALL` — label or absolute address.
+
+**Example (CASTZ/CASTS):**
+```asm
+CASTZ.S8 r0     ; 8-bit mask: r0 &= 0xFF
+CASTS.S32 r1    ; sign extension 32->64: r1 = (int)(r1 & 0xFFFFFFFF)
+CASTZ r2        ; equivalent to CASTZ.S64 — no-op (default size is S64)
+```
 
 ### 10.3. Size suffixes
 
-`.S8`, `.S16`, `.S32`, `.S64` (or `.8`, `.16`, `.32`, `.64`). Default is `.S64`. Spaces around the dot are allowed: `LOAD . S8` normalizes to `LOAD.S8`.
+`.S8`, `.S16`, `.S32`, `.S64` (or `.8`, `.16`, `.32`, `.64`). Default is `.S64`. Spaces around the dot are allowed: `LOAD . S8` is normalized to `LOAD.S8`.
 
 ### 10.4. Labels and patches
 
-- `label:` — label at the current position.
+- `label:` — label to the current position.
 - `label: <instruction>` — label + instruction.
 - Patches for immediate fields are resolved at `Build()`: `targetAddr = baseAddress + offset(label)`.
 - `baseAddress` must be a multiple of 8 (otherwise the immediate will be read at a different address than written).
@@ -440,7 +482,7 @@ Implemented in `AssemblerParser` (NANASM-compatible text). **Case-insensitive** 
 - Directives: `.data`/`.bss`/`.section .data`/`.section .bss` — data section; `.text`/`.code`/`.section .text`/`.section .code` — code section.
 - Data directives (only inside `.data`): `.byte`/`db`, `.word`/`dw` (2), `.dword`/`dd` (4), `.quad`/`dq` (8), `.ascii`, `.asciz`/`.string`, `.zero`/`.space N`.
 - Strings: `.byte "..."` allows escape sequences `\n \t \r \0 \\ \" \'`.
-- Data section alignment is 8 bytes.
+- Data section alignment — 8 bytes.
 
 ---
 
@@ -496,26 +538,102 @@ raw = 0x08 | (1 << 8) | (2 << 13) = 0x00004108
 Bytes: 08 41 00 00
 ```
 
+### 11.6. `CASTS.S16 r5` **[NEW]**
+
+```
+OpCode = 44 (0x2C)
+Reg1   = 5
+Size   = S16 (1)
+raw = 0x2C | (5 << 8) | (1 << 18) = 0x0004052C
+Bytes: 2C 05 04 00
+```
+
+Disassembler: `CASTS.S16 r5` (previously — `UNKNOWN 0x2C`).
+
 ---
 
 ## 12. Limitations and known implementation features
 
-5. **`WAKE` as an instruction in the body is a no-op.** Waking from `HALT` is possible only via `EnqueueExternalCommand(OpCode.WAKE)` or `PortBus.WakeProcessor`.
-7. **`InstructionLOAD`/`InstructionSTORE` do not return `AlignmentFault` for invalid `OpCodeSize`** (there `default` -> `SegmentationFault` in LOAD and `AlignmentFault` in STORE); in practice `OpCodeSize` has exactly 4 values — `default` is unreachable.
-9. **`OpCode.NOP` = 0 is used as the “unknown opcode” marker** in `ProcessorFault` (`ProcessSimulationStatusSlow`). This is a controversial convention; if a real NOP fault appears, it will be impossible to distinguish it from an “empty” value.
+1. **`NOP` (0) as an "unknown opcode" marker** in `ProcessorFault` (`ProcessSimulationStatusSlow`). Controversial convention; if a real NOP fault occurs, it will be impossible to distinguish it from an "empty" value.
+2. **`WAKE` as an instruction in the body is a no-op.** Waking from `HALT` is only possible via `EnqueueExternalCommand(OpCode.WAKE)` or `PortBus.WakeProcessor`.
+3. **`InstructionLOAD`/`InstructionSTORE` do not return `AlignmentFault` for invalid `OpCodeSize`** (there `default` -> `SegmentationFault` for LOAD and `AlignmentFault` for STORE); in practice `OpCodeSize` has exactly 4 values — `default` is unreachable.
+4. **`InstructionDecoder.HasNeed64IntData` validates `opCode` by `_has.Length` (256), not by `OpCode.MOD`.** Previously the bound-check was `opCode > OpCode.MOD`, which caused any opcode above 42 (`CASTZ`, `CASTS`, `CMP`, `TEST`, `HALT`, `WAKE`, `WAKE_INT`, `JMP_IND`, `CALL_IND`) to throw `ArgumentOutOfRangeException` during disassembly. Fixed.
+5. **`AssemblerParser` is not thread-safe.** Fields `_asm`, `_inDataSection`, `_pendingData`, `_pendingLabel`, `_currentLine` are instance-level. `StatementGenerator.GenerateInlineAsm` creates `new AssemblerParser()` for each `asm` block, but the contract is not documented.
+6. **`IRAssembler.EmitInstruction64WithLabel` does not validate `HasNeed64IntData`** (unlike `EmitInstruction64`). When adding label-aware opcodes with a 64-bit operand, the check will have to be added manually.
 
 ---
 
-## 13. Quick reference for conventions
+## 13. Quick reference on conventions
 
-| Convention | Value |
-|------------|-------|
+| Convention | Meaning |
+|------------|----------|
 | Byte order | little-endian everywhere |
 | Word format | `[7:0]=op, [12:8]=reg1, [17:13]=reg2, [19:18]=size, [31:20]=0` |
 | Immediate | always 64 bits, 8-byte alignment after the instruction |
-| Instruction length | 4 or 12 bytes |
+| Instruction length | 4 bytes (without immediate) or 12 bytes (with immediate) |
 | Registers | 32 × 64 bits, `rIP` — address of the next instruction |
 | Flags | updated only by `CMP` and `TEST` |
-| Stack | 8-byte slots, `rSP` grows downward, `rHP` — upper bound of the heap |
+| Stack | 8-byte slots, `rSP` grows downwards, `rHP` — upper heap boundary |
 | Access error | `AlignmentFault` / `SegmentationFault`, not exceptions |
-| Policy | `IProcessorPolicy.ShouldContinue` — the final authority (last resort); `IProcessorPolicy.AllowUnsafeOpCodes` — permission to use unsafe opcodes |
+| Policy | `IProcessorPolicy.ShouldContinue` — last instance, `IProcessorPolicy.AllowUnsafeOpCodes` — permission to use unsafe opcodes |
+| CASTZ/CASTS | 4-byte, size in DataSize, without immediate, do not change `rFL` |
+
+---
+
+## Appendix A. Integer type overflow model in MiniC **[NEW]**
+
+### A.1. Canonical form
+
+After any write to a variable or register, the value is reduced to the canonical form of its type via `CASTZ`/`CASTS`:
+
+| Type | Size | Signed | Canonical in register |
+|-----|:------:|:--------:|------------------|
+| `byte` | S8 | no | `0 .. 255` (upper 56 bits zero) |
+| `char` | S16 | yes | `−32768 .. 32767`, sign-extended to 64 bits |
+| `short` | S16 | yes | `−32768 .. 32767`, sign-extended |
+| `ushort` | S16 | no | `0 .. 65535` |
+| `int` | S32 | yes | `−2³¹ .. 2³¹−1`, sign-extended |
+| `uint` | S32 | no | `0 .. 2³²−1` |
+| `long` | S64 | yes | `−2⁶³ .. 2⁶³−1` |
+| `ulong` | S64 | no | `0 .. 2⁶⁴−1` |
+
+> **`char` in MiniC is a 16-bit signed (`S16`)**, not 8-bit like in standard C. Consequences:
+> - `sizeof(char) == 2`
+> - `char c = 120; c += 100;` -> `c == 220` (no wrap-around, fits in `int16`)
+> - `char c = 32767; c += 1;` -> `c == −32768` (wrap-around `S16`)
+
+### A.2. Where casts are inserted (code generator `Nantuc.Compiler.C.CodeGenerator`)
+
+| Event | Cast |
+|---------|------|
+| `LOAD[.size]` from memory | `LOAD` zero-extends -> **`CASTS.S<size>`** for signed types (otherwise the value of a signed type would end up "positive") |
+| `STORE[.size]` to memory | `STORE` truncates by itself -> no cast needed |
+| `x = value` (register variable) | after `MOV`/`ADD`/`INC` — **`CASTZ`/`CASTS`** |
+| `x op= value`, `x++` | after the operation — **`CASTZ`/`CASTS`** in the home register |
+| `(x = value)` / `(x op= value)` in an expression | after the operation — **`CASTZ`/`CASTS`** in `targetReg` |
+| `arr[i] = value`, `*p = value`, `obj.f = value` | after load — **`CASTZ`/`CASTS`**; after the operation — **`CASTZ`/`CASTS`**; `STORE_IND` truncates |
+| `arr[i]++`, `(*p)++`, `(obj.f)++` | after load and after `INC`/`DEC` — **`CASTZ`/`CASTS`** |
+| Call-site: argument -> `r0..r3` | after generating the expression — **`CASTZ`/`CASTS`** to the parameter type |
+| Prologue: parameter 4+ from pseudo-global | after `LOAD` — **`CASTZ`/`CASTS`** |
+| `RETURN`: value in `r0` | before `JMP epilogue` / `END` — **`CASTZ`/`CASTS`** to the return type (for non-pointer scalar) |
+
+### A.3. What is **not** cast
+
+- **Intermediate result of arithmetic.** C semantics: `byte + byte` yields `int`; `int + int` yields `int` with `S32` wrap-around; truncation occurs only on the **next** write.
+- **`long`/`ulong`** — `S64`, `EmitCastToType` is a no-op for them.
+- **Pointers and structures** — cast is not applied (canon is an 8-byte address).
+
+### A.4. Examples
+
+```c
+byte b = 250;   b += 10;   // b == 4    (CASTZ.S8 after ADD)
+byte b = 0;     b--;       // b == 255  (CASTZ.S8 after DEC)
+char c = 32767; c += 1;    // c == -32768  (CASTS.S16 after ADD)
+short s = 30000; s += 10000; // s == -25536 (CASTS.S16)
+int  i = 0x7FFFFFFF; i += 1; // i == INT_MIN (CASTS.S32)
+ushort u = 65535; u += 1;  // u == 0    (CASTZ.S16)
+byte f() { return 300; }   // -> 44       (CASTZ.S8 before END/RET)
+int  g(byte x) { return x; }
+g(300);                    // x == 44    (CASTZ.S8 at call-site)
+byte a[2]; a[0] = 250; a[0] += 10; // a[0] == 4 (CASTZ.S8 on load and on result)
+```

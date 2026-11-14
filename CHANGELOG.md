@@ -10,6 +10,11 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.14.1] - 2026-11-15
+
+### Changed
+- `ExpressionGenerator`, `StatementGenerator`, and `Parser` have been split into smaller `partial` files; readability has been improved and dead code has been removed.
+
 ## [0.14.0] - 2026-11-14
 
 ### Added

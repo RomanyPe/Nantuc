@@ -2,7 +2,7 @@
 
 > The Nantuc virtual machine kernel: processor, RAM, port bus, device registry, and emulator.
 > The only platform layer that uses `unsafe`, `NativeMemory`, `[InlineArray]`, and `ConcurrentQueue`.
-> `[← Root](../README.ru.md) · [Common](../../src/Nantuc.Common/README.ru.md) · [Contracts](../../src/Nantuc.Contracts/README.ru.md)`
+> `[← Root](../README.md) · [Common](../../src/Nantuc.Common/README.md) · [Contracts](../../src/Nantuc.Contracts/README.md)`
 
 ## Contents
 - [About This Module](#about-this-module)

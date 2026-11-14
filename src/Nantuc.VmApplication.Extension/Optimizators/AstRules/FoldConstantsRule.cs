@@ -1,5 +1,5 @@
 ﻿using Nantuc.Compiler.C.AST;
-using Nantuc.Compiler.C.CodeGenerator;
+using Nantuc.Compiler.C.CodeGenerator.Expression;
 using Nantuc.Compiler.C.Optimizations;
 using Nantuc.Contracts;
 using Nantuc.Diagnostics;

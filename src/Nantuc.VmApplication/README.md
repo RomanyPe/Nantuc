@@ -2,8 +2,8 @@
 
 > The platform's primary API: compiling a project to bytecode, running the VM, managing devices, and step-by-step execution.  
 > The only module intended for embedding Nantuc into an application (IDE, REPL, CI, game host).  
-> Depends on `[Kernel](../../src/Nantuc.Kernel/README.ru.md)`, `[Contracts](../../src/Nantuc.Contracts/README.ru.md)`, and `[Compiler](../../src/Nantuc.Compiler/README.ru.md)`.  
-> `[← Root](../README.ru.md) · [Common](../../src/Nantuc.Common/README.ru.md) · [Contracts](../../src/Nantuc.Contracts/README.ru.md) · [Diagnostics](../Nantuc.Diagnostics/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md)`
+> Depends on `[Kernel](../../src/Nantuc.Kernel/README.md)`, `[Contracts](../../src/Nantuc.Contracts/README.md)`, and `[Compiler](../../src/Nantuc.Compiler/README.md)`.  
+> `[← Root](../README.md) · [Common](../../src/Nantuc.Common/README.md) · [Contracts](../../src/Nantuc.Contracts/README.md) · [Diagnostics](../Nantuc.Diagnostics/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md) · [Compiler](../../src/Nantuc.Compiler/README.md)`
 
 ## Contents
 - [About this module](#about-this-module)
@@ -683,7 +683,7 @@ Inside `DeviceContext` — `private enum Mode { Step, Continuous, None }` and `v
 
 ### `ProcessorFault` from `Run`/`DebugRun`/`GetLastFault`
 
-`Run` and `DebugRun` return `ProcessorFault` from `_device.Run(...)`/`_device.DebugRun(...)`. `GetLastFault()` — public access to `_faultData` in `Processor`. Important: `_faultData` is not reset in `LaunchProgramm` (`[Nantuc.Kernel](../../src/Nantuc.Kernel/README.ru.md)`, [What to fix, item 2](../../src/Nantuc.Kernel/README.ru.md#что-исправить)) — a second `Run` may return the fault from the first. The XML doc on `GetLastFault` reflects this: "Not updated on every iteration for the sake of optimizations."
+`Run` and `DebugRun` return `ProcessorFault` from `_device.Run(...)`/`_device.DebugRun(...)`. `GetLastFault()` — public access to `_faultData` in `Processor`. Important: `_faultData` is not reset in `LaunchProgramm` (`[Nantuc.Kernel](../../src/Nantuc.Kernel/README.md)`, [What to fix, item 2](../../src/Nantuc.Kernel/README.md#что-исправить)) — a second `Run` may return the fault from the first. The XML doc on `GetLastFault` reflects this: "Not updated on every iteration for the sake of optimizations."
 
 ### `RamFileService` — a mock, not a full FS
 

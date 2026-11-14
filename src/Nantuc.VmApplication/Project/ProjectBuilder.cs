@@ -5,6 +5,7 @@ using Nantuc.Compiler.C;
 using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.Optimizations;
+using Nantuc.Compiler.C.Parser;
 using Nantuc.Contracts;
 using Nantuc.Diagnostics;
 
