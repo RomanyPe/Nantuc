@@ -262,7 +262,7 @@ var comp = il.Build();
 ### Вывод и формат лога
 
 `Program.cs` использует:
-- `PrintProgress` с `\r` и ANSI-символами `▓░✓✗•` — в CI/redirected output `Console.IsOutputRedirected` пропускает прогресс-бар, но `Console.Clear()` в конце `Main` — **не** пропускает (см. [Что исправить, п.4](#что-исправить)).
+- `PrintProgress` с `\r` и ANSI-символами `▓░✓✗-` — в CI/redirected output `Console.IsOutputRedirected` пропускает прогресс-бар, но `Console.Clear()` в конце `Main` — **не** пропускает (см. [Что исправить, п.4](#что-исправить)).
 - `AppendStatsExtended` — все 20 полей `StatsResult` в формате `\t    name: value`.
 - `AppendIterations` — по одному значению на строку, формат `F4`.
 

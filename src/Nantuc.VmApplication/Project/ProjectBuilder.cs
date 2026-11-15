@@ -4,6 +4,8 @@ using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Compiler.C;
 using Nantuc.Compiler.C.AST;
 using Nantuc.Compiler.C.CodeGenerator;
+using Nantuc.Compiler.C.CodeGenerator.FunctionGen;
+using Nantuc.Compiler.C.Lexer;
 using Nantuc.Compiler.C.Optimizations;
 using Nantuc.Compiler.C.Parser;
 using Nantuc.Contracts;

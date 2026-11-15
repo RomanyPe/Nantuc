@@ -1,6 +1,6 @@
 ﻿using Nantuc.Common;
 
-namespace Nantuc.Compiler.C.CodeGenerator;
+namespace Nantuc.Compiler.C.CodeGenerator.RegistersAlloc;
 
 /// <summary>
 /// Результат раскраски: отображение имени переменной на регистр (или null, если переменная в стеке).

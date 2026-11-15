@@ -1,4 +1,4 @@
-﻿namespace Nantuc.Compiler.C;
+﻿namespace Nantuc.Compiler.C.Lexer;
 
 public static class TokenTypeExtension
 {

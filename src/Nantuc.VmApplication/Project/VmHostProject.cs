@@ -24,12 +24,12 @@ public sealed class VmHostProject(CompilerContext ctx)
     /// <summary>
     /// Регулярное выражение мнемоник NANASM.
     /// </summary>
-    public static Regex AsmMnemonics => AsmLanguageDefinition.GetMnemonicRegex();
+    public static Regex AsmMnemonics => AsmLanguageDefinition.MnemonicRegex;
 
     /// <summary>
     /// Регулярное выражение регистров NANASM.
     /// </summary>
-    public static Regex AsmRegisters => AsmLanguageDefinition.GetRegisterRegex();
+    public static Regex AsmRegisters => AsmLanguageDefinition.RegisterRegex;
 
     /// <summary>
     /// Регулярное выражение ключевых слов (не мнемоник) MiniC.
@@ -38,7 +38,7 @@ public sealed class VmHostProject(CompilerContext ctx)
     /// Метод <see cref="MiniCLanguageDefinition.GetKeywordRegex"/>
     /// возвращает регулярное выражение ключевых слов языка, а не мнемоник.
     /// </remarks>
-    public static Regex MiniCMnemonics => MiniCLanguageDefinition.GetKeywordRegex();
+    public static Regex MiniCKeyword => MiniCLanguageDefinition.KeywordRegex;
 
     /// <summary>
     /// Оптимизатор, связанный с текущим контекстом компилятора.

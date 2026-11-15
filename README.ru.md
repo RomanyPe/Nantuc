@@ -334,7 +334,7 @@ dotnet test -c Release
 - История изменений: [`CHANGELOG.ru.md`](CHANGELOG.ru.md)
 - Спецификация байткода: [`docs/bytecode.ru.md`](docs/bytecode.ru.md)
 - Справочник кодов ошибок: [`docs/error-codes.ru.md`](docs/error-codes.ru.md)
-- Метрики: [`docs/METRICS.md`](docs/METRICS.md)
+- Метрики: [`docs/METRICS.md`](docs/METRICS.md) и отдельные метрики для каждого модуля [`docs/Metrics`](docs/Metrics) 
 - Встроенные библиотеки MiniC/NANASM: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)
 - CLI: [`src/Nantuc.CLI/README.ru.md`](src/Nantuc.CLI/README.ru.md)
 - Сравнение с другими языками (OtherLangs): [`benchmarks/OtherLangs/README.ru.md`](benchmarks/OtherLangs/README.ru.md)

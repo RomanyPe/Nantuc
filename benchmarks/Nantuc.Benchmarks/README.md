@@ -262,7 +262,7 @@ var comp = il.Build();
 ### Output and log format
 
 `Program.cs` uses:
-- `PrintProgress` with `\r` and ANSI characters `▓░✓✗•` — in CI/redirected output, `Console.IsOutputRedirected` skips the progress bar, but `Console.Clear()` at the end of `Main` does **not** skip it (see [What to fix, item 4](#what-to-fix)).
+- `PrintProgress` with `\r` and ANSI characters `▓░✓✗-` — in CI/redirected output, `Console.IsOutputRedirected` skips the progress bar, but `Console.Clear()` at the end of `Main` does **not** skip it (see [What to fix, item 4](#what-to-fix)).
 - `AppendStatsExtended` — all 20 fields of `StatsResult` in the format `\t    name: value`.
 - `AppendIterations` — one value per line, format `F4`.
 

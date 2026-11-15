@@ -175,7 +175,7 @@ internal class Program
         int filled = Math.Clamp((int)Math.Round(globalPct * ProgressBarWidth), 0, ProgressBarWidth);
         string bar = new string('▓', filled) + new string('░', ProgressBarWidth - filled);
 
-        string marker = failed ? "✗" : (phase == "done" ? "✓" : "•");
+        string marker = failed ? "✗" : (phase == "done" ? "✓" : "-");
         string phaseStr = phase == "done" || phase == "fail"
             ? $"{phase,-4}"
             : $"{phase,-4} {done,3}/{phaseTotal,-3}";

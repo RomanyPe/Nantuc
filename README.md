@@ -332,7 +332,7 @@ See [`LICENSE`](LICENSE) in the repository root.
 - Changelog: [`CHANGELOG.md`](CHANGELOG.md)
 - Bytecode specification: [`docs/bytecode.md`](docs/bytecode.md)
 - Error code reference: [`docs/error-codes.md`](docs/error-codes.md)
-- Metrics: [`docs/METRICS.md`](docs/METRICS.md)
+- Metrics: [`docs/METRICS.md`](docs/METRICS.md) and per-module metrics in [`docs/Metrics`](docs/Metrics).
 - Built-in MiniC/NANASM libraries: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md)
 - CLI: [`src/Nantuc.CLI/README.md`](src/Nantuc.CLI/README.md)
 - Comparison with other languages (OtherLangs): [`benchmarks/OtherLangs/README.md`](benchmarks/OtherLangs/README.md)

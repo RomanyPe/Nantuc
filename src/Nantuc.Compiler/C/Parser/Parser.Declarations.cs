@@ -1,4 +1,5 @@
 ﻿using Nantuc.Compiler.C.AST;
+using Nantuc.Compiler.C.Lexer;
 using Nantuc.Diagnostics;
 
 namespace Nantuc.Compiler.C.Parser;

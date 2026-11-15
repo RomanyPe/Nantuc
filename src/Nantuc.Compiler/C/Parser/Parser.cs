@@ -2,14 +2,15 @@
 // Parser — разбор исходника C-подобного языка.
 //
 // Partial-файлы по зонам ответственности:
-//   • Parser.cs               — поля, Parse(), Advance(), Expect() (этот файл)
-//   • Parser.TopLevel.cs      — struct / #include / extern / global / function
-//   • Parser.Declarations.cs  — типы, деклараторы, переменные
-//   • Parser.Statements.cs    — if/while/for/do/return/break/continue/asm
-//   • Parser.Expressions.cs   — приоритетная цепочка выражений
-//   • Parser.Literals.cs      — строковые и символьные литералы
+//   - Parser.cs               — поля, Parse(), Advance(), Expect() (этот файл)
+//   - Parser.TopLevel.cs      — struct / #include / extern / global / function
+//   - Parser.Declarations.cs  — типы, деклараторы, переменные
+//   - Parser.Statements.cs    — if/while/for/do/return/break/continue/asm
+//   - Parser.Expressions.cs   — приоритетная цепочка выражений
+//   - Parser.Literals.cs      — строковые и символьные литералы
 // ============================================================
 using Nantuc.Compiler.C.AST;
+using Nantuc.Compiler.C.Lexer;
 using Nantuc.Diagnostics;
 
 namespace Nantuc.Compiler.C.Parser;

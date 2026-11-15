@@ -3,6 +3,7 @@ using Nantuc.Compiler.ASM;
 using Nantuc.Compiler.ASM.Base;
 using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.ASM.Utils;
+using Nantuc.Compiler.C.CodeGenerator.FunctionCtx;
 using Nantuc.Diagnostics;
 
 

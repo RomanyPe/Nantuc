@@ -10,10 +10,51 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.15.0] - 2026-11-15
+
+### Added
+- `SaveDepthEstimator` — max-depth estimation for `ExpressionSaveDepth` moved out of `FunctionContext` into a separate static class (`Estimate(ASTNode?)`).
+- `VariableLayoutBuilder` — variable layout (size, register/stack, signedness) moved out of `FunctionContext`.
+- `LocalVarCollector` — collection of local variables over the function body moved out of `FunctionGenerator` (`Collect(BlockNode)`).
+- `ConstantEvaluator` — constant folding in initializers moved out of `FunctionGenerator`.
+- `VariableAccessAnalyzer` — both AST walkers from `RegisterAllocator` (`CollectAddressTakenVars`, `CollectVarEvents`).
+- `GreedyGraphColorer` — greedy interference graph coloring moved out of `RegisterAllocator` (`Color(graph, availableRegs)`).
+- `WordRegexBuilder` — shared builder of the `\b(...)\b` pattern from `FrozenSet<string>`; used by `MiniCLanguageDefinition` and `AsmLanguageDefinition`.
+- `LanguageDefinitionDriftTests` — regression tests for consistency between `Regex` and `FrozenSet` in language definitions, including for the historical bug with `"new"`.
+- Automated code metrics collection for all modules.
+
+### Changed
+- **BREAKING:** types `Lexer`, `Token`, `TokenType`, `TokenTypeExtension` moved to `Nantuc.Compiler.C.Lexer`.
+- **BREAKING:** `FunctionContext`, `SaveDepthEstimator`, `VariableLayoutBuilder` moved to `Nantuc.Compiler.C.CodeGenerator.FunctionCtx`.
+- **BREAKING:** `FunctionGenerator`, `LocalVarCollector`, `ConstantEvaluator` moved to `Nantuc.Compiler.C.CodeGenerator.FunctionGen`.
+- **BREAKING:** `RegisterAllocator`, `VariableAccessAnalyzer`, `GreedyGraphColorer`, `RegisterAllocationResult` moved to `Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`.
+- **BREAKING:** `MiniCLanguageDefinition.GetKeywordRegex()` replaced with the `KeywordRegex` property.
+- **BREAKING:** in `AsmLanguageDefinition`, `GetMnemonicRegex()` / `GetRegisterRegex()` replaced with the `MnemonicRegex` / `RegisterRegex` properties; `Mnemonics` / `Registers` are now `FrozenSet<string>` properties instead of `public static readonly` fields.
+- `Lexer` split into 4 partial files: `.cs`, `.Trivia.cs`, `.Literals.cs`, `.Operators.cs`; `ReadOperator` converted to table-driven parsing (`Operators` is an array, order = precedence); 13 repetitions of `_position++; _column++;` eliminated via `Advance()` / `AdvanceTrackingLine()`.
+- `FunctionContext.ComputeMaxBinaryDepth` — magic `+1`s replaced with the named constant `SaveSlot`; nested `Math.Max(a, Math.Max(b, c))` replaced with `Max(a, b, c)`; complex cases (`Assignment`, `FunctionCall`, `IndirectCall`) moved into named methods with comments.
+- `FunctionContext.Create` split into 5 phases: `CollectVariables` → `BuildVarNodeMap` → `AllocateRegisters` → `BuildVarMap` → `ConfigureReturnInfo`; duplicates of `IsSigned` and `ContainsKey(type)` moved into `ComputeIsSigned` / `CanUseRegister`.
+- `FunctionGenerator` split into 4 partial files: `.cs`, `.DataSection.cs`, `.Prologue.cs`, `.Epilogue.cs`; `GenerateFunction` decomposed into `EmitPrologue` → `GenerateBlock` → `EmitEpilogue`; parameter marshalling — `EmitRegisterParam` / `EmitStackParam`; `ErrorReporter` changed to the `_erRep` field.
+- `RegisterAllocator` split into 2 partial files: `.cs`, `.Interference.cs`; `BuildInterferenceGraph` decomposed into `ComputeLiveRanges` + `Overlaps`; `AddDef` + `AddUse` merged into `AddEvent`.
+- `MiniCLanguageDefinition` — `KeywordRegex` is built from `Keywords` via `WordRegexBuilder`; `[GeneratedRegex]` and the hardcoded `KeywordPattern` removed.
+- `AsmLanguageDefinition` — aligned with the form of `MiniCLanguageDefinition`: property getters, `XxxRegex` naming, `WordRegexBuilder`; static constructor removed.
+
+### Removed
+- `FunctionGenerator.EvaluateConstant(ASTNode)` — overload without `structTable`, no calls (dead code).
+- `MiniCLanguageDefinition.[GeneratedRegex]` + `KeywordPattern` — source of the drift bug.
+- Duplication of `allVars` ↔ `allVarNodes` in `FunctionContext.Create`.
+
+### Fixed
+- `MiniCLanguageDefinition`: `"new"` was present in `KeywordPattern` but absent from `Keywords`; this caused a discrepancy between `Lexer` (which uses `Keywords`) and external tooling (which used `GetKeywordRegex()`). Now `KeywordRegex` is built from `Keywords` — drift is impossible as a class of error.
+- `FunctionGenerator.GenerateGlobalInit`: `dummyCtx.VarMap` was `null!`; a global initializer of the form `int x = y;` would cause a `NullReferenceException` in `VariableAccessor.LoadToRegister`. Now `VarMap = []`.
+
+### Known limitations
+- `VariableAccessAnalyzer.CollectVarEvents` does not traverse `LValue` and `IndexExpr` in `AssignmentNode`: `i` in `arr[i] = v`, `p` in `*p = v`, `obj` in `obj.f = v` are not marked as `use`. This may lead to suboptimal, but not incorrect in practice, coloring. Separate PR with regression tests.
+- `Lexer`: unpaired `**` and `!!` are tokenized as a single operator (non-standard for C); `SkipBlockComment` / `ReadString` / `ReadChar` do not report an error on an unterminated comment/literal.
+
 ## [0.14.1] - 2026-11-15
 
 ### Changed
-- `ExpressionGenerator`, `StatementGenerator`, and `Parser` have been split into smaller `partial` files; readability has been improved and dead code has been removed.
+- **BREAKING:** `ExpressionGenerator`, `StatementGenerator`, and `Parser` have been split into smaller `partial` files, given their own namespaces, readability has been improved, and dead code has been removed.
 
 ## [0.14.0] - 2026-11-14
 

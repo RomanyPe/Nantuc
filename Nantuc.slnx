@@ -66,6 +66,22 @@
     <File Path="docs/error-codes.ru.md" />
     <File Path="docs/METRICS.md" />
   </Folder>
+  <Folder Name="/Элементы решения/docs/Metrics/">
+    <File Path="docs/Metrics/METRICS-Nantuc.Benchmarks.BenchmarkDotNet.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Benchmarks.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.CLI.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.CLI.Tests.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Common.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Compiler.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Contracts.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Diagnostics.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Kernel.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Samples.Minimal.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Samples.Scratch.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.Tests.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.VmApplication.Extensions.md" />
+    <File Path="docs/Metrics/METRICS-Nantuc.VmApplication.md" />
+  </Folder>
   <Folder Name="/Элементы решения/samples/">
     <Project Path="samples/Nantuc.Samples.Minimal/Nantuc.Samples.Minimal.csproj" />
     <Project Path="samples/Nantuc.Samples.Scratch/Nantuc.Samples.Scratch.csproj" />

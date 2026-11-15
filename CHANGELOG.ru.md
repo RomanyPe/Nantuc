@@ -10,10 +10,50 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.15.0] - 2026-11-15
+
+### Добавлено
+- `SaveDepthEstimator` — оценка максимальной глубины `ExpressionSaveDepth` вынесена из `FunctionContext` в отдельный static-класс (`Estimate(ASTNode?)`).
+- `VariableLayoutBuilder` — раскладка переменной (размер, регистр/стек, signedness) вынесена из `FunctionContext`.
+- `LocalVarCollector` — сбор локальных переменных по телу функции вынесен из `FunctionGenerator` (`Collect(BlockNode)`).
+- `ConstantEvaluator` — свёртка констант в инициализаторах вынесена из `FunctionGenerator`.
+- `VariableAccessAnalyzer` — оба AST-walker'а из `RegisterAllocator` (`CollectAddressTakenVars`, `CollectVarEvents`).
+- `GreedyGraphColorer` — жадная раскраска графа интерференции вынесена из `RegisterAllocator` (`Color(graph, availableRegs)`).
+- `WordRegexBuilder` — общий builder `\b(...)\b`-паттерна из `FrozenSet<string>`; используется `MiniCLanguageDefinition` и `AsmLanguageDefinition`.
+- `LanguageDefinitionDriftTests` — regression-тесты на согласованность `Regex` и `FrozenSet` в языковых определениях, в т.ч. на исторический баг с `"new"`.
+
+### Изменено
+- **BREAKING:** типы `Lexer`, `Token`, `TokenType`, `TokenTypeExtension` перемещены в `Nantuc.Compiler.C.Lexer`.
+- **BREAKING:** `FunctionContext`, `SaveDepthEstimator`, `VariableLayoutBuilder` перемещены в `Nantuc.Compiler.C.CodeGenerator.FunctionCtx`.
+- **BREAKING:** `FunctionGenerator`, `LocalVarCollector`, `ConstantEvaluator` перемещены в `Nantuc.Compiler.C.CodeGenerator.FunctionGen`.
+- **BREAKING:** `RegisterAllocator`, `VariableAccessAnalyzer`, `GreedyGraphColorer`, `RegisterAllocationResult` перемещены в `Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`.
+- **BREAKING:** `MiniCLanguageDefinition.GetKeywordRegex()` заменён свойством `KeywordRegex`.
+- **BREAKING:** в `AsmLanguageDefinition` `GetMnemonicRegex()` / `GetRegisterRegex()` заменены свойствами `MnemonicRegex` / `RegisterRegex`; `Mnemonics` / `Registers` теперь `FrozenSet<string>` properties вместо `public static readonly` полей.
+- `Lexer` разбит на 4 partial-файла: `.cs`, `.Trivia.cs`, `.Literals.cs`, `.Operators.cs`; `ReadOperator` переведён на табличный разбор (`Operators` — массив, порядок = приоритет); устранены 13 повторов `_position++; _column++;` через `Advance()` / `AdvanceTrackingLine()`.
+- `FunctionContext.ComputeMaxBinaryDepth` — магические `+1` заменены именованной константой `SaveSlot`; вложенные `Math.Max(a, Math.Max(b, c))` заменены на `Max(a, b, c)`; сложные кейсы (`Assignment`, `FunctionCall`, `IndirectCall`) вынесены в именованные методы с комментариями.
+- `FunctionContext.Create` разбит на 5 фаз: `CollectVariables` → `BuildVarNodeMap` → `AllocateRegisters` → `BuildVarMap` → `ConfigureReturnInfo`; дубли `IsSigned` и `ContainsKey(type)` вынесены в `ComputeIsSigned` / `CanUseRegister`.
+- `FunctionGenerator` разбит на 4 partial-файла: `.cs`, `.DataSection.cs`, `.Prologue.cs`, `.Epilogue.cs`; `GenerateFunction` разложен на `EmitPrologue` → `GenerateBlock` → `EmitEpilogue`; маршалинг параметров — `EmitRegisterParam` / `EmitStackParam`; `ErrorReporter` приведён к полю `_erRep`.
+- `RegisterAllocator` разбит на 2 partial-файла: `.cs`, `.Interference.cs`; `BuildInterferenceGraph` разложен на `ComputeLiveRanges` + `Overlaps`; `AddDef` + `AddUse` объединены в `AddEvent`.
+- `MiniCLanguageDefinition` — `KeywordRegex` строится из `Keywords` через `WordRegexBuilder`; удалён `[GeneratedRegex]` и хардкоженный `KeywordPattern`.
+- `AsmLanguageDefinition` — приведён к форме `MiniCLanguageDefinition`: property getters, `XxxRegex`-нейминг, `WordRegexBuilder`; удалён статический конструктор.
+
+### Удалено
+- `FunctionGenerator.EvaluateConstant(ASTNode)` — перегрузка без `structTable`, ни одного вызова (dead-code).
+- `MiniCLanguageDefinition.[GeneratedRegex]` + `KeywordPattern` — источник drift-бага.
+- Дублирование `allVars` ↔ `allVarNodes` в `FunctionContext.Create`.
+
+### Исправлено
+- `MiniCLanguageDefinition`: `"new"` присутствовал в `KeywordPattern`, но отсутствовал в `Keywords`; вызывало расхождение между `Lexer` (использует `Keywords`) и внешним tooling'ом (использовал `GetKeywordRegex()`). Теперь `KeywordRegex` строится из `Keywords` — drift невозможен как класс ошибки.
+- `FunctionGenerator.GenerateGlobalInit`: `dummyCtx.VarMap` был `null!`; глобальный инициализатор вида `int x = y;` привёл бы к `NullReferenceException` в `VariableAccessor.LoadToRegister`. Теперь `VarMap = []`.
+
+### Известные ограничения
+- `VariableAccessAnalyzer.CollectVarEvents` не обходит `LValue` и `IndexExpr` в `AssignmentNode`: `i` в `arr[i] = v`, `p` в `*p = v`, `obj` в `obj.f = v` не помечаются как `use`. Может приводить к неоптимальной, но не некорректной на практике раскраске. Отдельный PR с regression-тестами.
+- `Lexer`: непарные `**` и `!!` токенизируются как один оператор (нестандартно для C); `SkipBlockComment` / `ReadString` / `ReadChar` не сообщают об ошибке при незакрытом комментарии/литерале.
+
 ## [0.14.1] - 2026-11-15
 
 ### Изменено
-- `ExpressionGenerator`, `StatementGenerator` и `Parser` разделены на `partial` файлы поменьше, улучшена читаемость, удален dead-code
+- **BREAKING:** `ExpressionGenerator`, `StatementGenerator` и `Parser` разделены на `partial` файлы поменьше, созданы их собственные `namespace`, улучшена читаемость, удален dead-code
 
 ## [0.14.0] - 2026-11-14 
 
