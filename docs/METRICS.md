@@ -8,7 +8,7 @@ Path: `Nantuc.slnx`
 | --- | ---: |
 | Members analysed | 1421 |
 | C# files | 282 |
-| Total lines | 25288 |
+| Total lines | 25289 |
 | C# classes | 239 |
 | C# records | 28 |
 | C# enums | 13 |

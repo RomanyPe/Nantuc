@@ -1,4 +1,4 @@
-﻿using Nantuc.Compiler.ASM;
+﻿using Nantuc.Compiler.ASM.Parser;
 using Nantuc.Compiler.C.AST;
 
 namespace Nantuc.Compiler.C.CodeGenerator.Statement;
