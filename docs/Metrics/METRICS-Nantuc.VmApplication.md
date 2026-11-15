@@ -8,7 +8,7 @@ Path: `src/Nantuc.VmApplication/Nantuc.VmApplication.csproj`
 | --- | ---: |
 | Members analysed | 131 |
 | C# files | 30 |
-| Total lines | 2067 |
+| Total lines | 2066 |
 | C# classes | 20 |
 | C# records | 8 |
 | C# enums | 2 |
@@ -25,7 +25,7 @@ Path: `src/Nantuc.VmApplication/Nantuc.VmApplication.csproj`
 | MI minimum | 43.8 |
 
 Highest risk member: `RamFileService.Normalize` (cognitive 21, cyclomatic 16) — `RamFileService.cs:80`
-Lowest maintainability: `ProjectBuilder.Build` (MI 43.8) — `ProjectBuilder.cs:26`
+Lowest maintainability: `ProjectBuilder.Build` (MI 43.8) — `ProjectBuilder.cs:25`
 
 ## Risk bands
 
@@ -43,17 +43,17 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 131 me
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 80 | RamFileService | Normalize | 21 | 16 | 27 | 3 | 1 | 45.3 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 26 | ProjectBuilder | Build | 7 | 8 | 32 | 1 | 7 | 43.8 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 87 | ProjectBuilder | ResolveIncludesRecursive | 6 | 6 | 17 | 2 | 7 | 53.8 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 25 | ProjectBuilder | Build | 7 | 8 | 32 | 1 | 7 | 43.8 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 86 | ProjectBuilder | ResolveIncludesRecursive | 6 | 6 | 17 | 2 | 7 | 53.8 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 158 | VmHostProject | OptimizationIR | 5 | 6 | 15 | 2 | 2 | 54.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 63 | RamFileService | HasAnyExtension | 5 | 5 | 5 | 2 | 2 | 69.4 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 131 | ProjectBuilder | ReadInclude | 4 | 5 | 13 | 1 | 4 | 56.8 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 130 | ProjectBuilder | ReadInclude | 4 | 5 | 13 | 1 | 4 | 56.8 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 100 | VmHostProject | CompileInternal | 4 | 4 | 12 | 2 | 5 | 57.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 128 | RamFileService | IsUnderPath | 3 | 4 | 6 | 1 | 3 | 67.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\SnapshotRegisters.cs | 62 | SnapshotRegisters | Equals | 3 | 3 | 4 | 2 | 1 | 71.9 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 165 | ProjectBuilder | GetSourceFiles | 3 | 3 | 7 | 2 | 2 | 64.8 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 192 | ProjectBuilder | HasExtension | 3 | 3 | 4 | 2 | 2 | 73.5 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 201 | ProjectBuilder | FindLang | 3 | 3 | 3 | 1 | 2 | 75.9 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 164 | ProjectBuilder | GetSourceFiles | 3 | 3 | 7 | 2 | 2 | 64.8 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 191 | ProjectBuilder | HasExtension | 3 | 3 | 4 | 2 | 2 | 73.5 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 200 | ProjectBuilder | FindLang | 3 | 3 | 3 | 1 | 2 | 75.9 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProjectBuilder.cs | 52 | VmHostProjectBuilder | Build | 2 | 4 | 3 | 1 | 0 | 75.0 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 28 | RamFileService | RamFileService.ctor | 2 | 3 | 4 | 1 | 2 | 71.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\DeviceContext.cs | 113 | DeviceContext | TryLoadProgram | 2 | 3 | 8 | 1 | 3 | 65.0 |

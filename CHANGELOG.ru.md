@@ -10,6 +10,17 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.16.0] - 2026-11-15
+
+### Изменено
+- `Processor` разбит на 12 partial-файлов по подсистемам (флаги, память, арифметика, control flow, стек, порты, прерывания, snapshot, faults). Тела методов не изменены — рефакторинг чисто структурный. `MaskOf`/`SignExtend` вынесены в `InstructionHelpers`. Удалён dead code `SetStatusNotSupportedOpCode`.
+- **BREAKING:** перемещен в `IR/Emitter`. `IRAssembler` разбит на 3 partial-файла: `.cs` (public API + `MarkLabel` / `Emit*` / `GetItems`), `.Layout.cs` (первый проход — вычисление адресов меток и размеров секций), `.Emit.cs` (второй проход — эмиссия байтов).
+  - `Build()` (~90 строк, два вложенных `switch` с ручным offset/alignment) разложен на `ComputeLabelAddresses()` (проход 1) + `EmitItem(...)` (проход 2). Сам `Build()` — 15 строк с ясной структурой «layout → emit».
+  - Дублированная логика выравнивания вынесена в общие хелперы `Align(offset, alignment)` и `AdvanceInstructionOffset(instr, offset)` — единая точка для обоих проходов. Изменение выравнивания (например, 16-байтовая граница для SSE-подобных инструкций в будущем) — одна правка вместо двух.
+  - `EmitItem` разложен по типу item'а: `EmitInstructionItem` (плоский, с ранним `return` при `!HasImmediate && !IsJump` вместо двух вложенных `if`), `EmitDataItem`, `PadTo`. Разрешение метки перехода — `ResolveJumpTarget`.
+  - Padding-буфер `new byte[7]` (heap-аллокация на каждый `Build()`) → `stackalloc byte[7]` (zero-alloc). Размер 7 рассчитан на alignment ≤ 8 — все текущие вызовы `EmitData` используют 1 или 8. Латентное ограничение сохранено (см. «Известные ограничения»).
+- **BREAKING:** перемещен в `ASM/Parser`.**`AssemblerParser`** разбит на 5 partial-файлов: `.cs` (API + поля), `.Lexing.cs` (строки, комментарии, секции), `.Instructions.cs` (`ParseInstruction` + `Format*`), `.DataSection.cs` (директивы данных), `.Numbers.cs` (числовые и регистровые хелперы). `_regMap` / `_opMap` (85 строк ручных словарей) перенесены в `AsmLanguageDefinition.MnemonicMap` / `RegisterMap` — единый source of truth с `FrozenSet` для регексов. `ProcessLines` (70 строк) разложен на `ProcessSectionDirective` / `ProcessDataLine` / `ProcessCodeLine`. `Format*`-методы используют общий `RequireOperands` вместо 3×повтора `if (tokens.Length < N) Throw`. Удалена мёртвая строка `line.IndexOf(';')` (разделитель `;` уже съеден `Split`). Исправлена опечатка `FormateLOAD_IND__STORE_IND` → `FormatLOAD_IND_STORE_IND`.
+
 ## [0.15.0] - 2026-11-15
 
 ### Добавлено

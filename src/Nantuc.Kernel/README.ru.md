@@ -41,8 +41,18 @@ Nantuc.Kernel/
 │   ├── NativeMemoryBuffer.cs          # unsafe, NativeMemory, byte*, ReadUnaligned
 │   └── NativeReadOnlyView.cs          # IReadOnlyNativeBuffer, проверки границ/Dispose
 ├── ProcessorSystem/
-│   ├── Processor.cs                   # Step(), [InlineArray(32)], ConcurrentQueue, Volatile
-│   └── ProcessorSnapshot.cs             # снимок состояния процессора для внешних наблюдателей
+│   ├── Processor.cs                       (~150) — поля, ctor, публичный API
+│   ├── Processor.Step.cs                  (~110) — главный switch
+│   ├── Processor.Arithmetic.cs            (~110) — ADD/SUB/INC/DEC/MULT/SHR/SHL/DIV/MOD/AND/OR/XOR/NOT/CASTZ/CASTS
+│   ├── Processor.ControlFlow.cs           (~130) — JMP/JZ/JNZ/JG/JL/CALL/RET/JMP_IND/CALL_IND/END/HALT
+│   ├── Processor.Stack.cs                 (~70)  — PUSH/POP
+│   ├── Processor.Memory.cs                (~220) — LOAD/STORE (+unsafe) + Body + CanRead64/Get64
+│   ├── Processor.Ports.cs                 (~50)  — IN/OUT/WAKE_INT/WAKE
+│   ├── Processor.Flags.cs                 (~70)  — CMP/TEST/SetFlags/Zero/Negative
+│   ├── Processor.Interrupts.cs            (~70)  — ProcessExternal/ProcessSimulation/ExecuteExternal
+│   ├── Processor.Faults.cs                (~30)  — RecordFaultContext/IsTerminal
+│   ├── Processor.Snapshot.cs              (~50)  — CurrentProcessorSnapshot
+│   └── InstructionHelpers.cs              (~30)  — MaskOf/SignExtend (новый static-класс)
 ├── ControllersData/
 │   └── PortBus.cs                     # секторная шина портов
 ├── BiosSystem/

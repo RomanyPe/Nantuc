@@ -10,6 +10,17 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.16.0] - 2026-11-15
+
+### Changed
+- `Processor` was split into 12 partial files by subsystem (flags, memory, arithmetic, control flow, stack, ports, interrupts, snapshot, faults). Method bodies were not changed — the refactoring is purely structural. `MaskOf`/`SignExtend` were moved into `InstructionHelpers`. Dead code `SetStatusNotSupportedOpCode` was removed.
+- **BREAKING:** moved to `IR/Emitter`. `IRAssembler` was split into 3 partial files: `.cs` (public API + `MarkLabel` / `Emit*` / `GetItems`), `.Layout.cs` (first pass — computing label addresses and section sizes), `.Emit.cs` (second pass — byte emission).
+  - `Build()` (~90 lines, two nested `switch` statements with manual offset/alignment) was decomposed into `ComputeLabelAddresses()` (pass 1) + `EmitItem(...)` (pass 2). `Build()` itself is 15 lines with a clear “layout → emit” structure.
+  - Duplicated alignment logic was extracted into shared helpers `Align(offset, alignment)` and `AdvanceInstructionOffset(instr, offset)` — a single point for both passes. Changing alignment (e.g., a 16-byte boundary for SSE-like instructions in the future) becomes one edit instead of two.
+  - `EmitItem` was decomposed by item type: `EmitInstructionItem` (flat, with an early `return` when `!HasImmediate && !IsJump` instead of two nested `if`s), `EmitDataItem`, `PadTo`. Jump label resolution — `ResolveJumpTarget`.
+  - Padding buffer `new byte[7]` (heap allocation on every `Build()`) → `stackalloc byte[7]` (zero-alloc). The size 7 is calculated for alignment ≤ 8 — all current `EmitData` calls use 1 or 8. The latent limitation is preserved (see “Known Limitations”).
+- **BREAKING:** moved to `ASM/Parser`. **`AssemblerParser`** was split into 5 partial files: `.cs` (API + fields), `.Lexing.cs` (strings, comments, sections), `.Instructions.cs` (`ParseInstruction` + `Format*`), `.DataSection.cs` (data directives), `.Numbers.cs` (numeric and register helpers). `_regMap` / `_opMap` (85 lines of manually maintained dictionaries) were moved to `AsmLanguageDefinition.MnemonicMap` / `RegisterMap` — a single source of truth with `FrozenSet` for regexes. `ProcessLines` (70 lines) was decomposed into `ProcessSectionDirective` / `ProcessDataLine` / `ProcessCodeLine`. `Format*` methods use a shared `RequireOperands` instead of 3× repetition of `if (tokens.Length < N) Throw`. The dead line `line.IndexOf(';')` was removed (the `;` delimiter is already consumed by `Split`). The typo `FormateLOAD_IND__STORE_IND` → `FormatLOAD_IND_STORE_IND` was fixed.
+
 ## [0.15.0] - 2026-11-15
 
 ### Added

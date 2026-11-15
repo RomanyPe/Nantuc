@@ -1,0 +1,47 @@
+{
+  "version": 3,
+  "targets": {
+    "net10.0/win-x64": {
+      "codemetrics.cli/1.2.0": {
+        "type": "package",
+        "tools": {
+          "tools/net10.0/any/DotnetToolSettings.xml": {},
+          "tools/net10.0/any/Microsoft.CodeAnalysis.CSharp.dll": {},
+          "tools/net10.0/any/Microsoft.CodeAnalysis.dll": {},
+          "tools/net10.0/any/codemetrics.deps.json": {},
+          "tools/net10.0/any/codemetrics.dll": {},
+          "tools/net10.0/any/codemetrics.pdb": {},
+          "tools/net10.0/any/codemetrics.runtimeconfig.json": {},
+          "tools/net10.0/any/cs/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/cs/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/de/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/de/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/es/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/es/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/fr/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/fr/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/it/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/it/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/ja/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/ja/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/ko/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/ko/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/pl/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/pl/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/pt-BR/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/pt-BR/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/ru/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/ru/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/tr/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/tr/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/zh-Hans/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/zh-Hans/Microsoft.CodeAnalysis.resources.dll": {},
+          "tools/net10.0/any/zh-Hant/Microsoft.CodeAnalysis.CSharp.resources.dll": {},
+          "tools/net10.0/any/zh-Hant/Microsoft.CodeAnalysis.resources.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {},
+  "projectFileDependencyGroups": {}
+}

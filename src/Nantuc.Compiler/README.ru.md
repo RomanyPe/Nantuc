@@ -1,4 +1,4 @@
-﻿# Nantuc.Compiler — README
+﻿﻿# Nantuc.Compiler — README
 
 > Компилятор MiniC -> байткод Nantuc: лексер, парсер, AST, кодогенератор с регистровой раскраской, ассемблер (два backend'а — прямой и IR) и инфраструктура оптимизаций.
 > `[← Корень](../README.ru.md) · [Common](../../src/Nantuc.Common/README.ru.md) · [Contracts](../../src/Nantuc.Contracts/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md)`
@@ -27,13 +27,13 @@
 Ключевые роли модуля:
 - Frontend: `Lexer` (`Nantuc.Compiler.C.Lexer`), `Parser` (partial, 6 файлов, `Nantuc.Compiler.C.Parser`), **`Nantuc.Compiler.C.AST`** — 28 узлов AST в отдельных файлах, `MiniCLanguageDefinition` (`Nantuc.Compiler.C`), **`TokenTypeExtension`** (`Nantuc.Compiler.C.Lexer`).
 - Кодогенератор: `ExpressionGenerator` (partial, 12 файлов, `Nantuc.Compiler.C.CodeGenerator.Expression`), `StatementGenerator` (partial, 6 файлов + `StatementTypeResolver`, `Nantuc.Compiler.C.CodeGenerator.Statement`), `FunctionGenerator` (partial, 5 файлов, `Nantuc.Compiler.C.CodeGenerator.FunctionGen`), `RegisterAllocator` + `GreedyGraphColorer` + `VariableAccessAnalyzer` + `RegisterAllocationResult` (`Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`), `FunctionContext` + `SaveDepthEstimator` + `VariableLayoutBuilder` (`Nantuc.Compiler.C.CodeGenerator.FunctionCtx`), `VariableAccessor`, `GlobalMemoryManager`, `CodeGenUtils`, `VarLocation`, `GlobalInfo` (`Nantuc.Compiler.C.CodeGenerator`), **overflow-касты через `CASTZ`/`CASTS`**.
-- Ассемблер: `AssemblerBase` (абстракция, `Nantuc.Compiler.ASM.Base`), `Assembler`/`IRAssembler`/`AssemblerParser`/`AsmLanguageDefinition` (`Nantuc.Compiler.ASM`), `AsmExtensions`/`InstructionEncoder` (`Nantuc.Compiler.ASM.Utils`), IR-элементы (`Nantuc.Compiler.ASM.IR`).
+- Ассемблер: `AssemblerBase` (абстракция, `Nantuc.Compiler.ASM.Base`), `Assembler`/`AsmLanguageDefinition` (`Nantuc.Compiler.ASM`), **`AssemblerParser` — partial из 5 файлов** (`Nantuc.Compiler.ASM.Parser`), **`IRAssembler` — partial из 3 файлов** (`Nantuc.Compiler.ASM.IR.Emitеer`), `AsmExtensions`/`InstructionEncoder` (`Nantuc.Compiler.ASM.Utils`), IR-элементы — `AsmItem`/`AsmLabel`/`AsmData`/`AsmInstruction`/`IOptimizerIRRule`/`IROptimizer` (`Nantuc.Compiler.ASM.IR`).
   **`AssemblerParser` поддерживает секции `.data`/`.bss`/`.text`/`.code` и директивы данных** (`.byte`, `.word`, `.dword`, `.quad`, `.ascii`, `.asciz`, `.zero`).
 - Оптимизации: `AstOptimizer`, `IROptimizer` — каркас с интерфейсами `IAstOptimizationRule`/`IOptimizerIRRule` (`Nantuc.Compiler.C.Optimizations` / `Nantuc.Compiler.ASM.IR`); **конкретных правил в этой партии нет**.
 - Раскладка структур: `StructLayout`, `FieldInfo` (`Nantuc.Compiler.C`) — выравнивание полей по 8 байт, `Resolve` с итеративным разрешением зависимостей.
 - Вспомогательное: **`WordRegexBuilder`** (`Nantuc.Compiler`) — единая точка построения `\b(...)\b`-регексов для `AsmLanguageDefinition` и `MiniCLanguageDefinition`.
 
-> **XML-документация фрагментарна.** Полностью документированы `AssemblerParser` (шапка класса — но не синхронизирована с новыми опкодами, см. п. 20), `Assembler` (частично), `IOptimizerIRRule`, `IAstOptimizationRule`, `InstructionEncoder` (формат + регионы). Без `///` — вся AST-иерархия (28 типов в `C/AST/`, только inline `//`-комментарии в шапке файла), `Lexer`, **`Parser` и все его partial-файлы** (`Parser.Declarations.cs`/`.Expressions.cs`/`.Literals.cs`/`.Statements.cs`/`.TopLevel.cs`), **`ExpressionGenerator` и все его partial-файлы** (11 partial'ов в `CodeGenerator/Expression/`), **`StatementGenerator` и все его partial-файлы** (5 partial'ов + `StatementTypeResolver.cs` в `CodeGenerator/Statement/`), **`FunctionGenerator` и все его partial-файлы** (4 partial'а в `CodeGenerator/FunctionGen/`), **`FunctionContext`/`SaveDepthEstimator`/`VariableLayoutBuilder`** (`CodeGenerator/FunctionCtx/`), **`RegisterAllocator`/`GreedyGraphColorer`/`VariableAccessAnalyzer`** (`CodeGenerator/RegistersAlloc/`), `CodeGenUtils`, `GlobalMemoryManager`, `VariableAccessor`, `IRAssembler`, `IROptimizer`, `AsmExtensions`, **`WordRegexBuilder`**. Подробности и дефекты — в разделе [Что исправить](#что-исправить).
+> **XML-документация фрагментарна.** Полностью документированы `AssemblerParser` (шапка класса — но не синхронизирована с новыми опкодами, см. п. 20), `Assembler` (частично), `IOptimizerIRRule`, `IAstOptimizationRule`, `InstructionEncoder` (формат + регионы). Без `///` — вся AST-иерархия (28 типов в `C/AST/`, только inline `//`-комментарии в шапке файла), `Lexer`, **`Parser` и все его partial-файлы** (`Parser.Declarations.cs`/`.Expressions.cs`/`.Literals.cs`/`.Statements.cs`/`.TopLevel.cs`), **`ExpressionGenerator` и все его partial-файлы** (11 partial'ов в `CodeGenerator/Expression/`), **`StatementGenerator` и все его partial-файлы** (5 partial'ов + `StatementTypeResolver.cs` в `CodeGenerator/Statement/`), **`FunctionGenerator` и все его partial-файлы** (4 partial'а в `CodeGenerator/FunctionGen/`), **`FunctionContext`/`SaveDepthEstimator`/`VariableLayoutBuilder`** (`CodeGenerator/FunctionCtx/`), **`RegisterAllocator`/`GreedyGraphColorer`/`VariableAccessAnalyzer`** (`CodeGenerator/RegistersAlloc/`), `CodeGenUtils`, `GlobalMemoryManager`, `VariableAccessor`, **`IRAssembler` и его partial'ы** (`IRAssembler.Layout.cs`/`IRAssembler.Emit.cs`), **`AssemblerParser` и его partial'ы** (`AssemblerParser.Lexing.cs`/`.Instructions.cs`/`.DataSection.cs`/`.Numbers.cs`), `IROptimizer`, `AsmExtensions`, **`WordRegexBuilder`**. Подробности и дефекты — в разделе [Что исправить](#что-исправить).
 
 ## Дерево локального проекта
 
@@ -47,21 +47,33 @@ Nantuc.Compiler/
 ├── ASM/                              # Backend (namespace Nantuc.Compiler.ASM)
 │   ├── AsmLanguageDefinition.cs      # Mnemonics/Registers (FrozenSet); regex'ы без Compiled
 │   ├── Assembler.cs                  # прямая запись в MemoryStream + патч меток
-│   ├── AssemblerParser.cs            # текст -> AssemblerBase; .data/.bss/.text/.code;
-│   │                                 # директивы данных; NormalizeSizeExtension
-│   │                                 # _opMapLex + CASTZ/CASTS; FormatIWithSize
 │   │
 │   ├── Base/                         # Nantuc.Compiler.ASM.Base
 │   │   └── AssemblerBase.cs          # BaseAddress/ErrorReporter/SectionSize/DataSectionStart
+│   │
+│   ├── Parser/                       # Nantuc.Compiler.ASM.Parser
+│   │   ├── AssemblerParser.cs        # поля, Assemble/Build, PendingData, [GeneratedRegex]
+│   │   ├── AssemblerParser.Lexing.cs # ProcessLines/StripComments/секции/FlushPendingData;
+│   │   │                             # NormalizeSizeExtension (GeneratedRegex, fast-path)
+│   │   ├── AssemblerParser.Instructions.cs # ParseInstruction/SplitMnemonicAndSize/DispatchInstruction;
+│   │   │                             # FormatR/FormatU/FormatIWithSize/FormatLDI/FormatJumpType/
+│   │   │                             # FormatLOAD_STORE/FormatLOAD_IND_STORE_IND
+│   │   ├── AssemblerParser.DataSection.cs # TryProcessDataDirective; TryAddIntegerData/StringData;
+│   │   │                             # AddPendingData
+│   │   └── AssemblerParser.Numbers.cs # ParseReg; TryParseSize; TryParseLong; ParseNumber; IsNumber
 │   │
 │   ├── IR/                           # Nantuc.Compiler.ASM.IR
 │   │   ├── AsmItem.cs                # базовый IR-элемент
 │   │   ├── AsmInstruction.cs         # авто-декодирует поля через InstructionDecoder
 │   │   ├── AsmLabel.cs               # метка (Position)
 │   │   ├── AsmData.cs                # данные с выравниванием (alignment)
-│   │   ├── IRAssembler.cs
 │   │   ├── IOptimizerIRRule.cs
-│   │   └── IROptimizer.cs
+│   │   ├── IROptimizer.cs
+│   │   │
+│   │   └── Emitеer/                  # Nantuc.Compiler.ASM.IR.Emitеer
+│   │       ├── IRAssembler.cs        # Emit*/MarkLabel/GetItems/Build (entry point)
+│   │       ├── IRAssembler.Layout.cs # проход 1: ComputeLabelAddresses; AdvanceInstructionOffset
+│   │       └── IRAssembler.Emit.cs   # проход 2: EmitItem/EmitInstructionItem/EmitDataItem/PadTo
 │   │
 │   └── Utils/                        # Nantuc.Compiler.ASM.Utils
 │       ├── AsmExtensions.cs          # Emit* + EmitInstI на AssemblerBase
@@ -173,6 +185,8 @@ Nantuc.Compiler/
 - **`FunctionContext`/`SaveDepthEstimator`/`VariableLayoutBuilder` — в `CodeGenerator/FunctionCtx/`** (`Nantuc.Compiler.C.CodeGenerator.FunctionCtx`).
 - **`RegisterAllocator`/`RegisterAllocator.Interference`/`GreedyGraphColorer`/`VariableAccessAnalyzer`/`RegisterAllocationResult` — в `CodeGenerator/RegistersAlloc/`** (`Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`).
 - Два backend'а: `Assembler` (прямой, `MemoryStream` + `BinaryWriter`) и `IRAssembler` (список `AsmItem`). `AssemblerParser` работает с любым через `AssemblerBase`.
+- **`AssemblerParser` — partial class из 5 файлов в `ASM/Parser/`** (`Nantuc.Compiler.ASM.Parser`): `AssemblerParser.cs` (поля, `Assemble`/`Build`, `PendingData`, `[GeneratedRegex]`), `.Lexing.cs` (строки/комментарии/секции + `NormalizeSizeExtension` + `FlushPendingData`), `.Instructions.cs` (разбор мнемоник + `Format*` хелперы), `.DataSection.cs` (директивы данных), `.Numbers.cs` (регистры/числа). Публичный API — `Assemble(...)`/`Build(...)`.
+- **`IRAssembler` — partial class из 3 файлов в `ASM/IR/Emitеer/`** (`Nantuc.Compiler.ASM.IR.Emitеer`): `IRAssembler.cs` (Emit*/MarkLabel/GetItems/Build), `.Layout.cs` (проход 1: `ComputeLabelAddresses`), `.Emit.cs` (проход 2: `EmitItem`/`EmitInstructionItem`/`EmitDataItem`/`PadTo`/`ResolveJumpTarget`).
 - Оптимизации: `AstOptimizer` (AST-level) и `IROptimizer` (IR-level) — оба каркасы, ждут конкретных правил.
 - **`TokenTypeExtension.AsText`** — единственное место, где `TokenType` превращается в строку; используется везде в диагностике вместо `Enum.ToString()` (AOT-safe, без рефлексии, без боксинга).
 - **`WordRegexBuilder`** (`Nantuc.Compiler`) — единая точка построения `\b(...)\b`-паттернов; используется `AsmLanguageDefinition` и `MiniCLanguageDefinition`, чтобы формы не разъезжались.
@@ -214,9 +228,9 @@ Nantuc.Compiler/
 | `OptimizationResult` | `C.Optimizations` | `class : ILogOptimization` | Простая реализация лога |
 | `AssemblerBase` | `ASM.Base` | `abstract class` | `Build`/`EmitInstruction`/`EmitInstruction64`/`EmitInstruction64WithLabel`/`EmitJump`/`EmitJumpToAbsolute`/`MarkLabel`/`EmitData`; свойства `BaseAddress`/`ErrorReporter`/`CodeSectionSize`/`DataSectionStart`/`DataSectionSize` |
 | `Assembler` | `ASM` | `class : AssemblerBase` | Прямая запись; `_patches`; `DataSection*`/`CodeSectionSize` в `Build()` |
-| `AssemblerParser` | `ASM` | `partial class` | `Assemble(code, baseAddress, ErrorReporter)`, `Build(code, asm)`, `Assemble(code, asm, allowDataSection)`; секции `.data`/`.bss`/`.text`/`.code`; **`FormatIWithSize` для `CASTZ`/`CASTS`** |
+| `AssemblerParser` | `ASM.Parser` | `partial class` (5 файлов) | `Assemble(code, baseAddress, ErrorReporter)`, `Build(code, asm)`, `Assemble(code, asm, allowDataSection)`; секции `.data`/`.bss`/`.text`/`.code`; **`FormatIWithSize` для `CASTZ`/`CASTS`**; `PendingData`; `[GeneratedRegex]` для `NormalizeSizeExtension` |
 | `AsmLanguageDefinition` | `ASM` | `static class` | `Mnemonics`/`Registers` (`FrozenSet`); regex'ы без `Compiled` |
-| `IRAssembler` | `ASM.IR` | `class : AssemblerBase` | `GetItems()`, двухпроходный `Build()`, padding-`AsmData` |
+| `IRAssembler` | `ASM.IR.Emitеer` | `partial class : AssemblerBase` (3 файла) | `GetItems()`, двухпроходный `Build()`, padding-`AsmData`; `stackalloc byte[7]` в `Build()` |
 | `AsmItem`/`AsmLabel`/`AsmData`/`AsmInstruction` | `ASM.IR` | `class` | IR-элементы (каждый в своём файле); `AsmInstruction` авто-декодирует поля через `InstructionDecoder` |
 | `IOptimizerIRRule` | `ASM.IR` | `interface` | `TryOptimize(items, index, passCount, out newIndex)`, `GetLogs()`, `Clear()` |
 | `IROptimizer` | `ASM.IR` | `class` | `Optimize(items, maxPasses = 5)` — до неподвижной точки; `Clear()` на входе |
@@ -335,7 +349,7 @@ Nantuc.Compiler/
 - `Build()` — фиксирует `DataSectionStart`/`DataSectionSize`/`CodeSectionSize`, патчит `_patches`.
 - `Align8()` — `stackalloc byte[pad]` (0..7 байт).
 
-**`AssemblerParser`** (`Nantuc.Compiler.ASM`) — текстовый ассемблер. **Полный набор инструкций:**
+**`AssemblerParser`** (`Nantuc.Compiler.ASM.Parser`) — `partial class` из 5 файлов (`AssemblerParser.cs` + `.Lexing.cs` + `.Instructions.cs` + `.DataSection.cs` + `.Numbers.cs`). Текстовый ассемблер. **Полный набор инструкций:**
 - Без операндов: `NOP`, `END`, `RET`, `HALT`, `WAKE`.
 - R-формат (2 регистра): `MOV`, `MOD`, `ADD`, `SUB`, `AND`, `OR`, `XOR`, `IN`, `OUT`, `SHR`, `SHL`, `DIV`, `MULT_INT`, `CMP`, `TEST`.
 - U-формат (1 регистр): `JMP_IND`, `CALL_IND`, `WAKE_INT`, `INC`, `DEC`, `NOT`, `PUSH`, `POP`.
@@ -345,20 +359,32 @@ Nantuc.Compiler/
 - `LOAD_IND[.size] regDst, regAddr` / `STORE_IND[.size] regSrc, regAddr` (+unsafe).
 - `JMP`/`JZ`/`JNZ`/`JG`/`JL`/`CALL` — метка или абсолютный адрес.
 
-**Нормализация размера:** `NormalizeSizeExtension` чинит `LOAD . S8` -> `LOAD.S8` через `[GeneratedRegex(@"(\w)\s*\.\s*(\w)")]` (AOT-safe). Есть fast-path: если нет `' . '` — возвращает строку без аллокаций.
+**Разложение по partial'ам:**
+- `AssemblerParser.cs` — поля (`_asm`, `_allowDataSection`, `_pendingData`, `_inDataSection`, `_pendingLabel`, `_currentLine`, `_opMap`, `_regMap`), конструктор, `Assemble(...)` (3 перегрузки), `Build(...)`, `PendingData` (record), `[GeneratedRegex]`-метод `GetRexExtensionAsm()`.
+- `AssemblerParser.Lexing.cs` — `ProcessLines`, `StripComments`, `ProcessSectionDirective`, `ProcessDataLine`, `ProcessCodeLine`, `GetSectionDirective`, `NormalizeSizeExtension`, `FlushPendingData`.
+- `AssemblerParser.Instructions.cs` — `ParseInstruction`, `SplitMnemonicAndSize`, `DispatchInstruction`, `FormatR`/`FormatU`/`FormatIWithSize`/`FormatLDI`/`FormatJumpType`/`FormatLOAD_STORE`/`FormatLOAD_IND_STORE_IND`, `RequireOperands`.
+- `AssemblerParser.DataSection.cs` — `TryProcessDataDirective`, `TryAddIntegerData`, `TryAddStringData`, `AddPendingData`.
+- `AssemblerParser.Numbers.cs` — `ParseReg`, `TryParseSize`, `TryParseLong`, `ParseNumber`, `IsNumber`.
 
-**Состояние парсера — instance-level:** `_asm`, `_allowDataSection`, `_pendingData`, `_inDataSection`, `_pendingLabel`, `_currentLine` мутируются в `Assemble`. **Не потокобезопасен** (см. п. 13).
+**Нормализация размера:** `NormalizeSizeExtension` чинит `LOAD . S8` -> `LOAD.S8` через `GetRexExtensionAsm().Replace(instruction, "$1.$2")` (AOT-safe, `[GeneratedRegex]` на `(\w)\s*\.\s*(\w)`). Есть fast-path: если нет `' . '` или пробела вокруг `.` — возвращает строку без аллокаций.
+
+**Состояние парсера — instance-level:** `_asm`, `_allowDataSection`, `_pendingData`, `_inDataSection`, `_pendingLabel`, `_currentLine`, `_opMap`, `_regMap` мутируются в `Assemble`. **Не потокобезопасен** (см. п. 13). `_pendingData` накапливает `PendingData` и сбрасывается через `FlushPendingData()` в конце `Assemble` (или при переходе из `.data`/`.bss` обратно в `.text`).
 
 **`AsmLanguageDefinition`** (`Nantuc.Compiler.ASM`) — `Mnemonics`/`Registers` (`FrozenSet`), regex'ы без `Compiled`. Использует `WordRegexBuilder`. `_regMapLex`/`_opMapLex` — обычные `Dictionary`, **плюс** их `FrozenDictionary`-копии `_regMap`/`_opMap` (см. п. 11).
 
-**`IRAssembler`** (`Nantuc.Compiler.ASM.IR`) — список `AsmItem`:
-- `EmitInstruction64(uint, ulong)` валидирует `HasNeed64IntData(op)`.
-- `EmitJump(uint, string)` -> `AsmInstruction` с `TargetLabel`.
-- `EmitJumpToAbsolute(uint, ulong)` -> `AsmInstruction(..., isAbsolute: true)`.
-- `EmitData(string, byte[])` -> padding-`AsmData(alignment: 8)` + `MarkLabel` + `AsmData(data, alignment: 1)`.
-- `MarkLabel` — дубли через `HashSet<string>`; при коллизии — `Asm_DuplicateLabel` с позицией.
-- `Build()` — двухпроходный: `labelAddresses`, потом байты и патч прыжков; `emptyPadding = new byte[7]`.
-- `GetItems()` — **внутренний** `List<AsmItem>`, мутации видны `Build()`.
+**`IRAssembler`** (`Nantuc.Compiler.ASM.IR.Emitеer`) — `partial class` из 3 файлов (`IRAssembler.cs` + `.Layout.cs` + `.Emit.cs`), список `AsmItem`:
+- `IRAssembler.cs`:
+  - `EmitInstruction64(uint, ulong)` валидирует `HasNeed64IntData(op)`.
+  - `EmitJump(uint, string)` -> `AsmInstruction` с `TargetLabel`.
+  - `EmitJumpToAbsolute(uint, ulong)` -> `AsmInstruction(..., isAbsolute: true)`.
+  - `EmitData(string, byte[])` -> padding-`AsmData(alignment: 8)` + `MarkLabel` + `AsmData(data, alignment: 1)`. Пустой `AsmData` с `alignment: 8` — разделитель/выравнивание.
+  - `MarkLabel` — дубли через `HashSet<string>`; при коллизии — `Asm_DuplicateLabel` с позицией существующей метки (ищется линейно).
+  - `Build()` — двухпроходный: `labelAddresses = ComputeLabelAddresses()`, потом `EmitItem` для каждого элемента; `stackalloc byte[7]` padding для выравнивания.
+  - `GetItems()` — **внутренний** `List<AsmItem>`, мутации видны `Build()`.
+- `IRAssembler.Layout.cs` — **проход 1**: `ComputeLabelAddresses()` — `labels`, `DataSectionStart`, `DataSectionSize`, `CodeSectionSize`. `AdvanceInstructionOffset(instr, offset)` — единая offset-логика для инструкций; `Align(offset, alignment)` — extension на `ulong`.
+- `IRAssembler.Emit.cs` — **проход 2**: `EmitItem`, `EmitInstructionItem` (4 байта кода, `PadTo(8)`, 8 байт данных для `HasImmediate`/`IsJump`), `EmitDataItem` (`PadTo(alignment)`, bytes), `PadTo` (использует `padding[..pad]`), `ResolveJumpTarget` (`Asm_UndefinedLabel` если нет метки).
+
+> **Важно:** `ComputeLabelAddresses` (Layout) и `EmitItem` (Emit) обязаны считать `offset` **идентично**. Обе реализации опираются на общий `Align(...)` (`offset.AlignUp(alignment)`).
 
 **`InstructionEncoder`** (`Nantuc.Compiler.ASM.Utils`) — кодирование 32-битного слова:
 - `Encode`/`EncodeR`/`EncodeI`/`EncodeU`/`EncodeJ` — форматы.
@@ -497,7 +523,7 @@ InstructionEncoder.Decode(raw);   // "ADD r1, r2" / "CASTS.S32 r0" / "UNKNOWN" �
 - Автор оптимизаций — `IAstOptimizationRule`/`IOptimizerIRRule`.
 - Автор нового backend'а — `AssemblerBase`.
 - Автор нового target'а ISA — `InstructionEncoder` + `AsmExtensions`.
-- Автор NANASM-скриптов — `AssemblerParser` с секциями `.data`/`.bss`/`.text`/`.code`.
+- Автор NANASM-скриптов — `AssemblerParser` с секциями `.data`/`.bss`/`.text`/`.code` (partials в `ASM/Parser/`).
 
 **Что стоит делать:**
 - `IRAssembler` для production-пайплайна; `Assembler` — для тестов.
@@ -507,6 +533,7 @@ InstructionEncoder.Decode(raw);   // "ADD r1, r2" / "CASTS.S32 r0" / "UNKNOWN" �
 - **Overflow** — писать в узкие типы (byte/char/short/int/uint/ushort) как в обычном C; касты вставляет кодогенератор.
 - `InstructionEncoder.Decode(uint)` — для отладки.
 - **Добавление нового выражения** — новый partial `ExpressionGenerator.Xxx.cs` в `CodeGenerator/Expression/`; **нового оператора** — новый partial `StatementGenerator.Xxx.cs` в `CodeGenerator/Statement/`. API-методы не меняются, `Parser`/`StatementGenerator.cs` только диспетчеризуют.
+- **Добавление новой директивы данных** — в `AssemblerParser.DataSection.cs` (один case в `TryProcessDataDirective`); **нового формата операндов** — в `AssemblerParser.Instructions.cs` (`Format*` + case в `DispatchInstruction`).
 
 **Что не стоит делать:**
 - Полагаться на `FunctionNode.Body` у `extern` — там `null!`.
@@ -516,6 +543,7 @@ InstructionEncoder.Decode(raw);   // "ADD r1, r2" / "CASTS.S32 r0" / "UNKNOWN" �
 - `const` на полях `struct` — не поддержано.
 - Один `AssemblerParser` на несколько потоков — не потокобезопасен.
 - **Полагаться на compile-time свёртку `const`** — его нет; `const int N = 10; int arr[N];` — ошибка парсинга.
+- **Добавлять `AsmData` с `alignment > 8`** — сломает `Padding`-буфер в `IRAssembler.Build()` (см. п. 21).
 
 ## Особенная информация
 
@@ -654,9 +682,9 @@ CodeGen_IncrementOfConst  = 1317,   // "Cannot increment/decrement const '{0}'"
 
 | Аспект | Статус | Комментарий |
 |---|---|---|
-| Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. `stackalloc` только в `Assembler.Align8` (0–7 байт). |
+| Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. `stackalloc` только в `Assembler.Align8` и `IRAssembler.Build` (0–7 байт). |
 | `NativeMemory` | ✅ | Не используется. |
-| `stackalloc` / `InlineArray` | ✅ | `stackalloc byte[pad]` (0..7 байт) в `Assembler.Align8`. |
+| `stackalloc` / `InlineArray` | ✅ | `stackalloc byte[pad]` (0..7 байт) в `Assembler.Align8`; `stackalloc byte[7]` в `IRAssembler.Build`. |
 | `Interlocked` / `Volatile` | ✅ | Не используются. |
 | `System.Collections.Frozen` | ✅ | `FrozenSet` + **`FrozenDictionary`** (`_regMap`/`_opMap`). |
 | `[GeneratedRegex]` | ✅ | `AssemblerParser.GetRexExtensionAsm()` — единственный regex в горячем пути. |
@@ -706,7 +734,8 @@ FunctionGenerator.Generate(program)               // C.CodeGenerator.FunctionGen
   ▼
 AssemblerBase (Assembler | IRAssembler)
   │  Assembles при Build():
-  │  - патч меток
+  │  - IRAssembler: проход 1 (ComputeLabelAddresses) -> проход 2 (EmitItem)
+  │  - Assembler:   прямая запись + патч _patches
   │  - DataSectionStart / DataSectionSize / CodeSectionSize
   │
   ▼
@@ -774,7 +803,7 @@ InstructionEncoder.Decode(raw);   // "ADD r1, r2" / "LOAD.S32 r0, [data64]" / "C
 | `.data` запрещён в inline-asm | `allowDataSection: false` | Вынесите `.data` в NANASM-файл |
 | `.quad <label>` не поддержан | Нет патча меток в `EmitData` | `.quad 0` + инициализация в `__global_init` |
 | `.align N` не поддержан | `EmitData` всегда выравнивает на 8 | Полагайтесь на авто-8 |
-| `;` в строке обрезается | `Split(['\n', ';'])` | Не используйте `;` в `.ascii`/`.asciz` |
+| `;` в строке обрезается | `Split(['\n', ';'])` в `ProcessLines` | Не используйте `;` в `.ascii`/`.asciz` |
 | Только little-endian | Платформа Nantuc | — |
 
 ### Диагностика: `DiagnosticData` и AOT
@@ -801,13 +830,14 @@ public readonly record struct DiagnosticData
 | | `Assembler` | `IRAssembler` |
 |---|---|---|
 | Хранение | `MemoryStream` + `BinaryWriter` | `List<AsmItem>` |
-| Патч меток | `_patches` в `Build()` | `labelAddresses` в первом проходе |
+| Патч меток | `_patches` в `Build()` | `labelAddresses` в первом проходе (`ComputeLabelAddresses`) |
 | IR | ❌ | ✅ |
 | Проверка `HasNeed64IntData` | ❌ (только при `EmitInstruction64`, `EmitInstruction64WithLabel` не проверяет — п. 12) | ✅ при `EmitInstruction64` (тоже не при `EmitInstruction64WithLabel`) |
 | Валидация дублей меток | ✅ | ✅ |
-| Двухпроходный Build | ❌ | ✅ |
+| Двухпроходный Build | ❌ | ✅ (`Layout` -> `Emit`) |
 | `.data` через `AssemblerParser` | ✅ | ✅ |
-| `EmitData` | `Align8()` + `MarkLabel` + bytes | padding-`AsmData` + `MarkLabel` + `AsmData(data)` |
+| `EmitData` | `Align8()` + `MarkLabel` + bytes | padding-`AsmData(alignment: 8)` + `MarkLabel` + `AsmData(data, alignment: 1)` |
+| Padding-буфер | `stackalloc byte[pad]` (0..7) per call | `stackalloc byte[7]` один на `Build()` (лимит alignment ≤ 8, п. 21) |
 | `GetItems()` мутируемый | — | ✅ (внутренний `List<AsmItem>`) |
 
 ## Что исправить
@@ -842,12 +872,12 @@ public readonly record struct DiagnosticData
    **Фикс:** `GenerateLogicalAndOr(binop, targetReg)`.
 
 9. **[API] `AssemblerParser.TryAddIntegerData` — `.quad <label>` пока не поддержан.**
-   Файл: `AssemblerParser.cs`.
+   Файл: `ASM/Parser/AssemblerParser.DataSection.cs`.
    **Фикс:** механизм патча по метке в `EmitData`/`Build()`.
 
-10. **[API] `AssemblerParser.TryAddStringData` — `;` внутри строки обрезается.**
-    Файл: `AssemblerParser.cs`.
-    **Фикс:** вынести разбор строк из общего `Split` или добавить hex-escape.
+10. **[API] `AssemblerParser` — `;` внутри строки обрезается.**
+    Файл: `ASM/Parser/AssemblerParser.Lexing.cs` (`ProcessLines`: `code.Split(['\n', ';'])`).
+    **Фикс:** вынести разбор строк из общего `Split` (разбивать по `\n`, а `;` обрабатывать только вне литералов) или добавить hex-escape.
 
 11. **[API] `AssemblerParser` — двойные словари `_regMapLex`/`_opMapLex` + `_regMap`/`_opMap`.**
     Файл: `AsmLanguageDefinition.cs`.
@@ -855,11 +885,11 @@ public readonly record struct DiagnosticData
     **Фикс:** инициализировать `FrozenDictionary` напрямую.
 
 12. **[API] `IRAssembler.EmitInstruction64WithLabel` не проверяет `HasNeed64IntData`.**
-    Файл: `ASM/IR/IRAssembler.cs`.
+    Файл: `ASM/IR/Emitеer/IRAssembler.cs`.
     **Фикс:** вынести проверку в общий хелпер `Validate64BitOp(op)`.
 
 13. **[API] `AssemblerParser` не потокобезопасен.**
-    Файл: `AssemblerParser.cs`. Поля instance-level. `StatementGenerator.GenerateInlineAsm` (`StatementGenerator.InlineAsm.cs`) создаёт `new AssemblerParser()` на каждый `asm` — но контракт не задокументирован.
+    Файл: `ASM/Parser/AssemblerParser.cs`. Поля instance-level (`_asm`, `_allowDataSection`, `_pendingData`, `_inDataSection`, `_pendingLabel`, `_currentLine`, `_opMap`, `_regMap`). `StatementGenerator.GenerateInlineAsm` (`StatementGenerator.InlineAsm.cs`) создаёт `new AssemblerParser()` на каждый `asm` — но контракт не задокументирован.
     **Фикс:** `[ThreadStatic]`/`lock`, либо явно задокументировать.
 
 14. **[API] `RegisterAllocator.BuildInterferenceGraph` — линейные live-диапазоны, не учитывают циклы.**
@@ -889,3 +919,36 @@ public readonly record struct DiagnosticData
     `IsSignedType`, `EmitCastToType`, `GetAlignment(type, structTable)` (жёсткое `8` для структур).
 
 20. **[XML] `AssemblerParser` — шапка класса не перечисляет `.data`, `allowDataSection`, `CASTZ`/`CASTS`.**
+    Файл: `ASM/Parser/AssemblerParser.cs`. Шапка класса упоминает только базовые форматы; partial'ы `.Lexing.cs`/`.Instructions.cs`/`.DataSection.cs`/`.Numbers.cs` вообще без `///`.
+
+### Новые (выявлены при разбиении на partial'ы)
+
+21. **[API] `IRAssembler` — padding-буфер фиксированного размера 7 байт.**
+    Файл: `ASM/IR/Emitеer/IRAssembler.cs` (`Build()`: `Span<byte> padding = stackalloc byte[7]`), `ASM/IR/Emitеer/IRAssembler.Emit.cs` (`PadTo` использует `padding[..pad]`).
+    При добавлении `AsmData` с `alignment > 8` (или другого `AdvanceInstructionOffset` с выравниванием > 8) — `IndexOutOfRangeException`. Сейчас все вызовы `EmitData` используют 1 или 8, а инструкции — 8, так что лимит соблюдается неявно.
+    **Фикс:** либо увеличить буфер до `maxAlignment` (например, 32), либо сделать `maxAlignment` константой и явно её документировать; либо генерировать padding динамически.
+
+22. **[API] `AssemblerParser.FormatLOAD_STORE` — не поддерживает метки (только числовой адрес).**
+    Файл: `ASM/Parser/AssemblerParser.Instructions.cs`.
+    ```csharp
+    ulong addr = ParseNumber(tokens[2]);   // "msg" -> FormatException
+    ```
+    Пример из README (`LOAD.S8 r1, msg`) сейчас не работает: `msg` не парсится как число. Симметрично `FormatLDI`/`FormatJumpType` уже поддерживают метки.
+    **Фикс:** добавить `IsNumber`-ветку + `EmitInstWithLabel`/`EmitInstruction64WithLabel` (или отдельный метод), либо задокументировать ограничение и поправить пример.
+
+23. **[API] `AssemblerParser.TryAddStringData` — не поддерживает `\xNN` escape.**
+    Файл: `ASM/Parser/AssemblerParser.DataSection.cs`. Неизвестные escape'ы обрабатываются как `(byte)inner[i]` (silently) — в отличие от `Parser.Literals.cs` (`Parser_InvalidCharLiteral`). Расхождение между C-строкой и NANASM-строкой.
+    **Фикс:** унифицировать escape-обработку; для симметрии с `Parser.Literals` поддержать `\xNN`.
+
+24. **[API] `AssemblerParser.ParseNumber` бросает на невалидном вводе, а `IsNumber` возвращает `false` — рассинхронизация контракта.**
+    Файл: `ASM/Parser/AssemblerParser.Numbers.cs`.
+    `FormatLDI`/`FormatJumpType` проверяют `IsNumber` до `ParseNumber`, но `FormatLOAD_STORE` — нет. Ошибки парсинга адреса приходят как `FormatException`/`OverflowException` из `ulong.Parse`/`Convert.ToUInt64`, а не как `Asm_InvalidInstruction`.
+    **Фикс:** `TryParseNumber(string, out ulong)` + ветка в `FormatLOAD_STORE` (см. п. 22).
+
+25. **[API] `IRAssembler.ResolveJumpTarget` — `ErrorCode.Asm_UndefinedLabel` с позицией 0.**
+    Файл: `ASM/IR/Emitеer/IRAssembler.Emit.cs`.
+    ```csharp
+    ErrorReporter.Throw(ErrorCode.Asm_UndefinedLabel, instr.TargetLabel!, 0);
+    ```
+    Второй аргумент — не позиция токена, а хардкод `0`; диагностика теряет контекст.
+    **Фикс:** либо передавать реальную позицию (если есть), либо сделать параметр опциональным (`long? position = null`).

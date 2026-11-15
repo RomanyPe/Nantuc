@@ -1,4 +1,4 @@
-﻿using Nantuc.Compiler.ASM.IR;
+﻿using Nantuc.Compiler.ASM.IR.Emitеer;
 using Nantuc.VmApplication.Project;
 
 namespace Nantuc.VmApplication.Unsafe;

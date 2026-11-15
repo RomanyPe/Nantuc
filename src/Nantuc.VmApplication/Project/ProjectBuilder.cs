@@ -1,9 +1,8 @@
-﻿using Nantuc.Compiler.ASM;
-using Nantuc.Compiler.ASM.Base;
+﻿using Nantuc.Compiler.ASM.Base;
+using Nantuc.Compiler.ASM.Parser;
 using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Compiler.C;
 using Nantuc.Compiler.C.AST;
-using Nantuc.Compiler.C.CodeGenerator;
 using Nantuc.Compiler.C.CodeGenerator.FunctionGen;
 using Nantuc.Compiler.C.Lexer;
 using Nantuc.Compiler.C.Optimizations;
