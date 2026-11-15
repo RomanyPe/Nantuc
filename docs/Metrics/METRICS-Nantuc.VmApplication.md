@@ -8,7 +8,7 @@ Path: `src/Nantuc.VmApplication/Nantuc.VmApplication.csproj`
 | --- | ---: |
 | Members analysed | 131 |
 | C# files | 30 |
-| Total lines | 2066 |
+| Total lines | 2067 |
 | C# classes | 20 |
 | C# records | 8 |
 | C# enums | 2 |
@@ -45,10 +45,10 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 131 me
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 80 | RamFileService | Normalize | 21 | 16 | 27 | 3 | 1 | 45.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 25 | ProjectBuilder | Build | 7 | 8 | 32 | 1 | 7 | 43.8 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 86 | ProjectBuilder | ResolveIncludesRecursive | 6 | 6 | 17 | 2 | 7 | 53.8 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 158 | VmHostProject | OptimizationIR | 5 | 6 | 15 | 2 | 2 | 54.5 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 159 | VmHostProject | OptimizationIR | 5 | 6 | 15 | 2 | 2 | 54.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 63 | RamFileService | HasAnyExtension | 5 | 5 | 5 | 2 | 2 | 69.4 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 130 | ProjectBuilder | ReadInclude | 4 | 5 | 13 | 1 | 4 | 56.8 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 100 | VmHostProject | CompileInternal | 4 | 4 | 12 | 2 | 5 | 57.5 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 101 | VmHostProject | CompileInternal | 4 | 4 | 12 | 2 | 5 | 57.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 128 | RamFileService | IsUnderPath | 3 | 4 | 6 | 1 | 3 | 67.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\SnapshotRegisters.cs | 62 | SnapshotRegisters | Equals | 3 | 3 | 4 | 2 | 1 | 71.9 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 164 | ProjectBuilder | GetSourceFiles | 3 | 3 | 7 | 2 | 2 | 64.8 |
@@ -60,6 +60,6 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 131 me
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\CompilationResult.cs | 56 | CompilationResult | Success | 2 | 3 | 1 | 0 | 0 | 87.8 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\CompilationToILResult.cs | 56 | CompilationToIRResult | Build | 2 | 3 | 7 | 1 | 0 | 65.8 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\SnapshotRegisters.cs | 92 | SnapshotRegisters | Equals | 2 | 2 | 1 | 0 | 1 | 90.3 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 233 | VmHostProject | Compile | 2 | 2 | 9 | 2 | 3 | 64.4 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 234 | VmHostProject | Compile | 2 | 2 | 9 | 2 | 3 | 64.4 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\DefaultFileService.cs | 22 | DefaultFileService | AddRange | 1 | 2 | 2 | 1 | 2 | 83.1 |
 

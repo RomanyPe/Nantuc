@@ -8,7 +8,7 @@ Path: `src/Nantuc.Compiler/Nantuc.Compiler.csproj`
 | --- | ---: |
 | Members analysed | 438 |
 | C# files | 105 |
-| Total lines | 7553 |
+| Total lines | 7552 |
 | C# classes | 101 |
 | C# records | 3 |
 | C# enums | 1 |

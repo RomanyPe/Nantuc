@@ -1,6 +1,7 @@
 ﻿using Nantuc.Compiler.ASM;
 using Nantuc.Compiler.ASM.Base;
 using Nantuc.Compiler.ASM.IR;
+using Nantuc.Compiler.ASM.IR.Emitеer;
 using Nantuc.Compiler.C;
 using Nantuc.Diagnostics;
 using System.Text.RegularExpressions;
