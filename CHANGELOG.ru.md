@@ -21,6 +21,7 @@
 - `GreedyGraphColorer` — жадная раскраска графа интерференции вынесена из `RegisterAllocator` (`Color(graph, availableRegs)`).
 - `WordRegexBuilder` — общий builder `\b(...)\b`-паттерна из `FrozenSet<string>`; используется `MiniCLanguageDefinition` и `AsmLanguageDefinition`.
 - `LanguageDefinitionDriftTests` — regression-тесты на согласованность `Regex` и `FrozenSet` в языковых определениях, в т.ч. на исторический баг с `"new"`.
+- автоматизировано снятие метрик кода для всех модулей
 
 ### Изменено
 - **BREAKING:** типы `Lexer`, `Token`, `TokenType`, `TokenTypeExtension` перемещены в `Nantuc.Compiler.C.Lexer`.
