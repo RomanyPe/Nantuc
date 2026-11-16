@@ -51,7 +51,7 @@ public class SnakeGameOnNantuc(int period = 200)
         {
             while (running)
             {
-                if (!Console.KeyAvailable) { Thread.Sleep(15); continue; }
+                if (!Console.KeyAvailable) { Thread.Sleep(2); continue; }
 
                 var k = Console.ReadKey(intercept: true);
                 byte code = 0;
@@ -108,8 +108,13 @@ public class SnakeGameOnNantuc(int period = 200)
         {
             for (int x = 0; x < w; x++)
                 sb.Append(fb[y * w + x] != 0 ? "██" : "  ");
+            sb.Append('|');
             sb.Append('\n');
         }
+        for(int i = 0; i < w; i++)
+            sb.Append('-')
+                .Append('-');
+        sb.Append('\n');
         sb.Append("Arrows=move  Q=quit\n");
         Console.Write(sb.ToString());
         sb.Clear();

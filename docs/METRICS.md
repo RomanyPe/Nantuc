@@ -8,11 +8,11 @@ Path: `Nantuc.slnx`
 | --- | ---: |
 | Members analysed | 1421 |
 | C# files | 282 |
-| Total lines | 25289 |
+| Total lines | 25294 |
 | C# classes | 239 |
 | C# records | 28 |
 | C# enums | 13 |
-| Analysed LOC | 8543 |
+| Analysed LOC | 8548 |
 | Cognitive avg | 1.8 |
 | Cognitive median | 0 |
 | Cognitive p90 | 5 |

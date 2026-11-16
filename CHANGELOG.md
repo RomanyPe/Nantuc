@@ -10,6 +10,14 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.16.1] - 2026-11-16
+
+### Added
+- Added borders to Snake and reduced input delay
+
+### Fixed
+- `Nantuc.CLI` is now invoked via `nantuc` instead of `nantuc.cli`
+
 ## [0.16.0] - 2026-11-15
 
 ### Changed
