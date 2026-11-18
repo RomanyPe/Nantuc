@@ -23,11 +23,11 @@ public partial class ExpressionGenerator
                 GenerateIndirectCall(call);
                 return;
             }
-            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownFunction, call.Name);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownFunction, DiagnosticData.Of(call.Name));
         }
 
         if (call.Arguments.Count != targetFunc.Parameters.Count)
-            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_ArgumentCountMismatch, call.Name);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_ArgumentCountMismatch, DiagnosticData.Of(call.Name));
 
         // 1) args 4+ -> pseudo-globals
         for (int i = 4; i < call.Arguments.Count; i++)
@@ -49,7 +49,7 @@ public partial class ExpressionGenerator
             var param = targetFunc.Parameters[i];
             if (_structTable.ContainsKey(param.Type))
                 _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                    "Struct parameters via registers not yet supported");
+                    DiagnosticData.Of("Struct parameters via registers not yet supported"));
 
             GenerateExpression(call.Arguments[i], (RegType)i);
 
@@ -75,7 +75,7 @@ public partial class ExpressionGenerator
     {
         if (ic.Arguments.Count > 4)
             _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                $"Indirect call with >4 args (calling convention limitation): {ic.Callee.NameNode}");
+                DiagnosticData.Of($"Indirect call with >4 args (calling convention limitation): {ic.Callee.NameNode}"));
 
         int regCount = ic.Arguments.Count;
         var argSlots = new int[regCount];
@@ -111,7 +111,7 @@ public partial class ExpressionGenerator
     {
         if (call.Arguments.Count > 4)
             _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                $"Indirect call with >4 args (calling convention limitation): {call.Name}");
+                DiagnosticData.Of($"Indirect call with >4 args (calling convention limitation): {call.Name}"));
 
         int regCount = call.Arguments.Count;
         var slots = new int[regCount];

@@ -25,7 +25,10 @@ public class Assembler : AssemblerBase
     public override void MarkLabel(string name)
     {
         if (_labels.TryGetValue(name, out long existingPos))
-            ErrorReporter.Throw(ErrorCode.Asm_DuplicateLabel, name, existingPos);
+            ErrorReporter.Throw(ErrorCode.Asm_DuplicateLabel, 
+                DiagnosticData.Of(name), 
+                DiagnosticData.Of(existingPos));
+        
         _labels[name] = _stream.Position;
     }
 
@@ -103,7 +106,10 @@ public class Assembler : AssemblerBase
         foreach (var (pos, label) in _patches)
         {
             if (!_labels.TryGetValue(label, out long targetPos))
-                ErrorReporter.Throw(ErrorCode.Asm_UndefinedLabel, label, pos);
+                ErrorReporter.Throw(ErrorCode.Asm_UndefinedLabel, 
+                    DiagnosticData.Of(label), 
+                    DiagnosticData.Of(pos));
+
             ulong absoluteAddr = BaseAddress + (ulong)targetPos;
             BitConverter.GetBytes(absoluteAddr).CopyTo(bytes, (int)pos);
         }

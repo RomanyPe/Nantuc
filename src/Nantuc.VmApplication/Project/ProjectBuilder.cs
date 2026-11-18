@@ -106,7 +106,7 @@ public static class ProjectBuilder
 
                 case SourceLanguage.None:
                 default:
-                    ErrorReporter.Throw(ErrorCode.NotSupported, $"extension for include \"{inc}\""); 
+                    ErrorReporter.Throw(ErrorCode.NotSupported, DiagnosticData.Of($"extension for include \"{inc}\"")); 
                     break;
             }
         }
@@ -139,7 +139,7 @@ public static class ProjectBuilder
         bool incExist = service.Exist(fullPathInc);
 
         if (projExist && incExist)
-            ErrorReporter.Throw(ErrorCode.Parser_IncludeAmbiguous, fileName, projPath, includePath);
+            ErrorReporter.Throw(ErrorCode.Parser_IncludeAmbiguous, DiagnosticData.Of(fileName), DiagnosticData.Of(projPath), DiagnosticData.Of(includePath));
 
 
         if (projExist)
@@ -151,7 +151,7 @@ public static class ProjectBuilder
             return service.ReadFile(fullPathInc);
         }
 
-        return ErrorReporter.Throw<string>(ErrorCode.Parser_IncludeNotFound, fileName, projPath, includePath);
+        return ErrorReporter.Throw<string>(ErrorCode.Parser_IncludeNotFound, DiagnosticData.Of(fileName), DiagnosticData.Of(projPath), DiagnosticData.Of(includePath));
     }
 
     /// <summary>

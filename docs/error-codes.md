@@ -76,7 +76,7 @@
 |---|---:|---|---|
 | `Parser_UnknownType` | 1200 | `Unknown type '{0}'` | Unknown type in a declaration or expression. |
 | `Parser_ExpectedToken` | 1201 | `Expected {0}, got {1} at {2}:{3}` | A specific token was expected, but another was received. Placeholders: expected, received, line, column. |
-| `Parser_UnexpectedToken` | 1202 | `Unexpected token: {0}` | The token is unexpected in this grammatical position. |
+| `Parser_UnexpectedToken` | 1202 | `Unexpected token {0} ('{1}') at column {2}` | The token is unexpected in this grammatical position. Placeholders: token type, token value, line, column. |
 | `Parser_InvalidAssignment` | 1203 | `Invalid assignment target` | The LHS of an assignment is not an lvalue, or the types are incompatible. |
 | `Parser_ArraySizeNotConstant` | 1204 | `Array size must be constant` | The array size does not reduce to a constant expression. |
 | `Parser_UnknownDirective` | 1205 | `Unknown preprocessor directive: #{0}` | A preprocessor/assembler directive is not recognized. |

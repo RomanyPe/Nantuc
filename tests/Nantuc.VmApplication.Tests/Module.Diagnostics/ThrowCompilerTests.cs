@@ -11,7 +11,7 @@ public class ThrowCompilerTests
     {
         var thrower = new ErrorReporter(null);
         var ex = Assert.Throws<CodeException>(
-            () => thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo"));
+            () => thrower.Throw(ErrorCode.Parser_UnknownType, DiagnosticData.Of("Foo")));
 
         Assert.Equal(ErrorCode.Parser_UnknownType, ex.ErrorCode);
         Assert.Equal("Unknown type 'Foo'", ex.Message);
@@ -40,7 +40,7 @@ public class ThrowCompilerTests
     }
 
     private static string PassThrough(ErrorReporter thrower, string? value)
-        => value ?? thrower.Throw<string>(ErrorCode.NotSupported, (DiagnosticData)"missing");
+        => value ?? thrower.Throw<string>(ErrorCode.NotSupported, DiagnosticData.Of("missing"));
 
     [Fact]
     public void ThrowGeneric_NonNull_ReturnsValue()
@@ -78,9 +78,9 @@ public class ThrowCompilerTests
         var b = new ErrorReporter(custom);
 
         var exA = Assert.Throws<CodeException>(
-            () => a.Throw(ErrorCode.NotSupported, (DiagnosticData)"X"));
+            () => a.Throw(ErrorCode.NotSupported, DiagnosticData.Of("X")));
         var exB = Assert.Throws<CodeException>(
-            () => b.Throw(ErrorCode.NotSupported, (DiagnosticData)"X"));
+            () => b.Throw(ErrorCode.NotSupported, DiagnosticData.Of("X")));
 
         Assert.StartsWith("Not supported", exA.Message);
         Assert.StartsWith("custom:", exB.Message);

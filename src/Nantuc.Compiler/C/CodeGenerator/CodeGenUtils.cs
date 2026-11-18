@@ -56,7 +56,7 @@ public static class CodeGenUtils
         "ushort" or "char" or "short" => OpCodeSize.S16,
         "ulong" or "long" => OpCodeSize.S64,
         "int" or "uint" => OpCodeSize.S32,
-        _ => ErrorReporter.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownTypeSize, type!)
+        _ => ErrorReporter.Throw<OpCodeSize>(ErrorCode.CodeGen_UnknownTypeSize, DiagnosticData.Of(type!))
     };
 
     public static int GetSizeInBytes(OpCodeSize size, ErrorReporter ErrorReporter) => size switch
@@ -65,7 +65,7 @@ public static class CodeGenUtils
         OpCodeSize.S16 => 2,
         OpCodeSize.S32 => 4,
         OpCodeSize.S64 => 8,
-        _ => ErrorReporter.Throw<int>(ErrorCode.CodeGen_UnknownOpCodeSize, (int)size)
+        _ => ErrorReporter.Throw<int>(ErrorCode.CodeGen_UnknownOpCodeSize, DiagnosticData.Of((int)size))
     };
 
     public static bool IsComparisonOperator(string op) => op is "==" or "!=" or "<" or ">" or "<=" or ">=";

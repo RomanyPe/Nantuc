@@ -48,7 +48,10 @@ public partial class Lexer(string source, ErrorReporter errorReporter)
                 continue;
             }
 
-            _erRep.Throw(ErrorCode.Lexer_UnexpectedCharacter, c, _line, _column);
+            _erRep.Throw(ErrorCode.Lexer_UnexpectedCharacter, 
+                DiagnosticData.Of(c), 
+                DiagnosticData.Of(_line), 
+                DiagnosticData.Of(_column));
         }
 
         _tokens.Add(new Token(TokenType.EOF, "", _line, _column));

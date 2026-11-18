@@ -21,8 +21,8 @@ public class DefaultErrorMessageProvider(FrozenDictionary<ErrorCode, string>? ov
         [ErrorCode.Lexer_UnexpectedCharacter] = "Unexpected character '{0}' at line {1}, column {2}",
 
         [ErrorCode.Parser_UnknownType] = "Unknown type '{0}'",
-        [ErrorCode.Parser_ExpectedToken] = "Expected {0}, got {1} at {2}:{3}",
-        [ErrorCode.Parser_UnexpectedToken] = "Unexpected token: {0}",
+        [ErrorCode.Parser_ExpectedToken] = "Expected '{0}', got '{1}' at {2}:{3}",
+        [ErrorCode.Parser_UnexpectedToken] = "Unexpected token {0} ('{1}') at column {2}",
         [ErrorCode.Parser_InvalidAssignment] = "Invalid assignment target",
         [ErrorCode.Parser_ArraySizeNotConstant] = "Array size must be constant",
         [ErrorCode.Parser_UnknownDirective] = "Unknown preprocessor directive: #{0}",

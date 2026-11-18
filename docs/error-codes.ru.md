@@ -76,7 +76,7 @@
 |---|---:|---|---|
 | `Parser_UnknownType` | 1200 | `Unknown type '{0}'` | Неизвестный тип в объявлении или выражении. |
 | `Parser_ExpectedToken` | 1201 | `Expected {0}, got {1} at {2}:{3}` | Ожидался конкретный токен, получен другой. Плейсхолдеры: ожидаемый, полученный, строка, столбец. |
-| `Parser_UnexpectedToken` | 1202 | `Unexpected token: {0}` | Токен неожиданен в данной грамматической позиции. |
+| `Parser_UnexpectedToken` | 1202 | `Unexpected token {0} ('{1}') at column {2}` | Токен неожиданен в данной грамматической позиции. Плейсхолдеры: тип токена, значение токена, строка, столбец. |
 | `Parser_InvalidAssignment` | 1203 | `Invalid assignment target` | LHS присваивания — не lvalue, либо типы несовместимы. |
 | `Parser_ArraySizeNotConstant` | 1204 | `Array size must be constant` | Размер массива не сводится к константному выражению. |
 | `Parser_UnknownDirective` | 1205 | `Unknown preprocessor directive: #{0}` | Директива препроцессора/ассемблера не распознана. |

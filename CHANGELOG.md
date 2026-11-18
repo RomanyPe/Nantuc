@@ -10,6 +10,17 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.16.3] - 2026-11-18
+
+### Added
+- Groundwork for an improved register allocator
+
+### Changed
+- Replaced all `DiagnosticData` factory calls with explicit `DiagnosticData.Of` calls, and removed all implicit constructors for the struct
+
+### Fixed
+- Fixed the output of `ErrorCode.Parser_ExpectedToken` (`"Expected '{0}', got '{1}' at {2}:{3}"`) so that information is now formatted correctly
+
 ## [0.16.2] - 2026-11-18
 
 ### Added

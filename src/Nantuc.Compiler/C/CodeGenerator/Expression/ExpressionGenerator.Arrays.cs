@@ -18,23 +18,23 @@ public partial class ExpressionGenerator
         {
             if (loc.IsArray) LoadArrayElementFromLocal(loc, indexExpr, targetReg);
             else if (loc.IsPointer) LoadPointerElementToR0(arrayName, loc, indexExpr, targetReg);
-            else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+            else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, DiagnosticData.Of(arrayName));
         }
         else if (_globalMem.Contains(arrayName))
         {
             var g = _globalMem.GetInfo(arrayName)!.Value;
             if (g.IsArray) LoadArrayElementFromGlobal(g, arrayName, indexExpr, targetReg);
             else if (g.IsPointer) LoadPointerElementToR0(arrayName, null, indexExpr, targetReg);
-            else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+            else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, DiagnosticData.Of(arrayName));
         }
-        else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+        else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(arrayName));
     }
 
     private void LoadArrayElementFromLocal(VarLocation loc, ASTNode indexExpr, RegType targetReg)
     {
         if (loc.IsArray && loc.StructTypeName != null)
             _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                "Cannot load struct value from array element (use member access)");
+                DiagnosticData.Of("Cannot load struct value from array element (use member access)"));
 
         OpCodeSize typeSize = loc.TypeSize;
         GenerateExpression(indexExpr, targetReg);
@@ -104,16 +104,16 @@ public partial class ExpressionGenerator
         {
             if (loc.IsArray) StoreArrayElementToLocal(loc, indexExpr, slot);
             else if (loc.IsPointer) StorePointerElement(arrayName, loc, indexExpr, slot);
-            else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+            else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, DiagnosticData.Of(arrayName));
         }
         else if (_globalMem.Contains(arrayName))
         {
             var g = _globalMem.GetInfo(arrayName)!.Value;
             if (g.IsArray) StoreArrayElementToGlobal(g, arrayName, indexExpr, slot);
             else if (g.IsPointer) StorePointerElement(arrayName, null, indexExpr, slot);
-            else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+            else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, DiagnosticData.Of(arrayName));
         }
-        else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+        else _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(arrayName));
 
         ReleaseSaveSlot();
     }
@@ -223,7 +223,7 @@ public partial class ExpressionGenerator
             return;
         }
 
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, arrayName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(arrayName));
     }
 
     private static RegType PickIndexReg(RegType addrReg)
@@ -247,7 +247,7 @@ public partial class ExpressionGenerator
             if (g.IsArray) return CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter);
             if (g.IsPointer) return CodeGenUtils.GetSizeForType(g.PointedType!, _asm.ErrorReporter);
         }
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, name);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, DiagnosticData.Of(name));
         return default;
     }
 

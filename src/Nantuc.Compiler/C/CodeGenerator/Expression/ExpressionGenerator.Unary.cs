@@ -40,7 +40,7 @@ public partial class ExpressionGenerator
 
             default:
                 _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                    $"Unsupported unary operator: {unop.Operator}");
+                    DiagnosticData.Of($"Unsupported unary operator: {unop.Operator}"));
                 break;
         }
     }

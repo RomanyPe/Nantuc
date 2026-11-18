@@ -25,7 +25,7 @@ public partial class ExpressionGenerator
             if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
             {
                 if (loc.IsRegister)
-                    _asm.ErrorReporter.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
+                    _asm.ErrorReporter.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, DiagnosticData.Of(varName));
                 _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
                 _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
                 _asm.EmitMov(targetReg, CodeGenUtils.ADDR_SCRATCH_REG_EN);
@@ -36,11 +36,11 @@ public partial class ExpressionGenerator
                 _asm.EmitLdi(targetReg, GlobalMemoryManager.GetLabel(varName));
                 return;
             }
-            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(varName));
             return;
         }
         _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-            "Address-of only supports simple variables currently");
+            DiagnosticData.Of("Address-of only supports simple variables currently"));
     }
 
     private void GenerateDereference(DereferenceNode deref, RegType targetReg)

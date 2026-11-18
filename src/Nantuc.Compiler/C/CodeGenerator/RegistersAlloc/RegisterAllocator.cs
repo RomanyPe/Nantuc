@@ -38,11 +38,61 @@ public static partial class RegisterAllocator
         return regs;   // r5..r26 — 22 регистра под переменные
     }
 
+    // В разработке
+    /*
+    public static RegisterAllocationResult AllocateRegistersNew(
+    FunctionNode func,
+    Dictionary<string, VariableNode> localVars,
+    Dictionary<string, StructLayout> structTable)
+    {
+        var candidates = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (name, v) in localVars)
+            if (!v.IsArray && !structTable.ContainsKey(v.Type)) candidates.Add(name);
+        candidates.ExceptWith(VariableAccessAnalyzer.CollectAddressTakenVars(func.Body));
+
+        var cfg = CfgBuilder.Build(func);
+        var regs = GetAvailableRegisters();
+        var result = new RegisterAllocationResult();
+        var spilled = new HashSet<string>(StringComparer.Ordinal);
+
+        while (true)
+        {
+            LivenessAnalyzer.Run(cfg.Rpo, candidates);
+            var graph = InterferenceGraph.Build(cfg.Rpo, candidates);
+            var colorer = new CoalescingColorer(graph, regs);
+            colorer.Run();
+
+            if (colorer.Spills.Count == 0 || candidates.Count == 0)
+            {
+                foreach (var n in candidates)
+                    if (colorer.Color.TryGetValue(n, out var r))
+                    { result.VarToRegister[n] = r; result.UsedRegisters.Add(r); }
+                    else result.VarToRegister[n] = null;
+
+                // подсказка codegen: эти `x = y;` можно не эмитить
+                foreach (var ins in cfg.All)
+                    if (ins is { IsCopy: true, Source: not null }
+                        && ins.CopyDst is { } d && ins.CopySrc is { } s
+                        && result.VarToRegister.GetValueOrDefault(d) is { } rd
+                        && result.VarToRegister.GetValueOrDefault(s) == rd)
+                        result.ElidedCopies.Add(ins.Source);
+                break;
+            }
+
+            // spill-everywhere: переменная уходит в память, пересобираем граф
+            foreach (var s in colorer.Spills) { candidates.Remove(s); spilled.Add(s); }
+        }
+
+        foreach (var s in spilled) result.VarToRegister[s] = null;
+        return result;
+    }
+    */
     public static RegisterAllocationResult AllocateRegisters(
         FunctionNode func,
         Dictionary<string, VariableNode> localVars,
         Dictionary<string, StructLayout> structTable)
     {
+
         // 1) Кандидаты — скаляры, не массивы и не структуры
         var candidates = new Dictionary<string, VariableNode>();
         foreach (var (name, varNode) in localVars)

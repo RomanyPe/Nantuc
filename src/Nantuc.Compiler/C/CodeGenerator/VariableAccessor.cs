@@ -44,7 +44,7 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             return;
         }
 
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(varName));
     }
     public bool IsConst(string name)
     {
@@ -95,14 +95,14 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             return;
         }
 
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(varName));
     }
     public void LoadAddressToRegister(string varName, RegType targetReg)
     {
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
         {
             if (loc.IsRegister)
-                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, varName);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, DiagnosticData.Of(varName));
             _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
             _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
             if (CodeGenUtils.ADDR_SCRATCH_REG_EN != targetReg)
@@ -117,7 +117,7 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             return;
         }
 
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, varName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(varName));
     }
 
     public OpCodeSize GetVariableSize(string varName)
@@ -132,7 +132,7 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
                 ? OpCodeSize.S64
                 : CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter);
         }
-        return _asm.ErrorReporter.Throw<OpCodeSize>(ErrorCode.CodeGen_UndefinedVariable, varName);
+        return _asm.ErrorReporter.Throw<OpCodeSize>(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(varName));
     }
     public bool TryGetRegister(string varName, out RegType reg)
     {

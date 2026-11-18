@@ -38,7 +38,7 @@ public partial class StatementGenerator
     private void GenerateLocalArrayInit(VariableNode var)
     {
         if (!_funcCtx.VarMap.TryGetValue(var.Name, out var loc) || loc.IsRegister)
-            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, var.Name);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_CannotGetRegisterAddress, DiagnosticData.Of(var.Name));
 
         OpCodeSize elemSize = loc.TypeSize;
         int elemBytes = CodeGenUtils.GetSizeInBytes(elemSize, _asm.ErrorReporter);

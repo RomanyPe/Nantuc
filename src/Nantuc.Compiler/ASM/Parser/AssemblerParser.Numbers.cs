@@ -11,7 +11,7 @@ public partial class AssemblerParser
     private RegType ParseReg(string s)
     {
         if (_regMap.TryGetValue(s, out RegType reg)) return reg;
-        return _asm.ErrorReporter.Throw<RegType>(ErrorCode.Asm_UnknownRegister, _currentLine);
+        return _asm.ErrorReporter.Throw<RegType>(ErrorCode.Asm_UnknownRegister, DiagnosticData.Of(_currentLine));
     }
 
     private static bool TryParseSize(string s, out OpCodeSize size)

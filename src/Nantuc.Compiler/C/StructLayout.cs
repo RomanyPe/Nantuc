@@ -61,7 +61,7 @@ public class StructLayout
         } while (remaining.Count > 0 && lastResolved > 0);
 
         if (remaining.Count > 0)
-            ErrorReporter.Throw(ErrorCode.Parser_StructNotDefined,string.Join(", ", remaining.Select(d => d.Name)));
+            ErrorReporter.Throw(ErrorCode.Parser_StructNotDefined, DiagnosticData.Of(string.Join(", ", remaining.Select(d => d.Name))));
         return layouts;
     }
 

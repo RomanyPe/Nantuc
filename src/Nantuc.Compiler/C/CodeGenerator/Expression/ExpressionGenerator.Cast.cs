@@ -17,7 +17,7 @@ public partial class ExpressionGenerator
 
         if (_structTable.ContainsKey(cast.TypeName))
         {
-            _asm.ErrorReporter.Throw(ErrorCode.NotSupported, $"cast to struct type {cast.TypeName}");
+            _asm.ErrorReporter.Throw(ErrorCode.NotSupported, DiagnosticData.Of($"cast to struct type {cast.TypeName}"));
             return;
         }
         var size = CodeGenUtils.GetSizeForType(cast.TypeName, _asm.ErrorReporter);

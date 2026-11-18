@@ -71,7 +71,7 @@ public partial class Parser
             Advance();
             string name = Expect(TokenType.Identifier).Value;
             if (!_structNames.Contains(name))
-                _erRep.Throw(ErrorCode.CodeGen_UnknownStructType, name);
+                _erRep.Throw(ErrorCode.CodeGen_UnknownStructType, DiagnosticData.Of(name));
             return name;
         }
         if (Current.Type == TokenType.Identifier && _structNames.Contains(Current.Value))
@@ -193,7 +193,7 @@ public partial class Parser
         else if (size < 0)
         {
             // int arr[]; без инициализатора — размер неизвестен
-            _erRep.Throw(ErrorCode.Parser_ArraySizeNotConstant, name);
+            _erRep.Throw(ErrorCode.Parser_ArraySizeNotConstant, DiagnosticData.Of(name));
         }
 
         return varNode;
@@ -210,7 +210,7 @@ public partial class Parser
 
             if (size < 0) varNode.ArraySize = initList.Count;
             else if (initList.Count > size)
-                _erRep.Throw(ErrorCode.Parser_InvalidAssignment, name);
+                _erRep.Throw(ErrorCode.Parser_InvalidAssignment, DiagnosticData.Of(name));
             return;
         }
 
@@ -230,7 +230,7 @@ public partial class Parser
         varNode.ArrayInitializer = list;
         if (size < 0) varNode.ArraySize = list.Count;               // int arr[] = {...}
         else if (list.Count > size)
-            _erRep.Throw(ErrorCode.Parser_InvalidAssignment, name); // слишком много инициализаторов
+            _erRep.Throw(ErrorCode.Parser_InvalidAssignment, DiagnosticData.Of(name)); // слишком много инициализаторов
     }
 
     private VariableNode ParseScalarVariableTail(

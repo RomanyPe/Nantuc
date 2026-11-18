@@ -176,7 +176,7 @@ public partial class ExpressionGenerator
             case "%": _asm.EmitMod(dest, src); break;
             default:
                 _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                    $"Unsupported operator in EmitBinaryOperation: {op}");
+                    DiagnosticData.Of($"Unsupported operator in EmitBinaryOperation: {op}"));
                 break;
         }
     }
@@ -222,13 +222,13 @@ public partial class ExpressionGenerator
             "^" => value1 ^ value2,
             "<<" => value1 << (int)value2,
             ">>" => value1 >> (int)value2,
-            _ => errorReporter.Throw<long>(ErrorCode.NotSupported, $"Unsupported operator: {op}"),
+            _ => errorReporter.Throw<long>(ErrorCode.NotSupported, DiagnosticData.Of($"Unsupported operator: {op}")),
         };
     }
 
     private static long ComputeDiv(long a, long b, ErrorReporter er) =>
-        b != 0 ? a / b : er.Throw<long>(ErrorCode.NotSupported, "Div on zero");
+        b != 0 ? a / b : er.Throw<long>(ErrorCode.NotSupported, DiagnosticData.Of("Div on zero"));
 
     private static long ComputeMod(long a, long b, ErrorReporter er) =>
-        b != 0 ? a % b : er.Throw<long>(ErrorCode.NotSupported, "Mod on zero");
+        b != 0 ? a % b : er.Throw<long>(ErrorCode.NotSupported, DiagnosticData.Of("Mod on zero"));
 }

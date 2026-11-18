@@ -12,18 +12,13 @@ public readonly record struct DiagnosticData
 
     public override string ToString() => Text;
 
-    // ── Фабрики для типов вне неявных конверсий ──────────────────────
     public static DiagnosticData Of(bool value) => new(value ? "true" : "false");
-    public static DiagnosticData Of<T>(T? value) where T : IBinaryNumber<T> 
-        => new(value?.ToString());
-    public static DiagnosticData Of(string value) => new(value ?? string.Empty);
 
-    // ── Неявные конверсии для частых типов ───────────────────────────
-    public static implicit operator DiagnosticData(string? text) => new(text);
-    public static implicit operator DiagnosticData(char value) => new(value.ToString());
-    public static implicit operator DiagnosticData(int value) => new(value.ToString(CultureInfo.InvariantCulture));
-    public static implicit operator DiagnosticData(uint value) => new(value.ToString(CultureInfo.InvariantCulture));
-    public static implicit operator DiagnosticData(long value) => new(value.ToString(CultureInfo.InvariantCulture));
-    public static implicit operator DiagnosticData(ulong value) => new(value.ToString(CultureInfo.InvariantCulture));
+    public static DiagnosticData Of(string? value) => new(value);
 
+    public static DiagnosticData Of<T>(T value) where T : IBinaryNumber<T>
+        => new(value.ToString(null, CultureInfo.InvariantCulture));
+
+    public static DiagnosticData Of<T>(T? value) where T : struct, IBinaryNumber<T>
+        => new(value?.ToString(null, CultureInfo.InvariantCulture));
 }

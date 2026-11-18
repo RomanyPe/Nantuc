@@ -26,7 +26,10 @@ public partial class IRAssembler(ulong baseAddress, ErrorReporter ErrorReporter)
                 }
                 currentPos++;
             }
-            ErrorReporter.Throw(ErrorCode.Asm_DuplicateLabel, name, existingPos);
+            ErrorReporter.Throw(ErrorCode.Asm_DuplicateLabel, 
+                DiagnosticData.Of(name), 
+                DiagnosticData.Of(existingPos));
+            
             return;
         }
         _items.Add(new AsmLabel(name));
@@ -44,7 +47,8 @@ public partial class IRAssembler(ulong baseAddress, ErrorReporter ErrorReporter)
         var op = InstructionDecoder.GetOpCode(instruction);
         if (!InstructionDecoder.HasNeed64IntData(op))
         {
-            ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, op.OpName());
+            ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, 
+                DiagnosticData.Of(op.OpName()));
         }
         _items.Add(new AsmInstruction(instruction, data));
     }

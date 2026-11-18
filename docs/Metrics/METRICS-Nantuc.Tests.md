@@ -61,5 +61,5 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 149 me
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 142 | HaltWakeTests | WAKE_INT_WithoutDevice_ReportsNullDeviceOutputFault | 0 | 2 | 19 | 0 | 0 | 52.0 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 171 | HaltWakeTests | WAKE_INT_WithRegisteredDevice_InvokesWakeProcessor | 0 | 2 | 18 | 0 | 0 | 52.6 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 201 | HaltWakeTests | WAKE_INT_UsesValueFromRegister_AfterMov | 0 | 2 | 19 | 0 | 0 | 52.1 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\ThrowCompilerTests.cs | 42 | ThrowCompilerTests | PassThrough | 0 | 2 | 1 | 0 | 2 | 87.7 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\ThrowCompilerTests.cs | 42 | ThrowCompilerTests | PassThrough | 0 | 2 | 1 | 0 | 2 | 87.2 |
 

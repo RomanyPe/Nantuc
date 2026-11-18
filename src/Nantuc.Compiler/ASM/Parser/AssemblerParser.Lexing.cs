@@ -22,7 +22,8 @@ public partial class AssemblerParser
                 if (_inDataSection && TryProcessDataDirective(line, out string? err))
                 {
                     if (err != null)
-                        _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, err);
+                        _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, 
+                            DiagnosticData.Of(err));
                     continue;
                 }
             }
@@ -34,7 +35,7 @@ public partial class AssemblerParser
 
         if (_pendingLabel != null)
             _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction,
-                $"Label '{_pendingLabel}' has no data");
+                DiagnosticData.Of($"Label '{_pendingLabel}' has no data"));
     }
 
     private static string StripComments(string rawLine)
@@ -58,7 +59,7 @@ public partial class AssemblerParser
         {
             if (!_allowDataSection)
                 _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                    ".data section is not allowed in this context (inline asm)");
+                    DiagnosticData.Of(".data section is not allowed in this context (inline asm)"));
             _inDataSection = true;
             return true;
         }
@@ -77,7 +78,7 @@ public partial class AssemblerParser
         {
             if (_pendingLabel != null)
                 _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction,
-                    $"Label '{_pendingLabel}' has no data before next label");
+                    DiagnosticData.Of($"Label '{_pendingLabel}' has no data before next label"));
             _pendingLabel = line[..^1].Trim();
             return;
         }
@@ -90,21 +91,24 @@ public partial class AssemblerParser
 
             if (_pendingLabel != null)
                 _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction,
-                    $"Label '{_pendingLabel}' has no data");
+                    DiagnosticData.Of($"Label '{_pendingLabel}' has no data"));
             _pendingLabel = label;
 
             if (!string.IsNullOrEmpty(rest))
             {
                 if (!TryProcessDataDirective(rest, out string? e))
-                    _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, rest);
+                    _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, 
+                        DiagnosticData.Of(rest));
                 if (e != null)
-                    _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, e);
+                    _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, 
+                        DiagnosticData.Of(e));
             }
             return;
         }
 
         if (TryProcessDataDirective(line, out _)) return;
-        _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, line);
+        _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, 
+            DiagnosticData.Of(line));
     }
 
     private void ProcessCodeLine(string line)

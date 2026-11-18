@@ -1,5 +1,7 @@
 ﻿using Nantuc.Common;
+using Nantuc.Compiler.ASM.Utils;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Nantuc.VmApplication.Emulator;
 
@@ -42,7 +44,7 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
     public ulong this[RegType r]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _values![r.Int()];
+        get => _values[r.Int()];
     }
     /// <summary>
     /// Количество регистров, <![CDATA[static]]> так как количество регистров константно
@@ -76,8 +78,18 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
             h.Add(_values[i]); 
         return h.ToHashCode(); 
     }
-    public override string ToString() =>
-        string.Join(", ", Enumerate().Select(e => $"{e.Type}={e.Value:X}"));
+    public override string ToString()
+    {
+        StringBuilder sb = new(64);
+        for (RegType i = 0; i < (RegType)Count; i++)
+        {
+            sb.Append(i.RegName())
+                .Append(':')
+                .Append(' ')
+                .Append(this[i]);
+        }
+        return sb.ToString();
+    }
 
     public static bool operator ==(SnapshotRegisters left, SnapshotRegisters right)
     {

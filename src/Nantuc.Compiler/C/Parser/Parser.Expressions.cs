@@ -283,7 +283,9 @@ public partial class Parser
             return ParseCharAtom();
 
         _erRep.Throw(ErrorCode.Parser_UnexpectedToken,
-            Current.Type.AsText, Current.Value, Current.Column);
+            DiagnosticData.Of(Current.Type.AsText), 
+            DiagnosticData.Of(Current.Value), 
+            DiagnosticData.Of(Current.Column));
         return null!;
     }
 

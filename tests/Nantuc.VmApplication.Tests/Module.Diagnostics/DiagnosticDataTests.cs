@@ -29,7 +29,7 @@ public class DiagnosticDataTests
     [Fact]
     public void ImplicitFromString_Works()
     {
-        DiagnosticData data = "hello";
+        DiagnosticData data = DiagnosticData.Of("hello");
         Assert.Equal("hello", data.Text);
     }
 
@@ -37,14 +37,14 @@ public class DiagnosticDataTests
     public void ImplicitFromNullString_BecomesEmpty()
     {
         string? s = null;
-        DiagnosticData data = s;
+        DiagnosticData data = DiagnosticData.Of(s);
         Assert.Equal(string.Empty, data.Text);
     }
 
     [Fact]
     public void ImplicitFromChar_Works()
     {
-        DiagnosticData data = 'z';
+        DiagnosticData data = DiagnosticData.Of('z');
         Assert.Equal("z", data.Text);
     }
 
@@ -56,28 +56,28 @@ public class DiagnosticDataTests
     [InlineData(int.MaxValue, "2147483647")]
     public void ImplicitFromInt_UsesInvariantCulture(int value, string expected)
     {
-        DiagnosticData data = value;
+        DiagnosticData data = DiagnosticData.Of(value);
         Assert.Equal(expected, data.Text);
     }
 
     [Fact]
     public void ImplicitFromUInt_UsesInvariantCulture()
     {
-        DiagnosticData data = 4_000_000_000u;
+        DiagnosticData data = DiagnosticData.Of(4_000_000_000u);
         Assert.Equal("4000000000", data.Text);
     }
 
     [Fact]
     public void ImplicitFromLong_UsesInvariantCulture()
     {
-        DiagnosticData data = long.MaxValue;
+        DiagnosticData data = DiagnosticData.Of(long.MaxValue);
         Assert.Equal(long.MaxValue.ToString(CultureInfo.InvariantCulture), data.Text);
     }
 
     [Fact]
     public void ImplicitFromULong_UsesInvariantCulture()
     {
-        DiagnosticData data = ulong.MaxValue;
+        DiagnosticData data = DiagnosticData.Of(ulong.MaxValue);
         Assert.Equal(ulong.MaxValue.ToString(CultureInfo.InvariantCulture), data.Text);
     }
 
@@ -101,7 +101,7 @@ public class DiagnosticDataTests
 
     [Fact]
     public void OfGeneric_NullReference_BecomesEmpty()
-        => Assert.Equal(string.Empty, DiagnosticData.Of(null!).Text);
+        => Assert.Equal(string.Empty, DiagnosticData.Of(null).Text);
 
     // ── культура не влияет ─────────────────────────────────────────
     [Fact]
@@ -112,7 +112,7 @@ public class DiagnosticDataTests
         {
             // fr-FR использует неразрывный пробел как разделитель тысяч
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
-            DiagnosticData data = 1234567;
+            DiagnosticData data = DiagnosticData.Of(1234567);
             Assert.Equal("1234567", data.Text);
             Assert.DoesNotContain(" ", data.Text);
             Assert.DoesNotContain("\u00A0", data.Text);

@@ -24,7 +24,7 @@ public partial class Parser
 
             i++;
             if (i >= inner.Length)
-                _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
+                _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, DiagnosticData.Of(raw));
 
             char esc = inner[i];
             switch (esc)
@@ -38,12 +38,12 @@ public partial class Parser
                 case '"': nodes.Add(new NumberNode('"')); break;
                 case 'x':
                     if (i + 2 >= inner.Length)
-                        _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
+                        _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, DiagnosticData.Of(raw));
                     nodes.Add(new NumberNode(Convert.ToInt64(inner.Substring(i + 1, 2), 16)));
                     i += 2;
                     break;
                 default:
-                    _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, raw);
+                    _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, DiagnosticData.Of(raw));
                     break;
             }
         }
@@ -55,17 +55,17 @@ public partial class Parser
     private int ParseCharLiteral(string text)
     {
         if (string.IsNullOrEmpty(text))
-            _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
+            _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, DiagnosticData.Of(text));
 
         if (text[0] != '\\')
         {
             if (text.Length != 1)
-                _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
+                _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, DiagnosticData.Of(text));
             return text[0];
         }
 
         if (text.Length < 2)
-            _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
+            _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, DiagnosticData.Of(text));
 
         char escape = text[1];
         return escape switch
@@ -78,14 +78,14 @@ public partial class Parser
             '\'' => '\'',
             '"' => '"',
             'x' => ParseHexChar(text),
-            _ => _erRep.Throw<int>(ErrorCode.Parser_InvalidCharLiteral, text),
+            _ => _erRep.Throw<int>(ErrorCode.Parser_InvalidCharLiteral, DiagnosticData.Of(text)),
         };
     }
 
     private int ParseHexChar(string text)
     {
         if (text.Length != 4)
-            _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, text);
+            _erRep.Throw(ErrorCode.Parser_InvalidCharLiteral, DiagnosticData.Of(text));
         return Convert.ToInt32(text.Substring(2, 2), 16);
     }
 }

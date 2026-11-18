@@ -60,7 +60,7 @@ public partial class ExpressionGenerator(AssemblerBase asm,
             case CastNode ca: GenerateCast(ca, RegType.r0); break;
             default:
                 _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                    $"Unsupported expression: {expr.NameNode}");
+                    DiagnosticData.Of($"Unsupported expression: {expr.NameNode}"));
                 break;
         }
     }

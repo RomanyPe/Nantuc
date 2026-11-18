@@ -53,7 +53,9 @@ public partial class IRAssembler
     private ulong ResolveJumpTarget(AsmInstruction instr, Dictionary<string, ulong> labelAddresses)
     {
         if (!labelAddresses.TryGetValue(instr.TargetLabel!, out var targetAddr))
-            ErrorReporter.Throw(ErrorCode.Asm_UndefinedLabel, instr.TargetLabel!, 0);
+            ErrorReporter.Throw(ErrorCode.Asm_UndefinedLabel, 
+                DiagnosticData.Of(instr.TargetLabel!), 
+                DiagnosticData.Of(0));
         return targetAddr;
     }
 

@@ -37,7 +37,9 @@ public partial class Parser
         }
 
         _erRep.Throw(ErrorCode.Parser_UnexpectedToken,
-            Current.Type.AsText, Current.Value, Current.Column);
+            DiagnosticData.Of(Current.Type.AsText), 
+            DiagnosticData.Of(Current.Value), 
+            DiagnosticData.Of(Current.Column));
     }
 
     private bool IsStructDeclaration()
@@ -74,7 +76,7 @@ public partial class Parser
         Expect(TokenType.Operator, "#");
         string directive = Expect(TokenType.Identifier).Value;
         if (directive != "include")
-            _erRep.Throw(ErrorCode.Parser_UnknownDirective, directive);
+            _erRep.Throw(ErrorCode.Parser_UnknownDirective, DiagnosticData.Of(directive));
 
         string filePath = Expect(TokenType.String).Value.Trim('"');
         program.IncludesList.Add(filePath);

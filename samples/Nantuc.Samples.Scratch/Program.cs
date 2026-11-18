@@ -77,7 +77,7 @@ if (!resCompile.Success)
 }
 
 var handle = DeviceSpec.Create(
-    ramSize: RamSize.MB128,
+    ramSize: RamSize.KB128,
     processorFaultPolicy: lfPolicy,
     name: "ConsoleVM"
 );

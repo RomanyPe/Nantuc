@@ -1,13 +1,21 @@
 ﻿using Nantuc.Common;
+using Nantuc.Compiler.C.AST;
 
 namespace Nantuc.Compiler.C.CodeGenerator.RegistersAlloc;
 
-/// <summary>
-/// Результат раскраски: отображение имени переменной на регистр (или null, если переменная в стеке).
-/// </summary>
 public class RegisterAllocationResult
 {
     public Dictionary<string, RegType?> VarToRegister { get; } = [];
-    // Регистры, которые заняты (для быстрой проверки)
     public HashSet<RegType> UsedRegisters { get; } = [];
+
+    // AssignmentNode «x = y», где обе переменные в одном регистре и одного типа:
+    // mov не нужен, cast — no-op. Кодогенератор может пропустить всю запись.
+    public HashSet<ASTNode> ElideCopies { get; } = [];
+
+    // Чтение, после которого переменная мертва → её home-регистр можно
+    // использовать как рабочий прямо в выражении (фаза 2).
+    public HashSet<IdentifierNode> DeadAfterUse { get; } = [];
+
+    public int SpillCount { get; internal set; }
+    public int CoalescedCount { get; internal set; }
 }

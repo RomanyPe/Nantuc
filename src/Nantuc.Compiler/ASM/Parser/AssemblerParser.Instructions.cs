@@ -21,7 +21,8 @@ public partial class AssemblerParser
         (string baseMnemonic, OpCodeSize size) = SplitMnemonicAndSize(mnemonic);
 
         if (!_opMap.TryGetValue(baseMnemonic, out OpCode opCode))
-            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, baseMnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction,
+                DiagnosticData.Of(baseMnemonic));
 
         DispatchInstruction(tokens, baseMnemonic, opCode, size);
     }
@@ -114,7 +115,7 @@ public partial class AssemblerParser
                 break;
 
             default:
-                _asm.ErrorReporter.Throw(ErrorCode.Asm_UnknownMnemonic, baseMnemonic);
+                _asm.ErrorReporter.Throw(ErrorCode.Asm_UnknownMnemonic, DiagnosticData.Of(baseMnemonic));
                 break;
         }
     }
@@ -183,6 +184,6 @@ public partial class AssemblerParser
     private void RequireOperands(string[] tokens, int min, string mnemonic)
     {
         if (tokens.Length < min)
-            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, mnemonic);
+            _asm.ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, DiagnosticData.Of(mnemonic));
     }
 }

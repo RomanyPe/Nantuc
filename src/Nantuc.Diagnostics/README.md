@@ -102,19 +102,12 @@ public readonly record struct DiagnosticData
     public DiagnosticData(string? text);
     public override string ToString() => Text;
 
-    // Factories for types outside the implicit conversions
-    public static DiagnosticData Of(bool value);
-    public static DiagnosticData Of<T>(T? value) where T : IBinaryNumber<T> 
-        => new(value?.ToString());
-    public static DiagnosticData Of(string value) => new(value ?? string.Empty);
-
-    // Implicit conversions for common types
-    public static implicit operator DiagnosticData(string? text);
-    public static implicit operator DiagnosticData(char value);
-    public static implicit operator DiagnosticData(int value);
-    public static implicit operator DiagnosticData(uint value);
-    public static implicit operator DiagnosticData(long value);
-    public static implicit operator DiagnosticData(ulong value);
+    public static DiagnosticData Of(bool value) => new(value ? "true" : "false");
+    public static DiagnosticData Of(string? value) => new(value);
+    public static DiagnosticData Of<T>(T value) where T : IBinaryNumber<T>
+        => new(value.ToString(null, CultureInfo.InvariantCulture));
+    public static DiagnosticData Of<T>(T? value) where T : struct, IBinaryNumber<T>
+        => new(value?.ToString(null, CultureInfo.InvariantCulture));
 }
 ```
 
@@ -152,7 +145,7 @@ Template examples:
 | Code | Template | Arguments (`DiagnosticData`) |
 |---|---|---|
 | `Lexer_UnexpectedCharacter` | `"Unexpected character '{0}' at line {1}, column {2}"` | `char`, `int line`, `int col` |
-| `Parser_ExpectedToken` | `"Expected {0}, got {1} at {2}:{3}"` | `string expected`, `string got`, `int line`, `int col` |
+| `Parser_ExpectedToken` | `"Expected '{0}', got '{1}' at {2}:{3}"` | `string expected`, `string got`, `int line`, `int col` |
 | `CodeGen_UnknownField` | `"Field '{0}' not found in struct '{1}'"` | `string field`, `string struct` |
 | `Asm_DuplicateLabel` | `"Label '{0}' already defined at position {1}"` | `string label`, `int pos` |
 | `CodeGen_BreakOutsideLoop` | `"Operator \"break\" outside loop"` | — |

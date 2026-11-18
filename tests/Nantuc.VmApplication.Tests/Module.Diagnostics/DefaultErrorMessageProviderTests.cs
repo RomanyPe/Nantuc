@@ -45,7 +45,7 @@ public class DefaultErrorMessageProviderTests
     {
         var provider = new DefaultErrorMessageProvider();
         Assert.Equal("Unknown type 'Foo'",
-            provider.GetMessage(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo"));
+            provider.GetMessage(ErrorCode.Parser_UnknownType, DiagnosticData.Of("Foo")));
     }
 
     [Fact]
@@ -54,10 +54,10 @@ public class DefaultErrorMessageProviderTests
         var provider = new DefaultErrorMessageProvider();
         var message = provider.GetMessage(
             ErrorCode.Parser_ExpectedToken,
-            (DiagnosticData)"';'",
-            (DiagnosticData)"'}'",
-            (DiagnosticData)10,
-            (DiagnosticData)5);
+            DiagnosticData.Of(";"),
+            DiagnosticData.Of("}"),
+            DiagnosticData.Of(10),
+            DiagnosticData.Of(5));
         Assert.Equal("Expected ';', got '}' at 10:5", message);
     }
 
@@ -75,7 +75,7 @@ public class DefaultErrorMessageProviderTests
         var provider = new DefaultErrorMessageProvider(overrides);
 
         Assert.Equal("custom: Foo",
-            provider.GetMessage(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo"));
+            provider.GetMessage(ErrorCode.Parser_UnknownType, DiagnosticData.Of("Foo")));
 
         // Код, которого нет в overrides — должен по-прежнему работать.
         Assert.Equal("Invalid assignment target",
@@ -120,7 +120,7 @@ public class DefaultErrorMessageProviderTests
             provider.GetMessage(ErrorCode.Parser_InvalidAssignment));
         // Все прочие коды — из базового словаря.
         Assert.Equal("Not supported: x",
-            provider.GetMessage(ErrorCode.NotSupported, (DiagnosticData)"x"));
+            provider.GetMessage(ErrorCode.NotSupported, DiagnosticData.Of("x")));
     }
 
     private sealed class MarkerProvider : DefaultErrorMessageProvider

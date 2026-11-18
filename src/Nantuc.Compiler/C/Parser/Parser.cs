@@ -39,10 +39,17 @@ public partial class Parser(List<Token> tokens, ErrorReporter erRep)
     {
         if (Current.Type != type)
             _erRep.Throw(ErrorCode.Parser_ExpectedToken,
-                type.AsText, Current.Type.AsText, Current.Value, Current.Column);
+                DiagnosticData.Of(type.AsText), 
+                DiagnosticData.Of(Current.Value), 
+                DiagnosticData.Of(Current.Line), 
+                DiagnosticData.Of(Current.Column));
+
         if (value != null && Current.Value != value)
             _erRep.Throw(ErrorCode.Parser_ExpectedToken,
-                value, Current.Type.AsText, Current.Value, Current.Column);
+                DiagnosticData.Of(type.AsText),
+                DiagnosticData.Of(value),
+                DiagnosticData.Of(Current.Line),
+                DiagnosticData.Of(Current.Column));
 
         Token token = Current;
         Advance();

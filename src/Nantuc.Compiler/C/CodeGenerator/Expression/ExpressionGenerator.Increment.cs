@@ -16,13 +16,13 @@ public partial class ExpressionGenerator
         switch (node.Target)
         {
             case IdentifierNode id when _varAccessor.IsConst(id.Name):
-                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, id.Name);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, DiagnosticData.Of(id.Name));
                 break;
             case ArrayAccessNode arr when _varAccessor.IsPointedConst(arr.ArrayName):
-                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, arr.ArrayName);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, DiagnosticData.Of(arr.ArrayName));
                 break;
             case DereferenceNode dr when dr.Operand is IdentifierNode p && _varAccessor.IsPointedConst(p.Name):
-                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, p.Name);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_IncrementOfConst, DiagnosticData.Of(p.Name));
                 break;
         }
 
@@ -34,7 +34,7 @@ public partial class ExpressionGenerator
             case MemberAccessNode member: GenerateIncrementMember(member, node.Delta, node.IsPrefix, targetReg); break;
             default:
                 _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-                    $"Increment target must be lvalue: {node.Target.NameNode}");
+                    DiagnosticData.Of($"Increment target must be lvalue: {node.Target.NameNode}"));
                 break;
         }
     }

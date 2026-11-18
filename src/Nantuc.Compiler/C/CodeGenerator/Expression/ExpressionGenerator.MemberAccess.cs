@@ -25,7 +25,7 @@ public partial class ExpressionGenerator
             case ArrayAccessNode arrAcc: ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, targetReg); break;
             case DereferenceNode:
                 _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
-                    "Dereference member access not implemented yet");
+                    DiagnosticData.Of("Dereference member access not implemented yet"));
                 return;
             default: GenerateExpression(node.Object, targetReg); break;
         }
@@ -59,7 +59,7 @@ public partial class ExpressionGenerator
 
             case DereferenceNode:
                 _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
-                    "Dereference member access not implemented yet");
+                    DiagnosticData.Of("Dereference member access not implemented yet"));
                 return;
 
             case ArrayAccessNode arrAcc:
@@ -67,7 +67,7 @@ public partial class ExpressionGenerator
                 var layoutArr = _structTable[arrStructType!];
                 var fieldArr = layoutArr.GetField(node.FieldName)
                     ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField,
-                        node.FieldName, arrStructType!);
+                        DiagnosticData.Of(node.FieldName), DiagnosticData.Of(arrStructType!));
 
                 ComputeArrayElementAddress(arrAcc.ArrayName, arrAcc.Index, targetReg);
                 if (fieldArr.Offset > 0)
@@ -90,22 +90,24 @@ public partial class ExpressionGenerator
                     _asm.EmitCastToType(targetReg, sz, CodeGenUtils.IsSignedType(f.Type));
                     return;
                 }
-                _asm.ErrorReporter.Throw(ErrorCode.NotSupported, "Unsupported object for member access");
+                _asm.ErrorReporter.Throw(ErrorCode.NotSupported, DiagnosticData.Of("Unsupported object for member access"));
                 break;
         }
 
         if (structType == null)
             _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
-                "Cannot determine struct type for member access");
+                DiagnosticData.Of("Cannot determine struct type for member access"));
 
         var layout = _structTable[structType];
         var field = layout.GetField(node.FieldName)
-            ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
+            ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, 
+            DiagnosticData.Of(node.FieldName), 
+            DiagnosticData.Of(structType));
 
         if (node.IsArrow) GenerateExpression(node.Object, targetReg);
         else if (node.Object is IdentifierNode ident) _varAccessor.LoadAddressToRegister(ident.Name, targetReg);
         else _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
-            "Dot access only supported for simple variables currently");
+            DiagnosticData.Of("Dot access only supported for simple variables currently"));
 
         if (field.Offset > 0)
         {
@@ -133,7 +135,7 @@ public partial class ExpressionGenerator
             if (g.IsPointer && g.PointedType != null && _structTable.ContainsKey(g.PointedType))
                 return g.PointedType;
         }
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonStructAccess, name);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonStructAccess, DiagnosticData.Of(name));
         return null;
     }
 
@@ -145,22 +147,24 @@ public partial class ExpressionGenerator
             MemberAccessNode inner => ResolveMemberAccessType(inner).fieldType,
             ArrayAccessNode arrAcc => ResolveArrayStructType(arrAcc.ArrayName),
             DereferenceNode => _asm.ErrorReporter.Throw<string>(
-                ErrorCode.CodeGen_UnknownStructType, "Dereference in member access not yet supported"),
+                ErrorCode.CodeGen_UnknownStructType, DiagnosticData.Of("Dereference in member access not yet supported")),
             BinaryOpNode bin when bin.Operator == "+" || bin.Operator == "-" =>
                 TryInferStructTypeFromPointerExpr(bin) ?? _asm.ErrorReporter.Throw<string>(
-                    ErrorCode.CodeGen_UnknownStructType, "Cannot determine struct type from pointer arithmetic"),
+                    ErrorCode.CodeGen_UnknownStructType, DiagnosticData.Of("Cannot determine struct type from pointer arithmetic")),
             _ => null,
         };
 
         if (structType == null)
             _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
-                "Cannot determine struct type for member access");
+                DiagnosticData.Of("Cannot determine struct type for member access"));
 
         if (!_structTable.TryGetValue(structType, out var layout))
-            _asm.ErrorReporter.Throw(ErrorCode.NotImplemented, structType);
+            _asm.ErrorReporter.Throw(ErrorCode.NotImplemented, DiagnosticData.Of(structType));
 
         var field = layout.GetField(node.FieldName)
-            ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, node.FieldName, structType);
+            ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, 
+            DiagnosticData.Of(node.FieldName), 
+            DiagnosticData.Of(structType));
 
         return (layout, field, field.Type);
     }
@@ -209,7 +213,7 @@ public partial class ExpressionGenerator
                 return g.PointedType;
             if (_structTable.ContainsKey(g.Type)) return g.Type;
         }
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, DiagnosticData.Of(arrayName));
         return null;
     }
 

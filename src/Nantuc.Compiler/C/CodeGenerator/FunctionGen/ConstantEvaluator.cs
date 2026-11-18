@@ -28,7 +28,7 @@ internal static class ConstantEvaluator
                                                          bin.Operator, er),
             SizeofTypeNode st => EvaluateSizeof(st, structTable, er),
             _ => er.Throw<long>(ErrorCode.NotSupported,
-                     $"Non-constant initializer in array: {node.NameNode}"),
+                     DiagnosticData.Of($"Non-constant initializer in array: {node.NameNode}")),
         };
 
     public static long EvaluateSizeof(
@@ -42,7 +42,7 @@ internal static class ConstantEvaluator
             return CodeGenUtils.GetSizeInBytes(
                 CodeGenUtils.GetSizeForType(st.TypeName, er), er);
 
-        er.Throw(ErrorCode.CodeGen_UnknownTypeSize, st.TypeName);
+        er.Throw(ErrorCode.CodeGen_UnknownTypeSize, DiagnosticData.Of(st.TypeName));
         return 0;
     }
 }

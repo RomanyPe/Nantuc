@@ -16,21 +16,21 @@ public partial class ExpressionGenerator
         if (assign.IndexExpr != null)
         {
             if (_varAccessor.IsPointedConst(assign.Name))
-                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, assign.Name);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, DiagnosticData.Of(assign.Name));
             return;
         }
 
         if (assign.LValue is DereferenceNode deref && deref.Operand is IdentifierNode ptrId)
         {
             if (_varAccessor.IsPointedConst(ptrId.Name))
-                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, ptrId.Name);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, DiagnosticData.Of(ptrId.Name));
             return;
         }
 
         if (assign.LValue is MemberAccessNode) return;   // TODO: const-поля
 
         if (_varAccessor.IsConst(assign.Name))
-            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, assign.Name);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_AssignmentToConst, DiagnosticData.Of(assign.Name));
     }
 
     private void GenerateAssignmentExpr(AssignmentNode assign, RegType targetReg)

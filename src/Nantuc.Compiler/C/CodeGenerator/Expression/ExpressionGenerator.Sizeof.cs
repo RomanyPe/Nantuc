@@ -20,7 +20,8 @@ public partial class ExpressionGenerator
                 CodeGenUtils.GetSizeForType(node.TypeName, _asm.ErrorReporter), _asm.ErrorReporter);
         else
         {
-            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownTypeSize, node.TypeName);
+            _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownTypeSize, 
+                DiagnosticData.Of(node.TypeName));
             return;
         }
         _asm.EmitLdi(targetReg, (ulong)size);
@@ -37,7 +38,7 @@ public partial class ExpressionGenerator
         MemberAccessNode mem => GetMemberTypeSize(mem),
         NumberNode => 4,   // int
         _ => _asm.ErrorReporter.Throw<long>(ErrorCode.NotSupported,
-                 $"sizeof of {expr.NameNode} not supported"),
+                 DiagnosticData.Of($"sizeof of {expr.NameNode} not supported")),
     };
 
     private long GetVariableTypeSize(string name)
@@ -60,7 +61,7 @@ public partial class ExpressionGenerator
             return g.IsArray ? elem * g.ArraySize : elem;
         }
 
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, name);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(name));
         return 0;
     }
 
@@ -101,7 +102,7 @@ public partial class ExpressionGenerator
                         CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter), _asm.ErrorReporter);
             if (g.IsPointer && g.PointedType != null) return GetTypeSizeBytes(g.PointedType);
         }
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, DiagnosticData.Of(arrayName));
         return 0;
     }
 }

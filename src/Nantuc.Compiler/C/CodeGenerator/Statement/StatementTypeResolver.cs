@@ -52,7 +52,7 @@ public sealed class StatementTypeResolver(
                 return (CodeGenUtils.GetSizeForType(g.PointedType, _asm.ErrorReporter),
                         CodeGenUtils.IsSignedType(g.PointedType));
         }
-        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, arrayName);
+        _asm.ErrorReporter.Throw(ErrorCode.CodeGen_NonIndexableType, DiagnosticData.Of(arrayName));
         return default;
     }
 
@@ -114,7 +114,7 @@ public sealed class StatementTypeResolver(
         string? rootStructType = ResolveRootStructType(rootObject);
         if (rootStructType == null)
             _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
-                "Cannot determine struct type for member access");
+                DiagnosticData.Of("Cannot determine struct type for member access"));
 
         StructLayout? currentLayout = null;
         FieldInfo? currentField = null;
@@ -123,10 +123,12 @@ public sealed class StatementTypeResolver(
         foreach (var fieldName in chain)
         {
             if (!_structTable.TryGetValue(currentType, out var layout))
-                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType, currentType);
+                _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType, DiagnosticData.Of(currentType));
             currentLayout = layout;
             currentField = layout.GetField(fieldName)
-                ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField, fieldName, currentType);
+                ?? _asm.ErrorReporter.Throw<FieldInfo>(ErrorCode.CodeGen_UnknownField,
+                DiagnosticData.Of(fieldName), 
+                DiagnosticData.Of(currentType));
             currentType = currentField.Type;
         }
 
@@ -160,12 +162,12 @@ public sealed class StatementTypeResolver(
                 var fromPtr = _exprGen.TryInferStructTypeFromPointerExpr(bin);
                 if (fromPtr == null)
                     _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
-                        "Cannot determine struct type from pointer arithmetic");
+                        DiagnosticData.Of("Cannot determine struct type from pointer arithmetic"));
                 return fromPtr;
 
             case DereferenceNode:
                 _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UnknownStructType,
-                    "Dereference member access not implemented yet");
+                    DiagnosticData.Of("Dereference member access not implemented yet"));
                 return null;
 
             default:

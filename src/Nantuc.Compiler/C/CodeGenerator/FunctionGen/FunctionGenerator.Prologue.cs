@@ -42,17 +42,17 @@ public partial class FunctionGenerator
             var param = func.Parameters[i];
 
             if (!funcCtx.VarMap.TryGetValue(param.Name, out var loc))
-                _erRep.Throw(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+                _erRep.Throw(ErrorCode.CodeGen_ParameterNotInRegister, DiagnosticData.Of(param.Name));
 
             if (i < 4)
-                EmitRegisterParam(i, param, loc);
+                EmitRegisterParam(i, loc);
             else
                 EmitStackParam(param, loc, func.Name);
         }
     }
 
     // Параметры 0..3 приходят в r0..r3.
-    private void EmitRegisterParam(int index, ParameterNode param, VarLocation loc)
+    private void EmitRegisterParam(int index, VarLocation loc)
     {
         RegType incomingReg = (RegType)index;
 
@@ -73,7 +73,7 @@ public partial class FunctionGenerator
     private void EmitStackParam(ParameterNode param, VarLocation loc, string funcName)
     {
         if (!loc.IsRegister)
-            _erRep.Throw(ErrorCode.CodeGen_ParameterNotInRegister, param.Name);
+            _erRep.Throw(ErrorCode.CodeGen_ParameterNotInRegister, DiagnosticData.Of(param.Name));
 
         string label = GlobalMemoryManager.GetLabel($"__param_{funcName}_{param.Name}");
         OpCodeSize size = param.IsPointer
@@ -85,4 +85,31 @@ public partial class FunctionGenerator
         if (!param.IsPointer)
             _asm.EmitCastToType(loc.Register, size, CodeGenUtils.IsSignedType(param.Type));
     }
+
+    // код улучшения регистрового аллокатора
+    /*
+    private void EmitStackParam(ParameterNode param, VarLocation loc, string funcName)
+    {
+        string label = GlobalMemoryManager.GetLabel($"__param_{funcName}_{param.Name}");
+        OpCodeSize size = param.IsPointer
+            ? OpCodeSize.S64
+            : CodeGenUtils.GetSizeForType(param.Type, _erRep);
+
+        _asm.EmitLoad(RegType.r0, size, label);
+        if (!param.IsPointer)
+            _asm.EmitCastToType(RegType.r0, size, CodeGenUtils.IsSignedType(param.Type));
+
+        if (loc.IsRegister)
+        {
+            if (loc.Register != RegType.r0) _asm.EmitMov(loc.Register, RegType.r0);
+        }
+        else
+        {
+            _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
+            _asm.EmitAdd(CodeGenUtils.ADDR_SCRATCH_REG_EN, RegType.rSP);
+            _asm.EmitStoreInd(RegType.r0, CodeGenUtils.ADDR_SCRATCH_REG_EN, loc.TypeSize);
+        }
+    }
+
+     */
 }
