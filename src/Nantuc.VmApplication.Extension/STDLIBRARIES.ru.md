@@ -1,8 +1,7 @@
 ﻿# Встроенные библиотеки (`Libraries`)
 
 > Справочник по строковым константам `Nantuc.VmApplication.Extensions.StdLibraries.Libraries`. Эти строки — содержимое `heap.nanasm`, `alloc.minic`, `io.nanasm`, `print.minic`, `imath.minic`, `bitops.minic`, `ovf.minic` — предназначены для `#include` в исходниках MiniC/NANASM.
->
-> `[← Корень](../README.ru.md) · [VmApplication.Extensions](README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md)`
+> [← Корень](../README.ru.md), [VmApplication.Extensions](README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md)
 
 ## Содержание
 

@@ -2,7 +2,7 @@
 
 > Nantuc platform contracts: interfaces for the port bus, processor, fault policies, and optimizations.  
 > The only layer that `Kernel`, `VmApplication`, and `Extensions` all depend on.  
-> `[← Root](../README.md) · [Common](../../src/Nantuc.Common/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md)`
+> [← Root](../README.md), [Common](../../src/Nantuc.Common/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
 ## Table of contents
 - [About this module](#about-this-module)

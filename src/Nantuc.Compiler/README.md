@@ -1,7 +1,7 @@
 # Nantuc.Compiler — README
 
 > Compiler MiniC -> Nantuc bytecode: lexer, parser, AST, code generator with register coloring, assembler (two backends — direct and IR) and optimization infrastructure.
-> `[← Root](../README.md) · [Common](../../src/Nantuc.Common/README.md) · [Contracts](../../src/Nantuc.Contracts/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md)`
+> [← Root](../README.md), [Common](../../src/Nantuc.Common/README.md), [Contracts](../../src/Nantuc.Contracts/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
 ## Contents
 - [About this module](#about-this-module)
@@ -117,7 +117,8 @@ Nantuc.Compiler/
     │   ├── FunctionCallNode.cs / IndirectCallNode.cs
     │   ├── ArrayAccessNode.cs / AddressOfNode.cs / DereferenceNode.cs
     │   ├── MemberAccessNode.cs       # IsArrow
-    │   └── SizeofTypeNode.cs / SizeofExprNode.cs
+    │   ├── SizeofTypeNode.cs / SizeofExprNode.cs
+    │   └── CastNode.cs / CastNode.cs
     │
     ├── CodeGenerator/                # Nantuc.Compiler.C.CodeGenerator
     │   ├── CodeGenUtils.cs           # sizes/alignment + IsSignedType + EmitCastToType
@@ -259,6 +260,7 @@ Notes on organization:
 - `sizeof` — in `ParseUnary`, including `sizeof(const T)` and `sizeof(const T*)`.
 - `const` qualifiers — `ParseDeclSpec`.
 - **`ParseFunction(type, name, isReturnPointer)` — `isReturnPointer` is passed to `FunctionNode.ReturnIsPointer`** (needed for the overflow cast of `return`).
+- **Primitive casts** - expressions like `(byte)300` will truncate it to `44`, limitations: `*(int*)` is not supported yet, casts to user-defined structs are also not supported
 
 **AST hierarchy (`Nantuc.Compiler.C.AST`)** — 28 classes, laid out in files in `C/AST/`. The base `ASTNode` — the only abstract property `NameNode` (`=> nameof(XxxNode)`). `AssignmentNode` contains `LValue`, `CompoundOp`, `IndexExpr`. `VariableNode` contains `IsPointer`/`PointedType`/`IsArray`/`ArraySize`/`ArrayInitializer` + `IsConst`/`IsPointedConst`. `ParameterNode` + `IsConst`/`IsPointedConst`. **`FunctionNode` — `LocalSize`, `IsExternal`, `ReturnIsPointer`**.
 

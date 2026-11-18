@@ -2,7 +2,7 @@
 
 > Ядро виртуальной машины Nantuc: процессор, ОЗУ, шина портов, реестр устройств и эмулятор.  
 > Единственный слой платформы, который использует `unsafe`, `NativeMemory`, `[InlineArray]` и `ConcurrentQueue`.  
-> `[← Корень](../README.ru.md) · [Common](../../src/Nantuc.Common/README.ru.md) · [Contracts](../../src/Nantuc.Contracts/README.ru.md)`
+> [← Корень](../README.ru.md), [Common](../../src/Nantuc.Common/README.ru.md), [Contracts](../../src/Nantuc.Contracts/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)

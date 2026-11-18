@@ -2,7 +2,7 @@
 
 > Контракты платформы Nantuc: интерфейсы шины портов, процессора, политик падения и оптимизаций.  
 > Единственный слой, от которого зависят и `Kernel`, и `VmApplication`, и `Extensions`.  
-> `[← Корень](../README.ru.md) · [Common](../../src/Nantuc.Common/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md)`
+> [← Корень](../README.ru.md), [Common](../../src/Nantuc.Common/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)

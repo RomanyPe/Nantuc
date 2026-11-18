@@ -6,13 +6,13 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 148 |
-| C# files | 23 |
-| Total lines | 2876 |
-| C# classes | 32 |
+| Members analysed | 149 |
+| C# files | 24 |
+| Total lines | 3045 |
+| C# classes | 33 |
 | C# records | 0 |
 | C# enums | 0 |
-| Analysed LOC | 827 |
+| Analysed LOC | 828 |
 | Cognitive avg | 0.2 |
 | Cognitive median | 0 |
 | Cognitive p90 | 1 |
@@ -21,7 +21,7 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 2 |
 | Cyclomatic max | 5 |
-| MI avg | 75.7 |
+| MI avg | 75.8 |
 | MI minimum | 43.0 |
 
 Highest risk member: `HaltWakeTests.HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode` (cognitive 5, cyclomatic 5) — `HaltWakeTests.cs:98`
@@ -31,14 +31,14 @@ Lowest maintainability: `HaltWakeTests.HALT_SetsSleepingFlagAndDoesNotAdvanceFur
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 148 |
+| Light | 0-5 | 149 |
 | Moderate | 6-10 | 0 |
 | High | 11-20 | 0 |
 | Severe | 21+ | 0 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 148 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 149 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -46,9 +46,9 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 148 me
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 69 | CompileTestBase | RunCompile_WithLibs | 3 | 5 | 23 | 1 | 3 | 48.4 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 40 | HaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_DebugRun | 3 | 4 | 38 | 2 | 0 | 43.0 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmTestBase.cs | 64 | UnsafeOpCodeTests | SingleStep_WithAllowUnsafeOpCodesFalse_StopsAtUnsafeOpCode | 3 | 3 | 12 | 2 | 0 | 57.9 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 15 | CompileTestBase | RunCompile | 2 | 4 | 21 | 1 | 2 | 49.7 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 16 | CompileTestBase | RunCompile | 2 | 4 | 21 | 1 | 2 | 49.7 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\VMHostTests.cs | 15 | VMHostTests | RunProgramWithIO | 1 | 3 | 14 | 1 | 4 | 54.5 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 48 | CompileTestBase | RunCompile_ConstViolation | 1 | 2 | 13 | 1 | 1 | 56.4 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 49 | CompileTestBase | RunCompile_Error | 1 | 2 | 13 | 1 | 1 | 56.4 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\LanguageDefinitionDriftTests.cs | 13 | LanguageDefinitionDriftTests | MiniC_KeywordRegex_matches_every_keyword | 1 | 2 | 2 | 1 | 0 | 81.5 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\LanguageDefinitionDriftTests.cs | 29 | LanguageDefinitionDriftTests | Asm_MnemonicRegex_matches_every_mnemonic | 1 | 2 | 2 | 1 | 0 | 81.5 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\LanguageDefinitionDriftTests.cs | 36 | LanguageDefinitionDriftTests | Asm_RegisterRegex_matches_every_register | 1 | 2 | 2 | 1 | 0 | 81.5 |

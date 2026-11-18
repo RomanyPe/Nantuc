@@ -1,8 +1,7 @@
 ﻿# Nantuc.Cli — README
 
-Консольный интерфейс платформы Nantuc: компиляция проекта в байткод, запуск программ в виртуальной машине, дизассемблирование и управление библиотеками инклюдов.
-
-[← Корень](../../README.ru.md) · [Common](../Nantuc.Common/README.ru.md) · [Contracts](../Nantuc.Contracts/README.ru.md) · [Diagnostics](../Nantuc.Diagnostics/README.ru.md) · [Kernel](../Nantuc.Kernel/README.ru.md) · [Compiler](../Nantuc.Compiler/README.ru.md) · [VmApplication](../Nantuc.VmApplication/README.ru.md)
+> Консольный интерфейс платформы Nantuc: компиляция проекта в байткод, запуск программ в виртуальной машине, дизассемблирование и управление библиотеками инклюдов.
+> [← Корень](../../README.ru.md), [Common](../Nantuc.Common/README.ru.md), [Contracts](../Nantuc.Contracts/README.ru.md), [Diagnostics](../Nantuc.Diagnostics/README.ru.md), [Kernel](../Nantuc.Kernel/README.ru.md), [Compiler](../Nantuc.Compiler/README.ru.md), [VmApplication](../Nantuc.VmApplication/README.ru.md)
 
 ---
 

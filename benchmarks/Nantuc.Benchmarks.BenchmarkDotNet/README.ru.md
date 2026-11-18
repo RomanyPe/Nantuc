@@ -2,7 +2,7 @@
 
 > Бенчмарк виртуальной машины Nantuc на базе **BenchmarkDotNet**: измеряет MIPS, стабильность и аллокации на 14 типовых MiniC-программах (вызовы, ALU, память, битовые операции, умножение, ветвления, деление, рекурсия, указатели, структуры, сортировка).  
 > Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (транзитивно — от `VmApplication`, `Compiler`, `Kernel`).  
-> `[← Корень](../README.ru.md) · [VmApplication](../../src/Nantuc.VmApplication/README.ru.md) · [Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md)`
+> [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)

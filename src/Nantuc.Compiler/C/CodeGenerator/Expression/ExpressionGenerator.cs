@@ -57,6 +57,7 @@ public partial class ExpressionGenerator(AssemblerBase asm,
             case SizeofTypeNode st: GenerateSizeofType(st, RegType.r0); break;
             case SizeofExprNode se: GenerateSizeofExpr(se, RegType.r0); break;
             case IndirectCallNode ic: GenerateIndirectCall(ic, RegType.r0); break;
+            case CastNode ca: GenerateCast(ca, RegType.r0); break;
             default:
                 _asm.ErrorReporter.Throw(ErrorCode.NotSupported,
                     $"Unsupported expression: {expr.NameNode}");
@@ -83,6 +84,7 @@ public partial class ExpressionGenerator(AssemblerBase asm,
             case SizeofTypeNode st: GenerateSizeofType(st, targetReg); break;
             case SizeofExprNode se: GenerateSizeofExpr(se, targetReg); break;
             case IndirectCallNode ic: GenerateIndirectCall(ic, targetReg); break;
+            case CastNode ca: GenerateCast(ca, targetReg); break;
             default:
                 GenerateExpression(expr);
                 if (targetReg != RegType.r0) _asm.EmitMov(targetReg, RegType.r0);

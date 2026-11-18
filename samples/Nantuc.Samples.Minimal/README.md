@@ -3,7 +3,7 @@
 > A minimal working example of the Nantuc platform: compiles a MiniC program "Hello world. Привет мир", runs it on the virtual machine, and prints a UTF-16 string to `Console.Out` via a port device.
 > Shows the full path "source -> bytecode -> VM -> I/O" on a single screen.
 > Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
-> `[← Root](../README.md) · [VmApplication](../../src/Nantuc.VmApplication/README.md) · [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md) · [Compiler](../../src/Nantuc.Compiler/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md)`
+> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
 ## Table of contents
 - [About this module](#about-this-module)

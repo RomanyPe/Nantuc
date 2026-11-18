@@ -85,7 +85,9 @@ internal static class VariableAccessAnalyzer
                     Walk(ic.Callee);
                     foreach (var arg in ic.Arguments) Walk(arg);
                     return;
-
+                case CastNode cast:          // или TypeCastNode, CastExpressionNode
+                    Walk(cast.Operand);   // или cast.Operand, в зависимости от имени свойства
+                    break;
                 default: return;
             }
         }
@@ -204,6 +206,9 @@ internal static class VariableAccessAnalyzer
                 case IndirectCallNode ic:
                     Walk(ic.Callee);
                     foreach (var arg in ic.Arguments) Walk(arg);
+                    break;
+                case CastNode cast:          // или TypeCastNode, CastExpressionNode
+                    Walk(cast.Operand);   // или cast.Operand, в зависимости от имени свойства
                     break;
 
                 default:

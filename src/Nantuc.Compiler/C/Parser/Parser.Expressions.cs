@@ -26,6 +26,19 @@ public partial class Parser
     // ============================================================
     private ASTNode ParseExpression() => ParseComma();
 
+    private CastNode ParseCast()
+    {
+        Expect(TokenType.Punctuation, "(");
+        if (Current.Type == TokenType.Keyword && Current.Value == "const") Advance();
+        string typeName = ParseType();
+        if (Current.Type == TokenType.Keyword && Current.Value == "const") Advance();
+        bool isPointer = false;
+        if (Current.Type == TokenType.Operator && Current.Value == "*") { isPointer = true; Advance(); }
+        Expect(TokenType.Punctuation, ")");
+        return new CastNode(typeName, isPointer, ParseUnary());
+    }
+
+
     private ASTNode ParseComma()
     {
         ASTNode left = ParseAssignment();
@@ -193,7 +206,7 @@ public partial class Parser
 
         // (type) без sizeof — сохранено как есть (см. примечание в ответе)
         if (Current.Type == TokenType.Punctuation && Current.Value == "(" && IsSizeofTypeParen())
-            return ParseSizeofTypeInParens();
+            return ParseCast();
 
         if (Current.Type == TokenType.Operator && (Current.Value == "++" || Current.Value == "--"))
         {

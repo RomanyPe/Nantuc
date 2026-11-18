@@ -2,7 +2,7 @@
 
 > Общий модуль диагностики: коды ошибок, шаблоны сообщений, `ErrorReporter`, `CodeException` и типизированные аргументы диагностики `DiagnosticData`.
 > Выделен из ядра, чтобы авторы компиляторов и расширений могли использовать единый механизм ошибок и подменять провайдер сообщений, не трогая `Nantuc.Kernel`.
-> `[← Корень](../README.ru.md) · [Common](../../src/Nantuc.Common/README.ru.md) · [Contracts](../../src/Nantuc.Contracts/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md)`
+> [← Корень](../README.ru.md), [Common](../../src/Nantuc.Common/README.ru.md), [Contracts](../../src/Nantuc.Contracts/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)

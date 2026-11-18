@@ -2,7 +2,7 @@
 
 > General diagnostics module: error codes, message templates, `ErrorReporter`, `CodeException`, and typed diagnostic arguments `DiagnosticData`.
 > Extracted from the kernel so that compiler and extension authors can use a unified error mechanism and replace the message provider without touching `Nantuc.Kernel`.
-> `[← Root](../README.md) · [Common](../../src/Nantuc.Common/README.md) · [Contracts](../../src/Nantuc.Contracts/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md) · [Compiler](../../src/Nantuc.Compiler/README.md)`
+> [← Root](../README.md), [Common](../../src/Nantuc.Common/README.md), [Contracts](../../src/Nantuc.Contracts/README.md), [Kernel](../../src/Nantuc.Kernel/README.md), [Compiler](../../src/Nantuc.Compiler/README.md)
 
 ## Table of contents
 - [About this module](#about-this-module)

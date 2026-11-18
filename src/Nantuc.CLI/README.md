@@ -1,8 +1,7 @@
 ﻿# Nantuc.Cli — README
 
-Command-line interface for the Nantuc platform: compile projects to bytecode, run programs in the virtual machine, disassemble binaries, and manage include libraries.
-
-[← Root](../../README.md) · [Common](../Nantuc.Common/README.md) · [Contracts](../Nantuc.Contracts/README.md) · [Diagnostics](../Nantuc.Diagnostics/README.md) · [Kernel](../Nantuc.Kernel/README.md) · [Compiler](../Nantuc.Compiler/README.md) · [VmApplication](../Nantuc.VmApplication/README.md)
+> Command-line interface for the Nantuc platform: compile projects to bytecode, run programs in the virtual machine, disassemble binaries, and manage include libraries.
+> [← Root](../../README.md), [Common](../Nantuc.Common/README.md), [Contracts](../Nantuc.Contracts/README.md), [Diagnostics](../Nantuc.Diagnostics/README.md), [Kernel](../Nantuc.Kernel/README.md), [Compiler](../Nantuc.Compiler/README.md), [VmApplication](../Nantuc.VmApplication/README.md)
 
 ---
 

@@ -1,7 +1,7 @@
 ﻿﻿# Nantuc.Compiler — README
 
 > Компилятор MiniC -> байткод Nantuc: лексер, парсер, AST, кодогенератор с регистровой раскраской, ассемблер (два backend'а — прямой и IR) и инфраструктура оптимизаций.
-> `[← Корень](../README.ru.md) · [Common](../../src/Nantuc.Common/README.ru.md) · [Contracts](../../src/Nantuc.Contracts/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md)`
+> [← Корень](../README.ru.md), [Common](../../src/Nantuc.Common/README.ru.md), [Contracts](../../src/Nantuc.Contracts/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -117,7 +117,8 @@ Nantuc.Compiler/
     │   ├── FunctionCallNode.cs / IndirectCallNode.cs
     │   ├── ArrayAccessNode.cs / AddressOfNode.cs / DereferenceNode.cs
     │   ├── MemberAccessNode.cs       # IsArrow
-    │   └── SizeofTypeNode.cs / SizeofExprNode.cs
+    │   ├── SizeofTypeNode.cs / SizeofExprNode.cs
+    │   └── CastNode.cs / CastNode.cs
     │
     ├── CodeGenerator/                # Nantuc.Compiler.C.CodeGenerator
     │   ├── CodeGenUtils.cs           # размеры/выравнивание + IsSignedType + EmitCastToType
@@ -259,6 +260,7 @@ Nantuc.Compiler/
 - `sizeof` — в `ParseUnary`, включая `sizeof(const T)` и `sizeof(const T*)`.
 - `const`-квалификаторы — `ParseDeclSpec`.
 - **`ParseFunction(type, name, isReturnPointer)` — `isReturnPointer` пробрасывается в `FunctionNode.ReturnIsPointer`** (нужно для overflow-каста `return`).
+- **Касты к примитивам** - выражения вида `(byte)300` округлит его до `44`, ограничения: `*(int*)` еще не поддерживается, привидения к пользовательским структурам также не поддерживаются
 
 **AST-иерархия (`Nantuc.Compiler.C.AST`)** — 28 классов, разложены по файлам в `C/AST/`. Базовый `ASTNode` — единственное абстрактное свойство `NameNode` (`=> nameof(XxxNode)`). `AssignmentNode` содержит `LValue`, `CompoundOp`, `IndexExpr`. `VariableNode` содержит `IsPointer`/`PointedType`/`IsArray`/`ArraySize`/`ArrayInitializer` + `IsConst`/`IsPointedConst`. `ParameterNode` + `IsConst`/`IsPointedConst`. **`FunctionNode` — `LocalSize`, `IsExternal`, `ReturnIsPointer`**.
 

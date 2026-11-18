@@ -2,7 +2,7 @@
 
 > Extensions to the main API: disassembler, debugger, I/O devices, standard optimizations (AST and IR), "one-liner" compilation utilities, built-in MiniC/NANASM libraries.
 > Depends on `[Nantuc.VmApplication]` (transitively on `Diagnostics`, `Kernel`, `Contracts`, `Common`; directly from `Common` it uses `OpCode`, `AlignUp`, `InstructionDecoder`).
-> `[← Root](../README.md) · [VmApplication](../../src/Nantuc.VmApplication/README.md) · [Diagnostics](../../src/Nantuc.Diagnostics/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md) · [Common](../../src/Nantuc.Kernel.Common/README.md) · [Contracts](../../src/Nantuc.Kernel.Contracts/README.md) · [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md) · [STDLIBRARIES](STDLIBRARIES.md)`
+> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Diagnostics](../../src/Nantuc.Diagnostics/README.md), [Kernel](../../src/Nantuc.Kernel/README.md), [Common](../../src/Nantuc.Kernel.Common/README.md), [Contracts](../../src/Nantuc.Kernel.Contracts/README.md), [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md), [STDLIBRARIES](STDLIBRARIES.md)
 
 ## Table of contents
 - [About this module](#about-this-module)

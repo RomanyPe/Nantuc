@@ -6,13 +6,13 @@ Path: `src/Nantuc.Compiler/Nantuc.Compiler.csproj`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 438 |
-| C# files | 105 |
-| Total lines | 7552 |
-| C# classes | 101 |
+| Members analysed | 441 |
+| C# files | 107 |
+| Total lines | 7609 |
+| C# classes | 103 |
 | C# records | 3 |
 | C# enums | 1 |
-| Analysed LOC | 3291 |
+| Analysed LOC | 3315 |
 | Cognitive avg | 3.0 |
 | Cognitive median | 1 |
 | Cognitive p90 | 10 |
@@ -22,33 +22,33 @@ Path: `src/Nantuc.Compiler/Nantuc.Compiler.csproj`
 | Cyclomatic p90 | 10 |
 | Cyclomatic max | 46 |
 | MI avg | 72.7 |
-| MI minimum | 30.5 |
+| MI minimum | 29.9 |
 
-Highest risk member: `VariableAccessAnalyzer.CollectVarEvents` (cognitive 37, cyclomatic 33) — `VariableAccessAnalyzer.cs:102`
-Lowest maintainability: `VariableAccessAnalyzer.CollectVarEvents` (MI 30.5) — `VariableAccessAnalyzer.cs:102`
+Highest risk member: `VariableAccessAnalyzer.CollectVarEvents` (cognitive 37, cyclomatic 34) — `VariableAccessAnalyzer.cs:104`
+Lowest maintainability: `VariableAccessAnalyzer.CollectVarEvents` (MI 29.9) — `VariableAccessAnalyzer.cs:104`
 
 ## Risk bands
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 355 |
-| Moderate | 6-10 | 45 |
+| Light | 0-5 | 357 |
+| Moderate | 6-10 | 46 |
 | High | 11-20 | 32 |
 | Severe | 21+ | 6 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 438 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 441 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\VariableAccessAnalyzer.cs | 102 | VariableAccessAnalyzer | CollectVarEvents | 37 | 33 | 80 | 3 | 1 | 30.5 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\VariableAccessAnalyzer.cs | 19 | VariableAccessAnalyzer | CollectAddressTakenVars | 24 | 27 | 56 | 4 | 1 | 35.4 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\VariableAccessAnalyzer.cs | 104 | VariableAccessAnalyzer | CollectVarEvents | 37 | 34 | 83 | 3 | 1 | 29.9 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\VariableAccessAnalyzer.cs | 19 | VariableAccessAnalyzer | CollectAddressTakenVars | 24 | 28 | 59 | 4 | 1 | 34.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.MemberAccess.cs | 168 | ExpressionGenerator | TryInferStructTypeFromPointerExpr | 22 | 17 | 19 | 3 | 1 | 49.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\Lexer\Lexer.cs | 28 | Lexer | Tokenize | 22 | 14 | 17 | 2 | 0 | 51.4 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\ASM\IR\IROptimizer.cs | 15 | IROptimizer | Optimize | 22 | 9 | 24 | 5 | 2 | 49.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Statement\StatementTypeResolver.cs | 136 | StatementTypeResolver | ResolveRootStructType | 21 | 18 | 26 | 3 | 1 | 45.7 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\Parser\Parser.Expressions.cs | 184 | Parser | ParseUnary | 19 | 22 | 23 | 2 | 0 | 46.7 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\Parser\Parser.Expressions.cs | 197 | Parser | ParseUnary | 19 | 22 | 23 | 2 | 0 | 46.7 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Sizeof.cs | 85 | ExpressionGenerator | GetIndexedElemSizeBytes | 19 | 12 | 15 | 3 | 1 | 52.7 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\ASM\Parser\AssemblerParser.Lexing.cs | 10 | AssemblerParser | ProcessLines | 19 | 10 | 15 | 4 | 1 | 54.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Binary.cs | 13 | ExpressionGenerator | GenerateBinaryOp | 18 | 19 | 47 | 2 | 2 | 37.7 |

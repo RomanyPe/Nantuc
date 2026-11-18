@@ -1,8 +1,7 @@
 ﻿# Built-in libraries (`Libraries`)
 
 > Reference for the string constants `Nantuc.VmApplication.Extensions.StdLibraries.Libraries`. These strings are the contents of `heap.nanasm`, `alloc.minic`, `io.nanasm`, `print.minic`, `imath.minic`, `bitops.minic`, `ovf.minic` and are intended for `#include` in MiniC/NANASM sources.
->
-> `[← Root](../README.md) · [VmApplication.Extensions](README.md) · [Compiler](../../src/Nantuc.Compiler/README.md)`
+> [← Root](../README.md), [VmApplication.Extensions](README.md), [Compiler](../../src/Nantuc.Compiler/README.md)
 
 ## Contents
 

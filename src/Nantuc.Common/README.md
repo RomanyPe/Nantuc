@@ -2,7 +2,7 @@
 
 > Shared types, ISA constants, and common primitives of the Nantuc platform.  
 > The foundation that the core, compiler, and extensions rely on.  
-> `[← Root](../README.md) · [Contracts](../../src/Nantuc.Contracts/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md)`
+> [← Root](../README.md), [Contracts](../../src/Nantuc.Contracts/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
 ## Contents
 - [About this module](#about-this-module)

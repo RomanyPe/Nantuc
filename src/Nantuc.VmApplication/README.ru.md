@@ -3,7 +3,7 @@
 > Основной API платформы: компиляция проекта в байткод, запуск VM, управление устройствами и пошаговое исполнение.  
 > Единственный модуль, предназначенный для встраивания Nantuc в приложение (IDE, REPL, CI, игровой хост).  
 > Зависит от `[Kernel](../../src/Nantuc.Kernel/README.ru.md)`, `[Contracts](../../src/Nantuc.Contracts/README.ru.md)` и `[Compiler](../../src/Nantuc.Compiler/README.ru.md)`.  
-> `[← Корень](../README.ru.md) · [Common](../../src/Nantuc.Common/README.ru.md) · [Contracts](../../src/Nantuc.Contracts/README.ru.md) · [Diagnostics](../Nantuc.Diagnostics/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Compiler](../../src/Nantuc.Compiler/README.ru.md)`
+> [← Корень](../README.ru.md), [Common](../../src/Nantuc.Common/README.ru.md), [Contracts](../../src/Nantuc.Contracts/README.ru.md), [Diagnostics](../Nantuc.Diagnostics/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)

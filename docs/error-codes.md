@@ -5,7 +5,7 @@
 > JSON, and tests. Existing values must not be changed; new ones may only be
 > added at the end of their hundred.
 >
-> `[← Root](../README.md) · [Kernel.Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md)`
+> `[← Root](../README.md), [Kernel.Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md)`
 
 ## Table of contents
 

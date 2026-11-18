@@ -5,7 +5,7 @@
 > JSON и тесты. Существующие значения менять нельзя, новые — только
 > в конец своей сотни.
 >
-> `[← Корень](../README.md) · [Kernel.Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md)`
+> `[← Корень](../README.md), [Kernel.Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md)`
 
 ## Содержание
 

@@ -2,7 +2,7 @@
 
 > Console benchmark for the Nantuc virtual machine: measures MIPS (million instructions per second), stability, JIT/warmup impact, and statistics over a series of runs on typical workloads (memory, ALU, calls, stack, bit operations, multiplication, branches, recursion, pointers, structs, sorting) using **MiniC** sources.  
 > Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.md)` (transitively on `VmApplication`, `Compiler`, `Kernel`).  
-> `[← Root](../README.md) · [VmApplication](../../src/Nantuc.VmApplication/README.md) · [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md) · [Compiler](../../src/Nantuc.Compiler/README.md)`
+> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md), [Kernel](../../src/Nantuc.Kernel/README.md), [Compiler](../../src/Nantuc.Compiler/README.md)
 
 ## Contents
 - [About this module](#about-this-module)

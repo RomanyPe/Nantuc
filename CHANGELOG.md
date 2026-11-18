@@ -10,6 +10,11 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.16.2] - 2026-11-18
+
+### Added
+- support for type casts like `(byte)300` in the compiler
+
 ## [0.16.1] - 2026-11-16
 
 ### Added

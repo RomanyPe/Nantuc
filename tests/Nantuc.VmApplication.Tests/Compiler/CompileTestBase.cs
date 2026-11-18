@@ -1,4 +1,5 @@
 ﻿using Nantuc.Common;
+using Nantuc.Diagnostics;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Disassembler;
@@ -45,7 +46,7 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
         Assert.True(v);
     }
 
-    protected void RunCompile_ConstViolation(string program)
+    protected void RunCompile_Error(string program)
     {
         using var host = VmHostFactory.CreateDefault();
         var handle = DeviceSpec.Create(RamSize.MB16, name: "test");
@@ -61,8 +62,7 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
             _outPut.WriteLine("--- NANASM ---");
             _outPut.WriteLine(comp.DisassembleToString());
         }
-
-        Assert.False(comp.Success, "Compilation unexpectedly succeeded — const violation not caught");
+        Assert.False(comp.Success, "Compilation unexpectedly succeeded");
         Assert.NotNull(comp.Errors);
         Assert.NotEmpty(comp.Errors!);
     }

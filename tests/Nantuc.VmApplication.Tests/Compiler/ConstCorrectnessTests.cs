@@ -71,5 +71,5 @@ public class ConstCorrectnessTests(ITestOutputHelper outPut) : CompileTestBase(o
     [InlineData("int main() { int a = 5; const int *p = &a; return (*p = 10) + 1; }")]
     [InlineData("int main() { int a = 5; const int *p = &a; return (*p += 1) * 2; }")]
     [InlineData("int main() { int a = 5; int * const p = &a; return (p = &a) + 1; }")]
-    public void Const_Violations(string program) => RunCompile_ConstViolation(program);
+    public void Const_Violations(string program) => RunCompile_Error(program);
 }

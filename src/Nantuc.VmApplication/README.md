@@ -3,7 +3,7 @@
 > The platform's primary API: compiling a project to bytecode, running the VM, managing devices, and step-by-step execution.  
 > The only module intended for embedding Nantuc into an application (IDE, REPL, CI, game host).  
 > Depends on `[Kernel](../../src/Nantuc.Kernel/README.md)`, `[Contracts](../../src/Nantuc.Contracts/README.md)`, and `[Compiler](../../src/Nantuc.Compiler/README.md)`.  
-> `[← Root](../README.md) · [Common](../../src/Nantuc.Common/README.md) · [Contracts](../../src/Nantuc.Contracts/README.md) · [Diagnostics](../Nantuc.Diagnostics/README.md) · [Kernel](../../src/Nantuc.Kernel/README.md) · [Compiler](../../src/Nantuc.Compiler/README.md)`
+> [← Root](../README.md), [Common](../../src/Nantuc.Common/README.md), [Contracts](../../src/Nantuc.Contracts/README.md), [Diagnostics](../Nantuc.Diagnostics/README.md), [Kernel](../../src/Nantuc.Kernel/README.md), [Compiler](../../src/Nantuc.Compiler/README.md)
 
 ## Contents
 - [About this module](#about-this-module)

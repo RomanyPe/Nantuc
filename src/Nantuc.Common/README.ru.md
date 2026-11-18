@@ -2,7 +2,7 @@
 
 > Общие типы, константы ISA и разделяемые примитивы платформы Nantuc.  
 > Фундамент, на который опираются ядро, компилятор и расширения.  
-> `[← Корень](../README.ru.md) · [Contracts](../../src/Nantuc.Contracts/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md)`
+> [← Корень](../README.ru.md), [Contracts](../../src/Nantuc.Contracts/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)

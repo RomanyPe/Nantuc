@@ -2,7 +2,7 @@
 
 > Расширения к основному API: дизассемблер, отладчик, I/O-устройства, стандартные оптимизации (AST и IR), утилиты компиляции «одной строкой», встроенные библиотеки MiniC/NANASM.
 > Зависит от `[Nantuc.VmApplication]` (транзитивно — от `Diagnostics`, `Kernel`, `Contracts`, `Common`; напрямую из `Common` используется `OpCode`, `AlignUp`, `InstructionDecoder`).
-> `[← Корень](../README.ru.md) · [VmApplication](../../src/Nantuc.VmApplication/README.ru.md) · [Diagnostics](../../src/Nantuc.Diagnostics/README.ru.md) · [Kernel](../../src/Nantuc.Kernel/README.ru.md) · [Common](../../src/Nantuc.Kernel.Common/README.ru.md) · [Contracts](../../src/Nantuc.Kernel.Contracts/README.ru.md) · [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.ru.md) · [STDLIBRARIES](STDLIBRARIES.ru.md)`
+> [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Diagnostics](../../src/Nantuc.Diagnostics/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md), [Common](../../src/Nantuc.Kernel.Common/README.ru.md), [Contracts](../../src/Nantuc.Kernel.Contracts/README.ru.md), [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.ru.md), [STDLIBRARIES](STDLIBRARIES.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
