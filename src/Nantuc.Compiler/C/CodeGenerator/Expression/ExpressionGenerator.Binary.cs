@@ -17,21 +17,18 @@ public partial class ExpressionGenerator
             GenerateComparisonAsValue(binop, targetReg);
             return;
         }
-
         if (binop.Operator == ",")
         {
             GenerateExpression(binop.Left);
             GenerateExpression(binop.Right, targetReg);
             return;
         }
-
         if (binop.Operator == "&&" || binop.Operator == "||")
         {
             GenerateLogicalAndOr(binop);
             if (targetReg != RegType.r0) _asm.EmitMov(targetReg, RegType.r0);
             return;
         }
-
         if (binop.Left is NumberNode l && binop.Right is NumberNode r)
         {
             long folded = ComputeConstant(l.Value, r.Value, binop.Operator, _asm.ErrorReporter);
@@ -55,7 +52,8 @@ public partial class ExpressionGenerator
         if (binop.Right is IdentifierNode rightId
             && _varAccessor.TryGetRegister(rightId.Name, out var rightReg)
             && rightReg == targetReg
-            && (binop.Operator == "+" || binop.Operator == "*"))
+            && (binop.Operator == "+" || binop.Operator == "*" || binop.Operator == "&"
+                || binop.Operator == "|" || binop.Operator == "^"))
         {
             RegType temp = (targetReg != RegType.r0) ? RegType.r0 : RegType.r1;
             GenerateExpression(binop.Left, temp);
@@ -64,15 +62,21 @@ public partial class ExpressionGenerator
             return;
         }
 
-        // Общий случай
-        GenerateExpression(binop.Left, targetReg);
-        RegType rReg = (targetReg != RegType.r1) ? RegType.r1 : RegType.r2;
-        RegType addrReg = RegType.r4;
+        // Общий случай: выбираем регистр для левого операнда с проверкой алиасинга
+        RegType lReg = MayAliasWithExpr(targetReg, binop.Right) ? RegType.r0 : targetReg;
+        RegType rReg = (lReg != RegType.r1) ? RegType.r1 : RegType.r2;
 
+        // Если левый операнд — переменная, которая мертва после чтения, вычисляем прямо в её home-регистре
+        bool leftDeadAfterUse = binop.Left is IdentifierNode leftIdn
+            && _funcCtx.Allocation.DeadAfterUse.Contains(leftIdn);
+
+        GenerateExpression(binop.Left, lReg, mayClobberTarget: leftDeadAfterUse && lReg == targetReg);
+
+        RegType addrReg = RegType.r4;
         int saveOffset = _funcCtx.TotalLocalSize + _funcCtx.ExpressionSaveDepth * 8;
         _asm.EmitLdi(addrReg, (ulong)saveOffset);
         _asm.EmitAdd(addrReg, RegType.rSP);
-        _asm.EmitStoreInd(targetReg, addrReg, OpCodeSize.S64);
+        _asm.EmitStoreInd(lReg, addrReg, OpCodeSize.S64);
 
         _funcCtx.ExpressionSaveDepth++;
         GenerateExpression(binop.Right, rReg);
@@ -80,12 +84,37 @@ public partial class ExpressionGenerator
 
         _asm.EmitLdi(addrReg, (ulong)saveOffset);
         _asm.EmitAdd(addrReg, RegType.rSP);
-        _asm.EmitLoadInd(targetReg, addrReg, OpCodeSize.S64);
+        _asm.EmitLoadInd(lReg, addrReg, OpCodeSize.S64);
 
-        ApplyPointerArithmeticScaling(binop.Operator, binop.Left, binop.Right, targetReg, rReg);
-        EmitBinaryOperation(binop.Operator, targetReg, rReg);
+        ApplyPointerArithmeticScaling(binop.Operator, binop.Left, binop.Right, lReg, rReg);
+        EmitBinaryOperation(binop.Operator, lReg, rReg);
+
+        if (lReg != targetReg) _asm.EmitMov(targetReg, lReg);
     }
-
+    /// <summary>
+    /// Консервативная проверка: может ли выражение прочитать значение из указанного регистра.
+    /// Используется для предотвращения затирания home-регистра переменной, которая ещё нужна.
+    /// </summary>
+    private bool MayAliasWithExpr(RegType reg, ASTNode? expr)
+    {
+        return expr switch
+        {
+            null => false,
+            IdentifierNode id => _varAccessor.TryGetRegister(id.Name, out var r) && r == reg,
+            BinaryOpNode b => MayAliasWithExpr(reg, b.Left) || MayAliasWithExpr(reg, b.Right),
+            UnaryOpNode u => MayAliasWithExpr(reg, u.Operand),
+            CastNode c => MayAliasWithExpr(reg, c.Operand),
+            ArrayAccessNode aa => MayAliasWithExpr(reg, aa.Index)
+                                || (_varAccessor.TryGetRegister(aa.ArrayName, out var ar) && ar == reg),
+            MemberAccessNode ma => MayAliasWithExpr(reg, ma.Object),
+            DereferenceNode d => MayAliasWithExpr(reg, d.Operand),
+            AddressOfNode ao => MayAliasWithExpr(reg, ao.Operand),
+            IncrementNode inc => MayAliasWithExpr(reg, inc.Target),
+            AssignmentNode => true,// Присваивание внутри выражения может читать/писать что угодно
+            FunctionCallNode or IndirectCallNode => true,// Вызов может читать любые регистры (через сохранение/восстановление)
+            _ => false,
+        };
+    }
     private void GenerateComparisonAsValue(BinaryOpNode binop, RegType targetReg)
     {
         GenerateExpression(binop.Left, RegType.r0);

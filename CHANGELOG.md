@@ -10,6 +10,15 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## - 2026-11-19
+
+### Added
+- Added a brief summary of tests to the metrics section
+
+### Changed
+- Reworked the register allocation algorithm
+- Removed redundant `mov` emissions in the code generator
+
 ## [0.16.3] - 2026-11-18
 
 ### Added

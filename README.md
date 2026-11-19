@@ -294,6 +294,12 @@ BenchmarkDotNet artifacts are in `BenchmarkDotNet.Artifacts/`. The IDE profile `
 Additional examples (full cycle with diagnostics, step-by-step debugging, custom optimization, Pause/Resume) — in the READMEs of the corresponding modules (`VmApplication`, `VmApplication.Extensions`, `CLI`).
 
 ## Metrics and quality
+
+- **Test suite (xUnit):** **489 automated tests** across two projects (`Nantuc.Tests` — 455, `Nantuc.CLI.Tests` — 36), running in ~3 seconds:
+  - **Compiler (276):** `const`-correctness (61), operators (49), casts (46), pointers (27), control flow, function pointers, structs, arrays, and overflow checks.
+  - **Diagnostics (90):** error message providers (50), AOT-safe diagnostic data (20), exception handling, and compiler error checks.
+  - **VM & Host (47):** memory isolation and security (`VmSecurityTests`), unsafe opcode guards (`UnsafeOpCodeTests`), `HALT/WAKE` lifecycle, and language definition drift checks.
+  - **Utils & CLI (76):** virtual file system (`RamFileServiceTests`, 40) and end-to-end CLI commands (36).
 - Full metrics table — [docs/METRICS.md](docs/METRICS.md).
 
 **In progress / plans:**

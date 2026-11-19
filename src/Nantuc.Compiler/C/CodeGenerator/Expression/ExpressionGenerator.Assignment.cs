@@ -94,7 +94,7 @@ public partial class ExpressionGenerator
 
         // x = value
         GenerateExpression(assign.Value, targetReg);
-        _varAccessor.StoreFromRegister(assign.Name, targetReg);
+        _varAccessor.StoreFromRegister(assign.Name, targetReg, alreadyCanonical: true);
 
         OpCodeSize resSize = OpCodeSize.S64;
         bool resSigned = false;

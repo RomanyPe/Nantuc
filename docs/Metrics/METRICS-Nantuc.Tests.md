@@ -6,13 +6,13 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 149 |
-| C# files | 24 |
-| Total lines | 3045 |
-| C# classes | 33 |
+| Members analysed | 150 |
+| C# files | 25 |
+| Total lines | 3115 |
+| C# classes | 34 |
 | C# records | 0 |
 | C# enums | 0 |
-| Analysed LOC | 828 |
+| Analysed LOC | 829 |
 | Cognitive avg | 0.2 |
 | Cognitive median | 0 |
 | Cognitive p90 | 1 |
@@ -21,7 +21,7 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 2 |
 | Cyclomatic max | 5 |
-| MI avg | 75.8 |
+| MI avg | 75.9 |
 | MI minimum | 43.0 |
 
 Highest risk member: `HaltWakeTests.HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode` (cognitive 5, cyclomatic 5) — `HaltWakeTests.cs:98`
@@ -31,14 +31,14 @@ Lowest maintainability: `HaltWakeTests.HALT_SetsSleepingFlagAndDoesNotAdvanceFur
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 149 |
+| Light | 0-5 | 150 |
 | Moderate | 6-10 | 0 |
 | High | 11-20 | 0 |
 | Severe | 21+ | 0 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 149 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 150 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |

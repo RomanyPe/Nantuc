@@ -12,6 +12,7 @@ namespace Nantuc.Compiler.C.CodeGenerator.FunctionCtx;
 public class FunctionContext
 {
     public Dictionary<string, VarLocation> VarMap { get; private set; } = null!;
+    public RegisterAllocationResult Allocation { get; private set; } = null!;
     public int TotalLocalSize { get; private set; }
     public string FunctionName { get; private set; } = null!;
     public string EpilogueLabel { get; private set; } = null!;
@@ -37,7 +38,7 @@ public class FunctionContext
         var allVars = CollectVariables(func, localVarNodes);
         var allVarNodes = BuildVarNodeMap(func, localVarNodes);
         var allocation = RegisterAllocator.AllocateRegisters(func, allVarNodes, structTable);
-
+        ctx.Allocation = allocation;  // <-- добавить эту строку
         ctx.VarMap = BuildVarMap(allVars, allocation, structTable, errorReporter, out int totalLocalSize);
         ctx.TotalLocalSize = totalLocalSize;
 

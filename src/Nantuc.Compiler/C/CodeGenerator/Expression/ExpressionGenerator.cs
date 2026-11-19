@@ -39,6 +39,20 @@ public partial class ExpressionGenerator(AssemblerBase asm,
     private readonly Func<string> _getLabel = getLabel;
     private readonly VariableAccessor _varAccessor = varAccessor;
 
+    public void GenerateExpression(ASTNode expr, RegType targetReg, bool mayClobberTarget)
+    {
+        if (mayClobberTarget && expr is IdentifierNode id
+            && _varAccessor.TryGetRegister(id.Name, out var idReg)
+            && _funcCtx.Allocation.DeadAfterUse.Contains(id)
+            && idReg != targetReg)
+        {
+            // Переменная мертва после этого чтения — можно затереть её home-регистр
+            // и использовать его как аккумулятор
+            _asm.EmitMov(targetReg, idReg);
+            return;
+        }
+        GenerateExpression(expr, targetReg);
+    }
     public void GenerateExpression(ASTNode expr)
     {
         switch (expr)

@@ -38,6 +38,7 @@ public static class SaveDepthEstimator
         ReturnNode r => Depth(r.Value),
         VariableNode v => Max(Depth(v.Initializer), MaxDepth(v.ArrayInitializer)),
         BlockNode blk => MaxDepth(blk.Statements),
+        CastNode c => Depth(c.Operand),
 
         _ => 0,
     };
@@ -51,11 +52,25 @@ public static class SaveDepthEstimator
 
     private static int AssignmentDepth(AssignmentNode a)
     {
-        if (a.IndexExpr != null)
-            return Max(Depth(a.Value), SaveSlot + Depth(a.IndexExpr));
+        bool compound = a.CompoundOp != null && a.CompoundOp != "=";
 
-        bool savesAddress = a.LValue is MemberAccessNode or DereferenceNode;
-        return Depth(a.Value) + (savesAddress ? SaveSlot : 0);
+        // arr[i] = v / arr[i] op= v
+        if (a.IndexExpr != null)
+            return compound
+                ? 2 + Max(Depth(a.IndexExpr), Depth(a.Value))
+                : Max(Depth(a.Value), SaveSlot + Depth(a.IndexExpr));
+
+        // *p = v / o.f = v / *p op= v / o.f op= v
+        if (a.LValue is MemberAccessNode or DereferenceNode)
+            return compound
+                ? 2 + Max(Depth(a.LValue), Depth(a.Value))
+                : Max(Depth(a.Value), SaveSlot + Depth(a.LValue));
+
+        // x op= v — slow path держит 1 слот при вычислении rvalue
+        if (compound) return SaveSlot + Depth(a.Value);
+
+        // x = v — без слотов
+        return Depth(a.Value);
     }
 
     private static int FunctionCallDepth(FunctionCallNode fc)

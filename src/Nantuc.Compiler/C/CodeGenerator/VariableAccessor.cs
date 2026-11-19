@@ -1,7 +1,5 @@
 ﻿using Nantuc.Common;
-using Nantuc.Compiler.ASM;
 using Nantuc.Compiler.ASM.Base;
-using Nantuc.Compiler.ASM.IR;
 using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Compiler.C.CodeGenerator.FunctionCtx;
 using Nantuc.Diagnostics;
@@ -64,17 +62,15 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         return false;
     }
 
-    public void StoreFromRegister(string varName, RegType sourceReg)
+    public void StoreFromRegister(string varName, RegType sourceReg, bool alreadyCanonical = false)
     {
         if (TryGetRegister(varName, out var locReg))
         {
             if (locReg != sourceReg) _asm.EmitMov(locReg, sourceReg);
-            // NEW: home-регистр должен быть каноническим
-            if (_funcCtx.VarMap.TryGetValue(varName, out var loch))
+            if (!alreadyCanonical && _funcCtx.VarMap.TryGetValue(varName, out var loch))
                 _asm.EmitCastToType(locReg, loch.TypeSize, loch.IsSigned);
             return;
         }
-
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
         {
             _asm.EmitLdi(CodeGenUtils.ADDR_SCRATCH_REG_EN, (ulong)loc.StackOffset);
@@ -82,11 +78,9 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             _asm.EmitStoreInd(sourceReg, CodeGenUtils.ADDR_SCRATCH_REG_EN, loc.TypeSize);
             return;
         }
-
         if (_globalMem.Contains(varName))
         {
             var gInfo = _globalMem.GetInfo(varName)!.Value;
-            // NEW: указатель всегда 8 байт
             var size = gInfo.IsPointer
                 ? OpCodeSize.S64
                 : CodeGenUtils.GetSizeForType(gInfo.Type, _asm.ErrorReporter);
@@ -94,9 +88,10 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
             _asm.EmitStore(sourceReg, size, label);
             return;
         }
-
         _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(varName));
     }
+
+
     public void LoadAddressToRegister(string varName, RegType targetReg)
     {
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc))

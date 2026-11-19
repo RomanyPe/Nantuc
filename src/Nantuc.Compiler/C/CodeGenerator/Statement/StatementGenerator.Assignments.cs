@@ -60,41 +60,41 @@ public partial class StatementGenerator
         _asm.EmitStoreInd(RegType.r1, RegType.r0, size);
     }
 
-    /// <summary>x = &lt;простое значение&gt; где x — в регистре.</summary>
+    /// <summary>x = <простое значение> где x — в регистре. Пропускаем коалесцированные копии.</summary>
     private bool TryGenerateRegisterFastPath(AssignmentNode assign)
     {
         if (assign.LValue != null) return false;
         if (!_funcCtx.VarMap.TryGetValue(assign.Name, out var regLoc) || !regLoc.IsRegister) return false;
-        if (assign.Value is not (NumberNode or IdentifierNode)) return false;
 
+        // Coalescing: x = y где оба в одном регистре → ничего не эмитим
+        if (_funcCtx.Allocation.ElideCopies.Contains(assign)) return true;
+
+        if (assign.Value is not (NumberNode or IdentifierNode)) return false;
         _exprGen.GenerateExpression(assign.Value, regLoc.Register);
         _asm.EmitCastToType(regLoc.Register, regLoc.TypeSize, regLoc.IsSigned);
         return true;
     }
-
-    /// <summary>x = x &lt;op&gt; expr где x — в регистре и op ∈ {+, -, *, /}.</summary>
+    /// <summary>x = x <op> expr где x — в регистре.</summary>
     private bool TryGenerateRegisterBinaryFastPath(AssignmentNode assign)
     {
         if (!_funcCtx.VarMap.TryGetValue(assign.Name, out var loc) || !loc.IsRegister) return false;
 
-        if (assign.Value is not BinaryOpNode binop
-            || binop.Left is not IdentifierNode id
-            || id.Name != assign.Name
-            || binop.Operator is not ("+" or "-" or "*" or "/"))
+        // Только x = x op expr — читаем x до записи, безопасно
+        if (assign.Value is BinaryOpNode binop
+            && binop.Left is IdentifierNode id
+            && id.Name == assign.Name
+            && binop.Operator is ("+" or "-" or "*" or "/"))
         {
-            _exprGen.GenerateExpression(assign.Value, loc.Register);
-            _asm.EmitCastToType(loc.Register, loc.TypeSize, loc.IsSigned);
+            RegType xReg = loc.Register;
+            RegType temp = (xReg != RegType.r0) ? RegType.r0 : RegType.r1;
+            _exprGen.GenerateExpression(binop.Right, temp);
+            _exprGen.EmitBinaryOperation(binop.Operator, xReg, temp);
+            _asm.EmitCastToType(xReg, loc.TypeSize, loc.IsSigned);
             return true;
         }
 
-        RegType xReg = loc.Register;
-        RegType temp = (xReg != RegType.r0) ? RegType.r0 : RegType.r1;
-        _exprGen.GenerateExpression(binop.Right, temp);
-        _exprGen.EmitBinaryOperation(binop.Operator, xReg, temp);
-        _asm.EmitCastToType(xReg, loc.TypeSize, loc.IsSigned);
-        return true;
+        return false;
     }
-
     private void GenerateSimpleAssignment(AssignmentNode assign)
     {
         _exprGen.GenerateExpression(assign.Value);
