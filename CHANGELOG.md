@@ -10,7 +10,7 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
-## - 2026-11-19
+## [0.17.0] - 2026-11-19
 
 ### Added
 - Added a brief summary of tests to the metrics section
