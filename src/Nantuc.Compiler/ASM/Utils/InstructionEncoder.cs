@@ -164,9 +164,9 @@ public static class InstructionEncoder
 
     #region Декодирование (для отладки)
 
-    private static string R1(uint i) => GetReg1(i).RegName();
-    private static string R2(uint i) => GetReg2(i).RegName();
-    private static string Size(uint i) => GetDataSizeCode(i).SizeName();
+    private static string R1(uint i) => GetReg1(i).AsText;
+    private static string R2(uint i) => GetReg2(i).AsText;
+    private static string Size(uint i) => GetDataSizeCode(i).AsText;
 
     /// <summary>
     /// Декодирует инструкцию в читаемый вид (для отладки)
@@ -174,7 +174,7 @@ public static class InstructionEncoder
     public static string Decode(uint instruction)
     {
         var opcode = GetOpCode(instruction);
-        var op = opcode.OpName();
+        var op = opcode.AsText;
 
         return opcode switch
         {

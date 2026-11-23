@@ -51,6 +51,10 @@ public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<
     public static DevicePortSize B128 => new(7);
     /// <summary>Размер порта 256 байт (2^8).</summary>
     public static DevicePortSize B256 => new(8);
+    /// <summary>Размер порта 512 байт (2^9).</summary>
+    public static DevicePortSize B512 => new(9);
+    /// <summary>Размер порта 1 килобайт (2^10).</summary>
+    public static DevicePortSize KB1 => new(10);
 
     /// <summary>
     /// Определяет равенство двух <see cref="DevicePortSize"/> по полю <see cref="Log2"/>.

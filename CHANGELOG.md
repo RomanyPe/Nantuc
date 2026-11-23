@@ -10,6 +10,22 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.20.0] - 2026-11-23
+
+### Added
+- `IdStateExtension`: added `string AsText` extension property for `IdState`, consistent with other `enum` types
+
+### Changed
+- **BREAKING:** `OpCodeExtension.cs`: replaced `OpName()` method with `AsText` property
+- **BREAKING:** `OpCodeSizeExtension.cs`: replaced `SizeName()` method with `AsText` property
+- **BREAKING:** `RegTypeExtension.cs`: replaced `RegName()` method with `AsText` property
+- **BREAKING:** `BiosStatusExtension.cs`: replaced `StatusName()` method with `AsText` property
+- **BREAKING:** moved `ProcessorSnapshot` to `Nantuc.Common`
+- minor non-functional code cleanups
+
+### Removed
+- **BREAKING:** removed unused `AlignUpArithmetic` method from `AlignmentExtensions` (dead code)
+
 ## [0.19.0] - 2026-11-23
 
 ### Added

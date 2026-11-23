@@ -50,8 +50,7 @@ public readonly struct OptimizationId : IEquatable<OptimizationId>, IComparable<
     /// <summary>
     /// Non-throwing counterpart of the constructor, for parsing user input.
     /// </summary>
-    public static bool TryParse(string? value,
-                               [NotNullWhen(true)] out OptimizationId id)
+    public static bool TryParse(string? value, out OptimizationId id)
     {
         if (IsValidId(value))
         {

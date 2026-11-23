@@ -372,7 +372,7 @@ var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);
    Файл: `Program.cs`, строки после `deviceCtx.Run()`:
    ```csharp
    var regs = deviceCtx.GetRegistersSnapshot();
-   Console.WriteLine($"{RegType.r0.RegName()}: {regs[RegType.r0]}");
+   Console.WriteLine($"{RegType.r0.AsText}: {regs[RegType.r0]}");
    ```
    `source1` возвращает `int` (`return s; // 10`), но `Run()` возвращает `ProcessorFault`, а не код возврата. Фактический результат — в `r0`, но `Program.cs` его только печатает, не сверяет. Тест «проходит» даже при `r0 != 10`.
    Фикс: `if (regs[RegType.r0] != 10) { Console.Error.WriteLine($"FAIRED: r0={regs[RegType.r0]} (expected 10)"); return; }` — например, сразу после `Run()`, до дампа.

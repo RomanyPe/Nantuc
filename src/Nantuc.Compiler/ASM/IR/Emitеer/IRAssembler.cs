@@ -48,7 +48,7 @@ public partial class IRAssembler(ulong baseAddress, ErrorReporter ErrorReporter)
         if (!InstructionDecoder.HasNeed64IntData(op))
         {
             ErrorReporter.Throw(ErrorCode.Asm_InvalidInstruction, 
-                DiagnosticData.Of(op.OpName()));
+                DiagnosticData.Of(op.AsText));
         }
         _items.Add(new AsmInstruction(instruction, data));
     }

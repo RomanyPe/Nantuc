@@ -112,50 +112,6 @@ public static class AlignmentExtensions
             ThrowIfInvalidAlignment(alignment);
             return value & ~(alignment - T.One);
         }
-
-        /// <summary>
-        /// Выравнивает значение вверх до ближайшего числа, кратного
-        /// <paramref name="alignment"/>, арифметическим способом
-        /// (через остаток от деления).
-        /// </summary>
-        /// <param name="alignment">
-        /// Шаг выравнивания. Должен быть строго больше нуля.
-        /// </param>
-        /// <returns>
-        /// Наименьшее число, не меньшее <paramref name="value"/>, кратное
-        /// <paramref name="alignment"/>. Если <paramref name="value"/>
-        /// уже выровнено, возвращается оно само.
-        /// </returns>
-        /// <remarks>
-        /// <para>
-        /// В отличие от <see cref="AlignUp"/>, не требует, чтобы
-        /// <paramref name="alignment"/> был степенью двойки, и проверяет
-        /// аргумент <b>во всех конфигурациях сборки</b>, а не только в DEBUG.
-        /// </para>
-        /// <para>
-        /// Может быть медленнее <see cref="AlignUp"/> из-за операции
-        /// деления; выбирайте этот метод, когда <paramref name="alignment"/>
-        /// не является степенью двойки или когда нужна гарантированная
-        /// проверка аргумента.
-        /// </para>
-        /// <para>
-        /// <b>Переполнение:</b> для значений, близких к <c>T.MaxValue</c>,
-        /// сложение <c>value + (alignment - remainder)</c> может переполниться;
-        /// поведение — как у обычного сложения соответствующего типа.
-        /// </para>
-        /// </remarks>
-        /// <exception cref="ArgumentOutOfRangeException">
-        /// Если <paramref name="alignment"/> меньше либо равно нулю.
-        /// </exception>
-        public T AlignUpArithmetic(T alignment)
-        {
-            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(alignment, T.Zero);
-
-            T remainder = value % alignment;
-            if (remainder == T.Zero)
-                return value;
-            return value + (alignment - remainder);
-        }
     }
 
     /// <summary>

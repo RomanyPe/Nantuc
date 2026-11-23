@@ -82,7 +82,7 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
         StringBuilder sb = new(64);
         for (RegType i = 0; i <= RegTypeExtension.LastValue; i++)
         {
-            sb.Append(i.RegName())
+            sb.Append(i.AsText)
                 .Append(':')
                 .Append(' ')
                 .Append(this[i]);

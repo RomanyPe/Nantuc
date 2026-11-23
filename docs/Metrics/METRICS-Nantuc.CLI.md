@@ -8,24 +8,24 @@ Path: `src/Nantuc.CLI/Nantuc.CLI.csproj`
 | --- | ---: |
 | Members analysed | 57 |
 | C# files | 14 |
-| Total lines | 1012 |
+| Total lines | 1014 |
 | C# classes | 11 |
 | C# records | 0 |
 | C# enums | 1 |
-| Analysed LOC | 419 |
+| Analysed LOC | 421 |
 | Cognitive avg | 1.6 |
 | Cognitive median | 1 |
 | Cognitive p90 | 4 |
 | Cognitive max | 11 |
 | Cyclomatic avg | 3.8 |
 | Cyclomatic median | 3 |
-| Cyclomatic p90 | 7 |
+| Cyclomatic p90 | 8 |
 | Cyclomatic max | 27 |
-| MI avg | 70.9 |
+| MI avg | 70.8 |
 | MI minimum | 41.5 |
 
 Highest risk member: `LibCommand.Add` (cognitive 11, cyclomatic 8) — `LibCommand.cs:21`
-Lowest maintainability: `RunCommandHelpers.TryParseRamSize` (MI 41.5) — `RunCommandHelpers.cs:69`
+Lowest maintainability: `RunCommandHelpers.TryParseRamSize` (MI 41.5) — `RunCommandHelpers.cs:71`
 
 ## Risk bands
 

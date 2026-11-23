@@ -33,6 +33,8 @@ internal static class RunCommandHelpers
             case "64B": size = DevicePortSize.B64; return true;
             case "128B": size = DevicePortSize.B128; return true;
             case "256B": size = DevicePortSize.B256; return true;
+            case "512B": size = DevicePortSize.B512; return true;
+            case "1KB": size = DevicePortSize.KB1; return true;
 
             default:
                 size = default;

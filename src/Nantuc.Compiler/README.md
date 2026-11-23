@@ -392,7 +392,7 @@ Notes on organization:
 - `Encode`/`EncodeR`/`EncodeI`/`EncodeU`/`EncodeJ` — formats.
 - Specialized: `EncodeLDI`/`EncodeLOAD`/`EncodeSTORE`/`EncodeLOAD_IND`/`EncodeSTORE_IND`/`EncodeCALL`/`EncodeRET`/`EncodeHALT`/`EncodeWAKE`/`EncodeEND`/`EncodeNOP`.
 - **`Decode(uint)`** — covers all opcodes, including `LOAD_UNSAFE`/`STORE_UNSAFE`/`LOAD_IND_UNSAFE`/`STORE_IND_UNSAFE`/`CMP`/`TEST`/`WAKE_INT`/`CASTZ`/`CASTS` (`CASTZ.S8 r0`, `CASTS.S32 r1`).
-- Extension blocks: `OpCode.ToUint()`/`OpName()`, `RegType.ToUint()`/`RegName()`, `OpCodeSize.ToUint()`/`SizeName()`.
+- Extension blocks: `OpCode.ToUint()`/`AsText`, `RegType.ToUint()`/`AsText`, `OpCodeSize.ToUint()`/`AsText`.
 - Extension block on `BinaryWriter`: `WriteInstruction(uint)`, `Align8()`, `WriteInstructionWithData64(uint, ulong)`. **Not used in `Assembler`** (it has its own methods), but available for custom backends.
 
 **`AsmExtensions`** (`Nantuc.Compiler.ASM.Utils`) — extension block on `AssemblerBase`. The code generator works only through these methods:
@@ -691,7 +691,7 @@ CodeGen_IncrementOfConst  = 1317,   // "Cannot increment/decrement const '{0}'"
 | `System.Collections.Frozen` | ✅ | `FrozenSet` + **`FrozenDictionary`** (`_regMap`/`_opMap`). |
 | `[GeneratedRegex]` | ✅ | `AssemblerParser.GetRexExtensionAsm()` — the only regex in the hot path. |
 | `Regex` without `Compiled` | ✅ | `AsmLanguageDefinition._mnemonicsRegex`/`regex`, `WordRegexBuilder.Build` — without `Compiled`. |
-| `Enum.ToString()` | ⚠️ | **Removed from diagnostics** — replaced by `TokenTypeExtension.AsText` / `OpCode.OpName()`. |
+| `Enum.ToString()` | ⚠️ | **Removed from diagnostics** — replaced by `TokenTypeExtension.AsText` / `OpCode.AsText`. |
 | `DiagnosticData` | ✅ | Ready string on creation, no boxing and no reflection. |
 | `AsmInstruction(uint, ulong, bool)` | ⚠️ | `TargetLabel = absoluteTarget.ToString()` — fallback, dead branch (item 7). |
 | Trimming | ⚠️ | `using System.Security.Cryptography;` in one of the `C/AST/` files — not used, but sloppy. |
@@ -822,7 +822,7 @@ public readonly record struct DiagnosticData
 What this gives for AOT:
 - No boxing of `int`/`char`/enum.
 - No virtual `Object.ToString()` — the string is already ready.
-- `Enum.ToString()` removed from diagnostics (`TokenTypeExtension.AsText` / `OpCode.OpName()`).
+- `Enum.ToString()` removed from diagnostics (`TokenTypeExtension.AsText` / `OpCode.AsText`).
 - `Type.Name` is not passed to diagnostics.
 
 **Result:** `DiagnosticData` is fully AOT-safe.

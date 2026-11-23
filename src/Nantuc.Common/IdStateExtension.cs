@@ -83,4 +83,18 @@ public static class IdStateExtension
             _ => IdState.Unknown,
         };
     }
+
+    extension(IdState s)
+    {
+        public string AsText => s switch
+        {
+            IdState.Valid => nameof(IdState.Valid),
+            IdState.NotAssigned => nameof(IdState.NotAssigned),
+            IdState.OutOfRange => nameof(IdState.OutOfRange),
+            IdState.NoFreeSlot => nameof(IdState.NoFreeSlot),
+            IdState.Rejected => nameof(IdState.Rejected),
+            IdState.Unknown => nameof(IdState.Unknown),
+            _ => ((int)s).ToString(),
+        };
+    }
 }

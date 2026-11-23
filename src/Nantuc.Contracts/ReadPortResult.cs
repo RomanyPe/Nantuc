@@ -8,3 +8,4 @@ namespace Nantuc.Contracts;
 /// <param name="Data">данные</param>
 /// <param name="Status">статус ошибки</param>
 public readonly record struct ReadPortResult(byte Data, BiosStatus Status);
+

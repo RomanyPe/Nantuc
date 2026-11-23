@@ -1,21 +1,20 @@
-﻿using Nantuc.Common;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
-namespace Nantuc.Contracts;
+namespace Nantuc.Common;
 
 /// <summary>
 /// Снапшот чтения состояния процессора
 /// </summary>
 public readonly struct ProcessorSnapshot
 {
-    private const int RegisterCount = 32;
+    private const int RegisterCount = RegTypeExtension.LastValueInt + 1;
 
     [InlineArray(RegisterCount)]
     private struct Arr { public ulong _el0; }
 
     private readonly Arr _arr;
 
-    public ProcessorSnapshot(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)
+    public ProcessorSnapshot(ReadOnlySpan<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)
     {
         _arr = GetArr(span);
         IsRunning = isRunning;
@@ -25,7 +24,7 @@ public readonly struct ProcessorSnapshot
         CurrentBiosStatus = BiosStatus.Success;
     }
 
-    public ProcessorSnapshot(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction, BiosStatus currentBiosStatus)
+    public ProcessorSnapshot(ReadOnlySpan<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction, BiosStatus currentBiosStatus)
     {
         _arr = GetArr(span);
         IsRunning = isRunning;
@@ -79,8 +78,7 @@ public readonly struct ProcessorSnapshot
         }
 
         var arr = new Arr();
-        for (int i = 0; i < RegisterCount; i++)
-            arr[i] = span[i];
+        span.CopyTo(arr);
         return arr;
     }
 }

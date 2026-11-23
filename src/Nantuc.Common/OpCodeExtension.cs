@@ -9,7 +9,7 @@ public static class OpCodeExtension
     {
         public uint ToUint() => (uint)op;
 
-        public string OpName() => op switch
+        public string AsText => op switch
         {
             OpCode.NOP => nameof(OpCode.NOP),
             OpCode.END => nameof(OpCode.END),

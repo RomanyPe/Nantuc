@@ -372,7 +372,7 @@ In descending order of severity. References to files and lines.
    File: `Program.cs`, lines after `deviceCtx.Run()`:
    ```csharp
    var regs = deviceCtx.GetRegistersSnapshot();
-   Console.WriteLine($"{RegType.r0.RegName()}: {regs[RegType.r0]}");
+   Console.WriteLine($"{RegType.r0.AsText}: {regs[RegType.r0]}");
    ```
    `source1` returns an `int` (`return s; // 10`), but `Run()` returns a `ProcessorFault`, not the return code. The actual result is in `r0`, but `Program.cs` only prints it, does not compare it. The test "passes" even if `r0 != 10`.
    Fix: `if (regs[RegType.r0] != 10) { Console.Error.WriteLine($"FAIRED: r0={regs[RegType.r0]} (expected 10)"); return; }` — e.g., immediately after `Run()`, before the dump.

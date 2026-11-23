@@ -21,7 +21,7 @@
 
 Ключевые роли модуля:
 - Шина портов: `IPortBus`, `IPortUse`, `IPortController`, `ReadPortResult`.
-- Процессор: `ProcessorSnapshot`, `IProcessorPolicy` (с кэшированным `Default`).
+- Процессор: `IProcessorPolicy` (с кэшированным `Default`).
 - Оптимизации: `OptimizationId`, `OptimizationLogEntry`, `IReadOnlyLogOptimization`.
 - Результаты замеров: `TimeSimulationResult`.
 - Устройства: `DeviceInfo`, `IReadOnlyNativeBuffer`.
@@ -41,7 +41,6 @@ Nantuc.Contracts/
 ├── IPortController.cs                # interface IPortController : IPortUse, IDisposable
 ├── IPortUse.cs                       # interface IPortUse
 ├── IProcessorPolicy.cs          # interface IProcessorPolicy + nested DefaultProcessorFaultPolicy
-├── ProcessorSnapshot.cs              # readonly struct ProcessorSnapshot, [InlineArray(32)]
 ├── IReadOnlyLogOptimization.cs       # interface IReadOnlyLogOptimization
 ├── TimeSimulationResult.cs           # readonly record struct TimeSimulationResult
 ├── OptimizationId.cs                 # readonly struct OptimizationId
@@ -53,10 +52,6 @@ Nantuc.Contracts/
 - Файлы `OptimizationId.cs` и `OptimizationLogEntry.cs` — имя файла соответствует имени типа (ранее было `TypeOptimization.cs` с типом `OptimizationId` — теперь переименовано).
 - `IPortController.cs` — однострочный, но с `///` и `<see>`-ссылками на `IPortUse`/`IDisposable`.
 - `IProcessorPolicy` содержит `private class DefaultProcessorFaultPolicy` — реализация политики живёт внутри интерфейса. Это нестандартно для контрактов, но осознанно: «политика по умолчанию» — часть контракта.
-- `ProcessorSnapshot` — `readonly struct` с `[InlineArray(RegisterCount)] (RegisterCount = 32)` для хранения копии регистров. Два конструктора:
-    - `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)` — `CurrentBiosStatus = BiosStatus.Success`;
-    - `(..., BiosStatus currentBiosStatus)` — то же плюс явный статус.
-    - `GetArr(ReadOnlySpan<ulong>)` копирует ровно RegisterCount = 32 элементов и бросает `ArgumentException` при `span.Length` ≠ 32 (раньше — `IndexOutOfRangeException` при > 32 и молчаливые нули при < 32).
 ## API
 
 ### Общая картина
@@ -70,7 +65,6 @@ Nantuc.Contracts/
 | `IPortUse` | `interface` | `ReadPort(ulong)`, `WritePort(ulong, byte)`, `WakeProcessor()` |
 | `IPortController` | `interface : IPortUse, IDisposable` | Композиция «устройство на шине + освобождение» |
 | `ReadPortResult` | `readonly record struct` | `(byte Data, BiosStatus Status = Success)` |
-| `ProcessorSnapshot` | `readonly struct` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)`; `[InlineArray(RegisterCount)]`-хранилище (32); `RawInstruction`, `DataByInstruction`, `CurrentBiosStatus`, `DataFault`; декодированные из `RawInstruction`: `OpCode`, `FirstRegister`, `SecondRegister`, `DataSizeCode`|
 | `IProcessorPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)`; `Default` — кэшированный singleton |
 | `IReadOnlyLogOptimization` | `interface` | `Id`, `GetLogs()` |
 | `OptimizationId` | `readonly struct` | Валидированный идентификатор `[a-z0-9.-]{1,128}` |
@@ -90,23 +84,6 @@ Nantuc.Contracts/
 
 ### Процессор
 
-`ProcessorSnapshot` — `readonly struct` с `[InlineArray(RegisterCount)] (RegisterCount = 32)`-хранилищем регистров. Два конструктора:
-- `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)`— `CurrentBiosStatus` = `BiosStatus.Success`;
-- `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction, BiosStatus currentBiosStatus)`.
-`GetArr(ReadOnlySpan<ulong>)` копирует ровно `RegisterCount` элементов; при `span.Length` ≠ 32 — `ArgumentException (см. /// <exception> в коде)`. Ранее при > 32 был `IndexOutOfRangeException`, при < 32 — молчаливые нули в хвосте массива.
-
-Свойства:
-
-- `IsRunning`, `IsSleeping `— режим процессора на момент снимка.
-- `GetRegister(RegType)` — значение регистра; индексация без проверки диапазона, поведение для невалидного RegType не задокументировано (см. Что исправить, п. 9).
-- `RawInstruction `— сырая инструкция (32 бита), `DataByInstruction` — 64-битные данные, пришедшие вместе с инструкцией.
-- `CurrentBiosStatus `— BiosStatus на момент снимка (в упрощённом конструкторе — `Success`).
-- `DataFault `— `DataByInstruction`, если `CurrentBiosStatus != Success`, иначе 0.
-
-Декодированные из `RawInstruction` через `InstructionDecoder`: `OpCode`, `FirstRegister`, `SecondRegister`, `DataSizeCode`.
-
-Записи в `ProcessorSnapshot` нет — она в `Kernel`; здесь только чтение снимка.
-
 **`IProcessorPolicy`** — политика остановки процессора при `ProcessorFault`:
 
 ```csharp
@@ -125,7 +102,6 @@ public interface IProcessorPolicy
     bool AllowUnsafeOpCodes => false;
 
     bool ShouldContinue(in ProcessorFault fault);
-}
 }
 ```
 
@@ -242,7 +218,6 @@ foreach (OptimizationLogEntry e in entries)
 Средняя. Контракты — это то, что видит автор расширений и пользователь `VmApplication`, но не то, что пишет автор программы на MiniC.
 
 - Автор расширений (кастомное устройство, дизассемблер, отладчик) реализует `IPortUse`/`IPortController`/`IReadOnlyNativeBuffer` — и это его основной вход в платформу.
-- Пользователь `VmApplication`, который хочет читать состояние процессора, использует `ProcessorSnapshot` и `IProcessorPolicy`.
 - Автор компилятора оптимизаций работает с `OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`.
 - Автор программы на MiniC/NANASM этот модуль не импортирует — он работает через `VmApplication`.
 
@@ -267,7 +242,6 @@ foreach (OptimizationLogEntry e in entries)
 | Аспект | Статус | Комментарий |
 |---|---|---|
 | Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — `interface`/`readonly struct`. Собирается под `browser-wasm` без правок csproj. |
-| `stackalloc` / `InlineArray` | ✅ | `ProcessorSnapshot` использует `[InlineArray(RegisterCount)] (const int RegisterCount = 32)` — compile-time, AOT-friendly. `stackalloc` в `CurrentProcessorSnapshot` (в `Kernel`) — 32 × 8 байт. Валидация длины (`ArgumentException` из `GetArr`) — `managed`, без `unsafe`. | 
 | `Interlocked` / `Volatile` | ✅ | Не используются. `IProcessorPolicy.Default` — `static`-свойство с кэшированным экземпляром (static initializer). |
 | `Regex` / trimming | ✅ | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` валидирует строку посимвольно (`foreach (char c in value)`), без `Regex`. Trimming-совместимо. |
 | AOT | ✅ | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |

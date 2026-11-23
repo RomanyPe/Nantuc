@@ -8,7 +8,7 @@ public static class OpCodeSizeExtension
     extension(OpCodeSize size)
     {
         public uint ToUint() => (uint)size;
-        public string SizeName() => size switch
+        public string AsText => size switch
         {
             OpCodeSize.S8 => nameof(OpCodeSize.S8),
             OpCodeSize.S16 => nameof(OpCodeSize.S16),

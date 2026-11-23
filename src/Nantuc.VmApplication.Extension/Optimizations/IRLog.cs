@@ -27,7 +27,7 @@ public class IRLog(OptimizationId id) : IRogOptimization
         if (item is AsmInstruction inst)
         {
             var sb = new StringBuilder();
-            string opName = inst.OpCode.OpName();
+            string opName = inst.OpCode.AsText;
             sb.Append(opName);
 
             // Суффикс размера для инструкций работы с памятью
@@ -35,7 +35,7 @@ public class IRLog(OptimizationId id) : IRogOptimization
                 or OpCode.LOAD_IND or OpCode.STORE_IND 
                 or OpCode.STORE_UNSAFE or OpCode.STORE_IND_UNSAFE
                 or OpCode.LOAD_UNSAFE or OpCode.LOAD_IND_UNSAFE)
-                sb.Append('.').Append(inst.Size.SizeName());
+                sb.Append('.').Append(inst.Size.AsText);
 
             sb.Append(' ');
 

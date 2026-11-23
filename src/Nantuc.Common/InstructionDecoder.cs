@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 namespace Nantuc.Common;
 
@@ -83,12 +82,10 @@ public static class InstructionDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static DecodeInstructionResult DecodeRawInstToEnums(uint rawInst)
     {
-        OpCode opCode = (OpCode)(rawInst & 0xFF);
-
-        RegType reg1 = (RegType)((rawInst >> 8) & 0x1F);
-        RegType reg2 = (RegType)((rawInst >> 13) & 0x1F);
-
-        OpCodeSize dataSizeCode = (OpCodeSize)((rawInst >> 18) & 0x3);
+        OpCode opCode = GetOpCode(rawInst);
+        RegType reg1 = GetReg1(rawInst);
+        RegType reg2 = GetReg2(rawInst);
+        OpCodeSize dataSizeCode = GetDataSizeCode(rawInst);
         return new DecodeInstructionResult(opCode, reg1, reg2, dataSizeCode);
     }
 

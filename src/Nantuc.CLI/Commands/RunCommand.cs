@@ -78,7 +78,7 @@ public class RunCommand(string path, PortSize portSize, DevicePortSize devicePor
         {
             wr.WriteLine($"Fault status:{RunCommandHelpers.ToDisplayString(res.Status)}, " +
                          $"fault data: {res.FaultData}, ip: {res.InstructionPointer}, " +
-                         $"opcode {res.OpCode.OpName()}");
+                         $"opcode {res.OpCode.AsText}");
         }
 
         var regs = ctx.GetRegistersSnapshot();
@@ -105,7 +105,7 @@ public class RunCommand(string path, PortSize portSize, DevicePortSize devicePor
         var sb = new StringBuilder();
         for (RegType i = 0; i < (RegType)32; i++)
         {
-            sb.Append(i.RegName()).Append(": ").Append(regs[i]).Append('\n');
+            sb.Append(i.AsText).Append(": ").Append(regs[i]).Append('\n');
         }
 
         fs.File.WriteAllText(filePath, sb.ToString());

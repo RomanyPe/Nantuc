@@ -51,8 +51,9 @@ Nantuc.Common/
 ├── OpCodeSizeExtension.cs         # static class OpCodeSizeExtension (ToUint, SizeName)
 ├── PortSize.cs                    # readonly struct PortSize
 ├── ProcessorFault.cs              # readonly record struct
+├── ProcessorSnapshot.cs           # readonly struct ProcessorSnapshot, [InlineArray(32)]
 ├── RamSize.cs                     # readonly struct RamSize
-└── RegType.cs                     # enum RegType : byte
+├── RegType.cs                     # enum RegType : byte
 └── RegTypeExtension.cs            # static class RegTypeExtension (Int, ToUint, RegName)
 ```
 
@@ -61,7 +62,10 @@ Nantuc.Common/
 - `AlignmentExtensions.cs` вынесен из `InstructionDecoder.cs`.
 - Каждый enum снабжён companion-классом `*Extension` с именующими/преобразующими extension-членами и константами `LastValue`/`LastValueInt`.
 - `PortSize` и `RamSize` симметричны: оба имеют `KB2` и `KB32`.
-- `NameDeviceToken.cs` и `LogLevel.cs` в эту партию не входят.
+- `ProcessorSnapshot` — `readonly struct` с `[InlineArray(RegisterCount)] (RegisterCount = 32)` для хранения копии регистров. Два конструктора:
+    - `(ReadOnlySpan<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)` — `CurrentBiosStatus = BiosStatus.Success`;
+    - `(..., BiosStatus currentBiosStatus)` — то же плюс явный статус.
+    - `GetArr(ReadOnlySpan<ulong>)` копирует ровно RegisterCount = 32 элементов и бросает `ArgumentException` при `span.Length` ≠ 32 (раньше — `IndexOutOfRangeException` при > 32 и молчаливые нули при < 32).
 
 ## API
 
@@ -83,11 +87,13 @@ Nantuc.Common/
 | `DecodeInstructionResult` | `readonly record struct` | Результат декодирования |
 | `InstructionDecoder` | `static class` | Разбор 32-битной инструкции + таблица immediate |
 | `AlignmentExtensions` | `static class` | `AlignUp`/`AlignDown`/`AlignUpArithmetic` для `IBinaryInteger<T>` |
-| `RegTypeExtension` | `static class` | `Int()`, `ToUint()`, `RegName()`, `LastValue` |
-| `OpCodeSizeExtension` | `static class` | `ToUint()`, `SizeName()`, `LastValue` |
-| `BiosStatusExtension` | `static class` | `StatusName()`, `LastValue` |
+| `RegTypeExtension` | `static class` | `Int()`, `ToUint()`, `AsText`, `LastValue` |
+| `OpCodeSizeExtension` | `static class` | `ToUint()`, `AsText`, `LastValue` |
+| `BiosStatusExtension` | `static class` | `AsText`, `LastValue` |
 | `IdStateExtension` | `static class` | `ToIdState` (extension-свойство на `int`) |
 | `OpCodeExtension` | `static class` | `LastValue` (последний опкод, для range-check) |
+| `ProcessorSnapshot` | `readonly struct` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)`; `[InlineArray(RegisterCount)]`-хранилище (32); `RawInstruction`, `DataByInstruction`, `CurrentBiosStatus`, `DataFault`; декодированные из `RawInstruction`: `OpCode`, `FirstRegister`, `SecondRegister`, `DataSizeCode`|
+
 
 ### Перечисления
 
@@ -219,19 +225,39 @@ public readonly record struct DecodeInstructionResult(
 
 Все публичные методы `[MethodImpl(AggressiveInlining)]`.
 
+### ProcessorSnapshot
+
+`ProcessorSnapshot` — `readonly struct` с `[InlineArray(RegisterCount)] (RegisterCount = 32)`-хранилищем регистров. Два конструктора:
+- `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)`— `CurrentBiosStatus` = `BiosStatus.Success`;
+- `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction, BiosStatus currentBiosStatus)`.
+`GetArr(ReadOnlySpan<ulong>)` копирует ровно `RegisterCount` элементов; при `span.Length` ≠ 32 — `ArgumentException (см. /// <exception> в коде)`. Ранее при > 32 был `IndexOutOfRangeException`, при < 32 — молчаливые нули в хвосте массива.
+
+Свойства:
+
+- `IsRunning`, `IsSleeping `— режим процессора на момент снимка.
+- `GetRegister(RegType)` — значение регистра; индексация без проверки диапазона, поведение для невалидного RegType не задокументировано (см. Что исправить, п. 9).
+- `RawInstruction `— сырая инструкция (32 бита), `DataByInstruction` — 64-битные данные, пришедшие вместе с инструкцией.
+- `CurrentBiosStatus `— BiosStatus на момент снимка (в упрощённом конструкторе — `Success`).
+- `DataFault `— `DataByInstruction`, если `CurrentBiosStatus != Success`, иначе 0.
+
+Декодированные из `RawInstruction` через `InstructionDecoder`: `OpCode`, `FirstRegister`, `SecondRegister`, `DataSizeCode`.
+
+Записи в `ProcessorSnapshot` нет — она в `Kernel`; здесь только чтение снимка.
+
+
 ### Extension-классы
 
 Через C# 14 `extension`-блоки добавлены удобные члены:
 
 | Класс | Extension на | Члены |
 |---|---|---|
-| `RegTypeExtension` | `RegType` | `Int()`, `ToUint()`, `RegName()`; константы `LastValueInt`, `LastValue` (`rIP`) |
-| `OpCodeSizeExtension` | `OpCodeSize` | `ToUint()`, `SizeName()`; константы `LastValueInt`, `LastValue` (`S64`) |
-| `BiosStatusExtension` | `BiosStatus` | `StatusName()`; константы `LastValueInt`, `LastValue` (`UnsafeOpCodeForbidden`) |
+| `RegTypeExtension` | `RegType` | `Int()`, `ToUint()`, `AsText`; константы `LastValueInt`, `LastValue` (`rIP`) |
+| `OpCodeSizeExtension` | `OpCodeSize` | `ToUint()`, `AsText`; константы `LastValueInt`, `LastValue` (`S64`) |
+| `BiosStatusExtension` | `BiosStatus` | `AsText`; константы `LastValueInt`, `LastValue` (`UnsafeOpCodeForbidden`) |
 | `IdStateExtension` | `int` | `ToIdState` (extension-свойство) |
 | `OpCodeExtension` | `OpCode` | `LastValue` (последний опкод) |
 
-`RegName()`/`SizeName()`/`StatusName()` возвращают `nameof(...)` для известных значений или fallback (`"r?"`, `"???"`, `((uint)status).ToString()`).
+`AsText`/`AsText`/`AsText` возвращают `nameof(...)` для известных значений или fallback (`"r?"`, `"???"`, `((uint)status).ToString()`).
 
 ### `AlignmentExtensions` — `static class`
 
@@ -294,13 +320,13 @@ var (code, a, b, size) = d;
 ```csharp
 RegType r = RegType.rSP;
 Console.WriteLine(r.Int());       // 29
-Console.WriteLine(r.RegName());   // "rSP"
+Console.WriteLine(r.AsText);   // "rSP"
 
 BiosStatus s = BiosStatus.DivOnZero;
-Console.WriteLine(s.StatusName()); // "DivOnZero"
+Console.WriteLine(s.AsText); // "DivOnZero"
 
 OpCodeSize sz = OpCodeSize.S32;
-Console.WriteLine(sz.SizeName()); // "S32"
+Console.WriteLine(sz.AsText); // "S32"
 Console.WriteLine(sz.ToUint());   // 2
 ```
 

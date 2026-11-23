@@ -21,7 +21,7 @@ The module depends only on `Nantuc.Common` (for `BiosStatus`, `ProcessorFault`, 
 
 Key roles of the module:
 - Port bus: `IPortBus`, `IPortUse`, `IPortController`, `ReadPortResult`.
-- Processor: `ProcessorSnapshot`, `IProcessorPolicy` (with a cached `Default`).
+- Processor: `IProcessorPolicy` (with a cached `Default`).
 - Optimizations: `OptimizationId`, `OptimizationLogEntry`, `IReadOnlyLogOptimization`.
 - Measurement results: `TimeSimulationResult`.
 - Devices: `DeviceInfo`, `IReadOnlyNativeBuffer`.
@@ -34,14 +34,12 @@ All types live in the namespace `Nantuc.Contracts`, the structure is flat:
 
 ```
 Nantuc.Contracts/
-├── Nantuc.Contracts.csproj    # net10.0, ProjectReference: Common
+├── Nantuc.Contracts.csproj           # net10.0, ProjectReference: Common
 ├── DeviceInfo.cs                     # readonly record struct DeviceInfo
 ├── IReadOnlyNativeBuffer.cs          # interface IReadOnlyNativeBuffer
 ├── IPortBus.cs                       # interface IPortBus
 ├── IPortController.cs                # interface IPortController : IPortUse, IDisposable
 ├── IPortUse.cs                       # interface IPortUse
-├── IProcessorPolicy.cs          # interface IProcessorPolicy + nested DefaultProcessorFaultPolicy
-├── ProcessorSnapshot.cs              # readonly struct ProcessorSnapshot, [InlineArray(32)]
 ├── IReadOnlyLogOptimization.cs       # interface IReadOnlyLogOptimization
 ├── TimeSimulationResult.cs           # readonly record struct TimeSimulationResult
 ├── OptimizationId.cs                 # readonly struct OptimizationId
@@ -53,10 +51,6 @@ Organization notes:
 - Files `OptimizationId.cs` and `OptimizationLogEntry.cs` — the file name matches the type name (previously there was `TypeOptimization.cs` with the type `OptimizationId` — now renamed).
 - `IPortController.cs` — one-liner, but with `///` and `<see>` references to `IPortUse`/`IDisposable`.
 - `IProcessorPolicy` contains `private class DefaultProcessorFaultPolicy` — the policy implementation lives inside the interface. This is non-standard for contracts, but deliberate: the "default policy" is part of the contract.
-- `ProcessorSnapshot` — a `readonly struct` with `[InlineArray(RegisterCount)] (RegisterCount = 32)` for storing a copy of the registers. Two constructors:
-    - `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)` — `CurrentBiosStatus = BiosStatus.Success`;
-    - `(..., BiosStatus currentBiosStatus)` — same plus an explicit status.
-    - `GetArr(ReadOnlySpan<ulong>)` copies exactly RegisterCount = 32 elements and throws `ArgumentException` when `span.Length` ≠ 32 (previously — `IndexOutOfRangeException` when > 32 and silent zeros when < 32).
 
 ## API
 
@@ -71,7 +65,6 @@ The module has 7 `interface`s and 5 `struct`/`record struct`s. Public surface:
 | `IPortUse` | `interface` | `ReadPort(ulong)`, `WritePort(ulong, byte)`, `WakeProcessor()` |
 | `IPortController` | `interface : IPortUse, IDisposable` | Composition "device on the bus + disposal" |
 | `ReadPortResult` | `readonly record struct` | `(byte Data, BiosStatus Status = Success)` |
-| `ProcessorSnapshot` | `readonly struct` | `IsRunning`, `IsSleeping`, `GetRegister(RegType)`; `[InlineArray(RegisterCount)]` storage (32); `RawInstruction`, `DataByInstruction`, `CurrentBiosStatus`, `DataFault`; decoded from `RawInstruction`: `OpCode`, `FirstRegister`, `SecondRegister`, `DataSizeCode` |
 | `IProcessorPolicy` | `interface` + `Default` | `ShouldContinue(in ProcessorFault)`; `Default` — cached singleton |
 | `IReadOnlyLogOptimization` | `interface` | `Id`, `GetLogs()` |
 | `OptimizationId` | `readonly struct` | Validated identifier `[a-z0-9.-]{1,128}` |
@@ -91,24 +84,6 @@ The module has 7 `interface`s and 5 `struct`/`record struct`s. Public surface:
 
 ### Processor
 
-`ProcessorSnapshot` — a `readonly struct` with `[InlineArray(RegisterCount)] (RegisterCount = 32)`-storage of registers. Two constructors:
-- `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction)` — `CurrentBiosStatus` = `BiosStatus.Success`;
-- `(Span<ulong> span, bool isRunning, bool isSleeping, uint rawInstruction, ulong dataByInstruction, BiosStatus currentBiosStatus)`.
-
-`GetArr(ReadOnlySpan<ulong>)` copies exactly `RegisterCount` elements; when `span.Length` ≠ 32 — `ArgumentException` (see `/// <exception>` in the code). Previously, when > 32 there was `IndexOutOfRangeException`, when < 32 — silent zeros in the tail of the array.
-
-Properties:
-
-- `IsRunning`, `IsSleeping` — the processor mode at the time of the snapshot.
-- `GetRegister(RegType)` — the register value; indexing without a range check, behavior for an invalid RegType is not documented (see What to fix, item 9. *(Note: the "What to fix" section was not present in the provided source.)*).
-- `RawInstruction` — the raw instruction (32 bits), `DataByInstruction` — the 64-bit data that came with the instruction.
-- `CurrentBiosStatus` — the BiosStatus at the time of the snapshot (in the simplified constructor — `Success`).
-- `DataFault` — `DataByInstruction` if `CurrentBiosStatus != Success`, otherwise 0.
-
-Decoded from `RawInstruction` via `InstructionDecoder`: `OpCode`, `FirstRegister`, `SecondRegister`, `DataSizeCode`.
-
-There is no writing to `ProcessorSnapshot` — that is in `Kernel`; here it is read-only.
-
 **`IProcessorPolicy`** — the processor stop policy on `ProcessorFault`:
 
 ```csharp
@@ -127,7 +102,6 @@ public interface IProcessorPolicy
     bool AllowUnsafeOpCodes => false;
 
     bool ShouldContinue(in ProcessorFault fault);
-}
 }
 ```
 
@@ -244,7 +218,6 @@ foreach (OptimizationLogEntry e in entries)
 Medium. Contracts are what the extension author and the `VmApplication` user see, but not what a MiniC program author writes.
 
 - The extension author (custom device, disassembler, debugger) implements `IPortUse`/`IPortController`/`IReadOnlyNativeBuffer` — and this is their main entry into the platform.
-- A `VmApplication` user who wants to read the processor state uses `ProcessorSnapshot` and `IProcessorPolicy`.
 - The optimization compiler author works with `OptimizationId`/`OptimizationLogEntry`/`IReadOnlyLogOptimization`.
 - A MiniC/NANASM program author does not import this module — they work through `VmApplication`.
 
@@ -269,7 +242,6 @@ Medium. Contracts are what the extension author and the `VmApplication` user see
 | Aspect | Status | Comment |
 |---|---|---|
 | Building for WASM | ✅ | No `unsafe`, `DllImport`, `LibraryImport`. All types are `interface`/`readonly struct`. Builds for `browser-wasm` without csproj changes. |
-| `stackalloc` / `InlineArray` | ✅ | `ProcessorSnapshot` uses `[InlineArray(RegisterCount)] (const int RegisterCount = 32)` — compile-time, AOT-friendly. `stackalloc` in `CurrentProcessorSnapshot` (in `Kernel`) — 32 × 8 bytes. Length validation (`ArgumentException` from `GetArr`) — `managed`, no `unsafe`. | 
 | `Interlocked` / `Volatile` | ✅ | Not used. `IProcessorPolicy.Default` is a `static` property with a cached instance (static initializer). |
 | `Regex` / trimming | ✅ | Regex is not used; there is no reflection, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` validates the string character by character (`foreach (char c in value)`, without `Regex`). Trimming-compatible. |
 | AOT | ✅ | No `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |

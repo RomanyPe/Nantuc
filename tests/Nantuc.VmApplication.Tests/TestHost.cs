@@ -15,7 +15,7 @@ public class TestHost
         Assert.Equal((int)OpCodeExtension.LastValue, OpCodeExtension.LastValueInt);
 
         foreach (var op in values)
-            Assert.Equal(op.ToString(), op.OpName());
+            Assert.Equal(op.ToString(), op.AsText);
         
     }
     [Fact]
@@ -27,7 +27,7 @@ public class TestHost
         Assert.Equal((int)RegTypeExtension.LastValue, RegTypeExtension.LastValueInt);
 
         foreach (var op in values)
-            Assert.Equal(op.ToString(), op.RegName());
+            Assert.Equal(op.ToString(), op.AsText);
     }
     [Fact]
     public void OpCodeSizeSizeIsDefined()
@@ -38,7 +38,7 @@ public class TestHost
         Assert.Equal((int)OpCodeSizeExtension.LastValue, OpCodeSizeExtension.LastValueInt);
 
         foreach (var op in values)
-            Assert.Equal(op.ToString(), op.SizeName());
+            Assert.Equal(op.ToString(), op.AsText);
     }
     [Fact]
     public void BiosStatusIsDefined()
@@ -49,7 +49,7 @@ public class TestHost
         Assert.Equal((int)BiosStatusExtension.LastValue, BiosStatusExtension.LastValueInt);
 
         foreach (var op in values)
-            Assert.Equal(op.ToString(), op.StatusName());
+            Assert.Equal(op.ToString(), op.AsText);
     }
 
     [Fact]

@@ -6,13 +6,13 @@ Path: `Nantuc.slnx`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 1453 |
+| Members analysed | 1455 |
 | C# files | 292 |
-| Total lines | 26261 |
+| Total lines | 26229 |
 | C# classes | 251 |
 | C# records | 29 |
 | C# enums | 13 |
-| Analysed LOC | 8937 |
+| Analysed LOC | 8943 |
 | Cognitive avg | 1.9 |
 | Cognitive median | 0 |
 | Cognitive p90 | 6 |
@@ -31,14 +31,14 @@ Lowest maintainability: `CfgBuilder.Stmt` (MI 25.1) — `CfgBuilder.cs:76`
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 1303 |
+| Light | 0-5 | 1305 |
 | Moderate | 6-10 | 74 |
 | High | 11-20 | 61 |
 | Severe | 21+ | 15 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1453 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1455 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |

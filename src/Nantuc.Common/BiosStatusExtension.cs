@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Nantuc.Common;
+﻿namespace Nantuc.Common;
 
 public static class BiosStatusExtension
 {
@@ -11,7 +7,7 @@ public static class BiosStatusExtension
 
     extension(BiosStatus status)
     {
-        public string StatusName() => status switch
+        public string AsText => status switch
         {
             BiosStatus.Success => nameof(BiosStatus.Success),
             BiosStatus.SegmentationFault => nameof(BiosStatus.SegmentationFault),

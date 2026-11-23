@@ -97,14 +97,14 @@ if (!deviceCtx.TryLoadProgram(program: resCompile.Program, loadAddress: 0, out s
 deviceCtx.Run();
 var regs = deviceCtx.GetRegistersSnapshot();
 
-Console.WriteLine($"{RegType.r0.RegName()}: {regs[RegType.r0]}");
-Console.WriteLine($"{RegType.r1.RegName()}: {regs[RegType.r1]}");
-Console.WriteLine($"{RegType.r2.RegName()}: {regs[RegType.r2]}");
-Console.WriteLine($"{RegType.r3.RegName()}: {regs[RegType.r3]}");
-Console.WriteLine($"{RegType.r4.RegName()}: {regs[RegType.r4]}");
-Console.WriteLine($"{RegType.r5.RegName()}: {regs[RegType.r5]}");
-Console.WriteLine($"{RegType.rSP.RegName()}: {regs[RegType.rSP]}");
-Console.WriteLine($"{RegType.rHP.RegName()}: {regs[RegType.rHP]}");
+Console.WriteLine($"{RegType.r0.AsText}: {regs[RegType.r0]}");
+Console.WriteLine($"{RegType.r1.AsText}: {regs[RegType.r1]}");
+Console.WriteLine($"{RegType.r2.AsText}: {regs[RegType.r2]}");
+Console.WriteLine($"{RegType.r3.AsText}: {regs[RegType.r3]}");
+Console.WriteLine($"{RegType.r4.AsText}: {regs[RegType.r4]}");
+Console.WriteLine($"{RegType.r5.AsText}: {regs[RegType.r5]}");
+Console.WriteLine($"{RegType.rSP.AsText}: {regs[RegType.rSP]}");
+Console.WriteLine($"{RegType.rHP.AsText}: {regs[RegType.rHP]}");
 
 var hpPrt = regs[RegType.rHP];
 var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);

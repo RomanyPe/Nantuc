@@ -19,7 +19,7 @@ public static class RegTypeExtension
         public int Int() => (int)r;
         public uint ToUint() => (uint)r;
 
-        public string RegName() => r switch
+        public string AsText => r switch
         {
             RegType.r0 => nameof(RegType.r0),
             RegType.r1 => nameof(RegType.r1),
