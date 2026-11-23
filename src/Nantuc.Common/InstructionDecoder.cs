@@ -31,17 +31,6 @@ namespace Nantuc.Common;
 public static class InstructionDecoder
 {
     /// <summary>
-    /// Таблица поиска по коду операции: <see langword="true"/>, если инструкция
-    /// требует 64-битного целочисленного операнда (константу, адрес памяти,
-    /// адрес подпрограммы или адрес перехода).
-    /// </summary>
-    /// <remarks>
-    /// Индексируется значением <see cref="OpCode"/>. Размер — 256 элементов.
-    /// Заполняется в <see cref="CreateNeedsUlongOperandTable"/>.
-    /// </remarks>
-    private static readonly ImmutableArray<bool> _has = CreateNeedsUlongOperandTable();
-
-    /// <summary>
     /// Извлекает код операции из сырой инструкции (младшие 8 бит).
     /// </summary>
     /// <param name="rawInst">Сырое 32-битное слово инструкции.</param>
@@ -109,67 +98,44 @@ public static class InstructionDecoder
     /// адрес подпрограммы или адрес перехода).
     /// </summary>
     /// <param name="opCode">
-    /// Код операции. Должен быть не больше <see cref="OpCode.MOD"/>.
+    /// Код операции. Должен быть не больше <see cref="OpCodeExtension.LastValue"/>.
     /// </param>
     /// <returns>
     /// <see langword="true"/>, если инструкция требует 64-битного операнда;
     /// иначе <see langword="false"/>.
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Значение <paramref name="opCode"/> больше <see cref="OpCode.MOD"/>.
+    /// Значение <paramref name="opCode"/> больше <see cref="OpCodeExtension.LastValue"/>.
     /// </exception>
     /// <remarks>
     /// <para>
     /// <see langword="true"/> возвращается для кодов
     /// <c>LDI</c>, <c>LOAD</c>, <c>STORE</c>, <c>CALL</c>,
-    /// <c>JMP</c>, <c>JZ</c>, <c>JNZ</c>, <c>JG</c>, <c>JL</c>.
+    /// <c>JMP</c>, <c>JZ</c>, <c>JNZ</c>, <c>JG</c>, <c>JL</c>,
+    /// <c>LOAD_UNSAFE</c>, <c>STORE_UNSAFE</c>.
     /// </para>
     /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool HasNeed64IntData(OpCode opCode)
     {
-        if ((uint)opCode > (uint)OpCode.CASTS) throw new ArgumentOutOfRangeException(nameof(opCode));
-        return _has[(int)opCode];
+        if ((uint)opCode > (uint)OpCodeExtension.LastValue)
+            ThrowOutOfRange(opCode);
+
+        return opCode is
+            OpCode.LDI or          // константа
+            OpCode.LOAD or         // адрес памяти
+            OpCode.STORE or        // адрес памяти
+            OpCode.CALL or         // адрес подпрограммы
+            OpCode.JMP or          // адрес перехода
+            OpCode.JZ or           // адрес перехода
+            OpCode.JNZ or          // адрес перехода
+            OpCode.JG or           // адрес перехода
+            OpCode.JL or           // адрес перехода
+            OpCode.LOAD_UNSAFE or
+            OpCode.STORE_UNSAFE;
     }
 
-    /// <summary>
-    /// Создаёт таблицу поиска признака «инструкция требует 64-битного операнда».
-    /// </summary>
-    /// <returns>
-    /// Неизменяемый массив из 256 элементов типа <see cref="bool"/>,
-    /// индексируемый значением <see cref="OpCode"/>.
-    /// </returns>
-    /// <remarks>
-    /// Вызывается один раз при инициализации статического поля <c>_has</c>.
-    /// </remarks>
-    private static ImmutableArray<bool> CreateNeedsUlongOperandTable()
-    {
-        bool[] table = new bool[256];
-
-        table[(int)OpCode.LDI] = true;      // константа
-        table[(int)OpCode.LOAD] = true;     // адрес памяти
-        table[(int)OpCode.STORE] = true;    // адрес памяти
-        table[(int)OpCode.CALL] = true;     // адрес подпрограммы
-        table[(int)OpCode.JMP] = true;      // адрес перехода
-        table[(int)OpCode.JZ] = true;       // адрес перехода
-        table[(int)OpCode.JNZ] = true;      // адрес перехода
-        table[(int)OpCode.JG] = true;       // адрес перехода
-        table[(int)OpCode.JL] = true;       // адрес перехода
-        table[(int)OpCode.LOAD_UNSAFE] = true;
-        table[(int)OpCode.STORE_UNSAFE] = true;
-
-        return [.. table];
-    }
-
-    /// <summary>
-    /// Расширяющие члены для <see cref="RegType"/>.
-    /// </summary>
-    extension(RegType reg)
-    {
-        /// <summary>
-        /// Возвращает числовое значение регистра, приведённое к <see cref="int"/>.
-        /// </summary>
-        /// <returns>Значение <paramref name="reg"/> как <see cref="int"/>.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Int() => (int)reg;
-    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowOutOfRange(OpCode opCode) =>
+        throw new ArgumentOutOfRangeException(nameof(opCode), opCode, null);
 }

@@ -10,6 +10,8 @@ namespace Nantuc.VmApplication.Emulator;
 /// </summary>
 public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
 {
+    public const int Count = RegTypeExtension.LastValueInt + 1;
+
     [InlineArray(32)]
     private struct RegisterArray { public ulong _v0; }
 
@@ -21,7 +23,7 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
     public SnapshotRegisters(Span<ulong> values)
     {
         _values = new();
-        for (int i = 0; i < values.Length; i++)
+        for (int i = 0; i <= RegTypeExtension.LastValueInt || i < values.Length; i++)
             _values[i] = values[i];
     }
 
@@ -31,8 +33,8 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
     /// <returns></returns>
     public ulong[] AsArray()
     {
-        var arr = new ulong[32];
-        for (int i = 0; i < 32; i++) arr[i] = _values[i];
+        var arr = new ulong[Count];
+        for (int i = 0; i <= RegTypeExtension.LastValueInt; i++) arr[i] = _values[i];
         return arr;
     }
 
@@ -46,10 +48,7 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _values[r.Int()];
     }
-    /// <summary>
-    /// Количество регистров, <![CDATA[static]]> так как количество регистров константно
-    /// </summary>
-    public const int Count = 32;
+
 
     /// <summary>
     /// Метод для создания <see cref="IEnumerable{T}"/> из регистров
@@ -57,13 +56,13 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
     /// <returns><see cref="IEnumerable{T}"/> из регистров где <![CDATA[Type]]> это <see cref="RegType"/> а  <![CDATA[Value]]> это <see cref="ulong"/></returns>
     public IEnumerable<(RegType Type, ulong Value)> Enumerate()
     {
-        for (int i = 0; i < 32; i++)
+        for (int i = 0; i <= RegTypeExtension.LastValueInt; i++)
             yield return ((RegType)i, _values[i]);
     }
 
     public bool Equals(SnapshotRegisters other)
     {
-        for(RegType i = 0; i < RegType.rIP + 1; i++)
+        for(RegType i = 0; i <= RegTypeExtension.LastValue; i++)
         {
             if (this[i] != other[i])
                 return false;
@@ -74,14 +73,14 @@ public readonly struct SnapshotRegisters : IEquatable<SnapshotRegisters>
     public override int GetHashCode() 
     { 
         var h = new HashCode(); 
-        for (int i = 0; i < 32; i++) 
+        for (int i = 0; i <= RegTypeExtension.LastValueInt; i++) 
             h.Add(_values[i]); 
         return h.ToHashCode(); 
     }
     public override string ToString()
     {
         StringBuilder sb = new(64);
-        for (RegType i = 0; i < (RegType)Count; i++)
+        for (RegType i = 0; i <= RegTypeExtension.LastValue; i++)
         {
             sb.Append(i.RegName())
                 .Append(':')

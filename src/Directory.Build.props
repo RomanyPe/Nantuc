@@ -2,14 +2,16 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <PropertyGroup>
-    <IsPackable>true</IsPackable>
-    <PackageReadmeFile Condition="'$(PackageReadmeFile)' == '' and Exists('$(MSBuildProjectDirectory)/README.md')">README.md</PackageReadmeFile>
+	<IsPackable>true</IsPackable>
+	<PackageReadmeFile Condition="'$(PackageReadmeFile)' == '' and Exists('$(MSBuildProjectDirectory)/README.md')">README.md</PackageReadmeFile>
+	<IsAotCompatible>true</IsAotCompatible>
+	<ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(PackageReadmeFile)' != ''">
-    <None Include="$(MSBuildProjectDirectory)/README.md"
-          Pack="true"
-          PackagePath="\"
-          Visible="true" />
+	<None Include="$(MSBuildProjectDirectory)/README.md"
+		  Pack="true"
+		  PackagePath="\"
+		  Visible="true" />
   </ItemGroup>
 </Project>

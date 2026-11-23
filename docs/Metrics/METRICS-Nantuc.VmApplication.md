@@ -8,7 +8,7 @@ Path: `src/Nantuc.VmApplication/Nantuc.VmApplication.csproj`
 | --- | ---: |
 | Members analysed | 133 |
 | C# files | 30 |
-| Total lines | 2090 |
+| Total lines | 2088 |
 | C# classes | 20 |
 | C# records | 8 |
 | C# enums | 2 |
@@ -50,16 +50,16 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 133 me
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 130 | ProjectBuilder | ReadInclude | 4 | 5 | 13 | 1 | 4 | 56.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 101 | VmHostProject | CompileInternal | 4 | 4 | 12 | 2 | 5 | 57.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 128 | RamFileService | IsUnderPath | 3 | 4 | 6 | 1 | 3 | 67.1 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\SnapshotRegisters.cs | 64 | SnapshotRegisters | Equals | 3 | 3 | 4 | 2 | 1 | 71.9 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\SnapshotRegisters.cs | 63 | SnapshotRegisters | Equals | 3 | 3 | 4 | 2 | 1 | 72.2 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 164 | ProjectBuilder | GetSourceFiles | 3 | 3 | 7 | 2 | 2 | 64.8 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 191 | ProjectBuilder | HasExtension | 3 | 3 | 4 | 2 | 2 | 73.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\ProjectBuilder.cs | 200 | ProjectBuilder | FindLang | 3 | 3 | 3 | 1 | 2 | 75.9 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProjectBuilder.cs | 52 | VmHostProjectBuilder | Build | 2 | 4 | 3 | 1 | 0 | 75.0 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 28 | RamFileService | RamFileService.ctor | 2 | 3 | 4 | 1 | 2 | 71.3 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\DeviceContext.cs | 113 | DeviceContext | TryLoadProgram | 2 | 3 | 8 | 1 | 3 | 65.0 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\DeviceContext.cs | 112 | DeviceContext | TryLoadProgram | 2 | 3 | 8 | 1 | 3 | 65.0 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\SnapshotRegisters.cs | 23 | SnapshotRegisters | SnapshotRegisters.ctor | 2 | 3 | 3 | 1 | 1 | 74.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\CompilationResult.cs | 56 | CompilationResult | Success | 2 | 3 | 1 | 0 | 0 | 87.8 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\CompilationToILResult.cs | 56 | CompilationToIRResult | Build | 2 | 3 | 7 | 1 | 0 | 65.8 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\SnapshotRegisters.cs | 104 | SnapshotRegisters | Equals | 2 | 2 | 1 | 0 | 1 | 90.3 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Emulator\SnapshotRegisters.cs | 103 | SnapshotRegisters | Equals | 2 | 2 | 1 | 0 | 1 | 90.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Project\VmHostProject.cs | 234 | VmHostProject | Compile | 2 | 2 | 9 | 2 | 3 | 64.4 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\DefaultFileService.cs | 22 | DefaultFileService | AddRange | 1 | 2 | 2 | 1 | 2 | 83.1 |
 

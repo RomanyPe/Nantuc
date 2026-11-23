@@ -7,6 +7,52 @@ namespace Nantuc.Tests;
 public class TestHost
 {
     [Fact]
+    public void OpCode_AllValuesDefined_AndNamesMatch()
+    {
+        var values = Enum.GetValues<OpCode>();
+
+        Assert.Equal(OpCodeExtension.LastValue, values.Max());
+        Assert.Equal((int)OpCodeExtension.LastValue, OpCodeExtension.LastValueInt);
+
+        foreach (var op in values)
+            Assert.Equal(op.ToString(), op.OpName());
+        
+    }
+    [Fact]
+    public void RegTypeIsDefined()
+    {
+        var values = Enum.GetValues<RegType>();
+
+        Assert.Equal(RegTypeExtension.LastValue, values.Max());
+        Assert.Equal((int)RegTypeExtension.LastValue, RegTypeExtension.LastValueInt);
+
+        foreach (var op in values)
+            Assert.Equal(op.ToString(), op.RegName());
+    }
+    [Fact]
+    public void OpCodeSizeSizeIsDefined()
+    {
+        var values = Enum.GetValues<OpCodeSize>();
+
+        Assert.Equal(OpCodeSizeExtension.LastValue, values.Max());
+        Assert.Equal((int)OpCodeSizeExtension.LastValue, OpCodeSizeExtension.LastValueInt);
+
+        foreach (var op in values)
+            Assert.Equal(op.ToString(), op.SizeName());
+    }
+    [Fact]
+    public void BiosStatusIsDefined()
+    {
+        var values = Enum.GetValues<BiosStatus>();
+
+        Assert.Equal(BiosStatusExtension.LastValue, values.Max());
+        Assert.Equal((int)BiosStatusExtension.LastValue, BiosStatusExtension.LastValueInt);
+
+        foreach (var op in values)
+            Assert.Equal(op.ToString(), op.StatusName());
+    }
+
+    [Fact]
     public void TestindIdState()
     {
         using var host = VmHostFactory.CreateDefault(

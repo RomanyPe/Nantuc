@@ -10,6 +10,14 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.19.0] - 2026-11-23
+
+### Added
+- static `*Extension` classes for `OpCode`, `OpCodeSize`, `RegType`, and `BiosStatus`
+
+### Removed
+- **BREAKING:** `extension` methods from `Compiler` for `OpCode`, `OpCodeSize`, `RegType`, and `BiosStatus`
+
 ## [0.18.0] - 2026-11-23
 
 ### Added

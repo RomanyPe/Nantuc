@@ -6,22 +6,22 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 150 |
+| Members analysed | 154 |
 | C# files | 25 |
-| Total lines | 3115 |
+| Total lines | 3161 |
 | C# classes | 34 |
 | C# records | 0 |
 | C# enums | 0 |
-| Analysed LOC | 829 |
+| Analysed LOC | 849 |
 | Cognitive avg | 0.2 |
 | Cognitive median | 0 |
 | Cognitive p90 | 1 |
 | Cognitive max | 5 |
-| Cyclomatic avg | 1.2 |
+| Cyclomatic avg | 1.3 |
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 2 |
 | Cyclomatic max | 5 |
-| MI avg | 75.9 |
+| MI avg | 75.7 |
 | MI minimum | 43.0 |
 
 Highest risk member: `HaltWakeTests.HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode` (cognitive 5, cyclomatic 5) — `HaltWakeTests.cs:98`
@@ -31,14 +31,14 @@ Lowest maintainability: `HaltWakeTests.HALT_SetsSleepingFlagAndDoesNotAdvanceFur
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 150 |
+| Light | 0-5 | 154 |
 | Moderate | 6-10 | 0 |
 | High | 11-20 | 0 |
 | Severe | 21+ | 0 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 150 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 154 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -55,11 +55,11 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 150 me
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\DefaultErrorMessageProviderTests.cs | 8 | DefaultErrorMessageProviderTests | AllDefinedCodes | 1 | 2 | 4 | 1 | 0 | 72.7 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\DefaultErrorMessageProviderTests.cs | 26 | DefaultErrorMessageProviderTests | DefaultTemplates_HasEntryForEveryDefinedCode | 1 | 2 | 3 | 1 | 0 | 75.4 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\DefaultErrorMessageProviderTests.cs | 128 | DefaultErrorMessageProviderTests.MarkerProvider | TryGetTemplate | 1 | 2 | 3 | 1 | 1 | 77.7 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 9 | TestHost | OpCode_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 21 | TestHost | RegTypeIsDefined | 1 | 2 | 5 | 1 | 0 | 68.6 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 32 | TestHost | OpCodeSizeSizeIsDefined | 1 | 2 | 5 | 1 | 0 | 68.6 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 43 | TestHost | BiosStatusIsDefined | 1 | 2 | 5 | 1 | 0 | 68.6 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\VMHostTests.cs | 246 | VMHostTests | RunAndKeep_ShouldKeepDeviceAlive | 1 | 2 | 16 | 1 | 0 | 54.9 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmSecurityTests.cs | 305 | VmSecurityTests | RegisterVm | 1 | 1 | 1 | 0 | 2 | 90.8 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmTestBase.cs | 93 | UnsafeOpCodeTests | RegisterVm | 1 | 1 | 1 | 0 | 2 | 90.8 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 142 | HaltWakeTests | WAKE_INT_WithoutDevice_ReportsNullDeviceOutputFault | 0 | 2 | 19 | 0 | 0 | 52.0 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 171 | HaltWakeTests | WAKE_INT_WithRegisteredDevice_InvokesWakeProcessor | 0 | 2 | 18 | 0 | 0 | 52.6 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 201 | HaltWakeTests | WAKE_INT_UsesValueFromRegister_AfterMov | 0 | 2 | 19 | 0 | 0 | 52.1 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\ThrowCompilerTests.cs | 42 | ThrowCompilerTests | PassThrough | 0 | 2 | 1 | 0 | 2 | 87.2 |
 

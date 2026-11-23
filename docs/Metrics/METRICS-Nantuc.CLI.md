@@ -8,7 +8,7 @@ Path: `src/Nantuc.CLI/Nantuc.CLI.csproj`
 | --- | ---: |
 | Members analysed | 57 |
 | C# files | 14 |
-| Total lines | 1013 |
+| Total lines | 1012 |
 | C# classes | 11 |
 | C# records | 0 |
 | C# enums | 1 |

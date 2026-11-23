@@ -22,17 +22,13 @@
 Ключевые роли модуля:
 - ISA байткода: `OpCode`, `OpCodeSize`, `RegType`, `DecodeInstructionResult`, `InstructionDecoder`.
 - Единицы измерения: `RamSize`, `PortSize`, `DevicePortSize` (лог2-структуры с фабриками).
-- Диагностика: `BiosStatus`, `ProcessorFault` (теперь в отдельном файле `ProcessorFault.cs`).
+- Диагностика: `BiosStatus`, `ProcessorFault`.
 - Классификация возвратов: `IdState`.
-- Утилиты: `AlignmentExtensions` (выравнивание для generic-чисел).
+- Утилиты: `AlignmentExtensions` (выравнивание для generic-чисел), extension-классы для имён (`RegTypeExtension`, `OpCodeSizeExtension`, `BiosStatusExtension`, `IdStateExtension`, `OpCodeExtension`).
 
 Проект — листовой по зависимостям: `net10.0`, без `ProjectReference`. Любое изменение публичного типа здесь — потенциальный breaking change для всей платформы.
 
-> **XML-документация почти полная. Два известных дефекта и одна breaking-правка относительно предыдущей версии.**  
-> - `DevicePortSize.cs` — **сломанные закрывающие теги** `</summary` (без `>`) у фабрик `B64`, `B128`, `B256` — XML не парсится.  
-> - `InstructionDecoder.HasNeed64IntData` — `<remarks>` описывает **старое поведение** (уязвимость к знаковому `OpCode`), хотя код уже защищён `(uint)`-приведением.  
-> - `IdState` — **семантика уточнена**: `Valid = 0` (значение по умолчанию), `Unknown = -5`. Код, который полагался на `IdState.Valid == default`, остаётся совместимым; код, который трактовал `Unknown` как `0`, должен быть обновлён.> - `DecodeInstructionResult` — **breaking change**: был `readonly struct` с публичными полями, стал `readonly record struct` с позиционными параметрами (поля -> get-only свойства; сгенерированы `Equals`/`GetHashCode`/`==`).  
-> Подробности — в разделе [Что исправить](#что-исправить).
+> **Состояние документации.** XML-документация почти полная. Закрывающие теги в `DevicePortSize.cs` исправлены, `HasNeed64IntData` теперь покрывает `LOAD_UNSAFE`/`STORE_UNSAFE` и проверяет диапазон через `OpCodeExtension.LastValue`. **Один breaking-контракт по `IdState`:** `Valid = 0` (значение по умолчанию), `Unknown = -5`. Подробности — в разделе [Что исправить](#что-исправить).
 
 ## Дерево локального проекта
 
@@ -40,26 +36,32 @@
 
 ```
 Nantuc.Common/
-├── Nantuc.Common.csproj    # net10.0, без ProjectReference
+├── Nantuc.Common.csproj           # net10.0, без ProjectReference
 ├── AlignmentExtensions.cs         # static class AlignmentExtensions
-├── BiosStatus.cs                  # enum BiosStatus (ProcessorFault вынесен)
-├── DecodeInstructionResult.cs     # readonly record struct (было readonly struct)
+├── BiosStatus.cs                  # enum BiosStatus (13 членов)
+├── BiosStatusExtension.cs         # static class BiosStatusExtension (StatusName)
+├── DecodeInstructionResult.cs     # readonly record struct
 ├── DevicePortSize.cs              # readonly struct
-├── IdState.cs                     # enum IdState (теперь с явными значениями)
+├── IdState.cs                     # enum IdState (Valid = 0, Unknown = -5)
+├── IdStateExtension.cs            # static class IdStateExtension (ToIdState)
 ├── InstructionDecoder.cs          # static class InstructionDecoder
 ├── OpCode.cs                      # enum OpCode : byte
+├── OpCodeExtension.cs             # static class OpCodeExtension (LastValue)
 ├── OpCodeSize.cs                  # enum OpCodeSize
+├── OpCodeSizeExtension.cs         # static class OpCodeSizeExtension (ToUint, SizeName)
 ├── PortSize.cs                    # readonly struct PortSize
-├── ProcessorFault.cs              # readonly record struct (отдельный файл!)
+├── ProcessorFault.cs              # readonly record struct
 ├── RamSize.cs                     # readonly struct RamSize
-└── RegType.cs                     # enum RegType : byte (с полным XML)
+└── RegType.cs                     # enum RegType : byte
+└── RegTypeExtension.cs            # static class RegTypeExtension (Int, ToUint, RegName)
 ```
 
 Замечания по организации:
-- `ProcessorFault` **вынесен из `BiosStatus.cs`** в отдельный `ProcessorFault.cs` — навигация улучшена.
-- `AlignmentExtensions.cs` вынесен из `InstructionDecoder.cs` — семантически разные классы больше не делят файл.
-- `NameDeviceToken.cs` и `LogLevel.cs` в эту партию не входят. Если типы ещё существуют — добавьте в следующую; если удалены — обновите дерево.
-- `PortSize` и `RamSize` — теперь симметричны: оба имеют `KB2` и `KB32`, `<remarks>` у `PortSize` исправлен.
+- `ProcessorFault` вынесен из `BiosStatus.cs` в отдельный `ProcessorFault.cs`.
+- `AlignmentExtensions.cs` вынесен из `InstructionDecoder.cs`.
+- Каждый enum снабжён companion-классом `*Extension` с именующими/преобразующими extension-членами и константами `LastValue`/`LastValueInt`.
+- `PortSize` и `RamSize` симметричны: оба имеют `KB2` и `KB32`.
+- `NameDeviceToken.cs` и `LogLevel.cs` в эту партию не входят.
 
 ## API
 
@@ -69,53 +71,89 @@ Nantuc.Common/
 
 | Тип | Вид | Назначение |
 |---|---|---|
-| `OpCode` | `enum : byte` | Опкоды VM (~60 значений), полная XML-документация с семантикой каждой инструкции |
-| `OpCodeSize` | `enum` | Размер операнда: `S8`/`S16`/`S32`/`S64` (полный XML, дефект закрывающих тегов исправлен) |
-| `RegType` | `enum : byte` | 32 регистра: `r0..r27`, `rFL`, `rSP`, `rHP`, `rIP` (полный XML) |
-| `BiosStatus` | `enum : byte` | Статус завершения/ошибки (все члены с `///`) |
-| `IdState` | `enum : int` | Классификация `-1..-4` от `ManagerDevices.AddDevice` (полный XML, **явные значения**, `Unknown = -5`) |
-| `ProcessorFault` | `readonly record struct` | `(BiosStatus, ulong FaultData, ulong IP, OpCode)` (отдельный файл, полный XML) |
-| `RamSize` | `readonly struct` | Размер ОЗУ, лог2, 64 B … 2 GiB, полный набор фабрик |
-| `PortSize` | `readonly struct` | Размер порт-пространства, лог2, 64 B … 512 KiB, **полный набор фабрик (включая `KB2`/`KB32`)** |
+| `OpCode` | `enum : byte` | Опкоды VM (~60 значений), полная XML-документация |
+| `OpCodeSize` | `enum` | Размер операнда: `S8`/`S16`/`S32`/`S64` |
+| `RegType` | `enum : byte` | 32 регистра: `r0..r27`, `rFL`, `rSP`, `rHP`, `rIP` |
+| `BiosStatus` | `enum : byte` | Статус завершения/ошибки (13 членов) |
+| `IdState` | `enum : int` | Классификация `-1..-5` от `ManagerDevices.AddDevice` |
+| `ProcessorFault` | `readonly record struct` | `(BiosStatus, ulong FaultData, ulong IP, OpCode)` |
+| `RamSize` | `readonly struct` | Размер ОЗУ, лог2, 64 B … 2 GiB |
+| `PortSize` | `readonly struct` | Размер порт-пространства, лог2, 64 B … 512 KiB |
 | `DevicePortSize` | `readonly struct` | Размер блока портов устройства, лог2, 8 B … 256 B |
-| `DecodeInstructionResult` | `readonly record struct` | Результат декодирования (поля -> get-only свойства) |
-| `InstructionDecoder` | `static class` | Разбор 32-битной инструкции + таблица «требуется ли immediate» |
+| `DecodeInstructionResult` | `readonly record struct` | Результат декодирования |
+| `InstructionDecoder` | `static class` | Разбор 32-битной инструкции + таблица immediate |
 | `AlignmentExtensions` | `static class` | `AlignUp`/`AlignDown`/`AlignUpArithmetic` для `IBinaryInteger<T>` |
+| `RegTypeExtension` | `static class` | `Int()`, `ToUint()`, `RegName()`, `LastValue` |
+| `OpCodeSizeExtension` | `static class` | `ToUint()`, `SizeName()`, `LastValue` |
+| `BiosStatusExtension` | `static class` | `StatusName()`, `LastValue` |
+| `IdStateExtension` | `static class` | `ToIdState` (extension-свойство на `int`) |
+| `OpCodeExtension` | `static class` | `LastValue` (последний опкод, для range-check) |
 
 ### Перечисления
 
 **`OpCode : byte`** — около 60 значений, каждый с `///` и подробным `<remarks>`. Группы:
 
 - Системные: `NOP`, `END` (`END` завершает программу, сбрасывает `IsRunning`; `HALT` — приостановка).
-- Память: `MOV`, `LOAD`/`STORE` (проверяемые через `MemoryBus`), `LDI` (64-битный immediate из потока), `LOAD_IND`/`STORE_IND` (эквивалентны `LOAD`/`STORE` с адресом из регистра).
+- Память: `MOV`, `LOAD`/`STORE` (проверяемые через `MemoryBus`), `LDI` (64-битный immediate из потока), `LOAD_IND`/`STORE_IND` (адрес из регистра).
 - Арифметика: `ADD`, `SUB`, `MULT_INT` (wrap-around), `SHR`/`SHL` (величина сдвига — младший байт `R2`), `INC`, `DEC`, `DIV` (`DivOnZero`), `MOD` (`DivOnZero`).
 - Логика: `AND`, `OR`, `XOR` (для обнуления `XOR R1, R1`), `NOT`.
 - Управление потоком: `JMP`, `JZ`, `JNZ`, `JG` (сброшены Zero и Negative), `JL` (установлен Negative), `JMP_IND` (косвенный переход по адресу из регистра, с проверкой границ).
-- Стек: `PUSH` (`rSP -= 8`, коллизия с кучей -> `SegmentationFault`), `POP` (`rSP += 8`), `CALL` (сохраняет адрес возврата), `RET` (пустой стек -> `StackUnderflow`), `CALL_IND` (косвенный вызов по адресу из регистра, с проверкой границ).
+- Стек: `PUSH` (`rSP -= 8`, коллизия с кучей -> `SegmentationFault`), `POP` (`rSP += 8`), `CALL` (сохраняет адрес возврата), `RET` (пустой стек -> `StackUnderflow`), `CALL_IND` (косвенный вызов по адресу из регистра).
 - I/O: `IN`, `OUT` (младший байт регистра-источника).
 - Сон: `HALT` (`IsSleeping = true`), `WAKE` (внешняя команда), `WAKE_INT` (через порт, нет порта -> `NullDeviceOutput`).
 - Unsafe-варианты: `LOAD_UNSAFE`/`STORE_UNSAFE` (быстрый путь по абсолютному адресу без проверок), `STORE_IND_UNSAFE`/`LOAD_IND_UNSAFE` (косвенный по регистру, без проверок).
 - Сравнение: `CMP` (`R1 - R2` -> флаги `rFL`), `TEST` (`R1 & R2` -> флаги `rFL`), `MOD`.
-- Привидение: `CASTZ`, `CASTS` приводит `ulong` из регистра к `S8` - 1 байту, `S16` - 2 байтам, `S32` - 4 байтам
+- Привидение: `CASTZ`, `CASTS` приводит `ulong` из регистра к `S8` (1 байт), `S16` (2 байта), `S32` (4 байта).
 
-**`OpCodeSize`** — `S8 = 0b00` (8 бит = 1 байт), `S16 = 0b01` (2 байта), `S32 = 0b10` (4 байта), `S64 = 0b11` (8 байт). **Полный XML**, включая `<remarks>` на enum о битовой кодировке и о том, что значения менять нельзя без декодера. Дефект закрывающих тегов (`</summary` без `>`) исправлен.
+**`OpCodeSize`** — `S8 = 0b00` (1 байт), `S16 = 0b01` (2 байта), `S32 = 0b10` (4 байта), `S64 = 0b11` (8 байт). Полный XML, включая `<remarks>` о битовой кодировке. `OpCodeSizeExtension.LastValue == OpCodeSize.S64`.
 
-**`RegType : byte`** — 32 значения: `r0..r27` (регистры общего назначения, **все с `///`**), `rFL` (флаги Zero/Negative), `rSP` (stack pointer), `rHP` (heap pointer), `rIP` (instruction pointer). `<remarks>` на enum фиксирует: 32 регистра по 64 бита в `ArrayRegisters` (`[InlineArray(32)]` из `ulong`), нет аппаратно-занулённого регистра (обнуление через `XOR rN, rN`), порядок 0..31 — часть контракта. Ровно 32 = 5 бит.
+**`RegType : byte`** — 32 значения: `r0..r27` (регистры общего назначения, все с `///`), `rFL` (флаги Zero/Negative), `rSP` (stack pointer), `rHP` (heap pointer), `rIP` (instruction pointer). `<remarks>` на enum фиксирует: 32 регистра по 64 бита в `ArrayRegisters` (`[InlineArray(32)]` из `ulong`), нет аппаратно-занулённого регистра (обнуление через `XOR rN, rN`), порядок 0..31 — часть контракта. Ровно 32 = 5 бит.
 
-**`BiosStatus : byte`** — все 11 членов с `///`: `Success`, `SegmentationFault`, `AlignmentFault`, `EndProgram`, `NotImplementedOpCode`, `NullDeviceInput`, `NullDeviceOutput`, `InfinityLoop`, `DivOnZero`, `NotSupportedOpCode`, `StackUnderflow`. `<remarks>` на enum явно предупреждает: `EndProgram` и `InfinityLoop` — **не ошибки по смыслу**, но проходят через путь `ProcessorFault`/`IProcessorPolicy`; политика обязана их различать.
+**`BiosStatus : byte`** — **13 членов** (в этой версии добавлены `HostStopped` и `UnsafeOpCodeForbidden`):
 
-**`IdState`** — **breaking change** относительно предыдущей версии:
-
-| Значение | Член | Причина (по `<remarks>`) |
+| Значение | Член | Назначение |
 |---|---|---|
-| `0` | `Unknown` | Неинициализированный/неопределённый статус (default) |
-| `1` | `Valid` | Id валиден и принят системой |
+| 0 | `Success` | Успех, значение по умолчанию |
+| 1 | `SegmentationFault` | Выход за границы ОЗУ |
+| 2 | `AlignmentFault` | Невыровненный доступ |
+| 3 | `EndProgram` | Штатное завершение (`END`) |
+| 4 | `HostStopped` | **Новое:** экстренное завершение от хоста |
+| 5 | `NotImplementedOpCode` | Нет обработчика (default в `Step`) |
+| 6 | `NullDeviceInput` | Устройство ввода не ответило |
+| 7 | `NullDeviceOutput` | Устройство вывода не ответило |
+| 8 | `InfinityLoop` | Политика обнаружила зацикливание |
+| 9 | `DivOnZero` | Деление на ноль (`DIV`/`MOD`) |
+| 10 | `NotSupportedOpCode` | Опкод известен, но не поддержан |
+| 11 | `StackUnderflow` | Переполнение/недопустимое состояние стека |
+| 12 | `UnsafeOpCodeForbidden` | **Новое:** запрет unsafe-опкода политикой |
+
+`<remarks>` на enum предупреждает: `EndProgram`, `HostStopped` и `InfinityLoop` — **не ошибки по смыслу**, но проходят через путь `ProcessorFault`/`IProcessorPolicy`; политика обязана их различать.
+
+**`IdState`** — **важно:** `Valid = 0` (значение по умолчанию), `Unknown = -5`:
+
+| Значение | Член | Причина |
+|---|---|---|
+| `0` | `Valid` | Id валиден и принят системой (default) |
 | `-1` | `NotAssigned` | Id не присвоен (регистрация не выполнялась) |
 | `-2` | `OutOfRange` | Id вне допустимого диапазона |
 | `-3` | `NoFreeSlot` | Нет свободного слота |
 | `-4` | `Rejected` | Id отклонён системой |
+| `-5` | `Unknown` | Статус не определён (и все значения `< -5`) |
 
-`<remarks>` на enum прямо указывает: «Значение по умолчанию (ноль) намеренно отдано `Unknown`, чтобы неинициализированный статус не воспринимался как успешный». Потребители, которые проверяли `IdState.Valid == default` (старое поведение `Valid = 0`), **сломаются** — теперь `default(IdState) == Unknown`. Числовые значения зафиксированы явно и объявлены частью контракта.
+`<remarks>` на enum прямо указывает: значение по умолчанию (`0`) соответствует `Valid`, поэтому неинициализированное поле типа `IdState` интерпретируется как успешный статус. Если нужно отличать «не инициализировано» от «валидно», используйте `IdState?`. Числовые значения зафиксированы явно и объявлены частью контракта.
+
+**`IdStateExtension.ToIdState`** — extension-свойство на `int`, тотально преобразует числовой Id:
+
+| Id | `IdState` |
+|---|---|
+| `>= 0` | `Valid` |
+| `-1` | `NotAssigned` |
+| `-2` | `OutOfRange` |
+| `-3` | `NoFreeSlot` |
+| `-4` | `Rejected` |
+| любое иное (в т.ч. `-5`) | `Unknown` |
+
+Не бросает исключений; применимо к произвольным внешним данным.
 
 ### `ProcessorFault` — `readonly record struct`
 
@@ -127,7 +165,7 @@ public readonly record struct ProcessorFault(
     OpCode OpCode);
 ```
 
-Вынесен в отдельный файл `ProcessorFault.cs`. Полный XML: `<summary>` + `<remarks>` + `<param>` на каждый параметр. Ключевые факты из `<remarks>`:
+Полный XML: `<summary>` + `<remarks>` + `<param>` на каждый параметр. Ключевые факты из `<remarks>`:
 - Формируется процессором при статусе ≠ `Success`, передаётся в `IProcessorPolicy.ShouldContinue`.
 - **Не исключение**, value-type: копируется по стеку, не аллоцирует память, пригоден для передачи между потоками без блокировок.
 - **Соглашение о «неинициализированном» значении:** используется `OpCode.NOP` (значение 0). `<remarks>` явно называет это спорным решением и рекомендует в будущем заменить на `OpCode?` или отдельный сентинел.
@@ -148,13 +186,11 @@ public readonly record struct ProcessorFault(
 
 | Тип | Доступные фабрики |
 |---|---|
-| `RamSize` | `B64..B512`, `KB1, KB2, KB4, KB8, KB16, KB32, KB64, KB128, KB256, KB512`, `MB1..MB512`, `GB1, GB2` |
-| `PortSize` | `B64..B512`, `KB1, **KB2**, KB4, KB8, KB16, **KB32**, KB64, KB128, KB256, KB512` — **`KB2`/`KB32` добавлены, `<remarks>` исправлен** |
+| `RamSize` | `B64..B512`, `KB1..KB512`, `MB1..MB512`, `GB1, GB2` |
+| `PortSize` | `B64..B512`, `KB1, KB2, KB4, KB8, KB16, KB32, KB64, KB128, KB256, KB512` |
 | `DevicePortSize` | `B8, B16, B32, B64, B128, B256` |
 
-Разница в XML-покрытии:
-- `PortSize`, `RamSize` — полностью (включая операторы).
-- `DevicePortSize` — структура и фабрики с `///`, но `Equals`/`GetHashCode`/`CompareTo`/`ToString` и все операторы — без. **Плюс сломанные `</summary` у `B64`/`B128`/`B256`** (дефект не исправлен).
+XML-покрытие: `PortSize` и `RamSize` — полностью (включая операторы). `DevicePortSize` — все члены и операторы с `///`; закрывающие теги `</summary>` исправлены.
 
 ### `DecodeInstructionResult` — `readonly record struct`
 
@@ -166,7 +202,7 @@ public readonly record struct DecodeInstructionResult(
     OpCodeSize DataSizeCode);
 ```
 
-**Breaking change:** был `readonly struct` с публичными полями, стал `readonly record struct` с позиционными параметрами. Поля стали get-only свойствами, сгенерированы `Equals`/`GetHashCode`/`==`/`ToString`/`Deconstruct`. XML — полный, включая `<remarks>` о том, что `Reg1`/`Reg2` имеют смысл только для опкодов, которые их используют.
+Позиционные параметры -> get-only свойства, сгенерированы `Equals`/`GetHashCode`/`==`/`ToString`/`Deconstruct`. XML — полный, включая `<remarks>` о том, что `Reg1`/`Reg2` имеют смысл только для опкодов, которые их используют.
 
 ### `InstructionDecoder` — `static class`
 
@@ -177,15 +213,25 @@ public readonly record struct DecodeInstructionResult(
 | `GetReg2(uint)` | | `RegType` | `(raw >> 13) & 0x1F` |
 | `GetDataSizeCode(uint)` | | `OpCodeSize` | `(raw >> 18) & 0x3` |
 | `DecodeRawInstToEnums(uint)` | | `DecodeInstructionResult` | все поля за один проход |
-| `HasNeed64IntData(OpCode)` | опкод | `bool` | есть ли после инструкции 64-битный immediate; бросает `ArgumentOutOfRangeException`, если `(uint)opCode > (uint)OpCode.MOD` |
+| `HasNeed64IntData(OpCode)` | опкод | `bool` | есть ли после инструкции 64-битный immediate; бросает `ArgumentOutOfRangeException`, если `(uint)opCode > (uint)OpCodeExtension.LastValue` |
 
-Плюс extension-метод `Int()` на `RegType`.
-
-`HasNeed64IntData` — таблица `CreateNeedsUlongOperandTable()`. В ней отмечены: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`. Проверка диапазона — `(uint)opCode > (uint)OpCode.MOD` — устойчива к смене базового типа `OpCode` на знаковый. **Однако `<remarks>` на методе всё ещё описывает старую уязвимость** — см. [Что исправить](#что-исправить), п. 1.
-
-`CreateNeedsUlongOperandTable` — `private`, 256-элементный `ImmutableArray<bool>`. Не отмечены `LOAD_UNSAFE`/`STORE_UNSAFE` (по синтаксису из `OpCode` — `LOAD_UNSAFE R1, [addr]` и `STORE_UNSAFE [addr], R2` — принимают абсолютный адрес, т.е. immediate; см. [Что исправить](#что-исправить), п. 4).
+`HasNeed64IntData` — таблица `CreateNeedsUlongOperandTable()` (256-элементный `ImmutableArray<bool>`). **В этой версии отмечены:** `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`, **`LOAD_UNSAFE`, `STORE_UNSAFE`** (ранее отсутствовали). Проверка диапазона — по `OpCodeExtension.LastValue`, а не по `OpCode.MOD`, поэтому корректна и для недавно добавленных опкодов.
 
 Все публичные методы `[MethodImpl(AggressiveInlining)]`.
+
+### Extension-классы
+
+Через C# 14 `extension`-блоки добавлены удобные члены:
+
+| Класс | Extension на | Члены |
+|---|---|---|
+| `RegTypeExtension` | `RegType` | `Int()`, `ToUint()`, `RegName()`; константы `LastValueInt`, `LastValue` (`rIP`) |
+| `OpCodeSizeExtension` | `OpCodeSize` | `ToUint()`, `SizeName()`; константы `LastValueInt`, `LastValue` (`S64`) |
+| `BiosStatusExtension` | `BiosStatus` | `StatusName()`; константы `LastValueInt`, `LastValue` (`UnsafeOpCodeForbidden`) |
+| `IdStateExtension` | `int` | `ToIdState` (extension-свойство) |
+| `OpCodeExtension` | `OpCode` | `LastValue` (последний опкод) |
+
+`RegName()`/`SizeName()`/`StatusName()` возвращают `nameof(...)` для известных значений или fallback (`"r?"`, `"???"`, `((uint)status).ToString()`).
 
 ### `AlignmentExtensions` — `static class`
 
@@ -195,9 +241,9 @@ public readonly record struct DecodeInstructionResult(
 |---|---|---|
 | `AlignUp(T)` | вверх до кратного | только `DEBUG`, требует степень двойки |
 | `AlignDown(T)` | вниз до кратного | только `DEBUG`, требует степень двойки |
-| `AlignUpArithmetic(T)` | вверх через `%` | всегда, требует `> 0` (не обязательно степень двойки) |
+| `AlignUpArithmetic(T)` | вверх через `%` | всегда, требует `> 0` |
 
-`AlignUp`/`AlignDown` в **Release** не проверяют `alignment` — невалидное значение даст тихий мусор. Для гарантированной проверки — `AlignUpArithmetic`. XML на `AlignUp`/`AlignDown` есть, на `AlignUpArithmetic` — **нет**. Плюс опечатка в `<summary>` класса: «ресширение» -> «расширение» (см. [Что исправить](#что-исправить), п. 7).
+`AlignUp`/`AlignDown` в **Release** не проверяют `alignment` — невалидное значение даст тихий мусор. Для гарантированной проверки — `AlignUpArithmetic`. Вспомогательный `ThrowIfInvalidAlignment` помечен `[Conditional("DEBUG")]` и `[MethodImpl(NoInlining)]`.
 
 ## Примеры для API
 
@@ -208,7 +254,7 @@ using Nantuc.Common;
 
 RamSize ram = RamSize.MB64;
 PortSize ports = PortSize.KB64;
-PortSize ports2 = PortSize.KB2;      // симметрично RamSize
+PortSize ports2 = PortSize.KB2;
 PortSize ports32 = PortSize.KB32;
 DevicePortSize block = DevicePortSize.B256;
 
@@ -243,20 +289,26 @@ if (d == InstructionDecoder.DecodeRawInstToEnums(raw)) { /* ... */ }
 var (code, a, b, size) = d;
 ```
 
+**Extension-члены:**
+
+```csharp
+RegType r = RegType.rSP;
+Console.WriteLine(r.Int());       // 29
+Console.WriteLine(r.RegName());   // "rSP"
+
+BiosStatus s = BiosStatus.DivOnZero;
+Console.WriteLine(s.StatusName()); // "DivOnZero"
+
+OpCodeSize sz = OpCodeSize.S32;
+Console.WriteLine(sz.SizeName()); // "S32"
+Console.WriteLine(sz.ToUint());   // 2
+```
+
 **Классификация возврата `RegisterDevice`:**
 
 ```csharp
 int raw = host.Emulator.RegisterDevice(spec, sector: 0);
-
-IdState state = raw switch
-{
-    >= 0 => IdState.Valid,
-    -1 => IdState.NotAssigned,
-    -2 => IdState.OutOfRange,
-    -3 => IdState.NoFreeSlot,
-    -4 => IdState.Rejected,
-    _  => IdState.Unknown,
-};
+IdState state = raw.ToIdState;
 
 if (state != IdState.Valid)
 {
@@ -296,18 +348,18 @@ int down    = addr.AlignDown(8);  // 8
 - Автор компилятора (frontend MiniC -> NANASM) обязан согласовывать генерацию с `OpCode` и `HasNeed64IntData`.
 
 **Что стоит делать:**
-- Использовать фабрики `RamSize`/`PortSize`/`DevicePortSize` — не «магические» числа. Теперь набор фабрик у `PortSize` и `RamSize` совпадает.
+- Использовать фабрики `RamSize`/`PortSize`/`DevicePortSize` — не «магические» числа.
 - Для декодирования — только `InstructionDecoder`, без ручных сдвигов у себя.
 - Проверять `BiosStatus`/`ProcessorFault` вместо `bool`-флагов.
-- Использовать `IdState` вместо `raw switch { -1 => ..., -2 => ... }` — единая классификация. **Помнить:** `default(IdState) == Unknown` (не `Valid`).
+- Использовать `IdState`/`ToIdState` вместо `raw switch { -1 => ..., -2 => ... }`. **Помнить:** `default(IdState) == Valid` (не `Unknown`).
 - Читать `<remarks>` на `OpCode` и `RegType`: флаги `rFL` обновляют только `CMP` и `TEST`, `HALT` ≠ `END`, нет аппаратно-занулённого регистра.
 
 **Что не стоит делать:**
 - Добавлять интерфейсы или default-классы в этот модуль — для контрактов есть `Contracts`.
 - Вводить сюда логику процессора или шин — это `Kernel`.
-- Менять значения `OpCode`/`OpCodeSize`/`RegType`/`IdState` без версии байткода: числа — часть контракта (явно зафиксировано в `<remarks>`).
+- Менять значения `OpCode`/`OpCodeSize`/`RegType`/`IdState`/`BiosStatus` без версии байткода: числа — часть контракта.
 - Полагаться на `default(RamSize)` как на «0» — это «невалидно», и `Bytes` вернёт `1`.
-- Полагаться на `default(IdState) == Valid` — с новой версией это `Unknown`.
+- Полагаться на `default(IdState) == Unknown` — в текущей версии `default` = `Valid`.
 
 ## Особенная информация
 
@@ -327,18 +379,18 @@ int down    = addr.AlignDown(8);  // 8
 - Биты 20–31 не используются — задел на будущее.
 
 Полная длина инструкции:
-- 4 байта — register-register форма (большинство опкодов).
-- 12 байт — register-immediate форма: 4 байта инструкции + 8 байт immediate (`ulong`). Наличие immediate определяется только через `InstructionDecoder.HasNeed64IntData(opCode)`. Immediate выравнивается по границе 8 байт (зафиксировано в `<remarks>` `OpCode`).
+- 4 байта — register-register форма.
+- 12 байт — register-immediate форма: 4 байта инструкции + 8 байт immediate (`ulong`). Наличие immediate — только через `InstructionDecoder.HasNeed64IntData(opCode)`. Immediate выравнивается по границе 8 байт.
 
 ### Регистровый файл
 
 Зафиксировано в `<remarks>` `RegType`:
 - 32 регистра по 64 бита в `ArrayRegisters` (`[InlineArray(32)]` из `ulong`).
-- `r0..r27` — регистры общего назначения. **Нет** аппаратно-занулённого регистра (в отличие от MIPS/RISC-V); для обнуления — `XOR rN, rN`.
+- `r0..r27` — регистры общего назначения. **Нет** аппаратно-занулённого регистра; для обнуления — `XOR rN, rN`.
 - `rFL` — флаги: бит 0 — Zero, бит 1 — Negative. **Обновляется только `CMP` и `TEST`**; арифметические и логические инструкции флаги не меняют. Начальное значение — `0`.
 - `rSP` — stack pointer. Инициализируется в `Processor.LaunchProgramm` вершиной ОЗУ, выровненной по 8 байт. `rSP -= 8` на `PUSH`/`CALL`, `rSP += 8` на `POP`/`RET`.
 - `rHP` — heap pointer. Инициализируется через `Processor.InitRegHP`; используется для обнаружения коллизии «стек ↔ куча».
-- `rIP` — instruction pointer. В начале `Processor.Step` читается 32-битное слово по `rIP`, после чего `rIP += 4`. Immediate-операнды читаются отдельно с выравниванием по 8 байт. Изменяется инструкциями перехода/вызова/возврата.
+- `rIP` — instruction pointer. В начале `Processor.Step` читается 32-битное слово по `rIP`, после чего `rIP += 4`. Immediate-операнды читаются отдельно с выравниванием по 8 байт.
 
 ### WASM / кроссплатформенность
 
@@ -346,8 +398,8 @@ int down    = addr.AlignDown(8);  // 8
 |---|---|---|
 | Сборка в WASM | - | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — managed. Собирается под `browser-wasm` без правок csproj. |
 | `NativeMemory` | - | Не используется. `Bytes` — managed-сдвиг `1UL << Log2`. |
-| `stackalloc` / `InlineArray` | - | `stackalloc` не используется. `[InlineArray(32)]` упоминается в `<remarks>` `RegType` — это compile-time атрибут, AOT-friendly, WASM-safe. |
-| `Interlocked` / `Volatile` | - | Не используются. Shared-состояние — единственное `static readonly ImmutableArray<bool> _has` в `InstructionDecoder.cs`, инициализируется один раз (CLR гарантирует единственность static-ctor). |
+| `stackalloc` / `InlineArray` | - | `stackalloc` не используется. `[InlineArray(32)]` — compile-time атрибут, AOT-friendly, WASM-safe. |
+| `Interlocked` / `Volatile` | - | Не используются. Shared-состояние — единственное `static readonly ImmutableArray<bool> _has` в `InstructionDecoder.cs`, инициализируется один раз. |
 | `IFileService` | n/a | В этой партии файлов интерфейса нет. |
 | `Regex` / trimming | - | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-совместимо. |
 | AOT | - | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. Generic math (`IBinaryInteger<T>`) моноформируется под каждый `T`. C# 14 `extension`-блоки — compile-time. |
@@ -356,16 +408,16 @@ int down    = addr.AlignDown(8);  // 8
 
 ### `HasNeed64IntData` как контракт
 
-Таблица `CreateNeedsUlongOperandTable()` — единственный источник истины о том, у каких опкодов есть 8-байтный immediate. Сейчас покрывает: `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`. Проверка диапазона — `(uint)opCode > (uint)OpCode.MOD` — корректна и для знакового базового типа. **Однако `<remarks>` на методе описывает старое поведение** (без `(uint)`-приведения) — см. [Что исправить](#что-исправить), п. 1.
+Таблица `CreateNeedsUlongOperandTable()` — единственный источник истины о том, у каких опкодов есть 8-байтный immediate. **Покрывает:** `LDI`, `LOAD`, `STORE`, `CALL`, `JMP`, `JZ`, `JNZ`, `JG`, `JL`, **`LOAD_UNSAFE`, `STORE_UNSAFE`**. Проверка диапазона — `(uint)opCode > (uint)OpCodeExtension.LastValue` — корректна и расширяется автоматически при добавлении новых опкодов до `LastValue`.
 
-По новой XML-документации `OpCode`: `LOAD_IND`/`STORE_IND`/`CALL_IND`/`JMP_IND` — indirect через регистр (`R1 = [R2]`, `[R2] = R1`, `CALL [R]`, `JMP [R]`), immediate после инструкции им **не нужен** — отсутствие в таблице корректно. `LOAD_IND_UNSAFE`/`STORE_IND_UNSAFE` — тоже indirect, отсутствие корректно. Но `LOAD_UNSAFE R1, [addr]` и `STORE_UNSAFE [addr], R2` по синтаксису принимают **абсолютный адрес** — это immediate, поэтому они **должны быть** в таблице; сейчас их нет (см. [Что исправить](#что-исправить), п. 4).
+`LOAD_IND`/`STORE_IND`/`CALL_IND`/`JMP_IND` — indirect через регистр, immediate не нужен — отсутствуют в таблице корректно. `LOAD_IND_UNSAFE`/`STORE_IND_UNSAFE` — тоже indirect.
 
 ### Ограничения платформ
 
-- Целевой framework: `net10.0`. Используются C# 14 `extension`-блоки в `AlignmentExtensions` и `InstructionDecoder` — старые тулчейны не соберут.
-- `unsafe`-кода в этом модуле нет — безопасен для WASM/AOT и окружений с запретом `unsafe`.
+- Целевой framework: `net10.0`. Используются C# 14 `extension`-блоки — старые тулчейны не соберут.
+- `unsafe`-кода в этом модуле нет — безопасен для WASM/AOT.
 - `[MethodImpl(AggressiveInlining)]` — оптимизация под JIT. В AOT/WASM инлайнер ведёт себя иначе; профилируйте на целевой платформе.
-- `[Conditional("DEBUG")]` в `AlignmentExtensions`: в **Release** проверка `alignment` на степень двойки не выполняется. Невалидный `alignment` даст тихий мусор. Для гарантированной проверки — `AlignUpArithmetic`.
+- `[Conditional("DEBUG")]` в `AlignmentExtensions`: в **Release** проверка `alignment` на степень двойки не выполняется.
 - `Nullable=enable`, `ImplicitUsings=enable`.
 
 ### Что этот модуль не делает
@@ -374,6 +426,5 @@ int down    = addr.AlignDown(8);  // 8
 - Не содержит логики процессора, шин, устройств — это `Kernel`.
 - Не знает про компилятор MiniC и ассемблер NANASM — только предоставляет им `OpCode`/`RegType`/`OpCodeSize`.
 - Не сериализует байткод — формат `.bin`/`.nanas` определяется в `Kernel`/`Extensions`.
-- Не содержит `ToIdState`/`TryGetIdState` — только enum `IdState` (см. [Что исправить](#что-исправить), п. 6).
 
 Правило «куда положить тип»: примитив без поведения -> `Common`; интерфейс/контракт -> `Contracts`; всё, что исполняет или хранит состояние -> `Kernel`.

@@ -74,7 +74,7 @@ public static class AlignmentExtensions
         /// </exception>
         public T AlignUp(T alignment)
         {
-            IsOutOfRangeException(alignment);
+            ThrowIfInvalidAlignment(alignment);
             return (value + (alignment - T.One)) & ~(alignment - T.One);
         }
 
@@ -109,7 +109,7 @@ public static class AlignmentExtensions
         /// </exception>
         public T AlignDown(T alignment)
         {
-            IsOutOfRangeException(alignment);
+            ThrowIfInvalidAlignment(alignment);
             return value & ~(alignment - T.One);
         }
 
@@ -173,7 +173,7 @@ public static class AlignmentExtensions
     /// компилятором, а вместе с ним — и проверка.
     /// </para>
     /// <para>
-    /// <b>Именование:</b> имя <c>IsOutOfRangeException</c> читается как
+    /// <b>Именование:</b> имя <c>ThrowIfInvalidAlignment</c> читается как
     /// предикат, но метод ничего не возвращает и только бросает исключение.
     /// Рассмотрите переименование в <c>ValidateAlignment</c> или
     /// <c>ThrowIfInvalidAlignment</c>.
@@ -184,7 +184,7 @@ public static class AlignmentExtensions
     /// степенью двойки.
     /// </exception>
     [Conditional("DEBUG")]
-    private static void IsOutOfRangeException<T>(T alignment) where T : IBinaryInteger<T>
+    private static void ThrowIfInvalidAlignment<T>(T alignment) where T : IBinaryInteger<T>
     {
         if (alignment <= T.Zero || !IsPowerOfTwo(alignment))
             GenerateOutOfRangeException(nameof(alignment));
