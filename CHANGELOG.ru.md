@@ -14,9 +14,9 @@
 
 ### Добавлено
 - `Device.cs` метод `Step` - пошаговое выполнение в режиме без отладки
-- `Device.cs` метод `BatchStep` - пошаговое выполнение в режиме без отладки
+- `Device.cs` метод `BatchStep(int)` - пошаговое выполнение в режиме без отладки
 - `DeviceContext.cs` метод `Step` - пошаговое выполнение в режиме без отладки
-- `DeviceContext.cs` метод `BatchStep()` - пошаговое выполнение в режиме без отладки
+- `DeviceContext.cs` метод `BatchStep(int)` - пошаговое выполнение в режиме без отладки
 
 ### Изменено
 - **BREAKING:** `Device.cs` переименовано `NextStepProcessorCount` -> `BatchStepDebug`
