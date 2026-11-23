@@ -14,9 +14,9 @@ Short labels:
 
 ### Added
 - `Device.cs` `Step` method - step-by-step execution in non-debug mode
-- `Device.cs` `BatchStep` method - batch step-by-step execution in non-debug mode
+- `Device.cs` `BatchStep(int)` method - batch step-by-step execution in non-debug mode
 - `DeviceContext.cs` `Step` method - step-by-step execution in non-debug mode
-- `DeviceContext.cs` `BatchStep()` method - batch step-by-step execution in non-debug mode
+- `DeviceContext.cs` `BatchStep(int)` method - batch step-by-step execution in non-debug mode
 
 ### Changed
 - **BREAKING:** `Device.cs` renamed `NextStepProcessorCount` -> `BatchStepDebug`
