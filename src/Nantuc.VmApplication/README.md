@@ -666,6 +666,7 @@ Inside `DeviceContext` — `private enum Mode { Step, Continuous, None }` and `v
 - `Run`/`DebugRun` -> `ThrowByMode(Continuous)` -> blocking loop -> `SetNoneMode()`.
 - `RunStepMode` -> `ThrowByMode(Step)` -> `BreakPointerLaunchDevice`.
 - `StepDebug`/`BatchStepDebug` -> `ThrowIfNotStepMode` -> `Device.StepDebug`/`BatchStepDebug`.
+- `Step`/`BatchStep` -> `Device.Step`/`Device.BatchStep` (a good fit for coroutines)
 - `EndStepMode` -> `ThrowIfNotStepMode` -> `Device.Stop()` + one `StepDebug(null)` + `SetNoneMode()`.
 - `Stop` -> `Device.Stop()` + `SetNoneMode()` — can be called from any mode.
 

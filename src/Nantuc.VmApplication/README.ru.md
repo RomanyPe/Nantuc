@@ -665,6 +665,7 @@ var project = new VmHostProjectBuilder()
 - `Run`/`DebugRun` -> `ThrowByMode(Continuous)` -> блокирующий цикл -> `SetNoneMode()`.
 - `RunStepMode` -> `ThrowByMode(Step)` -> `BreakPointerLaunchDevice`.
 - `StepDebug`/`BatchStepDebug` -> `ThrowIfNotStepMode` -> `Device.StepDebug`/`BatchStepDebug`.
+- `Step`/`BatchStep` -> `Device.Step`/`Device.BatchStep` (хорошо подходит для корутин)
 - `EndStepMode` -> `ThrowIfNotStepMode` -> `Device.Stop()` + один `StepDebug(null)` + `SetNoneMode()`.
 - `Stop` -> `Device.Stop()` + `SetNoneMode()` — можно вызвать из любого режима.
 
