@@ -242,8 +242,6 @@ dotnet tool install --global Nantuc.CLI
 nantuc help
 ```
 
-Версия подтягивается последняя стабильная; зафиксировать конкретную — `--version 0.8.2`.
-
 > `Nantuc.Common`, `Nantuc.Contracts`, `Nantuc.Diagnostics` не тянут `unsafe`/`NativeMemory`/`Regex` — их можно подключать в WASM/AOT-проекты и в окружения с запретом `unsafe`.
 
 ## Требования
