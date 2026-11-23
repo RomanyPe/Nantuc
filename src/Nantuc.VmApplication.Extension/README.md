@@ -27,7 +27,7 @@
 - **RAM utilities** (`DeviceContextExtensions`): `GetRamAsNewArray` / `GetAllRamAsNewArray`, `CopyRamTo` into `Span<byte>` / `byte[]` / `Memory<byte>` / `Stream`, `ReadRam<T>` / `CopyRamTo<T>` for `unmanaged` types, `TryCopyRamTo` without exceptions — read RAM of a **stopped** VM (all except `TryCopyRamTo` throw `InvalidOperationException` when `ctx.IsRunning`).
 - **Bytecode utilities** (`BytecodeExtension`): `GetOpCodeSafety` / `GetUnsafeOpCodes` — static analysis of `CompilationResult.Program` for `*_UNSAFE` opcodes (`OpCodeSafety.Safe`/`HasUnsafe`/`Unknown`) and locating them (`UnsafeOpCodeLocation(OpCode, Offset, Ip)`). Useful for checking untrusted code before running and for verifying the result of `ReplaceSafeMemAccessWithUnsafeRule`.
 
-The key idea is not to change the `Nantuc.VmApplication` contract but to extend it. All rules implement `IAstOptimizationRule`/`IOptimizerIRRule` from the compiler, all I/O devices inherit `PortControlBase` from `VmApplication`, and the debugger works through `DeviceContext.RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. No new interfaces in `Kernel.Contracts`.
+The key idea is not to change the `Nantuc.VmApplication` contract but to extend it. All rules implement `IAstOptimizationRule`/`IOptimizerIRRule` from the compiler, all I/O devices inherit `PortControlBase` from `VmApplication`, and the debugger works through `DeviceContext.RunStepMode`/`StepDebug`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. No new interfaces in `Kernel.Contracts`.
 
 ## Local project tree
 
@@ -286,10 +286,10 @@ public sealed class Debugger : IDisposable
 Behavior:
 
 - **`Load`** — `ctx.LoadProgram` + `ctx.RunStepMode(startAddress)`; after the call `IsActive == true`, but no instruction has been executed yet. `Debugger` is one-shot per `Load` — a repeated call throws `InvalidOperationException` (protection against leaking step mode; for a new run — a new `Debugger`).
-- **`Step`** — one instruction via `ctx.SingleStep(onStep)`; the result is a `DebugStop` with a processor snapshot from the callback (`ProcessorSnapshot` from the VM — with correct `IsSleeping`).
+- **`Step`** — one instruction via `ctx.StepDebug(onStep)`; the result is a `DebugStop` with a processor snapshot from the callback (`ProcessorSnapshot` from the VM — with correct `IsSleeping`).
 - **`StepOver`** — if the current instruction is `CALL`/`CALL_IND`, runs to the return address (`ip + 4` for `CALL_IND`, `AlignUp(ip + 4, 8) + 8` for `CALL`); otherwise behaves like `Step`.
 - **`StepOut`** — runs `Step` until `rSP` becomes larger than the value at call time. Best-effort: if the function uses `PUSH`/`POP` for temporaries, semantics break — see [What to fix](#what-to-fix), item 12.
-- **`Continue`** — runs `SingleStep` until `Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`. At start it checks `_skipBreakpointOnce` (see [Special notes](#special-notes)) so that `Continue` -> breakpoint -> `Continue` does not loop.
+- **`Continue`** — runs `StepDebug` until `Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`. At start it checks `_skipBreakpointOnce` (see [Special notes](#special-notes)) so that `Continue` -> breakpoint -> `Continue` does not loop.
 - **`ContinueTo(addr)`** — temporarily adds a breakpoint at `addr`, calls `Continue`, removes the breakpoint. If `addr` already had a user breakpoint — it is preserved.
 - **`RunToEnd`** — `Continue` with a temporarily cleared set of breakpoints (to "run to the end, ignoring points").
 - **`RequestStop`** — the only method safe from another thread: `volatile bool _stopRequested`. The `Continue`/`StepOver`/`StepOut` loops check it on every iteration.
@@ -890,7 +890,7 @@ Medium-high. This is an optional layer on top of the main API. If you just want 
 - Use `Libraries.alloc_minic` as a "reference" — it still uses globals as legacy (the workaround is no longer needed, but the code has not been simplified yet), and there is a bug in `free` (see [What to fix](#what-to-fix), item 14).
 - Call `Step`/`Continue`/`Load` from different threads on the same `Debugger` — it is not thread-safe (except `RequestStop`). The model is the same as for `DeviceContext`.
 - Expect an exact call stack from `GetCallStack()` — the VM does not keep a frame pointer, reconstruction is heuristic; false positives are possible.
-- Rely on `stop.Snapshot.IsSleeping` in `Continue` — the sleep flag only comes from `_stepSnapshot` (after `SingleStep`); when stopping via `RequestStop` it may be `false` even if the VM is in `HALT`. For `HALT`, `stop.Reason == Sleeping` is more reliable.
+- Rely on `stop.Snapshot.IsSleeping` in `Continue` — the sleep flag only comes from `_stepSnapshot` (after `StepDebug`); when stopping via `RequestStop` it may be `false` even if the VM is in `HALT`. For `HALT`, `stop.Reason == Sleeping` is more reliable.
 - Use a single `Debugger` for several `Load`s — after the program finishes (or after a manual `Dispose`), create a new instance. A repeated `Load` throws `InvalidOperationException` (protection against leaking step mode).
 - Expect `Debugger.ReadRam` to guard against `IsRunning` (like `DeviceContextExtensions.GetRamAsNewArray`) — the debugger reads RAM during a stop; if you call `ReadRam` from another thread during `Continue`, the data will be race-y.
 - Assume `GetOpCodeSafety() == Safe` is a memory-safety guarantee. `Safe` is "no `*_UNSAFE`", not "no arbitrary addresses": ordinary `LOAD`/`STORE` also write to an address taken from a register. For real protection — a combination of `ReplaceSafeMemAccessWithUnsafeRule`, `SizeRam` = actual RAM size, and `Device`/`MemoryBus` bounds. `GetOpCodeSafety` is a signal "are there `*_UNSAFE`s", not "is the code safe".
@@ -907,7 +907,7 @@ Both `Disassembler.Disassemble` and `StringDisassembler.Disassemble` split the s
 1. `_skipBreakpointOnce == rIP` -> clears the flag and does **not** stop at the current address (this is the same breakpoint that fired last time).
 2. `HasBreakpoint(rIP)` -> returns `DebugStopReason.Breakpoint` without stepping.
 
-`StepOneOrFinish` after each `SingleStep` sets `_skipBreakpointOnce = newIp` if there is a breakpoint at the new `rIP`. This gives correct semantics:
+`StepOneOrFinish` after each `StepDebug` sets `_skipBreakpointOnce = newIp` if there is a breakpoint at the new `rIP`. This gives correct semantics:
 
 ```
 Load -> Continue (hit bp at 0x00) -> Continue (skip 0x00, continues)
@@ -919,7 +919,7 @@ Without `_skipBreakpointOnce`, `Continue` -> breakpoint -> `Continue` would spin
 
 ### Debugger: `ProcessorSnapshot` in `DebugStop`
 
-In `Step`/`StepOver`/`StepOut`/`Continue` the `ProcessorSnapshot` is taken from `_stepSnapshot` (`SingleStep(onStep)` callback), so:
+In `Step`/`StepOver`/`StepOut`/`Continue` the `ProcessorSnapshot` is taken from `_stepSnapshot` (`StepDebug(onStep)` callback), so:
 - `IsSleeping` is correct (the VM sets `_isSleeping` before invoking the callback);
 - `IsRunning` is correct (the VM clears it before invoking the callback);
 - `RawInstruction` — the word at the **current** `rIP` (after the step).
@@ -990,7 +990,7 @@ Reason: `Program` is a `byte[]`, and truncation means either `Program` is broken
 - `Channel<byte>` and `Task.Run(DrainAsync)` — work in WASM, but background tasks may not run until an explicit `await`.
 - `ImmutableArray<T>` — works in AOT/WASM, but each mutation through `CreateBuilder` allocates. For large programs (10k+ instructions) `DisassemblyResult` can take a lot of memory. For streaming — `StringDisassembler.Disassemble`.
 - `Guid.NewGuid().GetHashCode()` in `InlineSmallVoidFunctionsRule` — stable within a process, but not across processes. For deterministic builds — a problem.
-- `Debugger` — `SingleStep` works in WASM (one instruction — synchronously), but `Continue`/`StepOver`/`StepOut`/`GetCallStack` are synchronous loops that block the current thread. In browser-WASM (single-threaded) — UI blocking. For an in-browser IDE — move to a Web Worker or use `Task.Run` with `RequestStop`.
+- `Debugger` — `StepDebug` works in WASM (one instruction — synchronously), but `Continue`/`StepOver`/`StepOut`/`GetCallStack` are synchronous loops that block the current thread. In browser-WASM (single-threaded) — UI blocking. For an in-browser IDE — move to a Web Worker or use `Task.Run` with `RequestStop`.
 
 ## What to fix
 
@@ -1016,7 +1016,7 @@ Reason: `Program` is a `byte[]`, and truncation means either `Program` is broken
 
 11. **[API] `Debugger.ReadRam` is not guarded against `IsRunning`.**  
     File: `Debugging/Debugger.cs`. Unlike `DeviceContextExtensions.GetRamAsNewArray`/`CopyRamTo` (which throw `InvalidOperationException` when `ctx.IsRunning`), the debugger reads RAM **during a stop** — that is its normal scenario. But if the user calls `ReadRam` from another thread during `Continue`, the data will be race-y.  
-    Fix: either check `_isStepping` (a flag "a `SingleStep` is in progress"), or document it in `<remarks>` (currently — only in the README).
+    Fix: either check `_isStepping` (a flag "a `StepDebug` is in progress"), or document it in `<remarks>` (currently — only in the README).
 
 12. **[API/XML] `Debugger.StepOut` — a heuristic on `rSP`.**  
     File: `Debugging/Debugger.cs`. The semantics "`rSP` became larger than it was" breaks if the function uses `PUSH`/`POP` for temporaries (typical for `print_minic`/`alloc_minic`). In such cases `StepOut` may leave the function earlier than expected.  

@@ -137,7 +137,7 @@ using var host = VmHostFactory.CreateDefault(fileService: fs);
 - Run `dotnet run` in `Nantuc.Samples.Minimal` — the screen will print `Hello world. Привет мир` (UTF-16).
 - Use it as a template for your own examples: copy the structure `SaveFileProject` -> `TryRegisterDevice` -> `TryGetDeviceContext` -> `CompileToIR` -> `TryLoadProgram` -> `Run`.
 - Check the `IdState` from `TryRegisterDevice` — this replaces the old `deviceId < 0` check.
-- For debugging, replace `Run()` with `RunStepMode` + `SingleStep`, as in the `[VmApplication README](../../src/Nantuc.VmApplication/README.md)`.
+- For debugging, replace `Run()` with `RunStepMode` + `StepDebug`, as in the `[VmApplication README](../../src/Nantuc.VmApplication/README.md)`.
 
 **What you should not do:**
 - Expect `optimize: true` to provide a speedup — without `AddStdRules()` the AST optimizer is empty (see [What to fix, item 2](#what-to-fix)).

@@ -137,7 +137,7 @@ using var host = VmHostFactory.CreateDefault(fileService: fs);
 - Запустить `dotnet run` в `Nantuc.Samples.Minimal` — на экран выведется `Hello world. Привет мир` (UTF-16).
 - Использовать как шаблон для своих примеров: копировать структуру `SaveFileProject` -> `TryRegisterDevice` -> `TryGetDeviceContext` -> `CompileToIR` -> `TryLoadProgram` -> `Run`.
 - Проверять `IdState` от `TryRegisterDevice` — это заменяет старую проверку `deviceId < 0`.
-- Для отладки заменить `Run()` на `RunStepMode` + `SingleStep`, как в `[VmApplication README](../../src/Nantuc.VmApplication/README.ru.md)`.
+- Для отладки заменить `Run()` на `RunStepMode` + `StepDebug`, как в `[VmApplication README](../../src/Nantuc.VmApplication/README.ru.md)`.
 
 **Что не стоит делать:**
 - Ожидать, что `optimize: true` даст ускорение — без `AddStdRules()` AST-оптимизатор пуст (см. [Что исправить, п.2](#что-исправить)).

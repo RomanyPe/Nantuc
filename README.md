@@ -153,7 +153,7 @@ The public API of `Nantuc.VmApplication` follows the “Try + IdState + Processo
 | Running the VM | `Run()` -> `void` | `Run(opt)` -> `ProcessorFault` |
 | Stop by limit | `RunWithLimit(...)` | `Run(new LaunchOptions(StepLimit: N))` |
 | Pause/resume | — (previously only `Stop`) | `Pause()` / `Resume()` — queue-based, safe from another thread |
-| Step-by-step execution | — | `Debugger` (in `VmApplication.Extensions`) on top of `RunStepMode`/`SingleStep` |
+| Step-by-step execution | — | `Debugger` (in `VmApplication.Extensions`) on top of `RunStepMode`/`StepDebug` |
 
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **do not rely on `default(IdState) == Valid`** — this has changed.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. On success `Status == EndProgram`; on failure — `DivOnZero`/`SegmentationFault`/… with exact `IP` and `OpCode`.

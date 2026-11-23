@@ -84,7 +84,7 @@ Public surface by namespace:
 | `Processor` | `ProcessorSystem` | `sealed class` | `Step()`, `LaunchProgramm`, `Reset`, queues `EnqueueBiosStatus`/`EnqueueExternalCommand`, `GetDiagnosticData`, `CopyRegisters`, `CurrentProcessorSnapshot` (property) |
 | `ProcessorSnapshot` | `ProcessorSystem` | `readonly struct` | State snapshot: `IsRunning`, `IsSleeping`, copy of 32 registers, `GetRegister(RegType)`, current instruction and `imm64` |
 | `PortBus` | `ControllersData` | `sealed class : IPortBus` | Sector bus: `RegisterDevice`, `ReadPort`, `WritePort`, `WakeProcessor`, `IsFreeSector` |
-| `Device` | `BiosSystem` | `sealed class : IPortController` | `Run`, `DebugRun`, `NextStepProcessor*`, `LoadProgram`, `TryLoadProgram`, `Stop`, `WakeProcessor`, `EnqueueExternalCommand`, `GetLastFault` |
+| `Device` | `BiosSystem` | `sealed class : IPortController` | `Run`, `DebugRun`, `StepDebug`,`Step`, `BatchStep`, `BatchStepDebug`, `LoadProgram`, `TryLoadProgram`, `Stop`, `WakeProcessor`, `EnqueueExternalCommand`, `GetLastFault` |
 | `Emulator` | `Utilites` | `class : IDisposable` | `CreateDevice`, `RegisterDevice`, `GetDevice`, `TryGetDevice`, `UnregisterDevice`, `ChangeDeviceSector`, `AllDeviceInfo` |
 | `ManagerDevices` | `Utilites` | `class : IDisposable` | `TryAddDevice`, `RemoveDevice`, `ChangeSector`, `GetDevice`, `TryGetDevice`, `GetAllDevices`, `Count` |
 
@@ -155,20 +155,21 @@ Created by the **property** `Processor.CurrentProcessorSnapshot`. Contains `IsRu
 
 ### `Device` — Computing Device
 
-Its own `MemoryBus` + `Processor` + `byte[] _ioMemory` + `ManualResetEventSlim _wakeSignal`. Implements `IPortController` — can be registered on `PortBus` via `Emulator.RegisterDevice`.
+Owns `MemoryBus` + `Processor` + `byte[] _ioMemory` + `ManualResetEventSlim _wakeSignal`. Implements `IPortController` — can be registered on `PortBus` via `Emulator.RegisterDevice`.
 
 | Method | Purpose |
 |---|---|
-| `Run(ulong, long?, bool, Action?, Action<TimeSimulationResult>?)` | blocking run until completion/failure; `limit` — step limit -> `InfinityLoop` |
-| `DebugRun(ulong, long, int, Action?, Action<ProcessorSnapshot>?, Action?)` | run with delay and per-step callback |
-| `BreakPointerLaunchDevice(ulong?, Action?)` | initialization without starting the loop; `start ?? 0` — if `null`, `rIP` is set to `0` (not "from the end of RAM" — the end of RAM only goes into `rSP` in `LaunchProgramm`) |
-| `NextStepProcessor(Action<ProcessorSnapshot>?)` / `NextStepProcessorCount(int, Action<ProcessorSnapshot>?)` | manual steps; read `Processor.CurrentProcessorSnapshot` (property) |
-| `LoadProgram(ReadOnlySpan<byte>, ulong)` / `TryLoadProgram` | loading + initialization of `rHP` (`(loadAddress + programLength).AlignUp(8)`) |
+| `Run(ulong, long?, bool, Action?, Action<TimeSimulationResult>?)` | blocking execution until completion/fault; `limit` — step limit -> `InfinityLoop` |
+| `DebugRun(ulong, long, int, Action?, Action<ProcessorSnapshot>?, Action?)` | execution with a delay and a per-step callback |
+| `BreakPointerLaunchDevice(ulong?, Action?)` | initialization without starting the execution loop; `start ?? 0` — if `null`, `rIP` is set to `0` (not "from the end of RAM" — the end of RAM is only assigned to `rSP` in `LaunchProgramm`) |
+| `StepDebug(Action<ProcessorSnapshot>?)` / `BatchStepDebug(int, Action<ProcessorSnapshot>?)` | manual steps; read `Processor.CurrentProcessorSnapshot` (property) |
+| `Step()` / `BatchStep(int)` | manual steps |
+| `LoadProgram(ReadOnlySpan<byte>, ulong)` / `TryLoadProgram` | loading + `rHP` initialization (`(loadAddress + programLength).AlignUp(8)`) |
 | `Stop()` / `WakeProcessor()` / `EnqueueExternalCommand(uint)` | from another thread: `Enqueue*` + `_wakeSignal.Set()` |
 | `CopyRegisters` / `GetLastFault` / `ResetMemoryRam` / `ClearRegisters` | snapshots |
-| `ReadPort` / `WritePort` | **without bounds checks** — return `0`/ignore on out-of-bounds of `_ioMemory.Length` (in `<remarks>` of the type — "I/O ports," the implementation does not throw) |
+| `ReadPort` / `WritePort` | **no bounds checking** — return `0`/ignore when exceeding `_ioMemory.Length` (type `<remarks>` states "I/O ports"; implementation does not throw) |
 
-`Stop`/`WakeProcessor`/`EnqueueExternalCommand` are the only methods safe from another thread (they use `Enqueue*` + `_wakeSignal.Set()`). `Run`/`DebugRun`/`NextStep*` — are not.
+`Stop`/`WakeProcessor`/`EnqueueExternalCommand` are the only methods safe to call from another thread (they use `Enqueue*` + `_wakeSignal.Set()`). `Run`/`DebugRun`/`NextStep*` are not.
 
 ### `Emulator` — Entry Point
 
@@ -211,13 +212,22 @@ ProcessorFault fault = device.Run(
 Console.WriteLine($"{fault.Status} @ 0x{fault.InstructionPointer:X}");
 ```
 
-**Step-by-step execution:**
+**Step-by-step execution in debug mode:**
 
 ```csharp
 device.BreakPointerLaunchDevice(start: 0, titleAct: null);
 
-device.NextStepProcessor(step => Console.WriteLine($"IP=0x{step.GetRegister(RegType.rIP):X}"));
-device.NextStepProcessorCount(3, onStep: null);
+device.StepDebug(step => Console.WriteLine(\$"IP=0x{step.GetRegister(RegType.rIP):X}"));
+device.BatchStepDebug(3, onStep: null);
+```
+
+**Fast step-by-step execution:**
+
+```csharp
+device.BreakPointerLaunchDevice(start: 0, titleAct: null);
+
+device.Step();
+device.BatchStep(3);
 ```
 
 **Registering an external device:**

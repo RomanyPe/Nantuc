@@ -23,7 +23,7 @@
 - `VmHostProject` — compilation: `GetSourceFiles()` -> `Compile()` / `CompileToIR()` -> `CompilationResult` / `CompilationToIRResult`. Configured via `CompilerContext` (built by `VmHostProjectBuilder`).
 - `CompilerContext` — an immutable snapshot of the compiler configuration: `Optimizator` + `Paths` + `FileService` + `ErrorReporter`.
 - `VmEmulator` — execution: device registration, including the VM (`DeviceSpec`), issuing `DeviceContext`, access to `IPortBus`. Configured via `VmEmulatorBuilder`.
-- `DeviceContext` — managing a specific VM: `LoadProgram`, `Run`, `RunStepMode`/`SingleStep`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, modes (Step/Continuous/None).
+- `DeviceContext` — managing a specific VM: `LoadProgram`, `Run`, `RunStepMode`/`StepDebug`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, modes (Step/Continuous/None).
 
 Key architectural feature: the VM is also a device on the port bus. `VmEmulator.TryRegisterDevice(DeviceSpec, sector)` creates a `Device` from the core and registers it as an `IPortController`. One emulator can hold multiple VMs, and they communicate through ports like ordinary devices (VM composition inside a VM). `DeviceContext` is a convenient window into a specific `Device` without direct access to `Nantuc.Kernel`.
 
@@ -227,8 +227,10 @@ public class DeviceContext
     public ProcessorFault DebugRun(LaunchOptionsDebug? opt = null);
 
     public void RunStepMode(ulong startAddress = ProjectBuilder.BaseAddressProgram, Action? onLaunch = null);
-    public void SingleStep(Action<ProcessorSnapshot>? onStep = null);
-    public void MultiStep(int count = 5, Action<ProcessorSnapshot>? onStep = null);
+    public void StepDebug(Action<ProcessorSnapshot>? onStep = null);
+    public void BatchStepDebug(int count = 5, Action<ProcessorSnapshot>? onStep = null);
+    public void Step();
+    public void BatchStep(int count);
     public void EndStepMode();
 
     public byte ReadPort(ulong offset);
@@ -268,7 +270,7 @@ Modes (`DeviceContext.Mode` — private enum):
 | Mode | How to enter | How to exit | What it does |
 |---|---|---|---|
 | `Continuous` | `Run` / `DebugRun` | automatically after completion | blocking `Step()` loop |
-| `Step` | `RunStepMode` | `EndStepMode` | manual `SingleStep`/`MultiStep` |
+| `Step` | `RunStepMode` | `EndStepMode` | manual `StepDebug`/`BatchStepDebug`/`Step`/`BatchStep` (mode check is skipped for `Step` and `BatchStep`; invoke only when the operating mode is guaranteed) |
 | `None` | `Stop()` or completion | — | nothing is running |
 
 **`SnapshotRegisters`** — in a separate file, `readonly struct` with `[InlineArray(32)]`:
@@ -547,7 +549,7 @@ vm.LoadProgram(compilation.Program!);   // ReadOnlySpan<byte> — also works wit
 vm.RunStepMode(startAddress: 0);
 
 for (int i = 0; i < 20 && vm.IsRunning; i++)
-    vm.SingleStep(r => Console.WriteLine(
+    vm.StepDebug(r => Console.WriteLine(
         $"IP=0x{r.GetRegister(RegType.rIP):X} r0={r.GetRegister(RegType.r0)}"));
 
 vm.EndStepMode();
@@ -557,7 +559,7 @@ vm.EndStepMode();
 
 ```csharp
 SnapshotRegisters before = vm.GetRegistersSnapshot();
-vm.MultiStep(count: 10);
+vm.BatchStepDebug(count: 10);
 SnapshotRegisters after = vm.GetRegistersSnapshot();
 
 if (before != after)
@@ -663,8 +665,8 @@ Maximum. This is the platform's primary API. After compilation, the MiniC/NANASM
 Inside `DeviceContext` — `private enum Mode { Step, Continuous, None }` and `volatile Mode _mode`:
 - `Run`/`DebugRun` -> `ThrowByMode(Continuous)` -> blocking loop -> `SetNoneMode()`.
 - `RunStepMode` -> `ThrowByMode(Step)` -> `BreakPointerLaunchDevice`.
-- `SingleStep`/`MultiStep` -> `ThrowIfNotStepMode` -> `Device.NextStepProcessor`/`NextStepProcessorCount`.
-- `EndStepMode` -> `ThrowIfNotStepMode` -> `Device.Stop()` + one `NextStepProcessor(null)` + `SetNoneMode()`.
+- `StepDebug`/`BatchStepDebug` -> `ThrowIfNotStepMode` -> `Device.StepDebug`/`BatchStepDebug`.
+- `EndStepMode` -> `ThrowIfNotStepMode` -> `Device.Stop()` + one `StepDebug(null)` + `SetNoneMode()`.
 - `Stop` -> `Device.Stop()` + `SetNoneMode()` — can be called from any mode.
 
 `Stop`, `Pause`, `Resume` can be called from another thread (`Pause`/`Resume` put the command into the `EnqueueExternalCommand` queue). `Run`/`Step` — single-threaded.

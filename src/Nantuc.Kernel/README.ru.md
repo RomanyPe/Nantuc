@@ -84,7 +84,7 @@ Nantuc.Kernel/
 | `Processor` | `ProcessorSystem` | `sealed class` | `Step()`, `LaunchProgramm`, `Reset`, очереди `EnqueueBiosStatus`/`EnqueueExternalCommand`, `GetDiagnosticData`, `CopyRegisters`, `CurrentProcessorSnapshot` (property) |
 | `ProcessorSnapshot` | `ProcessorSystem` | `readonly struct` | Снимок состояния: `IsRunning`, `IsSleeping`, копия 32 регистров, `GetRegister(RegType)`, текущая инструкция и `imm64` |
 | `PortBus` | `ControllersData` | `sealed class : IPortBus` | Секторная шина: `RegisterDevice`, `ReadPort`, `WritePort`, `WakeProcessor`, `IsFreeSector` |
-| `Device` | `BiosSystem` | `sealed class : IPortController` | `Run`, `DebugRun`, `NextStepProcessor*`, `LoadProgram`, `TryLoadProgram`, `Stop`, `WakeProcessor`, `EnqueueExternalCommand`, `GetLastFault` |
+| `Device` | `BiosSystem` | `sealed class : IPortController` | `Run`, `DebugRun`, `StepDebug`,`Step`, `BatchStep`, `BatchStepDebug`, `LoadProgram`, `TryLoadProgram`, `Stop`, `WakeProcessor`, `EnqueueExternalCommand`, `GetLastFault` |
 | `Emulator` | `Utilites` | `class : IDisposable` | `CreateDevice`, `RegisterDevice`, `GetDevice`, `TryGetDevice`, `UnregisterDevice`, `ChangeDeviceSector`, `AllDeviceInfo` |
 | `ManagerDevices` | `Utilites` | `class : IDisposable` | `TryAddDevice`, `RemoveDevice`, `ChangeSector`, `GetDevice`, `TryGetDevice`, `GetAllDevices`, `Count` |
 
@@ -162,7 +162,8 @@ Nantuc.Kernel/
 | `Run(ulong, long?, bool, Action?, Action<TimeSimulationResult>?)` | блокирующий запуск до завершения/сбоя; `limit` — лимит шагов -> `InfinityLoop` |
 | `DebugRun(ulong, long, int, Action?, Action<ProcessorSnapshot>?, Action?)` | запуск с задержкой и колбэком на шаг |
 | `BreakPointerLaunchDevice(ulong?, Action?)` | инициализация без запуска цикла; `start ?? 0` — если `null`, `rIP` выставляется в `0` (не «с конца ОЗУ» — конец ОЗУ идёт только в `rSP` в `LaunchProgramm`) |
-| `NextStepProcessor(Action<ProcessorSnapshot>?)` / `NextStepProcessorCount(int, Action<ProcessorSnapshot>?)` | ручные шаги; читают `Processor.CurrentProcessorSnapshot` (property) |
+| `StepDebug(Action<ProcessorSnapshot>?)` / `BatchStepDebug(int, Action<ProcessorSnapshot>?)` | ручные шаги; читают `Processor.CurrentProcessorSnapshot` (property) |
+| `Step()` / `BatchStep(int)` | ручные шаги |
 | `LoadProgram(ReadOnlySpan<byte>, ulong)` / `TryLoadProgram` | загрузка + инициализация `rHP` (`(loadAddress + programLength).AlignUp(8)`) |
 | `Stop()` / `WakeProcessor()` / `EnqueueExternalCommand(uint)` | с другого потока: `Enqueue*` + `_wakeSignal.Set()` |
 | `CopyRegisters` / `GetLastFault` / `ResetMemoryRam` / `ClearRegisters` | снимки |
@@ -211,13 +212,21 @@ ProcessorFault fault = device.Run(
 Console.WriteLine($"{fault.Status} @ 0x{fault.InstructionPointer:X}");
 ```
 
-**Пошаговое выполнение:**
+**Пошаговое выполнение в режиме отладки:**
 
 ```csharp
 device.BreakPointerLaunchDevice(start: 0, titleAct: null);
 
-device.NextStepProcessor(step => Console.WriteLine($"IP=0x{step.GetRegister(RegType.rIP):X}"));
-device.NextStepProcessorCount(3, onStep: null);
+device.StepDebug(step => Console.WriteLine($"IP=0x{step.GetRegister(RegType.rIP):X}"));
+device.BatchStepDebug(3, onStep: null);
+```
+**Быстрое пошаговое выполнение:**
+
+```csharp
+device.BreakPointerLaunchDevice(start: 0, titleAct: null);
+
+device.Step();
+device.BatchStep(3);
 ```
 
 **Регистрация внешнего устройства:**

@@ -1,4 +1,5 @@
-﻿using Nantuc.Common;
+﻿using Microsoft.VisualBasic;
+using Nantuc.Common;
 using Nantuc.Contracts;
 using Nantuc.Kernel.ControllersData;
 using Nantuc.Kernel.ProcessorSystem;
@@ -229,18 +230,28 @@ public sealed class Device : IPortController
     {
         _wakeSignal.Reset();
         while (_processor.IsRunning)
-        {
-            _processor.Step();
+            Step();
+    }
 
-            if (_processor.IsSleeping)
-            {
-                ProcessorSleepWait();
-            }
-            else
-            {
-                stepCounter++;
-            }
+    public void Step()
+    {
+        _processor.Step();
+
+        if (_processor.IsSleeping)
+        {
+            ProcessorSleepWait();
         }
+        else if (_processor.IsRunning)
+        {
+            stepCounter++;
+        }
+    }
+
+    public void BatchStep(int count)
+    {
+        for (int i = 0; _processor.IsRunning && i < count; i++)
+            Step();
+        
     }
     private void RunSimulationLoopWithLimit(long limit)
     {
@@ -256,17 +267,7 @@ public sealed class Device : IPortController
                 isEndLimit = true;
             }
 
-            _processor.Step();
-
-            if (_processor.IsSleeping)
-            {
-                ProcessorSleepWait();
-            }
-            else
-            {
-                if (_processor.IsRunning)
-                    stepCounter++;
-            }
+            Step();
         }
     }
 
@@ -284,16 +285,7 @@ public sealed class Device : IPortController
                 isEndLimit = true;
             }
 
-            _processor.Step();
-
-            if (_processor.IsSleeping)
-            {
-                ProcessorSleepWait();
-            }
-            else if (_processor.IsRunning)
-            {
-                stepCounter++;
-            }
+            Step();
 
             if (useSleepMode) Thread.Sleep(delay);
         }
@@ -356,16 +348,12 @@ public sealed class Device : IPortController
     /// </summary>
     /// <param name="OnStep">Необязательный колбэк, получающий снимок после шага.</param>
     /// <remarks>Если процессор не запущен, метод ничего не делает.</remarks>
-    public void NextStepProcessor(Action<ProcessorSnapshot>? OnStep)
+    public void StepDebug(Action<ProcessorSnapshot>? OnStep)
     {
         if (!_processor.IsRunning) return;
 
-        _processor.Step();
         OnStep?.Invoke(_processor.CurrentProcessorSnapshot);
-        if (!_processor.IsSleeping)
-        {
-            stepCounter++;
-        }
+        Step();
     }
 
     /// <summary>
@@ -374,21 +362,17 @@ public sealed class Device : IPortController
     /// <param name="count">Количество шагов.</param>
     /// <param name="OnStep">Необязательный колбэк, получающий снимок после каждого шага.</param>
     /// <remarks>Если процессор не запущен, метод ничего не делает.</remarks>
-    public void NextStepProcessorCount(int count, Action<ProcessorSnapshot>? OnStep)
+    public void BatchStepDebug(int count, Action<ProcessorSnapshot>? OnStep)
     {
         if (!_processor.IsRunning) return;
         bool needLog = OnStep != null;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; _processor.IsRunning && i < count; i++)
         {
-            _processor.Step();
             if (needLog)
             {
                 OnStep!.Invoke(_processor.CurrentProcessorSnapshot);
             }
-            if (!_processor.IsSleeping)
-            {
-                stepCounter++;
-            }
+            Step();
         }
     }
 

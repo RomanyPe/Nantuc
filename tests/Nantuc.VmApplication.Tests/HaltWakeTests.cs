@@ -121,7 +121,7 @@ public class HaltWakeTests
         bool sawSleeping = false;
         for (int i = 0; i < 20 && !sawSleeping; i++)
         {
-            deviceCtx.SingleStep(reader =>
+            deviceCtx.StepDebug(reader =>
             {
                 if (reader.IsSleeping) sawSleeping = true;
             });

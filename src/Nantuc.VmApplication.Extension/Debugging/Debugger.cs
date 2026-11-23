@@ -324,7 +324,6 @@ public sealed class Debugger : IDisposable
     public uint ReadUInt32(ulong address) => BinaryPrimitives.ReadUInt32LittleEndian(ReadRam(address, 4));
 
     /// <summary>Читает little-endian <see cref="ulong"/>.</summary>
-    /// <summary>Читает little-endian <see cref="ulong"/>.</summary>
     public ulong ReadUInt64(ulong address) => BinaryPrimitives.ReadUInt64LittleEndian(ReadRam(address, 8));
     /// <summary>Читает <c>char</c> (ASCII / single-byte UTF-8).</summary>
     public char ReadChar(ulong address) => (char)ReadByte(address);
@@ -420,7 +419,7 @@ public sealed class Debugger : IDisposable
     private DebugStop StepOneOrFinish()
     {
         _stepSnapshot = null;
-        _context.SingleStep(_onStepCallback);
+        _context.StepDebug(_onStepCallback);
 
         ProcessorSnapshot snapshot = _stepSnapshot
             ?? BuildSnapshotFromRegisters(_context.GetRegistersSnapshot());

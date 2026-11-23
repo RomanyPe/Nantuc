@@ -10,6 +10,21 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.18.0] - 2026-11-23
+
+### Added
+- `Device.cs` `Step` method - step-by-step execution in non-debug mode
+- `Device.cs` `BatchStep` method - batch step-by-step execution in non-debug mode
+- `DeviceContext.cs` `Step` method - step-by-step execution in non-debug mode
+- `DeviceContext.cs` `BatchStep()` method - batch step-by-step execution in non-debug mode
+
+### Changed
+- **BREAKING:** `Device.cs` renamed `NextStepProcessorCount` -> `BatchStepDebug`
+- **BREAKING:** `Device.cs` renamed `NextStepProcessor` -> `StepDebug`
+- **BREAKING:** `DeviceContext.cs` renamed `SingleStep` -> `StepDebug`
+- **BREAKING:** `DeviceContext.cs` renamed `MultiStep` -> `BatchStepDebug`
+- standardized step logic into a single `Device.Step()` method
+
 ## [0.17.0] - 2026-11-19
 
 ### Added
@@ -227,7 +242,7 @@ Short labels:
 
 ### Added
 - **Debugger** in `Nantuc.VmApplication.Extensions.Debugging`:
-	- `Debugger` — step-by-step execution on top of `DeviceContext`: `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, breakpoints (`AddBreakpoint`/`RemoveBreakpoint`/`ClearBreakpoints`/`HasBreakpoint`), `RequestStop()` (the only thread-safe method — `volatile bool`), `Wake()` from `HALT` (via `ctx.Resume()`), RAM reads (`ReadRam`/`CopyRamTo`/`ReadByte`/`ReadUInt16`/`ReadUInt32`/`ReadUInt64`/`ReadChar`/`ReadCString`), disassembly (`CurrentInstruction`/`DisassembleAt`/`DisassembleProgram` via `StringDisassembler`), best-effort call stack (`GetCallStack`), `Stopped` event. Does not use `AsRawDevice`/`unsafe` — only the public `DeviceContext` API (`RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`).
+	- `Debugger` — step-by-step execution on top of `DeviceContext`: `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, breakpoints (`AddBreakpoint`/`RemoveBreakpoint`/`ClearBreakpoints`/`HasBreakpoint`), `RequestStop()` (the only thread-safe method — `volatile bool`), `Wake()` from `HALT` (via `ctx.Resume()`), RAM reads (`ReadRam`/`CopyRamTo`/`ReadByte`/`ReadUInt16`/`ReadUInt32`/`ReadUInt64`/`ReadChar`/`ReadCString`), disassembly (`CurrentInstruction`/`DisassembleAt`/`DisassembleProgram` via `StringDisassembler`), best-effort call stack (`GetCallStack`), `Stopped` event. Does not use `AsRawDevice`/`unsafe` — only the public `DeviceContext` API (`RunStepMode`/`StepDebug`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`).
 	- `DebugStop` (`readonly record struct`) — `Reason` + `InstructionPointer` + `StepCount` + `ProcessorSnapshot` + `ProcessorFault`; property `IsTerminal` (`Completed || Faulted || Error`).
 	- `DebugStopReason` (`enum`) — `None`/`StepComplete`/`Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`/`Error`.
 	- `CallStackFrame` (`readonly record struct`) — `Index` + `ReturnAddress` + `StackAddress` (best-effort: scanning `[rSP, RamSize)` for 8-byte values within the code range; the VM does not store a frame pointer).

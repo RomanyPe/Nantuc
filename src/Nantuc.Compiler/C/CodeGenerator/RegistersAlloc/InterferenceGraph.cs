@@ -19,6 +19,7 @@ internal sealed class InterferenceGraph
         }
 
         foreach (var b in rpo)
+        {
             foreach (var ins in b.Code)
             {
                 // Цена спилла: чтение ~4 инструкции, запись ~3, в цикле ×10 за уровень.
@@ -50,6 +51,8 @@ internal sealed class InterferenceGraph
                     }
                 }
             }
+        }
+
         return g;
     }
 

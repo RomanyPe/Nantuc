@@ -8,7 +8,7 @@ Path: `src/Nantuc.VmApplication.Extension/Nantuc.VmApplication.Extensions.csproj
 | --- | ---: |
 | Members analysed | 199 |
 | C# files | 37 |
-| Total lines | 3925 |
+| Total lines | 3924 |
 | C# classes | 31 |
 | C# records | 6 |
 | C# enums | 3 |

@@ -154,7 +154,7 @@ nantuc lib exist print.minic
 | Запуск VM | `Run()` -> `void` | `Run(opt)` -> `ProcessorFault` |
 | Остановка по лимиту | `RunWithLimit(...)` | `Run(new LaunchOptions(StepLimit: N))` |
 | Пауза/возобновление | — (было только `Stop`) | `Pause()` / `Resume()` — queue-based, безопасно из другого потока |
-| Пошаговое исполнение | — | `Debugger` (в `VmApplication.Extensions`) поверх `RunStepMode`/`SingleStep` |
+| Пошаговое исполнение | — | `Debugger` (в `VmApplication.Extensions`) поверх `RunStepMode`/`StepDebug` |
 
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **не полагайтесь на `default(IdState) == Valid`** — это изменилось.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. На успехе `Status == EndProgram`; на падении — `DivOnZero`/`SegmentationFault`/… с точным `IP` и `OpCode`.

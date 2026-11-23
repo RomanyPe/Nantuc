@@ -45,7 +45,7 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 150 me
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 98 | HaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode | 5 | 5 | 26 | 3 | 0 | 47.5 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 69 | CompileTestBase | RunCompile_WithLibs | 3 | 5 | 23 | 1 | 3 | 48.4 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 40 | HaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_DebugRun | 3 | 4 | 38 | 2 | 0 | 43.0 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmTestBase.cs | 64 | UnsafeOpCodeTests | SingleStep_WithAllowUnsafeOpCodesFalse_StopsAtUnsafeOpCode | 3 | 3 | 12 | 2 | 0 | 57.9 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmTestBase.cs | 64 | UnsafeOpCodeTests | StepDebug_WithAllowUnsafeOpCodesFalse_StopsAtUnsafeOpCode | 3 | 3 | 12 | 2 | 0 | 57.9 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 16 | CompileTestBase | RunCompile | 2 | 4 | 21 | 1 | 2 | 49.7 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\VMHostTests.cs | 15 | VMHostTests | RunProgramWithIO | 1 | 3 | 14 | 1 | 4 | 54.5 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 49 | CompileTestBase | RunCompile_Error | 1 | 2 | 13 | 1 | 1 | 56.4 |

@@ -10,6 +10,21 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.18.0] - 2026-11-23
+
+### Добавлено
+- `Device.cs` метод `Step` - пошаговое выполнение в режиме без отладки
+- `Device.cs` метод `BatchStep` - пошаговое выполнение в режиме без отладки
+- `DeviceContext.cs` метод `Step` - пошаговое выполнение в режиме без отладки
+- `DeviceContext.cs` метод `BatchStep()` - пошаговое выполнение в режиме без отладки
+
+### Изменено
+- **BREAKING:** `Device.cs` переименовано `NextStepProcessorCount` -> `BatchStepDebug`
+- **BREAKING:** `Device.cs` переименовано `NextStepProcessor` -> `StepDebug`
+- **BREAKING:** `DeviceContext.cs` переименовано `SingleStep` -> `StepDebug`
+- **BREAKING:** `DeviceContext.cs` переименовано `MultiStep` -> `BatchStepDebug`
+- логика шага стандартизирована до 1 метода `Device.Step()`
+
 ## [0.17.0] - 2026-11-19
 
 ### Добавлено
@@ -227,7 +242,7 @@
 
 ### Добавлено
 - **Отладчик** в `Nantuc.VmApplication.Extensions.Debugging`:
-	- `Debugger` — пошаговое исполнение поверх `DeviceContext`: `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, точки останова (`AddBreakpoint`/`RemoveBreakpoint`/`ClearBreakpoints`/`HasBreakpoint`), `RequestStop()` (единственный потокобезопасный метод — `volatile bool`), `Wake()` из `HALT` (через `ctx.Resume()`), чтение RAM (`ReadRam`/`CopyRamTo`/`ReadByte`/`ReadUInt16`/`ReadUInt32`/`ReadUInt64`/`ReadChar`/`ReadCString`), дизассемблирование (`CurrentInstruction`/`DisassembleAt`/`DisassembleProgram` через `StringDisassembler`), best-effort стек вызовов (`GetCallStack`), событие `Stopped`. Не использует `AsRawDevice`/`unsafe` — только публичный API `DeviceContext` (`RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`).
+	- `Debugger` — пошаговое исполнение поверх `DeviceContext`: `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, точки останова (`AddBreakpoint`/`RemoveBreakpoint`/`ClearBreakpoints`/`HasBreakpoint`), `RequestStop()` (единственный потокобезопасный метод — `volatile bool`), `Wake()` из `HALT` (через `ctx.Resume()`), чтение RAM (`ReadRam`/`CopyRamTo`/`ReadByte`/`ReadUInt16`/`ReadUInt32`/`ReadUInt64`/`ReadChar`/`ReadCString`), дизассемблирование (`CurrentInstruction`/`DisassembleAt`/`DisassembleProgram` через `StringDisassembler`), best-effort стек вызовов (`GetCallStack`), событие `Stopped`. Не использует `AsRawDevice`/`unsafe` — только публичный API `DeviceContext` (`RunStepMode`/`StepDebug`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`).
 	- `DebugStop` (`readonly record struct`) — `Reason` + `InstructionPointer` + `StepCount` + `ProcessorSnapshot` + `ProcessorFault`; свойство `IsTerminal` (`Completed || Faulted || Error`).
 	- `DebugStopReason` (`enum`) — `None`/`StepComplete`/`Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`/`Error`.
 	- `CallStackFrame` (`readonly record struct`) — `Index` + `ReturnAddress` + `StackAddress` (best-effort: сканирование `[rSP, RamSize)` на 8-байтные значения в диапазоне кода; VM не хранит frame pointer).

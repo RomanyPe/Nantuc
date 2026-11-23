@@ -23,7 +23,7 @@
 - `VmHostProject` — компиляция: `GetSourceFiles()` -> `Compile()` / `CompileToIR()` -> `CompilationResult` / `CompilationToIRResult`. Конфигурируется через `CompilerContext` (строится `VmHostProjectBuilder`).
 - `CompilerContext` — неизменяемый снимок конфигурации компилятора: `Optimizator` + `Paths` + `FileService` + `ErrorReporter`.
 - `VmEmulator` — исполнение: регистрация устройств, включая VM (`DeviceSpec`), выдача `DeviceContext`, доступ к `IPortBus`. Настраивается через `VmEmulatorBuilder`.
-- `DeviceContext` — управление конкретной VM: `LoadProgram`, `Run`, `RunStepMode`/`SingleStep`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, режимы (Step/Continuous/None).
+- `DeviceContext` — управление конкретной VM: `LoadProgram`, `Run`, `RunStepMode`/`StepDebug`, `Stop`, `Pause`/`Resume`, `ReadPort`, `GetRegistersSnapshot`, `GetLastFault`, режимы (Step/Continuous/None).
 
 Ключевая архитектурная особенность: VM — это тоже устройство на port-шине. `VmEmulator.TryRegisterDevice(DeviceSpec, sector)` создаёт `Device` из ядра и регистрирует его как `IPortController`. Один эмулятор может держать несколько VM, и они общаются через порты, как обычные устройства (композиция VM внутри VM). `DeviceContext` — удобное окно к конкретному `Device` без прямого доступа к `Nantuc.Kernel`.
 
@@ -226,8 +226,10 @@ public class DeviceContext
     public ProcessorFault DebugRun(LaunchOptionsDebug? opt = null);
 
     public void RunStepMode(ulong startAddress = ProjectBuilder.BaseAddressProgram, Action? onLaunch = null);
-    public void SingleStep(Action<ProcessorSnapshot>? onStep = null);
-    public void MultiStep(int count = 5, Action<ProcessorSnapshot>? onStep = null);
+    public void StepDebug(Action<ProcessorSnapshot>? onStep = null);
+    public void BatchStepDebug(int count = 5, Action<ProcessorSnapshot>? onStep = null);
+    public void Step();
+    public void BatchStep(int count);
     public void EndStepMode();
 
     public byte ReadPort(ulong offset);
@@ -267,7 +269,7 @@ public record class LaunchOptionsDebug(
 | Режим | Как войти | Как выйти | Что делает |
 |---|---|---|---|
 | `Continuous` | `Run` / `DebugRun` | автоматически после завершения | блокирующий цикл `Step()` |
-| `Step` | `RunStepMode` | `EndStepMode` | ручной `SingleStep`/`MultiStep` |
+| `Step` | `RunStepMode` | `EndStepMode` | ручной `StepDebug`/`BatchStepDebug`/`Step`/`BatchStep` (для `Step` и `BatchStep` режим не проверяется, вызывать только если уверены в режиме работы)|
 | `None` | `Stop()` или завершение | — | ничего не запущено |
 
 **`SnapshotRegisters`** — в отдельном файле, `readonly struct` с `[InlineArray(32)]`:
@@ -546,7 +548,7 @@ vm.LoadProgram(compilation.Program!);   // ReadOnlySpan<byte> — работае
 vm.RunStepMode(startAddress: 0);
 
 for (int i = 0; i < 20 && vm.IsRunning; i++)
-    vm.SingleStep(r => Console.WriteLine(
+    vm.StepDebug(r => Console.WriteLine(
         $"IP=0x{r.GetRegister(RegType.rIP):X} r0={r.GetRegister(RegType.r0)}"));
 
 vm.EndStepMode();
@@ -556,7 +558,7 @@ vm.EndStepMode();
 
 ```csharp
 SnapshotRegisters before = vm.GetRegistersSnapshot();
-vm.MultiStep(count: 10);
+vm.BatchStepDebug(count: 10);
 SnapshotRegisters after = vm.GetRegistersSnapshot();
 
 if (before != after)
@@ -662,8 +664,8 @@ var project = new VmHostProjectBuilder()
 Внутри `DeviceContext` — `private enum Mode { Step, Continuous, None }` и `volatile Mode _mode`:
 - `Run`/`DebugRun` -> `ThrowByMode(Continuous)` -> блокирующий цикл -> `SetNoneMode()`.
 - `RunStepMode` -> `ThrowByMode(Step)` -> `BreakPointerLaunchDevice`.
-- `SingleStep`/`MultiStep` -> `ThrowIfNotStepMode` -> `Device.NextStepProcessor`/`NextStepProcessorCount`.
-- `EndStepMode` -> `ThrowIfNotStepMode` -> `Device.Stop()` + один `NextStepProcessor(null)` + `SetNoneMode()`.
+- `StepDebug`/`BatchStepDebug` -> `ThrowIfNotStepMode` -> `Device.StepDebug`/`BatchStepDebug`.
+- `EndStepMode` -> `ThrowIfNotStepMode` -> `Device.Stop()` + один `StepDebug(null)` + `SetNoneMode()`.
 - `Stop` -> `Device.Stop()` + `SetNoneMode()` — можно вызвать из любого режима.
 
 `Stop`, `Pause`, `Resume` можно вызывать из другого потока (`Pause`/`Resume` кладут команду в очередь `EnqueueExternalCommand`). `Run`/`Step` — однопоточные.

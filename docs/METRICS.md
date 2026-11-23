@@ -6,14 +6,14 @@ Path: `Nantuc.slnx`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 1445 |
-| C# files | 289 |
-| Total lines | 26231 |
-| C# classes | 248 |
+| Members analysed | 1448 |
+| C# files | 288 |
+| Total lines | 26182 |
+| C# classes | 247 |
 | C# records | 29 |
 | C# enums | 13 |
-| Analysed LOC | 8933 |
-| Cognitive avg | 2.0 |
+| Analysed LOC | 8901 |
+| Cognitive avg | 1.9 |
 | Cognitive median | 0 |
 | Cognitive p90 | 6 |
 | Cognitive max | 53 |
@@ -21,7 +21,7 @@ Path: `Nantuc.slnx`
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 7 |
 | Cyclomatic max | 56 |
-| MI avg | 76.3 |
+| MI avg | 76.4 |
 | MI minimum | 25.1 |
 
 Highest risk member: `InterferenceGraph.Build` (cognitive 53, cyclomatic 20) — `InterferenceGraph.cs:10`
@@ -31,21 +31,20 @@ Lowest maintainability: `CfgBuilder.Stmt` (MI 25.1) — `CfgBuilder.cs:76`
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 1292 |
-| Moderate | 6-10 | 75 |
-| High | 11-20 | 62 |
-| Severe | 21+ | 16 |
+| Light | 0-5 | 1298 |
+| Moderate | 6-10 | 74 |
+| High | 11-20 | 61 |
+| Severe | 21+ | 15 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1445 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1448 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\InterferenceGraph.cs | 10 | InterferenceGraph | Build | 53 | 20 | 25 | 6 | 3 | 44.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\RegisterAllocator.cs | 31 | RegisterAllocator | AllocateRegisters | 50 | 24 | 44 | 5 | 3 | 37.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\Liveness.cs | 5 | Liveness | Run | 41 | 18 | 27 | 4 | 2 | 44.0 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\LivenessAnalyzer.cs | 5 | LivenessAnalyzer | Run | 41 | 18 | 24 | 4 | 2 | 45.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\CfgBuilder.cs | 76 | CfgBuilder | Stmt | 36 | 27 | 131 | 3 | 1 | 25.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Disassembler\Disassembler.cs | 12 | Disassembler. | Disassemble | 31 | 16 | 70 | 4 | 1 | 33.4 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\CfgBuilder.cs | 255 | CfgBuilder | Expr | 30 | 23 | 63 | 3 | 2 | 35.1 |
@@ -62,4 +61,5 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1445 m
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\Parser\Parser.Expressions.cs | 197 | Parser | ParseUnary | 19 | 22 | 23 | 2 | 0 | 46.7 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Sizeof.cs | 86 | ExpressionGenerator | GetIndexedElemSizeBytes | 19 | 12 | 15 | 3 | 1 | 52.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\InlineSmallVoidFunctionsRule.cs | 45 | InlineSmallVoidFunctionsRule | InlineCallsInBlock | 19 | 12 | 31 | 3 | 4 | 44.6 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\RemoveUnreachableCodeRule.cs | 33 | RemoveUnreachableCodeRule | OptimizeBlock | 19 | 11 | 35 | 3 | 2 | 44.0 |
 

@@ -123,13 +123,13 @@ public class VMHostTests
         deviceCtx.RunStepMode(startAddress: 0);
         Assert.True(deviceCtx.IsRunning);
 
-        deviceCtx.SingleStep();
+        deviceCtx.StepDebug();
         Assert.Equal(1, deviceCtx.StepCount);
 
-        deviceCtx.SingleStep();
+        deviceCtx.StepDebug();
         Assert.Equal(2, deviceCtx.StepCount);
 
-        deviceCtx.MultiStep(2);
+        deviceCtx.BatchStepDebug(2);
         Assert.Equal(4, deviceCtx.StepCount);
 
         deviceCtx.EndStepMode();

@@ -27,7 +27,7 @@
 - **RAM-утилиты** (`DeviceContextExtensions`): `GetRamAsNewArray` / `GetAllRamAsNewArray`, `CopyRamTo` в `Span<byte>` / `byte[]` / `Memory<byte>` / `Stream`, `ReadRam<T>` / `CopyRamTo<T>` для `unmanaged`-типов, `TryCopyRamTo` без исключений — читать RAM **остановленной** VM (все, кроме `TryCopyRamTo`, бросают `InvalidOperationException` при `ctx.IsRunning`).
 - **Bytecode-утилиты** (`BytecodeExtension`): `GetOpCodeSafety` / `GetUnsafeOpCodes` — статический разбор `CompilationResult.Program` на наличие `*_UNSAFE` опкодов (`OpCodeSafety.Safe`/`HasUnsafe`/`Unknown`) и поиск их местоположений (`UnsafeOpCodeLocation(OpCode, Offset, Ip)`). Полезно для проверки недоверенного кода перед запуском и для проверки результата `ReplaceSafeMemAccessWithUnsafeRule`.
 
-Ключевая идея — не менять контракт `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IOptimizerIRRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`, отладчик работает через `DeviceContext.RunStepMode`/`SingleStep`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. Никаких новых интерфейсов в `Kernel.Contracts`.
+Ключевая идея — не менять контракт `Nantuc.VmApplication`, а расширять его. Все правила реализуют `IAstOptimizationRule`/`IOptimizerIRRule` из компилятора, все I/O-устройства наследуют `PortControlBase` из `VmApplication`, отладчик работает через `DeviceContext.RunStepMode`/`StepDebug`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. Никаких новых интерфейсов в `Kernel.Contracts`.
 
 ## Дерево локального проекта
 
@@ -286,10 +286,10 @@ public sealed class Debugger : IDisposable
 Поведение:
 
 - **`Load`** — `ctx.LoadProgram` + `ctx.RunStepMode(startAddress)`; после вызова `IsActive == true`, но ни одна инструкция ещё не выполнена. `Debugger` одноразовый на один `Load` — повторный вызов бросит `InvalidOperationException` (защита от утечки step-режима; для нового прогона — новый `Debugger`).
-- **`Step`** — одна инструкция через `ctx.SingleStep(onStep)`; результат — `DebugStop` со снимком процессора из callback'а (`ProcessorSnapshot` из VM — с корректным `IsSleeping`).
+- **`Step`** — одна инструкция через `ctx.StepDebug(onStep)`; результат — `DebugStop` со снимком процессора из callback'а (`ProcessorSnapshot` из VM — с корректным `IsSleeping`).
 - **`StepOver`** — если текущая инструкция — `CALL`/`CALL_IND`, доходит до адреса возврата (`ip + 4` для `CALL_IND`, `AlignUp(ip + 4, 8) + 8` для `CALL`), иначе ведёт себя как `Step`.
 - **`StepOut`** — крутит `Step`, пока `rSP` не станет больше значения на момент вызова. Best-effort: если функция использует `PUSH`/`POP` для временных значений, семантика ломается — см. [Что исправить](#что-исправить), п. 12.
-- **`Continue`** — крутит `SingleStep` до `Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`. На старте проверяет `_skipBreakpointOnce` (см. [Особенная информация](#особенная-информация)), чтобы `Continue` -> breakpoint -> `Continue` не зацикливался.
+- **`Continue`** — крутит `StepDebug` до `Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`. На старте проверяет `_skipBreakpointOnce` (см. [Особенная информация](#особенная-информация)), чтобы `Continue` -> breakpoint -> `Continue` не зацикливался.
 - **`ContinueTo(addr)`** — временно добавляет breakpoint на `addr`, вызывает `Continue`, снимает breakpoint. Если на `addr` уже был пользовательский breakpoint — он сохраняется.
 - **`RunToEnd`** — `Continue` с временно очищенным набором breakpoints (для «догнать до конца, игнорируя точки»).
 - **`RequestStop`** — единственный метод, безопасный из другого потока: `volatile bool _stopRequested`. Циклы `Continue`/`StepOver`/`StepOut` проверяют его на каждой итерации.
@@ -890,7 +890,7 @@ if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
 - Использовать `Libraries.alloc_minic` как «эталон» — там всё ещё глобалы как легаси (workaround больше не нужен, но код пока не упрощён), и в `free` есть баг (см. [Что исправить](#что-исправить), п. 14).
 - Вызывать `Step`/`Continue`/`Load` из разных потоков на одном `Debugger` — не потокобезопасно (кроме `RequestStop`). Модель — та же, что у `DeviceContext`.
 - Ожидать точного стека вызовов от `GetCallStack()` — VM не хранит frame pointer, восстановление эвристическое; возможны ложные срабатывания.
-- Полагаться на `stop.Snapshot.IsSleeping` в `Continue` — флаг сна приходит только из `_stepSnapshot` (после `SingleStep`); при останове через `RequestStop` он может быть `false`, даже если VM в `HALT`. Для `HALT` надёжнее `stop.Reason == Sleeping`.
+- Полагаться на `stop.Snapshot.IsSleeping` в `Continue` — флаг сна приходит только из `_stepSnapshot` (после `StepDebug`); при останове через `RequestStop` он может быть `false`, даже если VM в `HALT`. Для `HALT` надёжнее `stop.Reason == Sleeping`.
 - Использовать один `Debugger` для нескольких `Load` — после завершения программы (или ручного `Dispose`) создавайте новый экземпляр. Повторный `Load` бросит `InvalidOperationException` (защита от утечки step-режима).
 - Ожидать от `Debugger.ReadRam` защиту от `IsRunning` (как у `DeviceContextExtensions.GetRamAsNewArray`) — отладчик читает RAM во время останова; если вызвать `ReadRam` из другого потока во время `Continue`, данные будут race-y.
 - Считать `GetOpCodeSafety() == Safe` гарантией памяти-безопасности. `Safe` — это «нет `*_UNSAFE`», а не «нет произвольных адресов»: обычные `LOAD`/`STORE` тоже пишут по адресу из регистра. Для реальной защиты — комбинация `ReplaceSafeMemAccessWithUnsafeRule`, `SizeRam` = фактический размер RAM и границы `Device`/`MemoryBus`. `GetOpCodeSafety` — это сигнал «есть ли `*_UNSAFE`», а не «безопасен ли код».
@@ -907,7 +907,7 @@ if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
 1. `_skipBreakpointOnce == rIP` -> сбрасывает флаг и **не** останавливается на текущем адресе (это тот же breakpoint, что сработал в прошлый раз).
 2. `HasBreakpoint(rIP)` -> возвращает `DebugStopReason.Breakpoint` без шага.
 
-`StepOneOrFinish` после каждого `SingleStep` выставляет `_skipBreakpointOnce = newIp`, если на новом `rIP` есть breakpoint. Это даёт корректную семантику:
+`StepOneOrFinish` после каждого `StepDebug` выставляет `_skipBreakpointOnce = newIp`, если на новом `rIP` есть breakpoint. Это даёт корректную семантику:
 
 ```
 Load -> Continue (hit bp at 0x00) -> Continue (skip 0x00, идёт дальше)
@@ -919,7 +919,7 @@ Load -> Continue (hit bp at 0x00) -> Continue (skip 0x00, идёт дальше)
 
 ### Отладчик: `ProcessorSnapshot` в `DebugStop`
 
-В `Step`/`StepOver`/`StepOut`/`Continue` `ProcessorSnapshot` берётся из `_stepSnapshot` (`SingleStep(onStep)` callback), поэтому:
+В `Step`/`StepOver`/`StepOut`/`Continue` `ProcessorSnapshot` берётся из `_stepSnapshot` (`StepDebug(onStep)` callback), поэтому:
 - `IsSleeping` корректен (VM выставляет `_isSleeping` до вызова callback'а);
 - `IsRunning` корректен (VM сбрасывает его до вызова callback'а);
 - `RawInstruction` — слово по **текущему** `rIP` (после шага).
@@ -990,7 +990,7 @@ VM не хранит frame pointer и не ведёт отдельный call st
 - `Channel<byte>` и `Task.Run(DrainAsync)` — работают в WASM, но фоновые задачи могут не выполниться до явного `await`.
 - `ImmutableArray<T>` — работает в AOT/WASM, но каждая мутация через `CreateBuilder` аллоцирует. Для больших программ (10k+ инструкций) `DisassemblyResult` может занимать много памяти. Для стриминга — `StringDisassembler.Disassemble`.
 - `Guid.NewGuid().GetHashCode()` в `InlineSmallVoidFunctionsRule` — стабильно в пределах процесса, но не между процессами. Для детерминированной сборки — проблема.
-- `Debugger` — `SingleStep` в WASM работает (одна инструкция — синхронно), но `Continue`/`StepOver`/`StepOut`/`GetCallStack` — синхронные циклы, блокируют текущий поток. В browser-WASM (single-threaded) — блокировка UI. Для IDE в браузере — выносить в Web Worker или использовать `Task.Run` с `RequestStop`.
+- `Debugger` — `StepDebug` в WASM работает (одна инструкция — синхронно), но `Continue`/`StepOver`/`StepOut`/`GetCallStack` — синхронные циклы, блокируют текущий поток. В browser-WASM (single-threaded) — блокировка UI. Для IDE в браузере — выносить в Web Worker или использовать `Task.Run` с `RequestStop`.
 
 ## Что исправить
 
@@ -1016,7 +1016,7 @@ VM не хранит frame pointer и не ведёт отдельный call st
 
 11. **[API] `Debugger.ReadRam` не защищён от `IsRunning`.**  
     Файл: `Debugging/Debugger.cs`. В отличие от `DeviceContextExtensions.GetRamAsNewArray`/`CopyRamTo` (которые бросают `InvalidOperationException` при `ctx.IsRunning`), отладчик читает RAM **во время останова** — это его нормальный сценарий. Но если пользователь вызовет `ReadRam` из другого потока во время `Continue`, данные будут race-y.  
-    Фикс: либо проверять `_isStepping` (флаг «сейчас идёт `SingleStep`»), либо задокументировать в `<remarks>` (сейчас — только в README).
+    Фикс: либо проверять `_isStepping` (флаг «сейчас идёт `StepDebug`»), либо задокументировать в `<remarks>` (сейчас — только в README).
 
 12. **[API/XML] `Debugger.StepOut` — эвристика по `rSP`.**  
     Файл: `Debugging/Debugger.cs`. Семантика «`rSP` стал больше, чем был» ломается, если функция использует `PUSH`/`POP` для временных значений (типично для `print_minic`/`alloc_minic`). В таких случаях `StepOut` может выйти из функции раньше, чем ожидалось.  

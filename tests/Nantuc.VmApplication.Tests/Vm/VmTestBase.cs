@@ -62,7 +62,7 @@ public class UnsafeOpCodeTests(ITestOutputHelper outPut)
     }
 
     [Fact]
-    public void SingleStep_WithAllowUnsafeOpCodesFalse_StopsAtUnsafeOpCode()
+    public void StepDebug_WithAllowUnsafeOpCodesFalse_StopsAtUnsafeOpCode()
     {
         using var host = VmHostFactory.CreateDefault();
         var (deviceCtx, _) = RegisterVm(host, false);
@@ -74,7 +74,7 @@ public class UnsafeOpCodeTests(ITestOutputHelper outPut)
         // Выполняем шаги, пока не дойдём до INT.
         for (int i = 0; i < 10; i++)
         {
-            deviceCtx.SingleStep();
+            deviceCtx.StepDebug();
             if (deviceCtx.GetLastFault().Status == BiosStatus.UnsafeOpCodeForbidden)
                 break;
         }
