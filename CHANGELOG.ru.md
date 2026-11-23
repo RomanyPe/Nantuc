@@ -16,12 +16,11 @@
 - `IdStateExtension` свойство расширение `string AsText` для `IdState` по аналогии с другими `enum`
 
 ### Изменено
-- **BREAKING:** `OpCodeExtension.cs` заменено на свойство `OpName()` -> `AsText`
-- **BREAKING:** `OpCodeSizeExtension.cs` заменено на свойство `SizeName()` -> `AsText`
-- **BREAKING:** `RegTypeExtension.cs` заменено на свойство `RegName()` -> `AsText`
-- **BREAKING:** `BiosStatusExtension.cs` заменено на свойство `StatusName()` -> `AsText`
+- **BREAKING:** `OpCodeExtension.cs`: заменено на свойство `OpName()` -> `AsText`
+- **BREAKING:** `OpCodeSizeExtension.cs`: заменено на свойство `SizeName()` -> `AsText`
+- **BREAKING:** `RegTypeExtension.cs`: заменено на свойство `RegName()` -> `AsText`
+- **BREAKING:** `BiosStatusExtension.cs`: заменено на свойство `StatusName()` -> `AsText`
 - **BREAKING:** `ProcessorSnapshot` перемещен в `Nantuc.Common`
-- **BREAKING:** `ReadPortResult` перемещен в `Nantuc.Common`
 - мелкие правки кода которые не меняют логику
 
 ### Удалено
