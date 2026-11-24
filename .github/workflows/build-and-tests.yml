@@ -20,10 +20,10 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore Nantuc.slnx
+        run: dotnet restore Nantuc.slnx -p:RunAOTCompilation=false
 
       - name: Build
         run: dotnet build Nantuc.slnx --configuration Release --no-restore -p:RunAOTCompilation=false
 
       - name: Test
-        run: dotnet test Nantuc.slnx --configuration Release --no-build --verbosity normal
+        run: dotnet test Nantuc.slnx --configuration Release --no-build --verbosity normal -p:RunAOTCompilation=false
