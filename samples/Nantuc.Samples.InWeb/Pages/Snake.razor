@@ -1,0 +1,293 @@
+﻿@page "/snake"
+@using System.Collections.Concurrent
+@using Microsoft.JSInterop
+@using Nantuc.Common
+@using Nantuc.Samples.InWeb.Pages
+@using Nantuc.VmApplication
+@using Nantuc.VmApplication.Emulator
+@using Nantuc.VmApplication.Extensions.Host
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<PageTitle>Snake — Nantuc (WASM)</PageTitle>
+
+<style>
+    .snake-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 20px;
+        background: #111;
+        color: #8f8;
+        font-family: ui-monospace, Consolas, monospace;
+        outline: none;
+    }
+
+    .snake-canvas {
+        border: 2px solid #22ff44;
+        image-rendering: pixelated;
+    }
+
+    .snake-hud {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .snake-btn {
+        background: #22ff44;
+        border: 0;
+        color: #111;
+        padding: 6px 14px;
+        font-family: inherit;
+        cursor: pointer;
+    }
+
+        .snake-btn:disabled {
+            opacity: .4;
+            cursor: default;
+        }
+
+    .snake-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,.65);
+        color: #f44;
+        font-size: 32px;
+        font-weight: bold;
+        letter-spacing: 2px;
+    }
+
+    .snake-stage {
+        position: relative;
+    }
+</style>
+
+<div class="snake-wrap" tabindex="0" @ref="_focusHost"
+     @onkeydown="HandleKeyDown" @onkeydown:preventDefault="true">
+
+    <h3>Snake — Nantuc VM</h3>
+
+    <div class="snake-stage">
+        <canvas class="snake-canvas" @ref="_canvas"
+                width="@(W * Cell)" height="@(H * Cell)"></canvas>
+        @if (_showGameOver)
+        {
+            <div class="snake-overlay">GAME OVER</div>
+        }
+    </div>
+
+    <div class="snake-hud">
+        <button class="snake-btn" @onclick="StartAsync" disabled="@_running">Start</button>
+        <button class="snake-btn" @onclick="StopAsync" disabled="@(!_running)">Stop</button>
+        <span>@_status</span>
+        <span>Score: @_score</span>
+    </div>
+</div>
+
+@code {
+    private const int W = 32, H = 16, Cell = 20;
+    private const double FixedDtMs = 150;    // тик змейки
+    private const int FrameBudgetMs = 8;      // как часто просыпаемся
+    private const int StepChunk = 1000;   // шаг BatchStep
+    private const int MaxStepsPerTick = 200_000;// предохранитель
+
+    private ElementReference _canvas, _focusHost;
+    private IJSObjectReference? _js;
+    private string _status = "Press Start";
+    private bool _running, _disposed, _showGameOver;
+    private int _score;
+
+    private VmHost? _host;
+    private DeviceContext? _ctx;
+    private MonochromeMonitor? _monitor;
+    private SnakeCommander? _commander;
+
+    private CancellationTokenSource? _cts;
+    private Task? _loopTask;
+
+    private readonly ConcurrentQueue<byte> _input = new();
+
+    private byte[]? _frameBuffer;
+    private bool _hasNewFrame;
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        _js = await JS.InvokeAsync<IJSObjectReference>("import", "./js/snake.js");
+    }
+
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        byte code = e.Key switch
+        {
+            "ArrowUp" => 1,
+            "ArrowDown" => 2,
+            "ArrowLeft" => 3,
+            "ArrowRight" => 4,
+            _ => 0
+        };
+        if (code != 0) { _input.Enqueue(code); return; }
+        if (e.Key is "q" or "Q" or "Escape") _ = StopAsync();
+    }
+
+    // ============================ START ============================
+    private async Task StartAsync()
+    {
+        if (_running || _disposed) return;
+        _status = "Compiling...";
+        StateHasChanged();
+        await Task.Yield();
+
+        try
+        {
+            _host = VmHostFactory.CreateDefault();
+            _host.Project.SaveFileProject("snake.minic", LibCode.snake_minic);
+            _host.Project.SaveFileInclude("monitor.nanasm", LibCode.monitor_nanasm);
+            _host.Project.SaveFileInclude("commander.nanasm", LibCode.commander_nanasm);
+
+            _frameBuffer = new byte[W * H];
+            _monitor = new MonochromeMonitor(W, H, OnFrameProduced);
+            _commander = new SnakeCommander();
+
+            var handle = DeviceSpec.Create(ramSize: RamSize.MB16, name: "SnakeVM");
+            int cpuId = _host.Emulator.RegisterDevice(handle, sector: 0);
+            _host.Emulator.RegisterDevice(_monitor, name: "monitor", sector: 1);
+            _host.Emulator.RegisterDevice(_commander, name: "commander", sector: 2);
+
+            _ctx = _host.Emulator.GetDeviceContext(cpuId)!;
+
+            var res = _host.Project.CompileToIR(baseAddress: 0, optimize: false).Build();
+            if (!res.Success) { _status = "Compile: " + string.Join(" | ", res.Errors!.Select(e => e.Message)); StateHasChanged(); return; }
+            if (!_ctx.TryLoadProgram(res.Program!, 0, out var err)) { _status = "Load: " + err; StateHasChanged(); return; }
+
+            _ctx.RunStepMode(startAddress: 0);
+
+            _running = true;
+            _score = 0;
+            _showGameOver = false;
+            _cts = new CancellationTokenSource();
+            _loopTask = GameLoopAsync(_cts.Token);
+
+            _status = "Running — arrows to move, Q to quit";
+            StateHasChanged();
+
+            await _focusHost.FocusAsync();
+        }
+        catch (Exception ex)
+        {
+            _running = false;
+            _status = "Start failed: " + ex.Message;
+            StateHasChanged();
+        }
+    }
+
+    // ============================ STOP =============================
+    private async Task StopAsync()
+    {
+        if (!_running) return;
+        _running = false;
+        _status = "Stopping...";
+        StateHasChanged();
+
+        try { _cts?.Cancel(); } catch { }
+        try { if (_loopTask is not null) await _loopTask; } catch { }
+
+        try { _ctx?.EndStepMode(); } catch { }
+        _cts?.Dispose(); _cts = null;
+        _host?.Dispose();
+
+        _host = null; _ctx = null; _monitor = null; _commander = null;
+        _loopTask = null;
+        _frameBuffer = null;
+        _hasNewFrame = false;
+        while (_input.TryDequeue(out _)) { }
+
+        _status = "Stopped. Press Start.";
+        StateHasChanged();
+    }
+
+    // =====================================================================
+    //  GAME LOOP:  Input → Update → FixedUpdate → Render
+    // =====================================================================
+    private async Task GameLoopAsync(CancellationToken ct)
+    {
+        long lastTick = Environment.TickCount64;
+        long lastFrame = lastTick;
+
+        while (!ct.IsCancellationRequested && _running)
+        {
+            long now = Environment.TickCount64;
+
+            // -------------------- 1. INPUT --------------------
+            while (_input.TryDequeue(out byte key))
+                _commander!.SetInput(key);
+
+            // -------------------- 2. UPDATE -------------------
+            // (HUD/score читаем из commander'а после тика)
+
+            // -------------------- 3. FIXED UPDATE ------------
+            if (now - lastTick >= (long)FixedDtMs)
+            {
+                lastTick = now;
+
+                _commander!.SignalTick();
+
+                int total = 0;
+                while (total < MaxStepsPerTick && _running)
+                {
+                    _ctx!.BatchStep(StepChunk);
+                    total += StepChunk;
+                    if (_commander.ConsumeYielded()) break;
+                }
+
+                _score = _commander.Score;
+
+                if (_commander.ConsumeGameOver())
+                {
+                    // показать оверлей и дать паузу до следующего тика
+                    _showGameOver = true;
+                    try { await Task.Delay(900, ct); } catch { break; }
+                    _showGameOver = false;
+                }
+            }
+
+            // -------------------- 4. RENDER -------------------
+            if (_hasNewFrame && _js is not null && _frameBuffer is not null)
+            {
+                _hasNewFrame = false;
+                string b64 = Convert.ToBase64String(_frameBuffer);
+                await InvokeAsync(async () =>
+                {
+                    try { await _js.InvokeVoidAsync("draw", _canvas, b64, W, H); }
+                    catch { /* component disposed */ }
+                    StateHasChanged(); // обновить счёт/оверлей
+                });
+                lastFrame = now;
+            }
+
+            int sleep = Math.Max(1, FrameBudgetMs - (int)(Environment.TickCount64 - now));
+            try { await Task.Delay(sleep, ct); }
+            catch (OperationCanceledException) { break; }
+        }
+    }
+
+    // Вызывается синхронно в CMD_FLUSH из VM (тот же поток)
+    private void OnFrameProduced(byte[] fb, int w, int h)
+    {
+        Buffer.BlockCopy(fb, 0, _frameBuffer!, 0, fb.Length);
+        _hasNewFrame = true;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        await StopAsync();
+        if (_js is not null) { try { await _js.DisposeAsync(); } catch { } }
+    }
+}

@@ -10,7 +10,7 @@
 
 **Nantuc** — это мини-фреймворк и безопасный низкоуровневый скриптовый движок для .NET, предназначенный для случаев, когда нужен контроль уровня C, но коду нельзя доверять. Он включает C-подобный язык MiniC и ассемблер NANASM (текстовый и IR) с дизассемблером и пошаговой отладкой, а также полный конвейер: лексер, парсер, оптимизатор AST, генератор байткода, ассемблер и регистровую VM с памятью и портовой шиной. В состав входят устройства ввода-вывода, явные In/Out, API для встраивания, тонкий CLI (`nantuc`) и изоляция, благодаря которой падение скрипта не приводит к падению хоста.
 
-В репозитории: Hello world на MiniC, играбельная змейка, тест аллокатора и два бенчмарка VM.
+В репозитории: Hello world на MiniC, играбельная змейка (консоль и браузер), тест аллокатора, WASM-демо (Blazor WebAssembly) и два бенчмарка VM.
 
 ## Содержание
 - [Быстрый старт](#быстрый-старт)
@@ -106,7 +106,6 @@ if (fault.Status != BiosStatus.EndProgram)
 
 Подробный разбор (объяснение портов `0x10`/`0x12`, `QueuedIOStream`, диагностика) — в [`samples/Nantuc.Samples.Minimal/README.ru.md`](samples/Nantuc.Samples.Minimal/README.ru.md).
 
-
 **То же самое через CLI (`nantuc`)** — пакет ставится как .NET global tool и покрывает весь конвейер: `compile` -> `run` -> `disasm` + управление инклюдами через `lib`.
 
 ```bash
@@ -139,6 +138,7 @@ nantuc lib exist print.minic
 - **Публичный API без хаков**: `VmHost` / `DeviceContext` / `VmHostProject` — весь unsafe и нативные буферы спрятаны в `Nantuc.Kernel`.
 - **Дизассемблер и отладчик**: секции кода/данных, текстовый и структурный вывод; `Debugger` поверх `DeviceContext` с `Step`/`StepOver`/`StepOut`/`Continue`/`RunToEnd`, точками останова, `RequestStop` из другого потока, best-effort стеком вызовов, чтением RAM.
 - **CLI `nantuc`**: тонкая обёртка над публичным API (`compile`, `run`, `disasm`, `lib`, `help`), без собственной логики компиляции/исполнения; ставится как .NET global tool (`Nantuc.CLI`).
+- **WASM-сэмпл (`Nantuc.Samples.InWeb`)**: Blazor WebAssembly-приложение с двумя страницами — универсальный раннер MiniC-программ (`/`) и интерактивная змейка на `<canvas>` (`/snake`). Показывает `RunStepMode`+`BatchStep` с кооперативным yield через `SnakeCommander`, `MonochromeMonitor` 32×16, JS Interop и `SynchronousIOStream` через `StringWriter`.
 - **Стандартные оптимизации** (AST и IR) и инфраструктура для своих правил.
 - **Два бенчмарка**: ручной `Nantuc.Benchmarks` (MIPS, стабильность, перцентили, CV, JIT-impact) и `Nantuc.Benchmarks.BenchmarkDotNet` на **14 MiniC-кейсах**. Рядом — `OtherLangs`: те же 14 кейсов на Python, Lua, LuaJIT, Ruby, JS, C, C++, C#, Java и Rust (отдельный раннер, [`benchmarks/OtherLangs/README.ru.md`](benchmarks/OtherLangs/README.ru.md)).
 
@@ -204,6 +204,7 @@ nantuc lib exist print.minic
 - **Компилятор не зависит от рантайма** — `Nantuc.Compiler` знает только `Common` + `Contracts` + `Diagnostics`.
 - **`VmApplication` — единственный модуль, который одновременно знает про компилятор и рантайм**; он склеивает «скомпилировать» и «запустить». Отладчик, дизассемблер и бенчмарки живут выше по слоям.
 - **`Nantuc.CLI` — верхний слой**: не содержит собственной логики, только разбирает аргументы и вызывает `VmApplication`/`Extensions`.
+- **`Nantuc.Samples.InWeb` — верхний слой** (Blazor WebAssembly): не содержит собственной логики VM, только `VmHost` + `DeviceContext` + кастомные `IPortController` (`MonochromeMonitor`, `SnakeCommander`) и JS Interop для `<canvas>`.
 
 ## Модули и NuGet
 
@@ -249,7 +250,7 @@ nantuc help
 - **.NET 10 SDK** (все проекты таргетят `net10.0`).
 - **C# 14**: `extension`-блоки, `[InlineArray]`, `params ReadOnlySpan`, `field`-keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
 - **Windows / Linux / macOS / AoT** (другие платформы не тестировались, но Nantuc не привязан к конкретной платформе).
-- **WASM**: `Common`/`Contracts`/`Diagnostics` — полностью WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` имеют ограничения (блокирующие вызовы, лимиты линейной памяти, single-thread browser).
+- **WASM**: `Common`/`Contracts`/`Diagnostics` — полностью WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` имеют ограничения (блокирующие вызовы, лимиты линейной памяти, single-thread browser). Рабочий пример для WASM — **`Nantuc.Samples.InWeb`** (Blazor WebAssembly): `VmHost` + `DeviceContext` + `MonochromeMonitor` + `SnakeCommander` + JS Interop. Для WASM не используются `Thread`/`Console.ReadKey`/`Halt+WakeProcessor` — вместо этого `RunStepMode`+`BatchStep` и кооперативный yield через порт.
 
 ## Сборка и запуск
 
@@ -266,6 +267,12 @@ dotnet run --project Nantuc.Samples.Scratch -c Release -snake 150
 # Тест аллокатора (по умолчанию в Samples.Scratch)
 dotnet run --project Nantuc.Samples.Scratch -c Release
 
+# Змейка + универсальный MiniC-раннер в браузере (Blazor WebAssembly)
+# после старта откройте http://localhost:5xxx/  (раннер) или http://localhost:5xxx/snake  (игра)
+dotnet run --project Nantuc.Samples.InWeb -c Release
+# либо
+dotnet watch run --project Nantuc.Samples.InWeb
+
 # CLI локально (без установки как global tool)
 dotnet run --project src/Nantuc.CLI -c Release -- compile -s ./bin -o
 dotnet run --project src/Nantuc.CLI -c Release -- run -p ./bin/program.bin -l 100000 -t
@@ -277,7 +284,7 @@ dotnet run --project Nantuc.Benchmarks -c Release
 dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *Call* *Memory*
 ```
 
-Артефакты BenchmarkDotNet — в `BenchmarkDotNet.Artifacts/`. Профиль IDE `Game` — из `launchSettings.json`.
+Артефакты BenchmarkDotNet — в `BenchmarkDotNet.Artifacts/`. Профиль IDE `Game` — из `launchSettings.json`. Для `Nantuc.Samples.InWeb` используйте `dotnet publish` (получите статический сайт, `wwwroot` можно раздавать любым статик-сервером).
 
 ## Примеры
 
@@ -285,6 +292,7 @@ dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *C
 |---|---|---|
 | `Nantuc.Samples.Minimal` | Hello world, `TryRegisterDevice` + `TryGetDeviceContext` + `ProcessorFault`, порты `0x10`/`0x12`, `QueuedIOStream` | [README](samples/Nantuc.Samples.Minimal/README.ru.md) |
 | `Nantuc.Samples.Scratch` | `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE-цикл, ANSI-рендер; тест аллокатора (`Libraries.alloc_minic`) | [README](samples/Nantuc.Samples.Scratch/README.ru.md) |
+| `Nantuc.Samples.InWeb` | Blazor WebAssembly: `/` — компиляция и запуск MiniC в браузере (UART, подсветка синтаксиса), `/snake` — змейка на `<canvas>` (`RunStepMode`+`BatchStep`, `SnakeCommander`, `MonochromeMonitor`, JS Interop, двойная буферизация кадра) | [README](samples/Nantuc.Samples.InWeb/README.ru.md) |
 | `Nantuc.Benchmarks` | Ручной бенчмарк 14 MiniC-кейсов: MIPS, стабильность, перцентили, CV, JIT-impact | [README](benchmarks/Nantuc.Benchmarks/README.ru.md) |
 | `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet-бенчмарк 14 MiniC-кейсов: время, аллокации, статистика, артефакты | [README](benchmarks/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md) |
 | `OtherLangs` | Сравнение с 10 другими языками на тех же 14 MiniC-кейсах: свой процесс, свой раннер, сводный `results.json`/`results.csv` | [README](benchmarks/OtherLangs/README.ru.md) |
@@ -333,8 +341,9 @@ dotnet test -c Release
 - История изменений: [`CHANGELOG.ru.md`](CHANGELOG.ru.md)
 - Спецификация байткода: [`docs/bytecode.ru.md`](docs/bytecode.ru.md)
 - Справочник кодов ошибок: [`docs/error-codes.ru.md`](docs/error-codes.ru.md)
-- Метрики: [`docs/METRICS.md`](docs/METRICS.md) и отдельные метрики для каждого модуля [`docs/Metrics`](docs/Metrics) 
+- Метрики: [`docs/METRICS.md`](docs/METRICS.md) и отдельные метрики для каждого модуля [`docs/Metrics`](docs/Metrics)
 - Встроенные библиотеки MiniC/NANASM: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)
 - CLI: [`src/Nantuc.CLI/README.ru.md`](src/Nantuc.CLI/README.ru.md)
 - Сравнение с другими языками (OtherLangs): [`benchmarks/OtherLangs/README.ru.md`](benchmarks/OtherLangs/README.ru.md)
+- README сэмплов: [`samples/Nantuc.Samples.Minimal/README.ru.md`](samples/Nantuc.Samples.Minimal/README.ru.md), [`samples/Nantuc.Samples.Scratch/README.ru.md`](samples/Nantuc.Samples.Scratch/README.ru.md), [`samples/Nantuc.Samples.InWeb/README.ru.md`](samples/Nantuc.Samples.InWeb/README.ru.md)
 - README модулей: см. столбец «README» в разделе [Модули и NuGet](#модули-и-nuget)

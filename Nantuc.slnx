@@ -83,6 +83,7 @@
     <File Path="docs/Metrics/METRICS-Nantuc.VmApplication.md" />
   </Folder>
   <Folder Name="/Элементы решения/samples/">
+    <Project Path="samples/Nantuc.Samples.InWeb/Nantuc.Samples.InWeb.csproj" />
     <Project Path="samples/Nantuc.Samples.Minimal/Nantuc.Samples.Minimal.csproj" />
     <Project Path="samples/Nantuc.Samples.Scratch/Nantuc.Samples.Scratch.csproj" />
   </Folder>

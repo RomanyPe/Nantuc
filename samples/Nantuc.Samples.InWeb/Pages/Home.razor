@@ -1,0 +1,196 @@
+﻿@page "/"
+@using System.Net
+@using System.Text
+@using System.Text.RegularExpressions
+@using Nantuc.VmApplication.Project
+@using Nantuc.Common
+@using Nantuc.VmApplication
+@using Nantuc.VmApplication.Emulator
+@using Nantuc.VmApplication.Extensions.Emulator.IO
+@using Nantuc.VmApplication.Extensions.Host
+@using Nantuc.VmApplication.Extensions.StdLibraries
+
+<PageTitle>Nantuc VM — WebAssembly Demo</PageTitle>
+
+<div style="max-width: 800px; margin: 20px auto; font-family: system-ui, sans-serif;">
+    <div style="margin-bottom: 16px;">
+        <a href="/snake"
+           style="display: inline-block; padding: 8px 16px; font-size: 14px; font-weight: 500; text-decoration: none; background: #198754; color: white; border-radius: 6px;">
+            Перейти к игре Змейка (/snake)
+        </a>
+    </div>
+
+    <h3>Nantuc VM в браузере (Blazor WebAssembly)</h3>
+
+    <div style="margin-bottom: 12px;">
+        <label for="codeEditor" style="display: block; font-weight: 600; margin-bottom: 6px;">
+            Исходный код (main.minic):
+        </label>
+
+        <div style="position: relative; width: 100%; height: 220px; border: 1px solid #ccc; border-radius: 6px; background: #1e1e1e; overflow: hidden;">
+
+            <pre id="codeHighlight"
+                 aria-hidden="true"
+                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; margin: 0; padding: 10px; font-family: monospace; font-size: 14px; line-height: 1.5; white-space: pre; overflow: hidden; pointer-events: none; color: #d4d4d4; box-sizing: border-box;"><code>@((MarkupString)HighlightedCode)</code></pre>
+
+            <textarea id="codeEditor"
+                      @bind="SourceCode"
+                      @bind:event="oninput"
+                      spellcheck="false"
+                      onscroll="document.getElementById('codeHighlight').scrollTop = this.scrollTop; document.getElementById('codeHighlight').scrollLeft = this.scrollLeft;"
+                      onkeydown="if (event.key === 'Tab') { event.preventDefault(); const s = this.selectionStart; const e = this.selectionEnd; this.value = this.value.substring(0, s) + '    ' + this.value.substring(e); this.selectionStart = this.selectionEnd = s + 4; this.dispatchEvent(new Event('input', { bubbles: true })); }"
+                      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; margin: 0; padding: 10px; font-family: monospace; font-size: 14px; line-height: 1.5; white-space: pre; overflow: auto; background: transparent; color: transparent; caret-color: #ffffff; border: none; resize: none; outline: none; box-sizing: border-box;"></textarea>
+        </div>
+    </div>
+
+    <button @onclick="ExecuteAsync"
+            disabled="@IsRunning"
+            style="padding: 8px 18px; font-size: 15px; cursor: pointer; background: #0d6efd; color: white; border: none; border-radius: 6px;">
+        @(IsRunning ? "Выполнение..." : "Скомпилировать и запустить")
+    </button>
+
+    <div style="margin-top: 20px;">
+        <label style="display: block; font-weight: 600; margin-bottom: 6px;">
+            Вывод UART (console):
+        </label>
+        <pre style="background: #1e1e1e; color: @(HasError ? "#ff6b6b" : "#4af626"); padding: 14px; border-radius: 6px; min-height: 80px; white-space: pre-wrap;">@Output</pre>
+    </div>
+</div>
+
+@code {
+    private static readonly Regex TokenRegex = new(
+        $@"(?<string>""(?:\\.|[^""\\])*"")|(?<directive>#include\b)|(?<keyword>(?:{VmHostProject.MiniCKeyword}))",
+        RegexOptions.Compiled);
+
+    private string SourceCode { get; set; } =
+        """
+        #include "print.minic"
+        
+        char str[] = "Hello world from WASM! Привет мир из WASM!";
+        
+        void main() { 
+            print16(str); 
+        }
+        """;
+
+    private string HighlightedCode
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(SourceCode))
+                return string.Empty;
+
+            var sb = new StringBuilder(SourceCode.Length * 2);
+            int lastIndex = 0;
+
+            foreach (Match match in TokenRegex.Matches(SourceCode))
+            {
+                if (match.Index > lastIndex)
+                {
+                    sb.Append(WebUtility.HtmlEncode(SourceCode[lastIndex..match.Index]));
+                }
+
+                var encodedToken = WebUtility.HtmlEncode(match.Value);
+
+                if (match.Groups["string"].Success)
+                {
+                    sb.Append($"<span style=\"color: #ce9178;\">{encodedToken}</span>");
+                }
+                else if (match.Groups["directive"].Success)
+                {
+                    sb.Append($"<span style=\"color: #c586c0;\">{encodedToken}</span>");
+                }
+                else if (match.Groups["keyword"].Success)
+                {
+                    sb.Append($"<span style=\"color: #569cd6; font-weight: bold;\">{encodedToken}</span>");
+                }
+
+                lastIndex = match.Index + match.Length;
+            }
+
+            if (lastIndex < SourceCode.Length)
+            {
+                sb.Append(WebUtility.HtmlEncode(SourceCode[lastIndex..]));
+            }
+
+            if (SourceCode.EndsWith('\n'))
+            {
+                sb.Append(' ');
+            }
+
+            return sb.ToString();
+        }
+    }
+
+    private string Output { get; set; } = "Нажмите кнопку для запуска программы...";
+    private bool IsRunning { get; set; }
+    private bool HasError { get; set; }
+
+    private async Task ExecuteAsync()
+    {
+        IsRunning = true;
+        HasError = false;
+        Output = "Компиляция и запуск...";
+
+        await Task.Yield();
+
+        try
+        {
+            Output = RunNantucVm(SourceCode);
+            HasError = Output.StartsWith("[ERROR]") || Output.StartsWith("VM fault:");
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            Output = $"[WASM EXCEPTION] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
+        }
+        finally
+        {
+            IsRunning = false;
+        }
+    }
+
+    private static string RunNantucVm(string source)
+    {
+        using var host = VmHostFactory.CreateDefault();
+
+        host.Project.SaveFileProject("main.minic", source);
+        host.Project.SaveFileInclude("io.nanasm", Libraries.io_nanasm);
+        host.Project.SaveFileInclude("print.minic", Libraries.print_minic);
+
+        var vmState = host.Emulator.TryRegisterDevice(
+            DeviceSpec.Create(RamSize.MB16, name: "ConsoleVM"),
+            sector: 0,
+            out int vmId);
+
+        if (vmState != IdState.Valid)
+            return $"[ERROR] register vm: {vmState.AsText}";
+
+        using var wr = new StringWriter();
+        var uartState = host.Emulator.TryRegisterDevice(
+            new SynchronousIOStream(wr, PortCharEncoding.Utf16),
+            name: "console",
+            sector: 1,
+            out _);
+
+        if (uartState != IdState.Valid)
+            return $"[ERROR] register uart: {uartState}";
+
+        if (!host.Emulator.TryGetDeviceContext(vmId, out var vm))
+            return "[ERROR] no ctx";
+
+        var compilation = host.Project.CompileToIR(baseAddress: 0, optimize: true).Build();
+        if (!compilation.Success)
+            return $"[ERROR] {string.Join("\n", compilation.Errors!)}";
+
+        if (!vm.TryLoadProgram(compilation.Program!, loadAddress: 0, out var error))
+            return $"[ERROR] {error}";
+
+        ProcessorFault fault = vm.Run();
+        if (fault.Status != BiosStatus.EndProgram)
+            return $"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}";
+
+        wr.Flush();
+        return wr.ToString();
+    }
+}

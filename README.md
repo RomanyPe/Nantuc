@@ -2,15 +2,15 @@
 
 [Русская версия](README.ru.md)
 
-> A platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and public embedding API.
+> A platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and public API for embedding.
 > **Project version:** specified in `CHANGELOG.md`, semver guaranteed.
-> Written in C# (.NET 10). The compiler and runtime are separated into layers, `unsafe` code is isolated in the core, and the public API is a thin facade with safe `Try*` methods and `IdState` diagnostics.
+> Written in C# (.NET 10). Compiler and runtime are separated into layers, `unsafe` code is isolated in the core, and the public API is a thin facade with safe `Try*` methods and `IdState` diagnostics.
 
 Here is the combined description:
 
-**Nantuc** is a mini-framework and safe low-level scripting engine for .NET, designed for cases where C-level control is needed but the code cannot be trusted. It includes a C-like MiniC language and the NANASM assembler (text and IR) with a disassembler and step-by-step debugging, as well as a full pipeline: lexer, parser, AST optimizer, bytecode generator, assembler, and a register VM with memory and a port bus. It includes I/O devices, explicit In/Out, an embedding API, a thin CLI (`nantuc`), and isolation so that a script crash does not crash the host.
+**Nantuc** is a mini-framework and safe low-level scripting engine for .NET, intended for cases where you need C-level control but cannot trust the code. It includes the C-like MiniC language and the NANASM assembler (textual and IR) with a disassembler and step-by-step debugging, as well as a full pipeline: lexer, parser, AST optimizer, bytecode generator, assembler, and register VM with memory and a port bus. It includes I/O devices, explicit In/Out, an embedding API, a thin CLI (`nantuc`), and isolation so that a script crash does not crash the host.
 
-The repository contains: Hello world in MiniC, a playable Snake game, an allocator test, and two VM benchmarks.
+The repository contains: Hello world in MiniC, a playable snake game (console and browser), an allocator test, a WASM demo (Blazor WebAssembly), and two VM benchmarks.
 
 ## Contents
 - [Quick start](#quick-start)
@@ -104,24 +104,24 @@ if (fault.Status != BiosStatus.EndProgram)
     Console.Error.WriteLine($"VM fault: {fault.Status} at IP=0x{fault.InstructionPointer:X}");
 ```
 
-A detailed walkthrough (explanation of ports `0x10`/`0x12`, `QueuedIOStream`, diagnostics) — in [`samples/Nantuc.Samples.Minimal/README.md`](samples/Nantuc.Samples.Minimal/README.md).
+Detailed walkthrough (explanation of ports `0x10`/`0x12`, `QueuedIOStream`, diagnostics) — in [`samples/Nantuc.Samples.Minimal/README.md`](samples/Nantuc.Samples.Minimal/README.md).
 
 **The same via CLI (`nantuc`)** — the package is installed as a .NET global tool and covers the whole pipeline: `compile` -> `run` -> `disasm` + include management via `lib`.
 
 ```bash
-# Install the CLI as a .NET global tool
+# Install CLI as a .NET global tool
 dotnet tool install --global Nantuc.CLI
 
-# Compile the project from the current directory into ./bin (with optimizations)
+# Compile project from current directory into ./bin (with optimizations)
 nantuc compile -s ./bin -o
 
-# Run with a step limit and timer
+# Run with step limit and timer
 nantuc run -p ./bin/program.bin -ram 8MB -l 500000 -t
 
-# Disassemble the first 128 bytes into ./out/result-decompile.txt
+# Disassemble first 128 bytes into ./out/result-decompile.txt
 nantuc disasm -f ./bin/program.bin -cs 128 -s ./out
 
-# Add an include from a file and check that it exists
+# Add include from file and check its presence
 nantuc lib add -p ./print.minic
 nantuc lib exist print.minic
 ```
@@ -130,49 +130,50 @@ Help for all commands — `nantuc help`. Details — in [`src/Nantuc.CLI/README.
 
 ## Key features
 
-- **Two languages**: MiniC (C-like: structs, pointers, arrays, `const`, `sizeof`, inline `asm`, `extern`, `#include`) and NANASM (assembler with labels and size suffixes). Specifications — in [`src/Nantuc.Compiler/README.md`](src/Nantuc.Compiler/README.md).
-- **Compiler from scratch**: lexer, recursive parser, AST, greedy register allocation, code generation to 32-bit bytecode, AST and IR optimizations, `const`-correctness.
-- **VM with isolated `unsafe`**: native RAM via `NativeMemory`, registers in `InlineArray` (no per-step allocations), port bus with routing `address -> (device, offset)`.
+- **Two languages**: MiniC (C-like: structures, pointers, arrays, `const`, `sizeof`, inline `asm`, `extern`, `#include`) and NANASM (assembler with labels and size suffixes). Specifications — in [`src/Nantuc.Compiler/README.md`](src/Nantuc.Compiler/README.md).
+- **Compiler from scratch**: lexer, recursive parser, AST, greedy register coloring, code generation to 32-bit bytecode, AST and IR optimizations, `const`-correctness.
+- **VM with isolated `unsafe`**: native RAM via `NativeMemory`, registers in `InlineArray` (no allocations per step), port bus with `address -> (device, offset)` routing.
 - **Safe API**: `TryRegisterDevice`/`TryGetDeviceContext` instead of `id < 0` + `!`, `IdState` instead of magic `-1..-4`, `ProcessorFault` from `Run`/`DebugRun`, `TryLoadProgram` instead of exceptions, `Pause()`/`Resume()` for control from another thread.
-- **Devices as first-class**: the VM itself is a device (`IPortController`) — VMs can be nested, UARTs, monitors, and keyboards can be connected.
+- **Devices as first-class**: the VM itself is a device (`IPortController`) — VMs can be nested, UART, monitors, and keyboards can be connected.
 - **Public API without hacks**: `VmHost` / `DeviceContext` / `VmHostProject` — all unsafe and native buffers are hidden in `Nantuc.Kernel`.
-- **Disassembler and debugger**: code/data sections, text and structured output; `Debugger` on top of `DeviceContext` with `Step`/`StepOver`/`StepOut`/`Continue`/`RunToEnd`, breakpoints, `RequestStop` from another thread, best-effort call stack, RAM reading.
-- **CLI `nantuc`**: a thin wrapper over the public API (`compile`, `run`, `disasm`, `lib`, `help`), without its own compilation/execution logic; installed as a .NET global tool (`Nantuc.CLI`).
+- **Disassembler and debugger**: code/data sections, text and structural output; `Debugger` on top of `DeviceContext` with `Step`/`StepOver`/`StepOut`/`Continue`/`RunToEnd`, breakpoints, `RequestStop` from another thread, best-effort call stack, RAM reading.
+- **CLI `nantuc`**: thin wrapper over the public API (`compile`, `run`, `disasm`, `lib`, `help`), without its own compilation/execution logic; installed as a .NET global tool (`Nantuc.CLI`).
+- **WASM sample (`Nantuc.Samples.InWeb`)**: Blazor WebAssembly app with two pages — a universal MiniC program runner (`/`) and an interactive snake game on `<canvas>` (`/snake`). Demonstrates `RunStepMode`+`BatchStep` with cooperative yield via `SnakeCommander`, `MonochromeMonitor` 32×16, JS Interop, and `SynchronousIOStream` via `StringWriter`.
 - **Standard optimizations** (AST and IR) and infrastructure for custom rules.
-- **Two benchmarks**: manual `Nantuc.Benchmarks` (MIPS, stability, percentiles, CV, JIT impact) and `Nantuc.Benchmarks.BenchmarkDotNet` on **14 MiniC cases**. Next to them — `OtherLangs`: the same 14 cases in Python, Lua, LuaJIT, Ruby, JS, C, C++, C#, Java, and Rust (separate runner, [`benchmarks/OtherLangs/README.md`](benchmarks/OtherLangs/README.md)).
+- **Two benchmarks**: manual `Nantuc.Benchmarks` (MIPS, stability, percentiles, CV, JIT-impact) and `Nantuc.Benchmarks.BenchmarkDotNet` on **14 MiniC cases**. Next to them — `OtherLangs`: the same 14 cases in Python, Lua, LuaJIT, Ruby, JS, C, C++, C#, Java, and Rust (separate runner, [`benchmarks/OtherLangs/README.md`](benchmarks/OtherLangs/README.md)).
 
 ## Safe API
 
-The public API of `Nantuc.VmApplication` follows the “Try + IdState + ProcessorFault” pattern:
+The public `Nantuc.VmApplication` API follows the “Try + IdState + ProcessorFault” pattern:
 
 | Scenario | Old (raw) path | Safe path |
 |---|---|---|
 | Device registration | `int id = RegisterDevice(...)` + check `id < 0` | `TryRegisterDevice(..., out int id)` -> `IdState` |
 | Getting `DeviceContext` | `GetDeviceContext(id)!` | `TryGetDeviceContext(id, out ctx)` |
 | Loading a program | `LoadProgram(...)` (throws) | `TryLoadProgram(..., out error)` |
-| Running the VM | `Run()` -> `void` | `Run(opt)` -> `ProcessorFault` |
-| Stop by limit | `RunWithLimit(...)` | `Run(new LaunchOptions(StepLimit: N))` |
-| Pause/resume | — (previously only `Stop`) | `Pause()` / `Resume()` — queue-based, safe from another thread |
+| Starting the VM | `Run()` -> `void` | `Run(opt)` -> `ProcessorFault` |
+| Stopping by limit | `RunWithLimit(...)` | `Run(new LaunchOptions(StepLimit: N))` |
+| Pause/resume | — (only `Stop` existed) | `Pause()` / `Resume()` — queue-based, safe from another thread |
 | Step-by-step execution | — | `Debugger` (in `VmApplication.Extensions`) on top of `RunStepMode`/`StepDebug` |
 
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **do not rely on `default(IdState) == Valid`** — this has changed.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. On success `Status == EndProgram`; on failure — `DivOnZero`/`SegmentationFault`/… with exact `IP` and `OpCode`.
-- **`IProcessorPolicy`** — used **inside** the VM; the return from `Run`/`DebugRun` is already `ProcessorFault`, no separate policy is needed.
-- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`src/Nantuc.VmApplication.Extension/README.md`](src/Nantuc.VmApplication.Extension/README.md#debugger).
+- **`IProcessorPolicy`** — used **inside** the VM; the return from `Run`/`DebugRun` is already `ProcessorFault`, so a separate policy is not needed.
+- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`Nantuc.VmApplication.Extensions/README.md`](src/Nantuc.VmApplication.Extensions/README.md#отладчик).
 
 ## Architecture
 
-Layers go bottom-up. Each subsequent layer depends only on the previous ones; there are no reverse dependencies.
+The layers go bottom-up. Each subsequent layer depends only on the previous ones; there are no reverse dependencies.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │  Nantuc.Samples.*   Nantuc.Benchmarks.*   Nantuc.CLI                             │
-│  (examples, end products, benchmarks, console interface)                         │
+│  (samples, end products, benchmarks, console interface)                          │
 └──────────────────────────────────────────────────────────────────────────────────┘
                               │
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │  Nantuc.VmApplication.Extensions                                                 │
-│  (disassembler, debugger, I/O, standard optimizations, libraries, utilities)     │
+│  (disassembler, debugger, I/O, standard optimizations, libraries, utilities)      │
 └──────────────────────────────────────────────────────────────────────────────────┘
                               │
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -201,12 +202,13 @@ Layers go bottom-up. Each subsequent layer depends only on the previous ones; th
 Key invariants:
 - **`Diagnostics` does not depend on any Nantuc project** — a compiler author does not pull in the unsafe core just for error codes.
 - **The compiler does not depend on the runtime** — `Nantuc.Compiler` knows only `Common` + `Contracts` + `Diagnostics`.
-- **`VmApplication` is the only module that knows about both the compiler and the runtime**; it glues together “compile” and “run”. The debugger, disassembler, and benchmarks live higher in the layers.
+- **`VmApplication` is the only module that knows both the compiler and the runtime**; it glues together “compile” and “run”. The debugger, disassembler, and benchmarks live higher in the layers.
 - **`Nantuc.CLI` is the top layer**: it contains no logic of its own, only parses arguments and calls `VmApplication`/`Extensions`.
+- **`Nantuc.Samples.InWeb` is the top layer** (Blazor WebAssembly): it contains no VM logic of its own, only `VmHost` + `DeviceContext` + custom `IPortController` (`MonochromeMonitor`, `SnakeCommander`) and JS Interop for `<canvas>`.
 
 ## Modules and NuGet
 
-All modules are published as NuGet packages on [nuget.org](https://www.nuget.org/profiles/RomanyPe) (author — `RomanyPe`). Install only what the scenario needs; transitive dependencies are pulled in automatically. Each module has its own README with details and examples.
+All modules are published as NuGet packages on [nuget.org](https://www.nuget.org/profiles/RomanyPe) (author — `RomanyPe`). Install only what your scenario needs; transitive dependencies are pulled in automatically. Each module has its own README with details and examples.
 
 | Package | Purpose | README |
 |---|---|---|
@@ -221,7 +223,7 @@ All modules are published as NuGet packages on [nuget.org](https://www.nuget.org
 
 **Dependencies (bottom-up):** `Common` -> `Contracts` -> `Diagnostics` -> `Kernel` -> `Compiler` -> `VmApplication` -> `VmApplication.Extensions` -> `Nantuc.CLI`.
 
-**What to install for a scenario:**
+**What to install for your scenario:**
 
 ```bash
 # Run a MiniC program (the rest will be pulled in transitively)
@@ -232,7 +234,7 @@ dotnet add package Nantuc.VmApplication.Extensions
 dotnet add package Nantuc.Compiler
 dotnet add package Nantuc.Diagnostics
 
-# Custom device (implement IPortController)
+# Your own device (implement IPortController)
 dotnet add package Nantuc.Contracts
 dotnet add package Nantuc.Kernel
 
@@ -248,7 +250,7 @@ nantuc help
 - **.NET 10 SDK** (all projects target `net10.0`).
 - **C# 14**: `extension` blocks, `[InlineArray]`, `params ReadOnlySpan`, `field` keyword, `FrozenDictionary`/`FrozenSet`, primary constructors.
 - **Windows / Linux / macOS / AoT** (other platforms have not been tested, but Nantuc is not tied to a specific platform).
-- **WASM**: `Common`/`Contracts`/`Diagnostics` — fully WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` have limitations (blocking calls, linear memory limits, single-threaded browser).
+- **WASM**: `Common`/`Contracts`/`Diagnostics` are fully WASM-safe; `Compiler`, `Kernel`, `Extensions`, `Benchmarks`, `CLI` have limitations (blocking calls, linear memory limits, single-threaded browser). A working WASM example — **`Nantuc.Samples.InWeb`** (Blazor WebAssembly): `VmHost` + `DeviceContext` + `MonochromeMonitor` + `SnakeCommander` + JS Interop. For WASM, `Thread`/`Console.ReadKey`/`Halt+WakeProcessor` are not used — instead, `RunStepMode`+`BatchStep` and cooperative yield through a port.
 
 ## Build and run
 
@@ -265,6 +267,12 @@ dotnet run --project Nantuc.Samples.Scratch -c Release -snake 150
 # Allocator test (default in Samples.Scratch)
 dotnet run --project Nantuc.Samples.Scratch -c Release
 
+# Snake + universal MiniC runner in the browser (Blazor WebAssembly)
+# after startup open http://localhost:5xxx/  (runner) or http://localhost:5xxx/snake  (game)
+dotnet run --project Nantuc.Samples.InWeb -c Release
+# or
+dotnet watch run --project Nantuc.Samples.InWeb
+
 # CLI locally (without installing as a global tool)
 dotnet run --project src/Nantuc.CLI -c Release -- compile -s ./bin -o
 dotnet run --project src/Nantuc.CLI -c Release -- run -p ./bin/program.bin -l 100000 -t
@@ -272,11 +280,11 @@ dotnet run --project src/Nantuc.CLI -c Release -- run -p ./bin/program.bin -l 10
 # Manual benchmark (results in bin/.../logs/result_Benchmark_Logs_{ts}.txt)
 dotnet run --project Nantuc.Benchmarks -c Release
 
-# BenchmarkDotNet (full run is long; filter by cases)
+# BenchmarkDotNet (a full run takes a long time; filter by cases)
 dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *Call* *Memory*
 ```
 
-BenchmarkDotNet artifacts are in `BenchmarkDotNet.Artifacts/`. The IDE profile `Game` comes from `launchSettings.json`.
+BenchmarkDotNet artifacts are in `BenchmarkDotNet.Artifacts/`. The IDE profile `Game` is from `launchSettings.json`. For `Nantuc.Samples.InWeb`, use `dotnet publish` (you get a static site; `wwwroot` can be served by any static server).
 
 ## Examples
 
@@ -284,34 +292,35 @@ BenchmarkDotNet artifacts are in `BenchmarkDotNet.Artifacts/`. The IDE profile `
 |---|---|---|
 | `Nantuc.Samples.Minimal` | Hello world, `TryRegisterDevice` + `TryGetDeviceContext` + `ProcessorFault`, ports `0x10`/`0x12`, `QueuedIOStream` | [README](samples/Nantuc.Samples.Minimal/README.md) |
 | `Nantuc.Samples.Scratch` | `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE loop, ANSI rendering; allocator test (`Libraries.alloc_minic`) | [README](samples/Nantuc.Samples.Scratch/README.md) |
-| `Nantuc.Benchmarks` | Manual benchmark of 14 MiniC cases: MIPS, stability, percentiles, CV, JIT impact | [README](benchmarks/Nantuc.Benchmarks/README.md) |
+| `Nantuc.Samples.InWeb` | Blazor WebAssembly: `/` — compile and run MiniC in the browser (UART, syntax highlighting), `/snake` — snake on `<canvas>` (`RunStepMode`+`BatchStep`, `SnakeCommander`, `MonochromeMonitor`, JS Interop, double frame buffering) | [README](samples/Nantuc.Samples.InWeb/README.md) |
+| `Nantuc.Benchmarks` | Manual benchmark of 14 MiniC cases: MIPS, stability, percentiles, CV, JIT-impact | [README](benchmarks/Nantuc.Benchmarks/README.md) |
 | `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet benchmark of 14 MiniC cases: time, allocations, statistics, artifacts | [README](benchmarks/Nantuc.Benchmarks.BenchmarkDotNet/README.md) |
-| `OtherLangs` | Comparison with 10 other languages on the same 14 MiniC cases: own process, own runner, consolidated `results.json`/`results.csv` | [README](benchmarks/OtherLangs/README.md) |
+| `OtherLangs` | Comparison with 10 other languages on the same 14 MiniC cases: separate process, separate runner, summary `results.json`/`results.csv` | [README](benchmarks/OtherLangs/README.md) |
 | `Nantuc.CLI` | `nantuc`: `compile`/`run`/`disasm`/`lib`/`help`, installation as a .NET global tool | [README](src/Nantuc.CLI/README.md) |
 
 Additional examples (full cycle with diagnostics, step-by-step debugging, custom optimization, Pause/Resume) — in the READMEs of the corresponding modules (`VmApplication`, `VmApplication.Extensions`, `CLI`).
 
 ## Metrics and quality
-
-- **Test suite (xUnit):** **489 automated tests** across two projects (`Nantuc.Tests` — 455, `Nantuc.CLI.Tests` — 36), running in ~3 seconds:
-  - **Compiler (276):** `const`-correctness (61), operators (49), casts (46), pointers (27), control flow, function pointers, structs, arrays, and overflow checks.
-  - **Diagnostics (90):** error message providers (50), AOT-safe diagnostic data (20), exception handling, and compiler error checks.
-  - **VM & Host (47):** memory isolation and security (`VmSecurityTests`), unsafe opcode guards (`UnsafeOpCodeTests`), `HALT/WAKE` lifecycle, and language definition drift checks.
-  - **Utils & CLI (76):** virtual file system (`RamFileServiceTests`, 40) and end-to-end CLI commands (36).
+- **Test coverage (xUnit):** **489 automated tests** in two projects (`Nantuc.Tests` — 455, `Nantuc.CLI.Tests` — 36); the full run takes ~3 seconds:
+  - **Compiler (276):** `const`-correctness checks (61), operators (49), type casts (46), pointers (27), control flow, function pointers, structures, arrays, and overflows.
+  - **Diagnostics (90):** error message providers (50), AOT-safe diagnostic data (20), exception handling and compiler error checks.
+  - **VM and host (47):** memory isolation and safety (`VmSecurityTests`), protection against unsafe opcodes (`UnsafeOpCodeTests`), `HALT/WAKE` loop and language spec divergence control.
+  - **Utilities and CLI (76):** virtual file system (`RamFileServiceTests`, 40) and end-to-end CLI command tests (36).
 - Full metrics table — [docs/METRICS.md](docs/METRICS.md).
 
 **In progress / plans:**
 - JIT compiler in C/C++ (separate project).
-- **Debugger:** frame pointer in `Processor` for an accurate `GetCallStack`, `Debugger.Reset()`/`Reload()`, IDE UI panel (via the `Stopped` event).
-- **CLI:** interactive REPL mode, project configuration file instead of flags for every command.
-- For more details, see [ROADMAP.md](ROADMAP.md)
+- **Debugger:** frame pointer in `Processor` for exact `GetCallStack`, `Debugger.Reset()`/`Reload()`, UI panel for the IDE (via the `Stopped` event).
+- **CLI:** interactive REPL mode, project configuration file instead of flags for each command.
+- More details — [ROADMAP.md](ROADMAP.md)
+
 ## Contributing
 
 The project is open to issues and pull requests.
 
 - **Found a bug** — issue with a minimal example (MiniC/NANASM + expected/actual behavior).
-- **Want a feature** — issue describing the scenario (what you are doing, what is in the way).
-- **Change** — fork -> branch -> PR. For large changes, open an issue first (to discuss the design).
+- **Want a feature** — issue describing the scenario (what you are doing, what is blocking you).
+- **Change** — fork -> branch -> PR. For large changes, start with an issue (discuss the design).
 - **Style**: follow the style of neighboring files; `Nullable=enable`, `ImplicitUsings=enable`; `unsafe` — only in `Nantuc.Kernel`.
 
 Before a PR:
@@ -332,8 +341,9 @@ See [`LICENSE`](LICENSE) in the repository root.
 - Changelog: [`CHANGELOG.md`](CHANGELOG.md)
 - Bytecode specification: [`docs/bytecode.md`](docs/bytecode.md)
 - Error code reference: [`docs/error-codes.md`](docs/error-codes.md)
-- Metrics: [`docs/METRICS.md`](docs/METRICS.md) and per-module metrics in [`docs/Metrics`](docs/Metrics).
+- Metrics: [`docs/METRICS.md`](docs/METRICS.md) and separate metrics for each module [`docs/Metrics`](docs/Metrics)
 - Built-in MiniC/NANASM libraries: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md)
 - CLI: [`src/Nantuc.CLI/README.md`](src/Nantuc.CLI/README.md)
 - Comparison with other languages (OtherLangs): [`benchmarks/OtherLangs/README.md`](benchmarks/OtherLangs/README.md)
-- Module READMEs: see the “README” column in the [Modules and NuGet](#modules-and-nuget) section.
+- Sample READMEs: [`samples/Nantuc.Samples.Minimal/README.md`](samples/Nantuc.Samples.Minimal/README.md), [`samples/Nantuc.Samples.Scratch/README.md`](samples/Nantuc.Samples.Scratch/README.md), [`samples/Nantuc.Samples.InWeb/README.md`](samples/Nantuc.Samples.InWeb/README.md)
+- Module READMEs: see the “README” column in the [Modules and NuGet](#modules-and-nuget) section

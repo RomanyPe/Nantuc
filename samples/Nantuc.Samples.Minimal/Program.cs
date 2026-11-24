@@ -20,7 +20,7 @@ host.Project.SaveFileInclude("print.minic", Libraries.print_minic);
 
 // 1) Регистрация VM — через TryRegisterDevice, IdState вместо int < 0
 var vmState = host.Emulator.TryRegisterDevice(
-    DeviceSpec.Create(RamSize.MB128, name: "ConsoleVM"),
+    DeviceSpec.Create(RamSize.MB16, name: "ConsoleVM"),
     sector: 0,
     out int vmId);
 if (vmState != IdState.Valid) { Console.Error.WriteLine($"register vm: {vmState}"); return; }

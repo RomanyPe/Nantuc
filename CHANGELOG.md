@@ -10,6 +10,11 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.22.0] - 2026-11-24
+
+### Added
+- `Nantuc.Samples.InWeb` module to the samples
+
 ## [0.21.0] - 2026-11-24
 
 ### Changed
