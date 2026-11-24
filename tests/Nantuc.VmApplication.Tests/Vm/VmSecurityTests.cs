@@ -318,7 +318,7 @@ public class VmSecurityTests(ITestOutputHelper outPut)
 
     private void LoadProgram(VmHost host, DeviceContext ctx, string asm)
     {
-        var comp = host.Project.Compile(asm, 0, false, SourceLanguage.Asm);
+        var comp = host.Project.Compile(asm, 0, false, SourceLanguage.Nanasm);
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         _outPut.WriteLine(comp.DisassembleToString());
         Assert.True(ctx.TryLoadProgram(comp.Program!, 0, out var err), err);

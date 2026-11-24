@@ -7,12 +7,12 @@ Path: `Nantuc.slnx`
 | Metric | Value |
 | --- | ---: |
 | Members analysed | 1468 |
-| C# files | 296 |
-| Total lines | 26499 |
-| C# classes | 254 |
+| C# files | 295 |
+| Total lines | 26548 |
+| C# classes | 253 |
 | C# records | 29 |
 | C# enums | 13 |
-| Analysed LOC | 9001 |
+| Analysed LOC | 9006 |
 | Cognitive avg | 1.9 |
 | Cognitive median | 0 |
 | Cognitive p90 | 6 |
@@ -32,8 +32,8 @@ Lowest maintainability: `CfgBuilder.Stmt` (MI 25.1) — `CfgBuilder.cs:76`
 | Band | Range | Members |
 | --- | --- | ---: |
 | Light | 0-5 | 1318 |
-| Moderate | 6-10 | 74 |
-| High | 11-20 | 61 |
+| Moderate | 6-10 | 73 |
+| High | 11-20 | 62 |
 | Severe | 21+ | 15 |
 
 ## Members

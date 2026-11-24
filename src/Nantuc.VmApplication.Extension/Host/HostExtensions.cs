@@ -86,13 +86,16 @@ public static class VMHostRunExtensions
         }
 
         public bool RunAndCleanup(
-            string source,
-            SourceLanguage lang,
-            RamSize? ram = null,
-            bool optimize = false,
-            uint sector = 0)
+                    string source,
+                    SourceLanguage lang,
+                    RamSize? ram = null,
+                    bool optimize = false,
+                    string deviceName = "run",
+                    uint sector = 0,
+                    TextWriter? output = null,
+                    PortCharEncoding encoding = PortCharEncoding.Utf16)
         {
-            var res = host.RunAndKeep(source, lang, ram, optimize, sector: sector);
+            var res = host.RunAndKeep(source, lang, ram, optimize, deviceName, sector, output, encoding);
             if (res.DeviceId is int id) host.Emulator.UnregisterDevice(id);
             return res.Success;
         }
@@ -102,9 +105,12 @@ public static class VMHostRunExtensions
             SourceLanguage lang,
             RamSize? ram = null,
             bool optimize = false,
-            uint sector = 0)
+            string deviceName = "run",
+            uint sector = 0,
+            TextWriter? output = null,
+            PortCharEncoding encoding = PortCharEncoding.Utf16)
         {
-            var res = host.RunAndKeep(source, lang, ram, optimize, sector: sector);
+            var res = host.RunAndKeep(source, lang, ram, optimize, deviceName, sector, output, encoding);
             if (res.DeviceId is int id) host.Emulator.UnregisterDevice(id);
             return res with { Device = null, DeviceId = null };
         }

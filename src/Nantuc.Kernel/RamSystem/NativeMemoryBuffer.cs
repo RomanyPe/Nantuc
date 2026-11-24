@@ -52,6 +52,8 @@ public unsafe sealed class NativeMemoryBuffer : IDisposable
     /// <exception cref="OutOfMemoryException">Если выделить память не удалось.</exception>
     public NativeMemoryBuffer(RamSize sizeRam)
     {
+        if (!sizeRam.IsValid)
+            throw new InvalidOperationException($"Ram is not valid: log-{sizeRam.Log2}, bytes-{sizeRam.Bytes}");
         nuint ram = (nuint)sizeRam.Bytes;
 
 
@@ -151,7 +153,11 @@ public unsafe sealed class NativeMemoryBuffer : IDisposable
     /// <summary>
     /// Заполняет буфер нулями.
     /// </summary>
-    public void Clear() => NativeMemory.Clear(_ptrRam, _sizeRam);
+    public void Clear()
+    {
+        if (!Volatile.Read(ref _disposed))
+            NativeMemory.Clear(_ptrRam, _sizeRam);
+    }
 
     /// <summary>
     /// Освобождает нативную память.

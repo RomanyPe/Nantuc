@@ -8,32 +8,32 @@ Path: `samples/Nantuc.Samples.Scratch/Nantuc.Samples.Scratch.csproj`
 | --- | ---: |
 | Members analysed | 13 |
 | C# files | 5 |
-| Total lines | 553 |
+| Total lines | 546 |
 | C# classes | 4 |
 | C# records | 0 |
 | C# enums | 0 |
-| Analysed LOC | 192 |
-| Cognitive avg | 3.4 |
+| Analysed LOC | 188 |
+| Cognitive avg | 3.5 |
 | Cognitive median | 1 |
-| Cognitive p90 | 9 |
+| Cognitive p90 | 11 |
 | Cognitive max | 18 |
-| Cyclomatic avg | 4.8 |
+| Cyclomatic avg | 4.9 |
 | Cyclomatic median | 3 |
 | Cyclomatic p90 | 9 |
 | Cyclomatic max | 16 |
 | MI avg | 71.7 |
-| MI minimum | 34.3 |
+| MI minimum | 35.4 |
 
 Highest risk member: `SnakeGameOnNantuc.Run` (cognitive 18, cyclomatic 16) — `SnakeGameOnNantuc.cs:15`
-Lowest maintainability: `<top-level>.<main>` (MI 34.3) — `Program.cs:12`
+Lowest maintainability: `<top-level>.<main>` (MI 35.4) — `Program.cs:11`
 
 ## Risk bands
 
 | Band | Range | Members |
 | --- | --- | ---: |
 | Light | 0-5 | 10 |
-| Moderate | 6-10 | 2 |
-| High | 11-20 | 1 |
+| Moderate | 6-10 | 1 |
+| High | 11-20 | 2 |
 | Severe | 21+ | 0 |
 
 ## Members
@@ -43,7 +43,7 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 13 of 13 mem
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | C:\Users\xity4\source\repos\Nantuc\samples\Nantuc.Samples.Scratch\SnakeGame\SnakeGameOnNantuc.cs | 15 | SnakeGameOnNantuc | Run | 18 | 16 | 52 | 3 | 0 | 36.9 |
-| C:\Users\xity4\source\repos\Nantuc\samples\Nantuc.Samples.Scratch\Program.cs | 12 | <top-level> | <main> | 9 | 8 | 73 | 2 | 0 | 34.3 |
+| C:\Users\xity4\source\repos\Nantuc\samples\Nantuc.Samples.Scratch\Program.cs | 11 | <top-level> | <main> | 11 | 9 | 69 | 2 | 0 | 35.4 |
 | C:\Users\xity4\source\repos\Nantuc\samples\Nantuc.Samples.Scratch\SnakeGame\SnakeGameOnNantuc.cs | 104 | SnakeGameOnNantuc | RenderToConsole | 7 | 5 | 13 | 3 | 3 | 56.7 |
 | C:\Users\xity4\source\repos\Nantuc\samples\Nantuc.Samples.Scratch\SnakeGame\MonochromeMonitor.cs | 50 | MonochromeMonitor | WritePort | 3 | 9 | 28 | 2 | 2 | 48.1 |
 | C:\Users\xity4\source\repos\Nantuc\samples\Nantuc.Samples.Scratch\SnakeGame\MonochromeMonitor.cs | 29 | MonochromeMonitor | MonochromeMonitor.ctor | 2 | 6 | 6 | 1 | 3 | 65.7 |

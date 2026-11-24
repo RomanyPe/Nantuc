@@ -1,5 +1,4 @@
-﻿using Microsoft.VisualBasic;
-using Nantuc.Common;
+﻿using Nantuc.Common;
 using Nantuc.Contracts;
 using Nantuc.Kernel.ControllersData;
 using Nantuc.Kernel.ProcessorSystem;
@@ -138,6 +137,7 @@ public sealed class Device : IPortController
         onLaunch?.Invoke();
         stepCounter = 0;
 
+        _wakeSignal.Reset();
         _processor.Reset();
         _processor.LaunchProgramm(startIndex);
 
@@ -184,6 +184,7 @@ public sealed class Device : IPortController
         onLaunch?.Invoke();
         stepCounter = 0;
 
+        _wakeSignal.Reset();
         _processor.Reset();
         _processor.LaunchProgramm(start);
         RunSimulationLoopDebug(delay, useSleepMode, stepLimit, onStep);
@@ -228,7 +229,6 @@ public sealed class Device : IPortController
 
     private void RunSimulationLoop()
     {
-        _wakeSignal.Reset();
         while (_processor.IsRunning)
             Step();
     }
@@ -255,7 +255,6 @@ public sealed class Device : IPortController
     }
     private void RunSimulationLoopWithLimit(long limit)
     {
-        _wakeSignal.Reset();
         bool isEndLimit = false;
 
         while (_processor.IsRunning)
@@ -273,7 +272,6 @@ public sealed class Device : IPortController
 
     private void RunSimulationLoopDebug(int delay, bool useSleepMode, long stepLimit, Action<ProcessorSnapshot>? onStep)
     {
-        _wakeSignal.Reset();
         bool isEndLimit = false;
         while (_processor.IsRunning)
         {

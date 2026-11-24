@@ -81,7 +81,6 @@ if (args.Length >= 2 && args[0] == "-snake")
 | `host.Project.SaveFileProject("main.minic", source1)` | Исходник в `ProjectPath` |
 | `SaveFileInclude("heap.nanasm", Libraries.heap_nanasm)` | asm-lib (bump + free-list) |
 | `SaveFileInclude("alloc.minic", Libraries.alloc_minic)` | C-lib (first-fit аллокатор) |
-| `var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);` | Политика, логирующая `[FAULT]` при падении и останавливающая симуляцию |
 | `DeviceSpec.Create(ramSize: RamSize.MB128, processorFaultPolicy: lfPolicy, name: "ConsoleVM")` | VM + политика fault'ов |
 | `QueuedIOStream(Console.Out, PortCharEncoding.Utf8)` | I/O на `sector 1` (не используется в `source1`) |
 | `CompileToIR(baseAddress: 0, optimize: true).Build()` | Компиляция всех файлов |
@@ -290,7 +289,6 @@ Console.WriteLine("Allocator test PASSED");
 - Перед запуском змейки — убедиться, что терминал поддерживает ANSI (`\x1b[H`). Windows Terminal — да, старый `cmd.exe` — нет.
 - Запускать `dotnet run -- -snake <period>` (или профиль `Game` из `launchSettings.json`).
 - Для отладки змейки — увеличить `period` (медленнее, проще ловить баги) или заменить `QueuedIOStream` на `SynchronousIOStream` в аллокатор-тесте.
-- Использовать `LoggingFaultPolicyMinimal` (как в аллокатор-тесте) — при fault'е будет видно `[FAULT] status=...`.
 
 **Что не стоит делать:**
 - Регистрировать `KeyboardDevice` и одновременно писать в `portBus.WritePort(0, ...)` — двойной ввод.
@@ -426,10 +424,6 @@ var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);
     Файл: `Program.cs`, строки `var iostream = new QueuedIOStream(...)` + `host.Emulator.RegisterDevice(ioDevice: iostream, ...)`.
     `source1` (allocator test) не пишет в порты. Устройство висит, `Dispose` вызовется через `host.Dispose()`, но лишнее.
     Фикс: убрать `iostream` и `RegisterDevice(ioDevice: ...)` из `Program.cs` (или использовать — например, `print8` результат `r0`).
-
-14. **`Program.cs` — `using var host` без `Console.OutputEncoding`.**
-    Файл: `Program.cs`, начало. `LoggingFaultPolicyMinimal` пишет `[FAULT] ...` (ASCII), но если расширите вывод на русский — кракозябры на Windows CP866/1251.
-    Фикс (профилактически): `Console.OutputEncoding = System.Text.Encoding.UTF8;` первой строкой.
 
 15. **`SnakeGameOnNantuc` — `Console.CursorVisible`/`SetCursorPosition` без try/catch.**
     Файл: `SnakeGame/SnakeGameOnNantuc.cs`, строки `Console.CursorVisible = false;`, `Console.CursorVisible = true;`, `Console.SetCursorPosition(0, 18);`.

@@ -10,6 +10,20 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.23.0] - 2026-11-25
+
+### Added
+- Static property `FrozenSet<ErrorCode> ErrorCodesValidateTable { get; }` to `DiagnosticsCompilerExtension`
+
+### Changed
+- **BREAKING:** Added parameters to `RunAndCleanup` and `RunOnce` to keep their signatures consistent with `RunAndKeep`
+- Rewrote `Nantuc.Samples.Scratch` to use safer and more concise code
+- Replaced `Enum.GetValues()` in `DiagnosticsCompilerExtension` with an explicit `FrozenSet<ErrorCode> = [...]` collection
+
+### Removed
+- **BREAKING:** Removed `LoggingFaultPolicyMinimal` class (dead and legacy code)
+
+
 ## [0.22.0] - 2026-11-24
 
 ### Added

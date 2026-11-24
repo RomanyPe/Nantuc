@@ -81,7 +81,6 @@ If `-snake` is not passed (or there is only one argument), the allocator test ru
 | `host.Project.SaveFileProject("main.minic", source1)` | Source in `ProjectPath` |
 | `SaveFileInclude("heap.nanasm", Libraries.heap_nanasm)` | asm-lib (bump + free-list) |
 | `SaveFileInclude("alloc.minic", Libraries.alloc_minic)` | C-lib (first-fit allocator) |
-| `var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);` | Policy that logs `[FAULT]` on failure and stops the simulation |
 | `DeviceSpec.Create(ramSize: RamSize.MB128, processorFaultPolicy: lfPolicy, name: "ConsoleVM")` | VM + fault policy |
 | `QueuedIOStream(Console.Out, PortCharEncoding.Utf8)` | I/O on `sector 1` (not used in `source1`) |
 | `CompileToIR(baseAddress: 0, optimize: true).Build()` | Compiles all files |
@@ -290,7 +289,6 @@ Console.WriteLine("Allocator test PASSED");
 - Before launching the snake — make sure the terminal supports ANSI (`\x1b[H`). Windows Terminal — yes, old `cmd.exe` — no.
 - Run `dotnet run -- -snake <period>` (or the `Game` profile from `launchSettings.json`).
 - For debugging the snake — increase `period` (slower, easier to catch bugs) or replace `QueuedIOStream` with `SynchronousIOStream` in the allocator test.
-- Use `LoggingFaultPolicyMinimal` (as in the allocator test) — on a fault you will see `[FAULT] status=...`.
 
 **What you should not do:**
 - Register `KeyboardDevice` and simultaneously write to `portBus.WritePort(0, ...)` — double input.
@@ -426,10 +424,6 @@ In descending order of severity. References to files and lines.
     File: `Program.cs`, lines `var iostream = new QueuedIOStream(...)` + `host.Emulator.RegisterDevice(ioDevice: iostream, ...)`.
     `source1` (allocator test) does not write to ports. The device hangs there, `Dispose` will be called via `host.Dispose()`, but it is superfluous.
     Fix: remove `iostream` and `RegisterDevice(ioDevice: ...)` from `Program.cs` (or use it — e.g., `print8` the `r0` result).
-
-14. **`Program.cs` — `using var host` without `Console.OutputEncoding`.**
-    File: `Program.cs`, beginning. `LoggingFaultPolicyMinimal` writes `[FAULT] ...` (ASCII), but if you extend the output to Russian — mojibake on Windows CP866/1251.
-    Fix (preventively): `Console.OutputEncoding = System.Text.Encoding.UTF8;` as the first line.
 
 15. **`SnakeGameOnNantuc` — `Console.CursorVisible`/`SetCursorPosition` without try/catch.**
     File: `SnakeGame/SnakeGameOnNantuc.cs`, lines `Console.CursorVisible = false;`, `Console.CursorVisible = true;`, `Console.SetCursorPosition(0, 18);`.

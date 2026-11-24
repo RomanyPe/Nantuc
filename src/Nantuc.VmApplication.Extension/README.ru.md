@@ -22,7 +22,7 @@
 - **Отладчик** (`Debugger`): пошаговое исполнение поверх `DeviceContext` — `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, точки останова, best-effort стек вызовов, чтение RAM (`ReadUInt16/32/64`, `ReadCString`), дизассемблирование текущей инструкции через `StringDisassembler`. Не использует `AsRawDevice` и `unsafe` — только публичный API `DeviceContext`/`ProcessorSnapshot`.
 - **I/O-устройства** (`NumericIOStream`, `SynchronousIOStream`, `QueuedIOStream`): вывод байтов/UTF-8/UTF-16 из VM в `TextWriter`. Плюс `PortCharEncoding` и `OutputPortLayout` (раскладка 8-байтного окна).
 - **Стандартные оптимизации**: AST-правила (`FoldConstants`, `PropagateConstants`, `RemoveUnusedVariables`, `RemoveUnreachableCode`, `InlineSmallVoidFunctions`) и IR-правила (`ConstantFolding`, `RemoveNoopMov`, `RemovePushPopPair`, `RemoveSwapMovPair`, `RemoveJumpToNextLabel`, `RemoveMultiEnd`).
-- **Утилиты компиляции** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIR("int main(){}", 0, true, SourceLanguage.C)` и `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — одна строка вместо пайплайна. `RunAndKeep`/`RunOnce`/`RunAndCleanup` умеют регистрировать UART через `QueuedIOStream`, если передан `output`.
+- **Утилиты компиляции** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIR("int main(){}", 0, true, SourceLanguage.MiniC)` и `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — одна строка вместо пайплайна. `RunAndKeep`/`RunOnce`/`RunAndCleanup` умеют регистрировать UART через `QueuedIOStream`, если передан `output`.
 - **Встроенные библиотеки** (`Libraries`): строковые константы `heap_nanasm`, `alloc_minic`, `io_nanasm`, `print_minic`, `imath_minic`, `bitops_minic`, `ovf_minic` для `#include`. Подробнее — в [STDLIBRARIES.ru.md](STDLIBRARIES.ru.md).
 - **RAM-утилиты** (`DeviceContextExtensions`): `GetRamAsNewArray` / `GetAllRamAsNewArray`, `CopyRamTo` в `Span<byte>` / `byte[]` / `Memory<byte>` / `Stream`, `ReadRam<T>` / `CopyRamTo<T>` для `unmanaged`-типов, `TryCopyRamTo` без исключений — читать RAM **остановленной** VM (все, кроме `TryCopyRamTo`, бросают `InvalidOperationException` при `ctx.IsRunning`).
 - **Bytecode-утилиты** (`BytecodeExtension`): `GetOpCodeSafety` / `GetUnsafeOpCodes` — статический разбор `CompilationResult.Program` на наличие `*_UNSAFE` опкодов (`OpCodeSafety.Safe`/`HasUnsafe`/`Unknown`) и поиск их местоположений (`UnsafeOpCodeLocation(OpCode, Offset, Ip)`). Полезно для проверки недоверенного кода перед запуском и для проверки результата `ReplaceSafeMemAccessWithUnsafeRule`.
@@ -62,7 +62,6 @@ Nantuc.VmApplication.Extensions/
 │   └── SynchronousIOStream.cs                # синхронный: пишет символы
 ├── Host/
 │   ├── HostExtensions.cs                     # RunOutcome + RunAndKeep / RunAndCleanup / RunOnce (+ UART через QueuedIOStream, если output != null)
-│   ├── LoggingFaultPolicyMinimal.cs          # IProcessorPolicy: логирует fault и останавливает симуляцию
 │   └── ProjectExtension.cs                   # Compile/CompileToIR по строке/строкам + SaveFileInclude/SaveFileProject
 ├── StdLibraries/
 │   └── Libraries.cs                          # static class Libraries: heap_nanasm, alloc_minic, io_nanasm, print_minic, imath_minic, bitops_minic, ovf_minic
@@ -94,7 +93,6 @@ Nantuc.VmApplication.Extensions/
 - `Debugging/` — новый слой поверх `DeviceContext`, не меняет `Nantuc.VmApplication`. Отладчик не потокобезопасен (кроме `RequestStop`), что совпадает с моделью `DeviceContext`. Стек вызовов восстанавливается эвристически — VM не хранит frame pointer. Подробности — в [Особенная информация](#особенная-информация).
 - `Bytecode/` — статический разбор `CompilationResult.Program`, не трогает `DeviceContext`/`VmEmulator`. `IsUnsafeOpcode` — тот же набор, что использует `ReplaceSafeMemAccessWithUnsafeRule`, поэтому модуль можно использовать для верификации результата IR-правила (после применения — все `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` заменены на `*_UNSAFE`).
 - `Host/HostExtensions.cs` — `RunAndKeep` в текущей версии использует только safe-API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`), без `!`. Побочный эффект: при ошибке регистрации/загрузки возвращается `RunOutcome` с `Device == null`, а не NRE. UART регистрируется на `sector + 1`, если передан `output`.
-- `Host/LoggingFaultPolicyMinimal.cs` — отдельный файл; ранее класс лежал в `ProjectExtension.cs`, теперь вынесен.
 
 ## API
 
@@ -485,16 +483,6 @@ extension(VmHost host)
 - `RunAndCleanup` — `RunAndKeep` + `UnregisterDevice`. Возвращает `Success`.
 - `RunOnce` — `RunAndKeep` + `UnregisterDevice`, возвращает `RunOutcome` с `Device = null, DeviceId = null`.
 
-**`LoggingFaultPolicyMinimal`**:
-
-```csharp
-public class LoggingFaultPolicyMinimal(TextWriter output) : IProcessorPolicy
-{
-    public bool ShouldContinue(in ProcessorFault fault);
-    // пишет строку в output, возвращает false (остановить симуляцию)
-}
-```
-
 ### Встроенные библиотеки
 
 **`Libraries`** — `static class` со строковыми константами (namespace `Nantuc.VmApplication.Extensions.StdLibraries`):
@@ -769,14 +757,14 @@ using Nantuc.Kernel.Common;
 
 using var host = VmHostFactory.CreateDefault();
 
-bool ok = host.RunAndCleanup("int main() { return 0; }", SourceLanguage.C);
+bool ok = host.RunAndCleanup("int main() { return 0; }", SourceLanguage.MiniC);
 
 var outcome = host.RunAndKeep("""
     int main() {
         int x = 42;
         return x;
     }
-    """, SourceLanguage.C);
+    """, SourceLanguage.MiniC);
 
 if (outcome.Success)
 {
@@ -792,7 +780,7 @@ if (outcome.Success)
 **Запуск с выводом в консоль через UART:**
 
 ```csharp
-var outcome = host.RunAndKeep(source, SourceLanguage.C, output: Console.Out);
+var outcome = host.RunAndKeep(source, SourceLanguage.MiniC, output: Console.Out);
 // UART зарегистрирован на sector + 1, кодировка по умолчанию — Utf16.
 // Чтобы получить Utf8 — передайте encoding: PortCharEncoding.Utf8.
 ```
@@ -800,7 +788,7 @@ var outcome = host.RunAndKeep(source, SourceLanguage.C, output: Console.Out);
 **Регистрация на другом секторе:**
 
 ```csharp
-var outcome = host.RunAndKeep(source, SourceLanguage.C, sector: 5);
+var outcome = host.RunAndKeep(source, SourceLanguage.MiniC, sector: 5);
 // UART (если output != null) займёт sector 6.
 ```
 
@@ -818,7 +806,7 @@ host.Project.SaveFileInclude("heap.nanasm", Libraries.heap_nanasm);
 ```csharp
 using Nantuc.VmApplication.Extensions.DeviceCtx;
 
-var outcome = host.RunAndKeep("int main() { int x = 42; return x; }", SourceLanguage.C);
+var outcome = host.RunAndKeep("int main() { int x = 42; return x; }", SourceLanguage.MiniC);
 if (outcome.Success)
 {
     var ram = outcome.Device!.GetRamAsNewArray(0, 256);

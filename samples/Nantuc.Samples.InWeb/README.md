@@ -5,6 +5,14 @@
 > Related to the console sample: [`Nantuc.Samples.Scratch`](../Nantuc.Samples.Scratch/README.md) — the same snake "engine", but without a browser.
 > [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
+> [!IMPORTANT]
+> Due to WebAssembly platform specifics, multithreading must be enabled in your `.csproj` file. Otherwise, a `PlatformNotSupportedException` will be thrown at runtime when using threads or synchronization primitives:
+> ```xml
+> <PropertyGroup>
+>   <WasmEnableThreads>true</WasmEnableThreads>
+> </PropertyGroup>
+> ```
+
 ## Contents
 - [About this module](#about-this-module)
 - [Local project tree](#local-project-tree)

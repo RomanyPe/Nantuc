@@ -95,6 +95,7 @@ public sealed partial class Processor(MemoryBus ram, IPortBus portBus, IProcesso
 
     public void Reset()
     {
+        _faultData = new ProcessorFault(BiosStatus.Success, 0, 0, OpCode.NOP);
         _lastFaultData = 0;
         _isRunning = false;
         _isSleeping = false;

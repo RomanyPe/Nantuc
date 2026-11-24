@@ -30,7 +30,7 @@ public static class ProjectBuilder
 
         var processedIncludes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var file in files.Where(file => file.Language == SourceLanguage.C))
+        foreach (var file in files.Where(file => file.Language == SourceLanguage.MiniC))
         {
             var ast = ParseCFile(file.Content, ErrorReporter);
             cAsts.Add(ast);
@@ -70,7 +70,7 @@ public static class ProjectBuilder
             asmParser.Assemble(asmCode, assembler);
         }
 
-        foreach (SourceFile file in files.Where(file => file.Language == SourceLanguage.Asm))
+        foreach (SourceFile file in files.Where(file => file.Language == SourceLanguage.Nanasm))
         {
             asmParser.Assemble(file.Content, assembler);
         }
@@ -94,13 +94,13 @@ public static class ProjectBuilder
 
             switch (lang)
             {
-                case SourceLanguage.C:
+                case SourceLanguage.MiniC:
                     var ast = ParseCFile(code, ErrorReporter);
                     cAsts.Add(ast);
                     ResolveIncludesRecursive(ast.IncludesList, processed, cAsts, asmIncludes, fileService, paths, ErrorReporter);
                     break;
                     
-                case SourceLanguage.Asm: 
+                case SourceLanguage.Nanasm: 
                     asmIncludes.Add(inc); 
                     break;
 
@@ -199,8 +199,8 @@ public static class ProjectBuilder
     }
     private static SourceLanguage FindLang(IProjectFilesConfig config, string name)
     {
-        if (IsAsm(config, name)) return SourceLanguage.Asm;
-        else if (IsMiniC(config, name)) return SourceLanguage.C;
+        if (IsAsm(config, name)) return SourceLanguage.Nanasm;
+        else if (IsMiniC(config, name)) return SourceLanguage.MiniC;
         else return SourceLanguage.None;
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Nantuc.Common;
-using Nantuc.Contracts;
 
 namespace Nantuc.VmApplication.Extensions.Debugging;
 
@@ -21,8 +20,21 @@ public readonly record struct DebugStop(
                                      or DebugStopReason.Faulted
                                      or DebugStopReason.Error;
 
+    private static string AsText(DebugStopReason r) => r switch
+    {
+        DebugStopReason.None => nameof(DebugStopReason.None),
+        DebugStopReason.StepComplete => nameof(DebugStopReason.StepComplete),
+        DebugStopReason.Breakpoint => nameof(DebugStopReason.Breakpoint),
+        DebugStopReason.Completed => nameof(DebugStopReason.Completed),
+        DebugStopReason.Faulted => nameof(DebugStopReason.Faulted),
+        DebugStopReason.Sleeping => nameof(DebugStopReason.Sleeping),
+        DebugStopReason.StepLimit => nameof(DebugStopReason.StepLimit),
+        DebugStopReason.UserStop => nameof(DebugStopReason.UserStop),
+        DebugStopReason.Error => nameof(DebugStopReason.Error),
+        _ => ((int)r).ToString(),
+    };
     /// <inheritdoc />
     public override string ToString()
-        => $"[{Reason}] IP=0x{InstructionPointer:X8} step={StepCount} " +
-           $"fault={Fault.Status} op={Snapshot.OpCode}";
+        => $"[{AsText(Reason)}] IP=0x{InstructionPointer:X8} step={StepCount} " +
+           $"fault={Fault.Status.AsText} op={Snapshot.OpCode.AsText}";
 }

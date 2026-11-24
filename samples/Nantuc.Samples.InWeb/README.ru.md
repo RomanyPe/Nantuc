@@ -5,6 +5,14 @@
 > Связан с консольным сэмплом: [`Nantuc.Samples.Scratch`](../Nantuc.Samples.Scratch/README.ru.md) — тот же «движок» змейки, но без браузера.
 > [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
+> [!IMPORTANT]
+> Из-за особенностей WebAssembly в файле проекта (`.csproj`) должен быть включен флаг многопоточности, иначе в рантайме возникнет `PlatformNotSupportedException` при работе с потоками и блокировками:
+> ```xml
+> <PropertyGroup>
+>   <WasmEnableThreads>true</WasmEnableThreads>
+> </PropertyGroup>
+> ```
+
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
 - [Дерево локального проекта](#дерево-локального-проекта)

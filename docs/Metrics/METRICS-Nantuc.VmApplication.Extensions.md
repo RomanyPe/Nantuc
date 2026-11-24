@@ -6,22 +6,22 @@ Path: `src/Nantuc.VmApplication.Extension/Nantuc.VmApplication.Extensions.csproj
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 199 |
-| C# files | 37 |
-| Total lines | 3924 |
-| C# classes | 31 |
+| Members analysed | 198 |
+| C# files | 36 |
+| Total lines | 3964 |
+| C# classes | 30 |
 | C# records | 6 |
 | C# enums | 3 |
-| Analysed LOC | 1609 |
-| Cognitive avg | 3.0 |
+| Analysed LOC | 1612 |
+| Cognitive avg | 3.1 |
 | Cognitive median | 1 |
 | Cognitive p90 | 12 |
 | Cognitive max | 31 |
-| Cyclomatic avg | 3.8 |
+| Cyclomatic avg | 3.9 |
 | Cyclomatic median | 2 |
 | Cyclomatic p90 | 11 |
 | Cyclomatic max | 56 |
-| MI avg | 74.8 |
+| MI avg | 74.7 |
 | MI minimum | 27.5 |
 
 Highest risk member: `Disassembler..Disassemble` (cognitive 31, cyclomatic 16) — `Disassembler.cs:12`
@@ -31,14 +31,14 @@ Lowest maintainability: `IRLog.FormatAsmItem` (MI 27.5) — `IRLog.cs:22`
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 164 |
+| Light | 0-5 | 163 |
 | Moderate | 6-10 | 10 |
 | High | 11-20 | 22 |
 | Severe | 21+ | 3 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 199 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 198 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |

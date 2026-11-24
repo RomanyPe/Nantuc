@@ -103,17 +103,6 @@ ProcessorFault fault = vm.Run(new LaunchOptions(
     OnEnd: r => Console.WriteLine($"steps={r?.Steps} elapsed={r?.Elapsed}")));
 ```
 
-**Add `LoggingFaultPolicyMinimal` (optional):**
-
-```csharp
-using Nantuc.VmApplication.Extensions.Host;
-
-var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);
-var vmSpec = DeviceSpec.Create(RamSize.MB128, name: "ConsoleVM", faultPolicy: lfPolicy);
-```
-
-The policy logs the `ProcessorFault` to `Console.Out` and stops the simulation. In the current example it is **not used** — `Run()` already returns a `ProcessorFault`, which we check manually.
-
 **Replace `RamFileService` with a real file system:**
 
 ```csharp

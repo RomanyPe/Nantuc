@@ -695,7 +695,5 @@ var project = new VmHostProjectBuilder()
 
 ### Ограничения платформ
 
-- `net10.0`, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — из-за `Kernel`, но в самом модуле unsafe-кода нет.
 - `[InlineArray]` в `SnapshotRegisters` — C# 12+, работает в AOT/WASM.
 - `DefaultFileService` использует `Directory.EnumerateFiles`/`File.ReadAllText` — в WASM работает, но медленно. Для WASM — `RamFileService` (in-memory, без I/O, с теми же правилами путей: унификация разделителей, `.`/`..`, регистронезависимость по умолчанию).
-- `Thread.Sleep(delay)` в `DeviceContext.DebugRun` (через `Device.DebugRun`) — в WASM либо no-op, либо `PlatformNotSupportedException`.

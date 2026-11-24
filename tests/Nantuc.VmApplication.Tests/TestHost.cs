@@ -1,6 +1,9 @@
 ﻿using Nantuc.Common;
+using Nantuc.Diagnostics;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator.Abstraction;
+using Nantuc.VmApplication.Extensions.Diagnostics;
+using System.Collections.Frozen;
 
 namespace Nantuc.Tests;
 
@@ -19,7 +22,7 @@ public class TestHost
         
     }
     [Fact]
-    public void RegTypeIsDefined()
+    public void RegType_AllValuesDefined_AndNamesMatch()
     {
         var values = Enum.GetValues<RegType>();
 
@@ -30,7 +33,7 @@ public class TestHost
             Assert.Equal(op.ToString(), op.AsText);
     }
     [Fact]
-    public void OpCodeSizeSizeIsDefined()
+    public void OpCodeSizeSize_AllValuesDefined_AndNamesMatch()
     {
         var values = Enum.GetValues<OpCodeSize>();
 
@@ -41,7 +44,7 @@ public class TestHost
             Assert.Equal(op.ToString(), op.AsText);
     }
     [Fact]
-    public void BiosStatusIsDefined()
+    public void BiosStatus_AllValuesDefined_AndNamesMatch()
     {
         var values = Enum.GetValues<BiosStatus>();
 
@@ -50,6 +53,14 @@ public class TestHost
 
         foreach (var op in values)
             Assert.Equal(op.ToString(), op.AsText);
+    }
+
+    [Fact]
+    public void ErrorCode_AllValuesDefined_AndNamesMatch()
+    {
+        Assert.True(
+            DiagnosticsCompilerExtension.ErrorCodesValidateTable.
+            SetEquals(Enum.GetValues<ErrorCode>()));
     }
 
     [Fact]

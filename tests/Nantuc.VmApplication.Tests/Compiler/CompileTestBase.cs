@@ -20,7 +20,7 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
-        var comp = host.Project.Compile(program, 0, false, SourceLanguage.C);
+        var comp = host.Project.Compile(program, 0, false, SourceLanguage.MiniC);
         if (!comp.Success)
         {
             _outPut.WriteLine(string.Join("\n", comp.Errors ?? []));
@@ -53,7 +53,7 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
         var deviceId = host.Emulator.RegisterDevice(handle, sector: 0);
         var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
 
-        var comp = host.Project.Compile(program, 0, false, SourceLanguage.C);
+        var comp = host.Project.Compile(program, 0, false, SourceLanguage.MiniC);
 
         if (comp.Success)
         {
@@ -76,7 +76,7 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
         foreach (var (name, content) in libs)
             host.Project.SaveFileInclude(name, content);
         
-        var comp = host.Project.Compile(program, 0, false, SourceLanguage.C);
+        var comp = host.Project.Compile(program, 0, false, SourceLanguage.MiniC);
         if (!comp.Success)
         {
             _outPut.WriteLine(string.Join("\n", comp.Errors ?? []));

@@ -389,7 +389,6 @@ This is a C# 11+ static interface member with a default implementation. It is no
 - `net10.0`. `params ReadOnlySpan<DiagnosticData>`, `FrozenDictionary`, `ReadOnlyDictionary`, `[DoesNotReturn]`, primary constructors, `readonly record struct` — all present. On `net8.0`/`net9.0` some parts will not build.
 - No `unsafe` — the module is safe for WASM/AOT and environments where `unsafe` is prohibited.
 - `FrozenDictionary` — works in AOT, but initialization is slightly more expensive than a regular `Dictionary`. Once per process — fine.
-- `Enum.GetValues<ErrorCode>()` (was in the removed `ValidateAllCodesCovered`) — in AOT without `[DynamicDependency]` it may be trimmed away. It is not used now; if you bring back validation — keep this in mind.
 - Localization — `DefaultErrorMessageProvider` does not use `CultureInfo.CurrentUICulture`; messages are always in English. If you need localization via `ResourceManager` — implement your own `IErrorMessageProvider`.
 - **`ErrorReporter` — instance:** for WASM/AOT this is even better than static mutable state: there is no global field that needs to be synchronized between requests.
 

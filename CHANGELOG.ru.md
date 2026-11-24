@@ -10,6 +10,19 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.23.0] - 2026-11-25
+
+### Добавлено
+- статичное свойство `FrozenSet<ErrorCode> ErrorCodesValidateTable { get; }` в `DiagnosticsCompilerExtension`
+
+### Изменено
+- **BREAKING:** добавлены некоторые параметры для синхронности `RunAndCleanup` и `RunOnce` с `RunAndKeep`
+- переписан Nantuc.Samples.Scratch на использование более безопасного и коротного кода
+- заменен `Enum.GetValues()` в `DiagnosticsCompilerExtension` на явную коллекцию `FrozenSet<ErrorCode> = [...]`
+
+### Удалено
+- **BREAKING:** удален класс `LoggingFaultPolicyMinimal`, причина: dead и legacy code
+
 ## [0.22.0] - 2026-11-24
 
 ### Добавлено

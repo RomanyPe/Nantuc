@@ -1,13 +1,12 @@
 ﻿using Nantuc.Common;
-using Nantuc.Compiler.ASM.Utils;
 using Nantuc.Samples.Scratch.SnakeGame;
 using Nantuc.VmApplication;
-using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.DeviceCtx;
 using Nantuc.VmApplication.Extensions.Disassembler;
 using Nantuc.VmApplication.Extensions.Emulator.IO;
 using Nantuc.VmApplication.Extensions.Host;
 using Nantuc.VmApplication.Extensions.StdLibraries;
+using Nantuc.VmApplication.Project;
 
 const string source1 =
     """
@@ -59,42 +58,36 @@ if (args.Length >= 2 && args[0] == "-snake")
 }
 
 using var host = VmHostFactory.CreateDefault();
-var lfPolicy = new LoggingFaultPolicyMinimal(Console.Out);
 
-host.Project.SaveFileProject("main.minic", source1);
 host.Project.SaveFileInclude("heap.nanasm", Libraries.heap_nanasm);
 host.Project.SaveFileInclude("alloc.minic", Libraries.alloc_minic);
 
-var resCompile = host.Project.CompileToIR(
-    baseAddress: 0,
-    optimize: true).Build();
-
-if (!resCompile.Success)
-{
-    foreach (var err in resCompile.Errors!)
-        Console.WriteLine(err.Message);
-    return;
-}
-
-var handle = DeviceSpec.Create(
-    ramSize: RamSize.KB128,
-    processorFaultPolicy: lfPolicy,
-    name: "ConsoleVM"
+var outcome = host.RunAndKeep(
+    source: source1,
+    lang: SourceLanguage.MiniC, // при необходимости уточните имя константы в enum
+    ram: RamSize.KB128,
+    optimize: true,
+    deviceName: "ConsoleVM",
+    sector: 0,
+    output: Console.Out,
+    encoding: PortCharEncoding.Utf8
 );
 
-var iostream = new QueuedIOStream(Console.Out, PortCharEncoding.Utf8);
-
-int deviceId = host.Emulator.RegisterDevice(spec: handle, sector: 0);
-host.Emulator.RegisterDevice(ioDevice: iostream, name: "console", sector: 1);
-
-var deviceCtx = host.Emulator.GetDeviceContext(deviceId)!;
-if (!deviceCtx.TryLoadProgram(program: resCompile.Program, loadAddress: 0, out string? error))
+// Если устройство не создалось — значит, упала компиляция или регистрация
+if (outcome.Device is null)
 {
-    Console.WriteLine(error);
+    foreach (var diag in outcome.Diagnostics)
+        Console.WriteLine(diag);
     return;
 }
 
-deviceCtx.Run();
+if (!outcome.Success)
+{
+    foreach (var diag in outcome.Diagnostics)
+        Console.WriteLine(diag);
+}
+
+var deviceCtx = outcome.Device;
 var regs = deviceCtx.GetRegistersSnapshot();
 
 Console.WriteLine($"{RegType.r0.AsText}: {regs[RegType.r0]}");
@@ -108,4 +101,4 @@ Console.WriteLine($"{RegType.rHP.AsText}: {regs[RegType.rHP]}");
 
 var hpPrt = regs[RegType.rHP];
 var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);
-Console.WriteLine(StringDisassembler.Disassemble(ramSnap, resCompile.CodeSize));
+Console.WriteLine(StringDisassembler.Disassemble(ramSnap, outcome.Compilation.CodeSize));

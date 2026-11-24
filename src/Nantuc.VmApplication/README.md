@@ -696,7 +696,5 @@ Known limitation of `GetNameFiles`: `IncludePath` is compared via `StartsWith` *
 
 ### Platform limitations
 
-- `net10.0`, `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — because of `Kernel`, but there is no unsafe code in the module itself.
 - `[InlineArray]` in `SnapshotRegisters` — C# 12+, works in AOT/WASM.
 - `DefaultFileService` uses `Directory.EnumerateFiles`/`File.ReadAllText` — works in WASM, but slowly. For WASM — `RamFileService` (in-memory, no I/O, with the same path rules: separator unification, `.`/`..`, case-insensitive by default).
-- `Thread.Sleep(delay)` in `DeviceContext.DebugRun` (via `Device.DebugRun`) — in WASM either a no-op or `PlatformNotSupportedException`.

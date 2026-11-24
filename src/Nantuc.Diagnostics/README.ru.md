@@ -388,7 +388,6 @@ static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider(
 - `net10.0`. `params ReadOnlySpan<DiagnosticData>`, `FrozenDictionary`, `ReadOnlyDictionary`, `[DoesNotReturn]`, primary constructors, `readonly record struct` — всё есть. На `net8.0`/`net9.0` часть не соберётся.
 - `unsafe` отсутствует — модуль безопасен для WASM/AOT и окружений с запретом `unsafe`.
 - `FrozenDictionary` — в AOT работает, но инициализация чуть дороже, чем у обычного `Dictionary`. Один раз на процесс — норм.
-- `Enum.GetValues<ErrorCode>()` (был в удалённом `ValidateAllCodesCovered`) — в AOT без `[DynamicDependency]` может быть вырезан триммером. Сейчас не используется; если вернёте валидацию — учтите.
 - Локализация — `DefaultErrorMessageProvider` не использует `CultureInfo.CurrentUICulture`; сообщения всегда на английском. Если нужна локализация через `ResourceManager` — реализуйте свой `IErrorMessageProvider`.
 - **`ErrorReporter` — instance:** для WASM/AOT это даже лучше, чем static mutable state: нет глобального поля, которое нужно синхронизировать между запросами.
 

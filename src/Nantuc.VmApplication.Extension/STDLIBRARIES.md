@@ -261,7 +261,7 @@ int main() {
 }
 """;
 
-var outcome = host.RunAndKeep(source, SourceLanguage.C, sector: 1);
+var outcome = host.RunAndKeep(source, SourceLanguage.MiniC, sector: 1);
 ```
 
 ---

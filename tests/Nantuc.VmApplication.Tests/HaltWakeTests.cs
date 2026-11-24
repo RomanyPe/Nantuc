@@ -52,7 +52,7 @@ public class HaltWakeTests
         """;
 
         var comp = host.Project
-            .CompileToIR(program, 0, false, SourceLanguage.Asm)
+            .CompileToIR(program, 0, false, SourceLanguage.Nanasm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
@@ -111,7 +111,7 @@ public class HaltWakeTests
         """;
 
         var comp = host.Project
-            .CompileToIR(program, 0, false, SourceLanguage.Asm)
+            .CompileToIR(program, 0, false, SourceLanguage.Nanasm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
@@ -157,7 +157,7 @@ public class HaltWakeTests
             """;
 
         var comp = host.Project
-            .CompileToIR(program, 0, false, SourceLanguage.Asm)
+            .CompileToIR(program, 0, false, SourceLanguage.Nanasm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
@@ -188,7 +188,7 @@ public class HaltWakeTests
             """;
 
         var comp = host.Project
-            .CompileToIR(program, 0, false, SourceLanguage.Asm)
+            .CompileToIR(program, 0, false, SourceLanguage.Nanasm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
@@ -219,7 +219,7 @@ public class HaltWakeTests
             """;
 
         var comp = host.Project
-            .CompileToIR(program, 0, false, SourceLanguage.Asm)
+            .CompileToIR(program, 0, false, SourceLanguage.Nanasm)
             .Build();
         Assert.True(comp.Success, string.Join("\n", comp.Errors ?? []));
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);

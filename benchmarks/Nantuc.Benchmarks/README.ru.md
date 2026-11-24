@@ -98,7 +98,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
     public double StepsVariance { get; }    // дисперсия StepsLogs (extension)
     public CompilationResult? Program { get; private set; }
 
-    public bool TryPrepare();        // CompileToIR(SourceLanguage.C, optimize: true) -> TryLoadProgram
+    public bool TryPrepare();        // CompileToIR(SourceLanguage.MiniC, optimize: true) -> TryLoadProgram
     public void RunOnce();           // Launch(MipsLogs, ElapsedLog, StepsLogs, ctx)
     public void Warmup();            // Launch([], [], [], ctx) — лог отбрасывается
     public static void Launch(List<double> mips, List<double> elapsed,
@@ -106,7 +106,7 @@ public class BenchRunner(VmHost host, int deviceId, BenchCase benchCase)
 }
 ```
 
-`TryPrepare` использует `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. Загрузка в устройство — через `ctx.TryLoadProgram(res.Program, 0, out string? errorMath)`. Пеephole-оптимизатор не применяется (см. [Особенная информация](#особенная-информация)).
+`TryPrepare` использует `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.MiniC).Build()`. Загрузка в устройство — через `ctx.TryLoadProgram(res.Program, 0, out string? errorMath)`. Пеephole-оптимизатор не применяется (см. [Особенная информация](#особенная-информация)).
 
 `Launch` запускает `ctx.Run(new LaunchOptions(ShowTimer: true, OnEnd: ...))`. В `OnEnd` считаются `Mips = Steps / Elapsed.TotalSeconds / 1e6`, добавляются в три списка.
 
@@ -239,13 +239,13 @@ if (runner.Program is { } comp)
 
 ### `optimize: true` для MiniC
 
-`BenchRunner.TryPrepare` вызывает `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.C).Build()`. Для MiniC-источников `optimize: true` включает AST-оптимизации компилятора, но **не** включает IR: `VmIROptimizer.AddStdRules` никто не вызывает, а `OptimizationIR(..., IROptimizationCount)` в `BenchRunner`/`Program` не используется. Поэтому все 14 кейсов — это AST-оптимизированный, но не IR-оптимизированный код.
+`BenchRunner.TryPrepare` вызывает `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.MiniC).Build()`. Для MiniC-источников `optimize: true` включает AST-оптимизации компилятора, но **не** включает IR: `VmIROptimizer.AddStdRules` никто не вызывает, а `OptimizationIR(..., IROptimizationCount)` в `BenchRunner`/`Program` не используется. Поэтому все 14 кейсов — это AST-оптимизированный, но не IR-оптимизированный код.
 
 Если хотите сравнить «с IR vs без», нужно явно:
 
 ```csharp
 host.Project.Optimizator.VMIROptimizer.AddStdRules();
-var il = host.Project.CompileToIR(text, ProjectBuilder.BaseAddressProgram, optimize: false, SourceLanguage.C);
+var il = host.Project.CompileToIR(text, ProjectBuilder.BaseAddressProgram, optimize: false, SourceLanguage.MiniC);
 il = host.Project.OptimizationIR(il, IROptimizationCount: 5);
 var comp = il.Build();
 ```

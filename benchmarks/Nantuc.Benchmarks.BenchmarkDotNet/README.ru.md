@@ -87,7 +87,7 @@ public class NantucBenchmarks
 - `[ParamsSource]` — BenchmarkDotNet переберёт все кейсы из `SourceCasesMiniC.AllCases`.
 - `GlobalSetup`:
   - создаёт `VmHost` и регистрирует устройство;
-  - компилирует `Case.ProgramText` через `CompileToIR(..., optimize: true, SourceLanguage.C)`;
+  - компилирует `Case.ProgramText` через `CompileToIR(..., optimize: true, SourceLanguage.MiniC)`;
   - при ошибке компиляции бросает `InvalidOperationException` с перечнем ошибок;
   - загружает программу через `ctx.TryLoadProgram(res.Program, 0, out error)`;
   - вызывает `GC.Collect(2, GCCollectionMode.Forced, true)` и `GC.WaitForPendingFinalizers()`.
@@ -239,7 +239,7 @@ var summary = BenchmarkRunner.Run<NantucBenchmarks>();
 
 ### `optimize: true` для MiniC
 
-В отличие от ASM-бенчмарка, здесь `CompileToIR(..., optimize: true, SourceLanguage.C)` действительно включает AST-оптимизации, так как язык — C (MiniC). Это корректно.
+В отличие от ASM-бенчмарка, здесь `CompileToIR(..., optimize: true, SourceLanguage.MiniC)` действительно включает AST-оптимизации, так как язык — C (MiniC). Это корректно.
 
 ### `GC.Collect` в `GlobalSetup`
 
