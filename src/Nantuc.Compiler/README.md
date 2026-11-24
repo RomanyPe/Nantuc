@@ -206,7 +206,7 @@ Notes on organization:
 | `MiniCLanguageDefinition` | `C` | `static partial class` | `Keywords`/`Operators` (`FrozenSet`); `const` in `Keywords` |
 | `StructLayout` / `FieldInfo` | `C` | `class` / `record` | Struct layout; `_fields` — `Dictionary<string, FieldInfo>` |
 | `WordRegexBuilder` | `Nantuc.Compiler` | `static class` | `Build(FrozenSet<string>)` -> `\b(...)\b` regex (AOT-safe, without `Compiled`) |
-| `CodeGenUtils` | `C.CodeGenerator` | `static class` | `GetSizeForType`/`GetSizeInBytes`/`GetAlignment`/`IsPrimitiveType`/`IsSignedType`; extension `EmitCastToType`, `EmitMultiplyByConstant` |
+| `CodeGenUtils` | `C.CodeGenerator` | `static class` | `GetSizeForType`/`GetSizeInBytes`/`IsPrimitiveType`/`IsSignedType`; extension `EmitCastToType`, `EmitMultiplyByConstant` |
 | `VariableAccessor` | `C.CodeGenerator` | `class` | `LoadToRegister`/`StoreFromRegister` with **`EmitCastToType`** after LOAD and after MOV into the home register |
 | `GlobalMemoryManager` | `C.CodeGenerator` | `class` | `Allocate`/`Contains`/`GetInfo`/`GetLabel`; **`IsSigned` is computed in `Allocate`** |
 | `GlobalInfo` | `C.CodeGenerator` | `class` | Metadata of a global; **`IsSigned`** |

@@ -10,6 +10,17 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.21.0]
+
+### Изменено
+- заменена генерация `AsmLanguageDefinition.MnemonicMap` с ручного `["OpCode"] = OpCode` на статичные генераторы (убрана аллокация `Dictionary`)
+
+### Удалено
+- **BREAKING:** метод `CodeGenUtils.GetAlignment`
+- **BREAKING:** метод `GlobalMemoryManager.AllocatePseudoGlobals`
+- **BREAKING:** метод `GlobalMemoryManager.TryGetAddress`
+- **BREAKING:** метод `VariableAccessor.GetVariableSize`
+
 ## [0.20.0] - 2026-11-23
 
 ### Добавлено

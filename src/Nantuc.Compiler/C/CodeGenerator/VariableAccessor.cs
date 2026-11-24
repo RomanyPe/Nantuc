@@ -115,20 +115,6 @@ public class VariableAccessor(AssemblerBase asm, FunctionContext funcCtx, Global
         _asm.ErrorReporter.Throw(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(varName));
     }
 
-    public OpCodeSize GetVariableSize(string varName)
-    {
-        if (_funcCtx.VarMap.TryGetValue(varName, out var loc))
-            return loc.TypeSize;
-        if (_globalMem.Contains(varName))
-        {
-            var g = _globalMem.GetInfo(varName)!.Value;
-            // NEW: указатель всегда 8 байт
-            return g.IsPointer
-                ? OpCodeSize.S64
-                : CodeGenUtils.GetSizeForType(g.Type, _asm.ErrorReporter);
-        }
-        return _asm.ErrorReporter.Throw<OpCodeSize>(ErrorCode.CodeGen_UndefinedVariable, DiagnosticData.Of(varName));
-    }
     public bool TryGetRegister(string varName, out RegType reg)
     {
         if (_funcCtx.VarMap.TryGetValue(varName, out var loc) && loc.IsRegister)

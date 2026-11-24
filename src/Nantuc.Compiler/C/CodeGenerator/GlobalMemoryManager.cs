@@ -15,17 +15,9 @@ public class GlobalMemoryManager
                          bool isConst = false, bool isPointedConst = false)
     {
         bool isSigned = !isPointer && CodeGenUtils.IsSignedType(type);
-        _globals[name] = new GlobalInfo(0, type, isArray, isPointer,
+        _globals[name] = new GlobalInfo(type, isArray, isPointer,
                                         pointedType, arraySize, isConst, isPointedConst,
                                         isSigned);
-    }
-    public void AllocatePseudoGlobals(FunctionNode func)
-    {
-        foreach (var param in func.Parameters)
-        {
-            string globalName = $"__param_{func.Name}_{param.Name}";
-            Allocate(globalName, param.Type);
-        }
     }
 
     public void AllocateLocalGlobals(BlockNode block, string funcName)
@@ -40,17 +32,6 @@ public class GlobalMemoryManager
             else if (stmt is BlockNode nested)
                 AllocateLocalGlobals(nested, funcName);
         }
-    }
-
-    public bool TryGetAddress(string name, out ulong address)
-    {
-        if (_globals.TryGetValue(name, out var info))
-        {
-            address = info.Address;
-            return true;
-        }
-        address = 0;
-        return false;
     }
 
     public GlobalInfo? GetInfo(string name)

@@ -1,7 +1,6 @@
 ﻿namespace Nantuc.Compiler.C.CodeGenerator;
 
 public struct GlobalInfo(
-    ulong address,
     string type,
     bool isArray = false,
     bool isPointer = false,
@@ -10,9 +9,7 @@ public struct GlobalInfo(
     bool isConst = false,
     bool isPointedConst = false,
     bool isSigned = false)
-{
-    public ulong Address = address;
-    public string Type = type;
+{    public string Type = type;
     public bool IsArray = isArray;
     public bool IsPointer = isPointer;
     public string? PointedType = pointedType;

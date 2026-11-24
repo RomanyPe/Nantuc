@@ -10,6 +10,17 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.21.0] - 2026-11-24
+
+### Changed
+- Replaced `AsmLanguageDefinition.MnemonicMap` generation from manual `["OpCode"] = OpCode` entries with static generators (removed `Dictionary` allocation)
+
+### Removed
+- **BREAKING:** `CodeGenUtils.GetAlignment` method
+- **BREAKING:** `GlobalMemoryManager.AllocatePseudoGlobals` method
+- **BREAKING:** `GlobalMemoryManager.TryGetAddress` method
+- **BREAKING:** `VariableAccessor.GetVariableSize` method
+
 ## [0.20.0] - 2026-11-23
 
 ### Added

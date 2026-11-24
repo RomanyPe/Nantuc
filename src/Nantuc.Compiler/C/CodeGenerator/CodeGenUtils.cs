@@ -20,6 +20,7 @@ public static class CodeGenUtils
         "char" or "short" or "int" or "long" => true,
         _ => false   // byte, ushort, uint, ulong, указатели, структуры
     };
+
     extension(AssemblerBase asm)
     {
         public void EmitCastToType(RegType reg, OpCodeSize size, bool isSigned)
@@ -70,21 +71,13 @@ public static class CodeGenUtils
 
     public static bool IsComparisonOperator(string op) => op is "==" or "!=" or "<" or ">" or "<=" or ">=";
 
-    public static int GetAlignment(string type) => type switch
-    {
-        "byte" => 1,
-        "ushort" or "char" or "short" => 2,
-        "int" or "uint" => 4,
-        "ulong" or "long" => 8,
-        _ => 8  // структуры/указатели выравниваются на 8
-    };
-
     public static bool IsStructType(string type, Dictionary<string, StructLayout> structTable)
         => structTable.ContainsKey(type);
 
     public static bool IsPrimitiveType(string type) => type switch
     {
-        "int" or "char" or "void" or "byte" or "ushort" or "ulong" or "uint" or "long" or "short"=> true,
+        "int" or "char" or "void" or "byte" or "ushort" or "ulong" 
+        or "uint" or "long" or "short" => true,
         _ => false
     };
 

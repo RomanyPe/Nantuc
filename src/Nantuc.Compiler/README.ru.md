@@ -206,7 +206,7 @@ Nantuc.Compiler/
 | `MiniCLanguageDefinition` | `C` | `static partial class` | `Keywords`/`Operators` (`FrozenSet`); `const` в `Keywords` |
 | `StructLayout` / `FieldInfo` | `C` | `class` / `record` | Раскладка структур; `_fields` — `Dictionary<string, FieldInfo>` |
 | `WordRegexBuilder` | `Nantuc.Compiler` | `static class` | `Build(FrozenSet<string>)` -> `\b(...)\b` regex (AOT-safe, без `Compiled`) |
-| `CodeGenUtils` | `C.CodeGenerator` | `static class` | `GetSizeForType`/`GetSizeInBytes`/`GetAlignment`/`IsPrimitiveType`/`IsSignedType`; extension `EmitCastToType`, `EmitMultiplyByConstant` |
+| `CodeGenUtils` | `C.CodeGenerator` | `static class` | `GetSizeForType`/`GetSizeInBytes`/`IsPrimitiveType`/`IsSignedType`; extension `EmitCastToType`, `EmitMultiplyByConstant` |
 | `VariableAccessor` | `C.CodeGenerator` | `class` | `LoadToRegister`/`StoreFromRegister` с **`EmitCastToType`** после LOAD и после MOV в home-регистр |
 | `GlobalMemoryManager` | `C.CodeGenerator` | `class` | `Allocate`/`Contains`/`GetInfo`/`GetLabel`; **`IsSigned` вычисляется в `Allocate`** |
 | `GlobalInfo` | `C.CodeGenerator` | `class` | Метаданные глобала; **`IsSigned`** |
@@ -880,11 +880,6 @@ public readonly record struct DiagnosticData
 10. **[API] `AssemblerParser` — `;` внутри строки обрезается.**
     Файл: `ASM/Parser/AssemblerParser.Lexing.cs` (`ProcessLines`: `code.Split(['\n', ';'])`).
     **Фикс:** вынести разбор строк из общего `Split` (разбивать по `\n`, а `;` обрабатывать только вне литералов) или добавить hex-escape.
-
-11. **[API] `AssemblerParser` — двойные словари `_regMapLex`/`_opMapLex` + `_regMap`/`_opMap`.**
-    Файл: `AsmLanguageDefinition.cs`.
-    `_regMapLex`/`_opMapLex` — dead после статического конструктора.
-    **Фикс:** инициализировать `FrozenDictionary` напрямую.
 
 12. **[API] `IRAssembler.EmitInstruction64WithLabel` не проверяет `HasNeed64IntData`.**
     Файл: `ASM/IR/Emitеer/IRAssembler.cs`.
