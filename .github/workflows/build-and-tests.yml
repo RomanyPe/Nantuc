@@ -23,7 +23,7 @@ jobs:
         run: dotnet restore Nantuc.slnx
 
       - name: Build
-        run: dotnet build Nantuc.slnx --configuration Release --no-restore
+        run: dotnet build Nantuc.slnx --configuration Release --no-restore -p:RunAOTCompilation=false
 
       - name: Test
         run: dotnet test Nantuc.slnx --configuration Release --no-build --verbosity normal
