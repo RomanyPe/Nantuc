@@ -1,8 +1,8 @@
 ﻿# Nantuc.Benchmarks — README
 
 > Консольный бенчмарк виртуальной машины Nantuc: измеряет MIPS (million instructions per second), стабильность, JIT/warmup impact и статистику по серии прогонов на типовых нагрузках (память, ALU, вызовы, стек, битовые операции, умножение, ветвления, рекурсия, указатели, структуры, сортировка) на **MiniC**-источниках.  
-> Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (транзитивно — от `VmApplication`, `Compiler`, `Kernel`).  
-> [← Корень](../../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md)
+> Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (транзитивно — от `VmApplication`, `Compiler`, `Kernel`).  
+> [← Корень](../../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)

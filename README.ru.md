@@ -159,7 +159,7 @@ nantuc lib exist print.minic
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **не полагайтесь на `default(IdState) == Valid`** — это изменилось.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. На успехе `Status == EndProgram`; на падении — `DivOnZero`/`SegmentationFault`/… с точным `IP` и `OpCode`.
 - **`IProcessorPolicy`** — используется **внутри** VM; возврат из `Run`/`DebugRun` — уже `ProcessorFault`, отдельная политика не нужна.
-- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — не добавляет контрактов в `Kernel`/`VmApplication`, работает через публичный API. Подробности — в [`Nantuc.VmApplication.Extensions/README.ru.md`](src/Nantuc.VmApplication.Extensions/README.ru.md#отладчик).
+- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — не добавляет контрактов в `Kernel`/`VmApplication`, работает через публичный API. Подробности — в [`Nantuc.VmApplication.Extension/README.ru.md`](src/Nantuc.VmApplication.Extension/README.ru.md#отладчик).
 
 ## Архитектура
 
@@ -218,7 +218,7 @@ nantuc lib exist print.minic
 | `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` -> `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` -> `ProcessorFault`) | [README](src/Nantuc.Kernel/README.ru.md) |
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.ru.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.ru.md) |
-| `Nantuc.VmApplication.Extensions` | Дизассемблер, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extensions/README.ru.md) |
+| `Nantuc.VmApplication.Extensions` | Дизассемблер, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extension/README.ru.md) |
 | `Nantuc.CLI` | CLI `nantuc`: `compile`, `run`, `disasm`, `lib`, `help`; ставится как .NET global tool | [README](src/Nantuc.CLI/README.ru.md) |
 
 **Зависимости (снизу вверх):** `Common` -> `Contracts` -> `Diagnostics` -> `Kernel` -> `Compiler` -> `VmApplication` -> `VmApplication.Extensions` -> `Nantuc.CLI`.
@@ -342,7 +342,7 @@ dotnet test -c Release
 - Спецификация байткода: [`docs/bytecode.ru.md`](docs/bytecode.ru.md)
 - Справочник кодов ошибок: [`docs/error-codes.ru.md`](docs/error-codes.ru.md)
 - Метрики: [`docs/METRICS.md`](docs/METRICS.md) и отдельные метрики для каждого модуля [`docs/Metrics`](docs/Metrics)
-- Встроенные библиотеки MiniC/NANASM: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.ru.md)
+- Встроенные библиотеки MiniC/NANASM: [`src/Nantuc.VmApplication.Extension/STDLIBRARIES.ru.md`](src/Nantuc.VmApplication.Extension/STDLIBRARIES.ru.md)
 - CLI: [`src/Nantuc.CLI/README.ru.md`](src/Nantuc.CLI/README.ru.md)
 - Сравнение с другими языками (OtherLangs): [`benchmarks/OtherLangs/README.ru.md`](benchmarks/OtherLangs/README.ru.md)
 - README сэмплов: [`samples/Nantuc.Samples.Minimal/README.ru.md`](samples/Nantuc.Samples.Minimal/README.ru.md), [`samples/Nantuc.Samples.Scratch/README.ru.md`](samples/Nantuc.Samples.Scratch/README.ru.md), [`samples/Nantuc.Samples.InWeb/README.ru.md`](samples/Nantuc.Samples.InWeb/README.ru.md)

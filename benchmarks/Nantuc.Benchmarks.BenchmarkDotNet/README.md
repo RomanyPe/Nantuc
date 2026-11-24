@@ -1,8 +1,8 @@
 ﻿# Nantuc.Benchmarks.BenchmarkDotNet — README
 
 > A benchmark for the Nantuc virtual machine based on **BenchmarkDotNet**: measures MIPS, stability, and allocations across 14 typical MiniC programs (calls, ALU, memory, bitwise operations, multiplication, branching, division, recursion, pointers, structures, sorting).  
-> Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.md)` (transitively on `VmApplication`, `Compiler`, `Kernel`).  
-> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md), [Kernel](../../src/Nantuc.Kernel/README.md), [Compiler](../../src/Nantuc.Compiler/README.md)
+> Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.md)` (transitively on `VmApplication`, `Compiler`, `Kernel`).  
+> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.md), [Kernel](../../src/Nantuc.Kernel/README.md), [Compiler](../../src/Nantuc.Compiler/README.md)
 
 ## Table of Contents
 - [About this module](#about-this-module)

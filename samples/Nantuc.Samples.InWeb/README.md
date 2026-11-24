@@ -1,9 +1,9 @@
 # Nantuc.Samples.InWeb — README
 
 > A demonstration module of the Nantuc platform, built as a **Blazor WebAssembly** application and running **in the browser**. Contains two pages: `/` — universal launcher for MiniC programs (compilation + execution in WASM, output via UART) and `/snake` — an interactive "Snake" game with a monochrome 32×16 monitor, controlled by keyboard arrows.
-> Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
+> Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
 > Related to the console sample: [`Nantuc.Samples.Scratch`](../Nantuc.Samples.Scratch/README.md) — the same snake "engine", but without a browser.
-> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
+> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
 ## Contents
 - [About this module](#about-this-module)

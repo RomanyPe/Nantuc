@@ -159,7 +159,7 @@ The public `Nantuc.VmApplication` API follows the “Try + IdState + ProcessorFa
 - **`IdState`** (`Nantuc.Common`) — `Unknown` (0, default) / `Valid` (1) / `NotAssigned` (-1) / `OutOfRange` (-2) / `NoFreeSlot` (-3) / `Rejected` (-4). `default(IdState) == Unknown`; **do not rely on `default(IdState) == Valid`** — this has changed.
 - **`ProcessorFault`** (`Nantuc.Common`) — `(BiosStatus Status, ulong FaultData, ulong InstructionPointer, OpCode OpCode)`. On success `Status == EndProgram`; on failure — `DivOnZero`/`SegmentationFault`/… with exact `IP` and `OpCode`.
 - **`IProcessorPolicy`** — used **inside** the VM; the return from `Run`/`DebugRun` is already `ProcessorFault`, so a separate policy is not needed.
-- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`Nantuc.VmApplication.Extensions/README.md`](src/Nantuc.VmApplication.Extensions/README.md#отладчик).
+- **`Debugger`** (`Nantuc.VmApplication.Extensions.Debugging`) — does not add contracts to `Kernel`/`VmApplication`, works through the public API. Details — in [`Nantuc.VmApplication.Extensions/README.md`](src/Nantuc.VmApplication.Extension/README.md#отладчик).
 
 ## Architecture
 
@@ -218,7 +218,7 @@ All modules are published as NuGet packages on [nuget.org](https://www.nuget.org
 | `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` -> `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` -> `ProcessorFault`) | [README](src/Nantuc.Kernel/README.md) |
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.md) |
-| `Nantuc.VmApplication.Extensions` | Disassembler, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extensions/README.md) |
+| `Nantuc.VmApplication.Extensions` | Disassembler, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extension/README.md) |
 | `Nantuc.CLI` | CLI `nantuc`: `compile`, `run`, `disasm`, `lib`, `help`; installed as a .NET global tool | [README](src/Nantuc.CLI/README.md) |
 
 **Dependencies (bottom-up):** `Common` -> `Contracts` -> `Diagnostics` -> `Kernel` -> `Compiler` -> `VmApplication` -> `VmApplication.Extensions` -> `Nantuc.CLI`.
@@ -342,7 +342,7 @@ See [`LICENSE`](LICENSE) in the repository root.
 - Bytecode specification: [`docs/bytecode.md`](docs/bytecode.md)
 - Error code reference: [`docs/error-codes.md`](docs/error-codes.md)
 - Metrics: [`docs/METRICS.md`](docs/METRICS.md) and separate metrics for each module [`docs/Metrics`](docs/Metrics)
-- Built-in MiniC/NANASM libraries: [`src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md`](src/Nantuc.VmApplication.Extensions/STDLIBRARIES.md)
+- Built-in MiniC/NANASM libraries: [`src/Nantuc.VmApplication.Extension/STDLIBRARIES.md`](src/Nantuc.VmApplication.Extension/STDLIBRARIES.md)
 - CLI: [`src/Nantuc.CLI/README.md`](src/Nantuc.CLI/README.md)
 - Comparison with other languages (OtherLangs): [`benchmarks/OtherLangs/README.md`](benchmarks/OtherLangs/README.md)
 - Sample READMEs: [`samples/Nantuc.Samples.Minimal/README.md`](samples/Nantuc.Samples.Minimal/README.md), [`samples/Nantuc.Samples.Scratch/README.md`](samples/Nantuc.Samples.Scratch/README.md), [`samples/Nantuc.Samples.InWeb/README.md`](samples/Nantuc.Samples.InWeb/README.md)

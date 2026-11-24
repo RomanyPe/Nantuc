@@ -1,8 +1,8 @@
 # Nantuc.Samples.Scratch — README
 
 > A sandbox for experiments on the Nantuc platform: an allocator test (`Program.cs`), a "Snake" game with a monochrome monitor and keyboard (`SnakeGame/`), and ready-made libraries `monitor.nanasm` / `input.nanasm` / `halt.nanasm` / `snake.minic`.
-> Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
-> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
+> Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
+> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
 ## Table of contents
 - [About this module](#about-this-module)

@@ -1,8 +1,8 @@
 ﻿# Nantuc.Samples.Scratch — README
 
 > Песочница для экспериментов на платформе Nantuc: тест аллокатора (`Program.cs`), игра «Змейка» с монохромным монитором и клавиатурой (`SnakeGame/`), готовые библиотеки `monitor.nanasm` / `input.nanasm` / `halt.nanasm` / `snake.minic`.
-> Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
-> [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
+> Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
+> [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)

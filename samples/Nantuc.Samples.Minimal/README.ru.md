@@ -2,8 +2,8 @@
 
 > Минимальный рабочий пример платформы Nantuc: компилирует MiniC-программу «Hello world. Привет мир», запускает её на виртуальной машине и выводит UTF-16 строку в `Console.Out` через порт-устройство.
 > Показывает полный путь «исходник -> байткод -> VM -> I/O» на одном экране.
-> Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
-> [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
+> Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
+> [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -72,7 +72,7 @@ Nantuc.Samples.Minimal/
 | 10 | `ProcessorFault fault = vm.Run();` | Запускает до `END`/fault'а, возвращает `ProcessorFault` |
 | 11 | `if (fault.Status != BiosStatus.EndProgram) ...` | Проверка успешного завершения |
 
-`CompileToIR(ulong, bool)` — extension из `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (`ProjectExtension`). Внутри вызывает `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` и `ProjectBuilder.Build`.
+`CompileToIR(ulong, bool)` — extension из `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (`ProjectExtension`). Внутри вызывает `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` и `ProjectBuilder.Build`.
 
 `TryRegisterDevice`/`TryGetDeviceContext` — новый API эмулятора, возвращает `IdState`/`bool` вместо «магических» отрицательных id и `null`. См. раздел «`IdState` vs `int` / `null`» ниже.
 

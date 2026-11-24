@@ -2,8 +2,8 @@
 
 > A minimal working example of the Nantuc platform: compiles a MiniC program "Hello world. Привет мир", runs it on the virtual machine, and prints a UTF-16 string to `Console.Out` via a port device.
 > Shows the full path "source -> bytecode -> VM -> I/O" on a single screen.
-> Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
-> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
+> Depends on `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.md)` (transitively — `VmApplication`, `Compiler`, `Kernel`).
+> [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
 ## Table of contents
 - [About this module](#about-this-module)
@@ -72,7 +72,7 @@ There is no public API — it is an `Exe`. Below is the execution flow so that t
 | 10 | `ProcessorFault fault = vm.Run();` | Runs until `END`/a fault, returns `ProcessorFault` |
 | 11 | `if (fault.Status != BiosStatus.EndProgram) ...` | Checks for successful completion |
 
-`CompileToIR(ulong, bool)` — an extension from `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.md)` (`ProjectExtension`). Internally it calls `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` and `ProjectBuilder.Build`.
+`CompileToIR(ulong, bool)` — an extension from `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.md)` (`ProjectExtension`). Internally it calls `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` and `ProjectBuilder.Build`.
 
 `TryRegisterDevice`/`TryGetDeviceContext` — the new emulator API, returning `IdState`/`bool` instead of "magic" negative ids and `null`. See the "`IdState` vs `int` / `null`" section below.
 

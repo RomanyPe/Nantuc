@@ -1,9 +1,9 @@
 ﻿# Nantuc.Samples.InWeb — README
 
 > Демонстрационный модуль платформы Nantuc, собранный как **Blazor WebAssembly**-приложение и работающий **в браузере**. Содержит две страницы: `/` — универсальный запуск MiniC-программ (компиляция + исполнение в WASM, вывод через UART) и `/snake` — интерактивная «Змейка» с монохромным монитором 32×16, управляемая стрелками клавиатуры.
-> Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
+> Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
 > Связан с консольным сэмплом: [`Nantuc.Samples.Scratch`](../Nantuc.Samples.Scratch/README.ru.md) — тот же «движок» змейки, но без браузера.
-> [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extensions/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
+> [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
