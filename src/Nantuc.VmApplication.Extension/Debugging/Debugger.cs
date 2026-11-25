@@ -1,5 +1,4 @@
 ﻿using Nantuc.Common;
-using Nantuc.Contracts;
 using Nantuc.VmApplication.Emulator;
 using Nantuc.VmApplication.Extensions.Disassembler;
 using System.Buffers.Binary;

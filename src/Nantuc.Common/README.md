@@ -287,7 +287,7 @@ Console.WriteLine(ram);              // 67108864 B (2^26)
 Console.WriteLine(block);            // 256 B (2^8)
 Console.WriteLine(ram.IsValid);      // true
 
-// ⚠ default is "not initialized", not "0 bytes":
+// !! default is "not initialized", not "0 bytes":
 RamSize uninit = default;
 Console.WriteLine(uninit.IsValid);   // false
 Console.WriteLine(uninit.Bytes);     // 1 — not 0!

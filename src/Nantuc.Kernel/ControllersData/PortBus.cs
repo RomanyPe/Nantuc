@@ -21,14 +21,10 @@ namespace Nantuc.Kernel.ControllersData;
 /// </remarks>
 public sealed class PortBus : IPortBus
 {
-    private readonly ulong _totalPorts;
-    private readonly uint _portsOnDevice;
-
-    private readonly uint _sectorCount;
+    private readonly PortSize _ports;
+    private readonly DevicePortSize _portsOnDev;
     private readonly IPortUse[] _devices;
 
-    private readonly byte _deviceShift;
-    private readonly ulong _offsetMask;
 
     /// <summary>
     /// Создаёт шину портов.
@@ -50,35 +46,35 @@ public sealed class PortBus : IPortBus
                 $"{nameof(portsOnDev)} ({portsOnDev}) exceeds {nameof(ports)} ({ports}).",
                 nameof(portsOnDev));
 
-        _deviceShift = portsOnDev.Log2;
-        _totalPorts = 1UL << ports.Log2;
-        _portsOnDevice = 1U << portsOnDev.Log2;
-        _sectorCount = 1U << (ports.Log2 - portsOnDev.Log2);
-        _offsetMask = (1UL << portsOnDev.Log2) - 1UL;
-        _devices = new IPortUse[_sectorCount];
+        _ports = ports;
+        _portsOnDev = portsOnDev;
+        _devices = new IPortUse[SectorCount];
     }
+
+    private byte DeviceShift => _portsOnDev.Log2;
+    private ulong OffsetMask => (1UL << _portsOnDev.Log2) - 1UL;
 
     /// <summary>
     /// Количество секторов (слотов) на шине; равно <see cref="TotalPorts"/> / <see cref="PortsOnDevice"/>.
     /// </summary>
-    public uint SectorCount => _sectorCount;
+    public uint SectorCount => 1U << (_ports.Log2 - _portsOnDev.Log2);
 
     /// <summary>
     /// Количество портов, выделенных одному устройству.
     /// </summary>
-    public uint PortsOnDevice => _portsOnDevice;
+    public uint PortsOnDevice => 1U << _portsOnDev.Log2;
 
     /// <summary>
     /// Общее количество портов на шине.
     /// </summary>
-    public ulong TotalPorts => _totalPorts;
+    public ulong TotalPorts => 1UL << _ports.Log2;
 
     /// <summary>
     /// Проверяет, что указанный сектор существует и не занят устройством.
     /// </summary>
     /// <param name="sector">Номер сектора.</param>
     /// <returns><see langword="true"/>, если сектор свободен.</returns>
-    public bool IsFreeSector(uint sector) => sector < _sectorCount && _devices[sector] == null;
+    public bool IsFreeSector(uint sector) => sector < SectorCount && _devices[sector] == null;
 
     /// <summary>
     /// Регистрирует устройство на указанном секторе портов.
@@ -101,19 +97,19 @@ public sealed class PortBus : IPortBus
     /// <remarks>Если сектор вне диапазона, вызов игнорируется.</remarks>
     public void UnregisterDevice(uint sector)
     {
-        if (sector < _sectorCount)
+        if (sector < SectorCount)
             _devices[sector] = null!;
     }
 
     private (IPortUse? device, ulong offset) ResolveAddress(ulong address)
     {
-        uint sector = (uint)(address >> _deviceShift);
-        if (sector >= _sectorCount) return (null, 0);
+        uint sector = (uint)(address >> DeviceShift);
+        if (sector >= SectorCount) return (null, 0);
 
         var dev = _devices[sector];
         if (dev != null)
         {
-            ulong offset = address & _offsetMask;
+            ulong offset = address & OffsetMask;
             return (dev, offset);
         }
         return (null, address);

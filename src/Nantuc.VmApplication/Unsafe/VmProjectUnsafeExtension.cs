@@ -13,7 +13,7 @@ namespace Nantuc.VmApplication.Unsafe;
 /// типов ассемблера и результата. Ошибки в этих делегатах могут приводить к исключениям
 /// внутри конвейера компиляции, некорректному байткоду или повреждению состояния проекта.
 /// </remarks>
-public static class VmPojectUnsafeExtension
+public static class VmProjectUnsafeExtension
 {
     /// <param name="proj">
     /// Проект, для которого выполняется компиляция. Не может быть <see langword="null"/>.

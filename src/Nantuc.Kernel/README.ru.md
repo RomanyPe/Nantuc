@@ -15,14 +15,14 @@
 
 ## Об этом модуле
 
-`Nantuc.Kernel` — это слой исполнения. Здесь живут: процессор (`Processor` + `ProcessorSnapshot`), управляемая обёртка над нативной ОЗУ (`MemoryBus` + `NativeMemoryBuffer` + `NativeReadOnlyView`), шина портов (`PortBus`), реестр устройств (`ManagerDevices`) и эмулятор (`Emulator`), а также «вычислительное устройство» (`Device`), владеющее ОЗУ и процессором и реализующее `IPortController` из `Contracts`.
+`Nantuc.Kernel` — это слой исполнения. Здесь живут: процессор (`Processor` + `ProcessorSnapshot`), управляемая обёртка над нативной ОЗУ (`MemoryBus` + `NativeMemoryBuffer` + `NativeReadOnlyView`), шина портов (`PortBus`), реестр устройств (`ManagerDevices`), а также «вычислительное устройство» (`Device`), владеющее ОЗУ и процессором и реализующее `IPortController` из `Contracts`.
 
 Модуль — единственный в платформе, где разрешён `unsafe` (`<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` в `Nantuc.csproj`). Всё нативное — в `NativeMemoryBuffer`: `NativeMemory.AllocZeroed`, `NativeMemory.Free`, `byte*`, `Unsafe.ReadUnaligned` / `Unsafe.WriteUnaligned`. Остальной код работает с управляемыми обёртками.
 
 Ключевые роли модуля:
 - ОЗУ: `MemoryBus` (проверяемые/непроверяемые типизированные операции), `NativeMemoryBuffer` (сам нативный буфер), `NativeReadOnlyView` (read-only представление с проверками).
 - Процессор: `Processor` — `Step()`, декодирование через `InstructionDecoder` из `Common`, регистры `[InlineArray(32)]`, флаги `rFL`, очереди внешних команд/статусов. `ProcessorSnapshot` — снимок состояния для внешних наблюдателей.
-- Шина и устройства: `PortBus`, `ManagerDevices`, `Device`, `Emulator`.
+- Шина и устройства: `PortBus`, `ManagerDevices`, `Device`.
 - Интеграция: реализует `IPortBus`, `IPortController`, `IReadOnlyNativeBuffer`, `ProcessorSnapshot` из `Contracts`.
 
 Модуль зависит от `Common` (типы ISA) и `Contracts` (интерфейсы). Не зависит от `VmApplication`/`Extensions` — стрелка зависимостей всегда внутрь.
@@ -57,17 +57,16 @@ Nantuc.Kernel/
 │   └── PortBus.cs                     # секторная шина портов
 ├── BiosSystem/
 │   └── Device.cs                      # IPortController: MemoryBus + Processor + ManualResetEventSlim
-└── Utilites/
-    ├── Emulator.cs                    # PortBus + ManagerDevices, CreateDevice/RegisterDevice
+└── Utilities/
     └── ManagerDevices.cs              # реестр устройств, переиспользование слотов
 ```
 
 Замечания по организации:
-- Namespace `Utilites` (с опечаткой — должно быть `Utilities`) содержит `Emulator` и `ManagerDevices`.
+- Namespace `Utilities` (с опечаткой — должно быть `Utilities`) содержит `ManagerDevices`.
 - `Processor` — `sealed`, использует `[InlineArray(CountReg)]` (32 × `ulong`) вместо массива: компактнее по GC, AOT-friendly.
 - `NativeMemoryBuffer` — `unsafe sealed class`; всё нативное — только здесь. Остальные классы работают через `MemoryBus`/`IReadOnlyNativeBuffer`.
 - `Device` реализует `IPortController`, а не просто `IPortUse`: у него есть `_ioMemory` и `_wakeSignal`, которые нужно освобождать.
-- `Emulator` — точка входа для потребителя; `ManagerDevices` — деталь реализации (публичный, но нужен в основном `Emulator`).
+- `ManagerDevices` — точка входа для потребителя
 - `Processor.CurrentProcessorSnapshot` — **свойство** (не метод), создаёт **новый** `ProcessorSnapshot` при каждом обращении (не переиспользуемый экземпляр).
 
 ## API
@@ -85,8 +84,7 @@ Nantuc.Kernel/
 | `ProcessorSnapshot` | `ProcessorSystem` | `readonly struct` | Снимок состояния: `IsRunning`, `IsSleeping`, копия 32 регистров, `GetRegister(RegType)`, текущая инструкция и `imm64` |
 | `PortBus` | `ControllersData` | `sealed class : IPortBus` | Секторная шина: `RegisterDevice`, `ReadPort`, `WritePort`, `WakeProcessor`, `IsFreeSector` |
 | `Device` | `BiosSystem` | `sealed class : IPortController` | `Run`, `DebugRun`, `StepDebug`,`Step`, `BatchStep`, `BatchStepDebug`, `LoadProgram`, `TryLoadProgram`, `Stop`, `WakeProcessor`, `EnqueueExternalCommand`, `GetLastFault` |
-| `Emulator` | `Utilites` | `class : IDisposable` | `CreateDevice`, `RegisterDevice`, `GetDevice`, `TryGetDevice`, `UnregisterDevice`, `ChangeDeviceSector`, `AllDeviceInfo` |
-| `ManagerDevices` | `Utilites` | `class : IDisposable` | `TryAddDevice`, `RemoveDevice`, `ChangeSector`, `GetDevice`, `TryGetDevice`, `GetAllDevices`, `Count` |
+| `ManagerDevices` | `Utilities` | `class : IDisposable` | `TryAddDevice`, `RemoveDevice`, `ChangeSector`, `GetDevice`, `TryGetDevice`, `GetAllDevices`, `Count`, `CreateDevice`|
 
 ### `MemoryBus` — ОЗУ
 
@@ -155,7 +153,7 @@ Nantuc.Kernel/
 
 ### `Device` — вычислительное устройство
 
-Собственные `MemoryBus` + `Processor` + `byte[] _ioMemory` + `ManualResetEventSlim _wakeSignal`. Реализует `IPortController` — может быть зарегистрировано на `PortBus` через `Emulator.RegisterDevice`.
+Собственные `MemoryBus` + `Processor` + `byte[] _ioMemory` + `ManualResetEventSlim _wakeSignal`. Реализует `IPortController` — может быть зарегистрировано на `PortBus` через `ManagerDevices.TryAddDevice`.
 
 | Метод | Назначение |
 |---|---|
@@ -171,20 +169,14 @@ Nantuc.Kernel/
 
 `Stop`/`WakeProcessor`/`EnqueueExternalCommand` — единственные методы, безопасные из другого потока (используют `Enqueue*` + `_wakeSignal.Set()`). `Run`/`DebugRun`/`NextStep*` — нет.
 
-### `Emulator` — точка входа
-
-- Конструктор `Emulator(PortSize ports, DevicePortSize portsOnDev)` — создаёт `PortBus` и `ManagerDevices`.
-- `CreateDevice(RamSize, IProcessorPolicy)` — новый `Device`.
-- `RegisterDevice(IPortController, string?, uint, out int)` — регистрирует внешний контроллер; при отказе **освобождает** `device` (`device.Dispose()` внутри `ManagerDevices.TryAddDevice`).
-- `GetDevice(int)` / `TryGetDevice<T>(int, out T?)` — по `Id`.
-- `UnregisterDevice(int)` / `ChangeDeviceSector(int, uint)`.
-
 ### `ManagerDevices` — реестр
-
+- `CreateDevice(RamSize, IProcessorPolicy)` — новый `Device`.
 - `TryAddDevice` — `IdState.Valid` при успехе; иначе `NotAssigned` (реестр заполнен), `OutOfRange` (сектор занят), `NoFreeSlot` (нет слота и ID), `Rejected` (`PortBus.RegisterDevice` вернул `false`, устройство **dispose'ится**). `out int id` при отказе получает `-1`/`-2`/`-3`/`-4`.
 - Слоты (`DeviceEntry`) переиспользуются: `IsFreed = true` сохраняет `Id`, чтобы при повторной регистрации `Id` оставался прежним.
 - `Count` — O(n) каждый раз (не кэшируется); вызывается в `TryAddDevice` на каждом добавлении.
 - `Dispose` **не снимает** устройства с `PortBus` — `_portBus._devices[sector]` продолжает ссылаться на disposed-контроллер (см. [Что исправить](#что-исправить)).
+- `GetDevice(int)` / `TryGetDevice<T>(int, out T?)` — по `Id`.
+- Конструктор —`MangerDevices(PortSize ports, DevicePortSize portsOnDev)` создаёт `PortBus`.
 
 ## Примеры для API
 
@@ -193,11 +185,11 @@ Nantuc.Kernel/
 ```csharp
 using Nantuc.Common;
 using Nantuc.Contracts;
-using Nantuc.Kernel.Utilites;
+using Nantuc.Kernel.Utilities;
 
-using var emulator = new Emulator(PortSize.KB64, DevicePortSize.B64);
+using var manager = new ManagerDevices(PortSize.KB64, DevicePortSize.B64);
 
-using Device device = emulator.CreateDevice(RamSize.MB16, IProcessorPolicy.Default);
+using Device device = manager.CreateDevice(RamSize.MB16, IProcessorPolicy.Default);
 
 byte[] program = [/* байты: 32-битные слова инструкций */];
 device.LoadProgram(program, loadAddress: 0x0);
@@ -253,7 +245,7 @@ nuint n = (nuint)Math.Min((ulong)ram.Length, 64UL);
 for (nuint i = 0; i < n; i++)
     Console.Write($"{ram[i]:X2} ");
 
-// ⚠ после device.Dispose() индексация бросит ObjectDisposedException
+// !! после device.Dispose() индексация бросит ObjectDisposedException
 ```
 
 **Проверяемое чтение через MemoryBus (внутри своего обработчика):**
@@ -270,13 +262,12 @@ if (st != BiosStatus.Success)
 
 Средняя (выше, чем `Common`/`Contracts`, ниже, чем `VmApplication`).
 
-- Автор расширений устройств работает с `Emulator`/`Device`/`PortBus` — это его основной API.
+- Автор расширений устройств работает с `ManagerDevices`/`Device`/`PortBus` — это его основной API.
 - Пользователь `VmApplication` этот слой напрямую не импортирует, но именно `Device.Run`/`DebugRun` вызываются из `VmApplication`.
 - Автор компилятора не работает с этим слоем — только с `Common`/`Contracts`.
-- Для production-кода, встраивающего эмулятор: `Emulator` — точка входа; `ManagerDevices` — деталь.
 
 **Что стоит делать:**
-- Использовать `Emulator.CreateDevice` + `Device.Run`, а не создавать `Device`/`Processor`/`MemoryBus` вручную.
+- Использовать `ManagerDevices.CreateDevice` + `Device.Run`, а не создавать `Device`/`Processor`/`MemoryBus` вручную.
 - После каждой проверяемой операции `MemoryBus` — вызывать `UpdateAndReadStatus()`; статус сбрасывается.
 - Помнить, что `ReadPort`/`WritePort` в `Device` **не бросают** — выход за границы даёт `0`/игнор, а не исключение.
 - Вызывать `Stop`/`WakeProcessor`/`EnqueueExternalCommand` из другого потока, а `Run`/`NextStep*` — только из одного потока-координатора.
@@ -297,18 +288,18 @@ if (st != BiosStatus.Success)
 
 | Аспект | Статус | Комментарий |
 |---|---|---|
-| Сборка в WASM | ⚠️ | Собирается под `browser-wasm` без правок csproj, но `Device.Run`/`DebugRun` — синхронные блокирующие методы. На single-threaded WASM они блокируют UI-поток. Требуется вынос в Web Worker или замена на async-цикл. |
-| `NativeMemory` | ⚠️ | `NativeMemory.AllocZeroed`/`Free`/`Clear` работают на WASM (линейная память emscripten). Но аллокация 2 GiB (`RamSize.GB2`) в браузере почти наверняка бросит `OutOfMemoryException` — лимит линейной памяти WASM ~4 GiB на весь процесс, с фрагментацией. `MemoryBus`/`Device` не проверяют этот лимит. |
-| `unsafe` / `byte*` | ✅ | `NativeMemoryBuffer` — `unsafe`; WASM поддерживает указатели. `Unsafe.ReadUnaligned`/`WriteUnaligned` работают. |
-| `stackalloc` / `InlineArray` | ✅ | `stackalloc` не используется в горячих путях, кроме `Processor.CurrentProcessorSnapshot` (32 × 8 байт на каждое обращение). `[InlineArray(32)]` в `Processor` — compile-time, AOT-friendly. |
-| `Interlocked` / `Volatile` | ⚠️ | `Interlocked.Exchange` в `MemoryBus.Dispose` и `Device.Dispose`, `Volatile.Read/Write` в `NativeMemoryBuffer.Dispose` и `Processor` — на single-threaded WASM (без `SharedArrayBuffer`) это no-op, но код работает. С threaded WASM — атомарно. |
-| `ConcurrentQueue<T>` | ✅ | Две очереди в `Processor` (`_externalCommands`, `_statusFromSimulation`). На single-threaded WASM — просто очередь; на threaded — lock-free. |
-| `ManualResetEventSlim.Wait(...)` | ⚠️⚠️ | В `Device.RunSimulationLoop`/`RunSimulationLoopWithLimit`/`RunSimulationLoopDebug` — `_wakeSignal.Wait(_processorPolicy.SleepWaitTimeout)` блокирует текущий поток при `IsSleeping`. В браузере — блокировка UI. Замена: `await Task.Delay` + async-цикл, либо Web Worker. |
-| `Thread.Sleep(delay)` | ⚠️⚠️ | `RunSimulationLoopDebug` — `Thread.Sleep(delay)`. В браузере — блокировка UI. |
-| `Stopwatch` | ✅ | `Run` при `snowTimer: true` — `Stopwatch.StartNew()`; на WASM работает через `performance.now`-подобный таймер. |
+| Сборка в WASM | !!️ | Собирается под `browser-wasm` без правок csproj, но `Device.Run`/`DebugRun` — синхронные блокирующие методы. На single-threaded WASM они блокируют UI-поток. Требуется вынос в Web Worker или замена на async-цикл. |
+| `NativeMemory` | !!️ | `NativeMemory.AllocZeroed`/`Free`/`Clear` работают на WASM (линейная память emscripten). Но аллокация 2 GiB (`RamSize.GB2`) в браузере почти наверняка бросит `OutOfMemoryException` — лимит линейной памяти WASM ~4 GiB на весь процесс, с фрагментацией. `MemoryBus`/`Device` не проверяют этот лимит. |
+| `unsafe` / `byte*` | - | `NativeMemoryBuffer` — `unsafe`; WASM поддерживает указатели. `Unsafe.ReadUnaligned`/`WriteUnaligned` работают. |
+| `stackalloc` / `InlineArray` | - | `stackalloc` не используется в горячих путях, кроме `Processor.CurrentProcessorSnapshot` (32 × 8 байт на каждое обращение). `[InlineArray(32)]` в `Processor` — compile-time, AOT-friendly. |
+| `Interlocked` / `Volatile` | !!️ | `Interlocked.Exchange` в `MemoryBus.Dispose` и `Device.Dispose`, `Volatile.Read/Write` в `NativeMemoryBuffer.Dispose` и `Processor` — на single-threaded WASM (без `SharedArrayBuffer`) это no-op, но код работает. С threaded WASM — атомарно. |
+| `ConcurrentQueue<T>` | - | Две очереди в `Processor` (`_externalCommands`, `_statusFromSimulation`). На single-threaded WASM — просто очередь; на threaded — lock-free. |
+| `ManualResetEventSlim.Wait(...)` | !!️!!️ | В `Device.RunSimulationLoop`/`RunSimulationLoopWithLimit`/`RunSimulationLoopDebug` — `_wakeSignal.Wait(_processorPolicy.SleepWaitTimeout)` блокирует текущий поток при `IsSleeping`. В браузере — блокировка UI. Замена: `await Task.Delay` + async-цикл, либо Web Worker. |
+| `Thread.Sleep(delay)` | !!️!!️ | `RunSimulationLoopDebug` — `Thread.Sleep(delay)`. В браузере — блокировка UI. |
+| `Stopwatch` | - | `Run` при `snowTimer: true` — `Stopwatch.StartNew()`; на WASM работает через `performance.now`-подобный таймер. |
 | `IFileService` | n/a | В этой партии файлов интерфейса нет. При появлении в других слоях WASM-реализация — отдельно. |
-| `Regex` / trimming | ✅ | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-совместимо. |
-| AOT | ✅ | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `switch` по опкодам в `Step` — AOT-friendly. Generic-код — только `TryGetDevice<T>` (моноформируется под используемые `T`). |
+| `Regex` / trimming | - | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-совместимо. |
+| AOT | - | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `switch` по опкодам в `Step` — AOT-friendly. Generic-код — только `TryGetDevice<T>` (моноформируется под используемые `T`). |
 
 **Итог:** код собирается под WASM и AOT, но **синхронная блокирующая модель исполнения** (`Run`, `Thread.Sleep`, `ManualResetEventSlim.Wait`) не подходит для browser-WASM в single-threaded режиме. `NativeMemory.AllocZeroed` работает, но большие `RamSize` (≥ `MB512`–`GB1`) рискуют `OutOfMemoryException`. Для production в браузере — Web Worker + async-цикл + RAM ≤ ~256 MiB.
 
@@ -338,7 +329,7 @@ if (st != BiosStatus.Success)
 - `EnqueueBiosStatus`/`EnqueueExternalCommand` — безопасны из другого потока (очередь + `Volatile.Write`), но `EnqueueBiosStatus` имеет инвертированный порядок записи флагов (см. [Что исправить](#что-исправить)).
 - `Device.Stop`/`WakeProcessor`/`EnqueueExternalCommand` — безопасны (делегируют в `Processor` + `_wakeSignal.Set()`).
 - `PortBus.RegisterDevice`/`UnregisterDevice` — не потокобезопасны.
-- `ManagerDevices`/`Emulator` — не потокобезопасны (см. `<remarks>`).
+- `ManagerDevices` — не потокобезопасен (см. `<remarks>`).
 - `MemoryBus` — не потокобезопасен (`_lastStatus`/`_faultData` без синхронизации).
 - `NativeMemoryBuffer.Dispose` — `Volatile.Read/Write` на `bool`, но check-then-act не атомарен; при одновременном `Dispose` из двух потоков возможен double-free.
 - `Processor.CurrentProcessorSnapshot` — не потокобезопасен (читает регистры без синхронизации с `Step`); сам `_faultData` тоже читается без `Volatile`, поэтому снимок может быть слегка «размазан» относительно последнего шага.

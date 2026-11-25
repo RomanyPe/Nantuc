@@ -55,7 +55,7 @@ Nantuc.VmApplication/
 │   ├── DeviceContext.cs                # окно к Device: Run/Step/Load/Ports/Registers/GetLastFault/Pause/Resume
 │   ├── LaunchOptions.cs                # LaunchOptions / LaunchOptionsDebug
 │   ├── SnapshotRegisters.cs            # readonly struct с InlineArray[32]
-│   ├── VmEmulator.cs                   # обёртка Utilites.Emulator + DeviceSpec
+│   ├── VmEmulator.cs                   # обёртка Utilities.ManagerDevices + DeviceSpec
 │   └── VmEmulatorBuilder.cs            # fluent: WithPortBusSize / WithPortsPerDevice
 ├── Project/                            (namespace Nantuc.VmApplication.Project)
 │   ├── CompilationResult.cs            # byte[] + метрики секций + ошибки
@@ -75,9 +75,9 @@ Nantuc.VmApplication/
 └── Unsafe/                             (namespace Nantuc.VmApplication.Unsafe)
     ├── CompilationResultUnsafeExtension.cs # Assembler extension prop
     ├── DeviceContextUnsafeExtensions.cs     # AsRawDevice()
-    ├── VmEmulatorUnsafeExtension.cs         # GetRawPortBus() GetRawEmulator
+    ├── VmEmulatorUnsafeExtension.cs         # GetRawPortBus() GetRawManagerDevices
     ├── VmCompilerOptimizatorExtension.cs
-    └── VmPojectUnsafeExtension.cs          # CustomCompile<TAssembler,TResult>(...) — обёртка над CompileInternal
+    └── VmProjectUnsafeExtension.cs          # CustomCompile<TAssembler,TResult>(...) — обёртка над CompileInternal
 ```
 ## API
 
@@ -111,12 +111,12 @@ using var host = VmHostFactory.CreateDefault();
 - `portBusSize` — размер порт-пространства (`PortSize.KB64`).
 - `portsPerDevice` — размер блока портов на устройство (`DevicePortSize.B16`).
 
-`VmHost.Dispose()` освобождает только `Emulator` (внутри — `Utilites.Emulator.Dispose`), но не `Project` — `VmHostProject` не `IDisposable`.
+`VmHost.Dispose()` освобождает только `ManagerDevices` (внутри — `Utilities.ManagerDevices.Dispose`), но не `Project` — `VmHostProject` не `IDisposable`.
 
 ### VmEmulator и VmEmulatorBuilder — исполнение
 
 ```csharp
-public sealed class VmEmulator(Utilites.Emulator emulator) : IDisposable
+public sealed class VmEmulator(Utilities.ManagerDevices emulator) : IDisposable
 {
     public IPortBus GetPortBus();
     public bool ChangeDeviceSector(int id, uint newSector);
@@ -406,11 +406,11 @@ public static class VmEmulatorUnsafeExtension
     extension(VmEmulator vm)
     {
         public PortBus GetRawPortBus();
-        public Kernel.Utilites.Emulator GetRawEmulator();
+        public Kernel.Utilities.ManagerDevices GetRawManagerDevices();
     }
 }
 
-public static class VmPojectUnsafeExtension
+public static class VmProjectUnsafeExtension
 {
     extension(VmHostProject proj)
     {
@@ -434,7 +434,7 @@ public static class VmCompilerOptimizatorExtension
 }
 ```
 
-Для случаев, когда обёртки не хватает: прямой доступ к `Device`/`PortBus`/`IRAssembler`/`CompileInternal`. Использовать осторожно: после `AsRawDevice()` вы держите ссылку на `Device`, и его `Dispose` уже не контролируется `VmEmulator`. Имя класса `VmPojectUnsafeExtension` содержит опечатку (сохранена для обратной совместимости).
+Для случаев, когда обёртки не хватает: прямой доступ к `Device`/`PortBus`/`IRAssembler`/`CompileInternal`. Использовать осторожно: после `AsRawDevice()` вы держите ссылку на `Device`, и его `Dispose` уже не контролируется `VmEmulator`. Имя класса `VmProjectUnsafeExtension` содержит опечатку (сохранена для обратной совместимости).
 
 ## Примеры для API
 

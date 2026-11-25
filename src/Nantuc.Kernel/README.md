@@ -2,36 +2,36 @@
 
 > The Nantuc virtual machine kernel: processor, RAM, port bus, device registry, and emulator.
 > The only platform layer that uses `unsafe`, `NativeMemory`, `[InlineArray]`, and `ConcurrentQueue`.
-> [← Root](../README.md), [Common](../../src/Nantuc.Common/README.md), [Contracts](../../src/Nantuc.Contracts/README.md)
+> [← Root](../README.ru.md), [Common](../../src/Nantuc.Common/README.ru.md), [Contracts](../../src/Nantuc.Contracts/README.ru.md)
 
 ## Contents
-- [About This Module](#about-this-module)
-- [Local Project Tree](#local-project-tree)
+- [About this module](#about-this-module)
+- [Local project tree](#local-project-tree)
 - [API](#api)
-- [API Examples](#api-examples)
-- [Module Proximity to the User](#module-proximity-to-the-user)
-- [Special Information](#special-information)
-- [What to Fix](#what-to-fix)
+- [API examples](#api-examples)
+- [Proximity of the module to the user](#proximity-of-the-module-to-the-user)
+- [Special information](#special-information)
+- [What to fix](#what-to-fix)
 
-## About This Module
+## About this module
 
-`Nantuc.Kernel` is the execution layer. It contains: the processor (`Processor` + `ProcessorSnapshot`), the managed wrapper over native RAM (`MemoryBus` + `NativeMemoryBuffer` + `NativeReadOnlyView`), the port bus (`PortBus`), the device registry (`ManagerDevices`), and the emulator (`Emulator`), as well as the "computing device" (`Device`), which owns the RAM and processor and implements `IPortController` from `Contracts`.
+`Nantuc.Kernel` is the execution layer. It contains: the processor (`Processor` + `ProcessorSnapshot`), the managed wrapper over native RAM (`MemoryBus` + `NativeMemoryBuffer` + `NativeReadOnlyView`), the port bus (`PortBus`), the device registry (`ManagerDevices`), as well as the "computing device" (`Device`), which owns RAM and the processor and implements `IPortController` from `Contracts`.
 
-This module is the only one in the platform where `unsafe` is permitted (`<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` in `Nantuc.csproj`). Everything native lives in `NativeMemoryBuffer`: `NativeMemory.AllocZeroed`, `NativeMemory.Free`, `byte*`, `Unsafe.ReadUnaligned` / `Unsafe.WriteUnaligned`. The rest of the code works with managed wrappers.
+This module is the only one in the platform where `unsafe` is allowed (`<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` in `Nantuc.csproj`). All native code is in `NativeMemoryBuffer`: `NativeMemory.AllocZeroed`, `NativeMemory.Free`, `byte*`, `Unsafe.ReadUnaligned` / `Unsafe.WriteUnaligned`. The rest of the code works with managed wrappers.
 
 Key roles of the module:
 - RAM: `MemoryBus` (checked/unchecked typed operations), `NativeMemoryBuffer` (the native buffer itself), `NativeReadOnlyView` (read-only view with checks).
-- Processor: `Processor` — `Step()`, decoding via `InstructionDecoder` from `Common`, registers `[InlineArray(32)]`, flags `rFL`, external command/status queues. `ProcessorSnapshot` — a state snapshot for external observers.
-- Bus and devices: `PortBus`, `ManagerDevices`, `Device`, `Emulator`.
+- Processor: `Processor` — `Step()`, decoding via `InstructionDecoder` from `Common`, `[InlineArray(32)]` registers, `rFL` flags, external command/status queues. `ProcessorSnapshot` — a state snapshot for external observers.
+- Bus and devices: `PortBus`, `ManagerDevices`, `Device`.
 - Integration: implements `IPortBus`, `IPortController`, `IReadOnlyNativeBuffer`, `ProcessorSnapshot` from `Contracts`.
 
 The module depends on `Common` (ISA types) and `Contracts` (interfaces). It does not depend on `VmApplication`/`Extensions` — the dependency arrow always points inward.
 
-> **XML documentation is complete on the public surface.** All public types, methods, and parameters are documented. The remaining defects are not XML but behavioral: the order of `Volatile.Write` in `Processor.EnqueueBiosStatus` (`_hasCommand` is written before `_hasSimulationStatus` — the status may "stick" in the queue until the next `Enqueue`/`Reset`), the absence of `ObjectDisposedException` on `MemoryBus.ReadInt*LE` after `Dispose`, the stack check order in `InstructionPUSH`, `CurrentProcessorSnapshot` as a property creates a new object on every access, the blocking `_wakeSignal.Wait(...)` on single-threaded WASM. Details — in the [What to Fix](#what-to-fix) section.
+> **XML documentation is complete on the public surface.** All public types, methods, and parameters are documented. The remaining defects are not XML, but behavior: the order of `Volatile.Write` in `Processor.EnqueueBiosStatus` (`_hasCommand` is written before `_hasSimulationStatus` — the status may "stick" in the queue until the next `Enqueue`/`Reset`), the absence of `ObjectDisposedException` on `MemoryBus.ReadInt*LE` after `Dispose`, the stack check order in `InstructionPUSH`, `CurrentProcessorSnapshot` as a property creating a new object on every access, the blocking `_wakeSignal.Wait(...)` on single-threaded WASM. Details — in the [What to fix](#what-to-fix) section.
 
-## Local Project Tree
+## Local project tree
 
-Namespaces by layer, files flat within them:
+Namespaces by layer, files are flat within them:
 
 ```
 Nantuc.Kernel/
@@ -54,25 +54,24 @@ Nantuc.Kernel/
 │   ├── Processor.Snapshot.cs              (~50)  — CurrentProcessorSnapshot
 │   └── InstructionHelpers.cs              (~30)  — MaskOf/SignExtend (new static class)
 ├── ControllersData/
-│   └── PortBus.cs                     # sectored port bus
+│   └── PortBus.cs                     # sector port bus
 ├── BiosSystem/
 │   └── Device.cs                      # IPortController: MemoryBus + Processor + ManualResetEventSlim
-└── Utilites/
-    ├── Emulator.cs                    # PortBus + ManagerDevices, CreateDevice/RegisterDevice
+└── Utilities/
     └── ManagerDevices.cs              # device registry, slot reuse
 ```
 
-Organization notes:
-- The `Utilites` namespace (with a typo — should be `Utilities`) contains `Emulator` and `ManagerDevices`.
+Notes on organization:
+- The `Utilities` namespace (with a typo — should be `Utilities`) contains `ManagerDevices`.
 - `Processor` is `sealed`, uses `[InlineArray(CountReg)]` (32 × `ulong`) instead of an array: more compact for GC, AOT-friendly.
-- `NativeMemoryBuffer` is `unsafe sealed class`; everything native is only here. The other classes work through `MemoryBus`/`IReadOnlyNativeBuffer`.
-- `Device` implements `IPortController`, not just `IPortUse`: it has `_ioMemory` and `_wakeSignal`, which need to be disposed.
-- `Emulator` is the entry point for the consumer; `ManagerDevices` is an implementation detail (public, but mainly needed by `Emulator`).
-- `Processor.CurrentProcessorSnapshot` is a **property** (not a method), creates a **new** `ProcessorSnapshot` on every access (not a reused instance).
+- `NativeMemoryBuffer` is an `unsafe sealed class`; all native code is only here. Other classes work through `MemoryBus`/`IReadOnlyNativeBuffer`.
+- `Device` implements `IPortController`, not just `IPortUse`: it has `_ioMemory` and `_wakeSignal`, which need to be released.
+- `ManagerDevices` — the entry point for the consumer
+- `Processor.CurrentProcessorSnapshot` — a **property** (not a method), creates a **new** `ProcessorSnapshot` on every access (not a reused instance).
 
 ## API
 
-### Overall Picture
+### General picture
 
 Public surface by namespace:
 
@@ -85,119 +84,112 @@ Public surface by namespace:
 | `ProcessorSnapshot` | `ProcessorSystem` | `readonly struct` | State snapshot: `IsRunning`, `IsSleeping`, copy of 32 registers, `GetRegister(RegType)`, current instruction and `imm64` |
 | `PortBus` | `ControllersData` | `sealed class : IPortBus` | Sector bus: `RegisterDevice`, `ReadPort`, `WritePort`, `WakeProcessor`, `IsFreeSector` |
 | `Device` | `BiosSystem` | `sealed class : IPortController` | `Run`, `DebugRun`, `StepDebug`,`Step`, `BatchStep`, `BatchStepDebug`, `LoadProgram`, `TryLoadProgram`, `Stop`, `WakeProcessor`, `EnqueueExternalCommand`, `GetLastFault` |
-| `Emulator` | `Utilites` | `class : IDisposable` | `CreateDevice`, `RegisterDevice`, `GetDevice`, `TryGetDevice`, `UnregisterDevice`, `ChangeDeviceSector`, `AllDeviceInfo` |
-| `ManagerDevices` | `Utilites` | `class : IDisposable` | `TryAddDevice`, `RemoveDevice`, `ChangeSector`, `GetDevice`, `TryGetDevice`, `GetAllDevices`, `Count` |
+| `ManagerDevices` | `Utilities` | `class : IDisposable` | `TryAddDevice`, `RemoveDevice`, `ChangeSector`, `GetDevice`, `TryGetDevice`, `GetAllDevices`, `Count`, `CreateDevice`|
 
 ### `MemoryBus` — RAM
 
-Checked methods **do not throw**: on error they return `0` and save the status, which is read via `UpdateAndReadStatus()` (and resets to `Success`). `*UnSafe` variants — no bounds or alignment checks.
+Checked methods **do not throw**: on error they return `0` and save the status, which is read via `UpdateAndReadStatus()` (and resets to `Success`). The `*UnSafe` variants — without bounds and alignment checks.
 
 | Method | What it does | Checks |
 |---|---|---|
 | `ReadInt8LE(ulong)` | reads a byte | upper bound only |
-| `ReadInt16LE`/`ReadInt32LE`/`ReadInt64LE` | reads an LE value | alignment to 2/4/8 + bound |
+| `ReadInt16LE`/`ReadInt32LE`/`ReadInt64LE` | reads an LE value | alignment by 2/4/8 + bound |
 | `WriteInt8LE`/`WriteInt16LE`/`WriteInt32LE`/`WriteInt64LE` | writes an LE value | same |
 | `ReadInt8LEUnSafe`/`WriteInt8LEUnSafe`… | no checks | none |
 | `UpdateAndReadStatus()` | returns and resets `_lastStatus` | — |
 | `LoadProgram(ReadOnlySpan<byte>, ulong)` | copies the program into RAM | `ArgumentOutOfRangeException` on out-of-bounds |
 | `ClearMemory()` | zeroes the buffer | — |
 
-**Status race:** `_lastStatus` and `_faultData` are not `volatile`, not protected by a lock. `UpdateAndReadStatus` resets the status — the consumer must call it after every checked operation, otherwise the error will "stick."
+**Status race:** `_lastStatus` and `_faultData` are not `volatile` and are not protected by a lock. `UpdateAndReadStatus` resets the status — the consumer is obliged to call it after every checked operation, otherwise the error will "stick".
 
-### `NativeMemoryBuffer` — Native Buffer
+### `NativeMemoryBuffer` — native buffer
 
-The only `unsafe` class. After `Dispose`, all `Read*`/`Write*`/indexer — **UB**: `_ptrRam` becomes `null`, and `*(_ptrRam + index)` — NRE or AV. Protection exists only in `NativeReadOnlyView` (`ObjectDisposedException.ThrowIf(buffer.IsDisposed, buffer)`).
+The only `unsafe` class. After `Dispose`, all `Read*`/`Write*`/indexer are **UB**: `_ptrRam` becomes `null`, and `*(_ptrRam + index)` — NRE or AV. Protection exists only in `NativeReadOnlyView` (`ObjectDisposedException.ThrowIf(buffer.IsDisposed, buffer)`).
 
-- `NativeMemory.AllocZeroed(nuint)` — allocates zeroed memory; on failure — `OutOfMemoryException` (already a `NativeMemory`-level error).
-- `ReadUInt16/32/64` — `Unsafe.ReadUnaligned<T>` + `BitConverter.IsLittleEndian` (on WASM `IsLittleEndian == true`, so `ReverseEndianness` is never executed).
+- `NativeMemory.AllocZeroed(nuint)` — allocates zeroed memory; on failure — `OutOfMemoryException` (already a non-`NativeMemory`-level error).
+- `ReadUInt16/32/64` — `Unsafe.ReadUnaligned<T>` + `BitConverter.IsLittleEndian` (on WASM `IsLittleEndian == true`, so `ReverseEndianness` never executes).
 - `this[ulong index]` — `*(_ptrRam + index)`, no checks.
 - `LoadProgram(ReadOnlySpan<byte>, ulong)` — `NativeMemory.Copy(src, _ptrRam + startProg, (nuint)prog.Length)`; checks only `prog.Length > 0` and bounds.
-- `Dispose` — `Volatile.Read/Write` on `bool`; **not thread-safe with respect to repeated calls** (see [What to Fix](#what-to-fix)).
+- `Dispose` — `Volatile.Read/Write` on `bool`; **not thread-safe with respect to repeated calls** (see [What to fix](#what-to-fix)).
 
-### `NativeReadOnlyView` — Read-Only View
+### `NativeReadOnlyView` — read-only view
 
-`IReadOnlyNativeBuffer` from `Contracts`. On indexing, checks `IsDisposed` and `index < Length` — the **only** place where after `Dispose` an `ObjectDisposedException` is thrown rather than UB.
+`IReadOnlyNativeBuffer` from `Contracts`. On indexing, checks `IsDisposed` and `index < Length` — the **only** place where `ObjectDisposedException` is thrown after `Dispose` instead of UB.
 
-### `Processor` — Processor
+### `Processor` — processor
 
-| Method / Property | Purpose |
+| Method / property | Purpose |
 |---|---|
 | `Step()` | processes queues (if `Volatile.Read(_hasCommand)`), reads a 32-bit word at `rIP`, increments `rIP` by 4, calls the opcode handler |
 | `LaunchProgramm(ulong)` | resets `rFL`, sets `rIP`, `rSP` (top of RAM, aligned to 8), `IsRunning = true` |
 | `Reset()` | zeroes registers, clears queues, resets flags (`_faultData` is **not** reset) |
-| `EnqueueBiosStatus(BiosStatus)` | puts the status into `_statusFromSimulation`; **first** `Volatile.Write(_hasCommand, true)`, **then** `Volatile.Write(_hasSimulationStatus, true)` — potential signal loss (see [What to Fix](#what-to-fix)) |
+| `EnqueueBiosStatus(BiosStatus)` | puts the status into `_statusFromSimulation`; **first** `Volatile.Write(_hasCommand, true)`, **then** `Volatile.Write(_hasSimulationStatus, true)` — potential signal loss (see [What to fix](#what-to-fix)) |
 | `EnqueueExternalCommand(uint)` | puts a raw word into `_externalCommands`; **first** `Volatile.Write(_hasExternalCommand, true)`, **then** `Volatile.Write(_hasCommand, true)` |
 | `GetDiagnosticData()` | snapshot of `ProcessorFault` |
-| `GetRegValue(RegType)` | single value |
-| `CopyRegisters(Span<ulong>)` | copies 32 registers; throws `ArgumentException` if the buffer is < 32 |
-| `CurrentProcessorSnapshot` (property) | **new** `ProcessorSnapshot` on every access: copy of registers, `IsRunning`, `IsSleeping`, current instruction and `imm64` (if needed) |
+| `GetRegValue(RegType)` | a single value |
+| `CopyRegisters(Span<ulong>)` | copies 32 registers; throws `ArgumentException` if the buffer < 32 |
+| `CurrentProcessorSnapshot` (property) | a **new** `ProcessorSnapshot` on every access: copy of registers, `IsRunning`, `IsSleeping`, current instruction and `imm64` (if needed) |
 | `InitRegHP(ulong)` | sets `rHP` |
 | `IsRunning`/`IsSleeping` | flags |
 
-Registers — `[InlineArray(CountReg)]` of `ulong` (32 × 8 bytes = 256 bytes per instance). `rFL` — bit field: bit 0 = Zero, bit 1 = Negative; set **only** by `CMP`/`TEST` (see `<remarks>` of `OpCode`).
+Registers — `[InlineArray(CountReg)]` of `ulong` (32 × 8 bytes = 256 bytes per instance). `rFL` — bitfield: bit 0 = Zero, bit 1 = Negative; set **only** by `CMP`/`TEST` (see `<remarks>` `OpCode`).
 
 `Step()` — a `switch` expression over all ~60 opcodes, with `[MethodImpl(AggressiveOptimization)]`. The `Instruction*` handler returns `BiosStatus`; if `!= Success` — fills `_faultData`, calls `_processorPolicy.ShouldContinue` and `Volatile.Write(_isRunning, ...)`.
 
-**Immediate 64-bit operand:** `Get64IntData()` reads `rIP`, aligns up to 8 (`AlignUp(8)`), reads `ulong` via `_ram.ReadInt64LEUnSafe`, then **assigns `rIP = aligned_ip + 8`** (not `rIP += 8`). That is, after a 4-byte instruction there are up to 4 bytes of padding, and the immediate starts at the nearest 8-byte boundary; the new `rIP` = `AlignUp(old_rIP, 8) + 8`.
+**Immediate 64-bit operand:** `Get64IntData()` reads `rIP`, aligns up by 8 (`AlignUp(8)`), reads `ulong` via `_ram.ReadInt64LEUnSafe`, then **assigns `rIP = aligned_ip + 8`** (not `rIP += 8`). That is, after a 4-byte instruction there are up to 4 bytes of padding, and the immediate starts at the nearest 8-byte boundary; the new `rIP` = `AlignUp(old_rIP, 8) + 8`.
 
-### `ProcessorSnapshot` — State Snapshot
+### `ProcessorSnapshot` — state snapshot
 
-Created by the **property** `Processor.CurrentProcessorSnapshot`. Contains `IsRunning`, `IsSleeping`, and a copy of 32 registers. Has `GetRegister(RegType)`. Since the snapshot is an independent copy, it can be safely saved; on the next step the state will not change.
+Created by the **property** `Processor.CurrentProcessorSnapshot`. Contains `IsRunning`, `IsSleeping`, and a copy of 32 registers. Has `GetRegister(RegType)`. Since the snapshot is an independent copy, it can be safely stored; it won't change on the next step.
 
-### `PortBus` — Sector Port Bus
+### `PortBus` — sector port bus
 
-- The address is split into "sector" (`address >> _deviceShift`) and "offset" (`address & _offsetMask`).
+- The address is decomposed into a "sector" (`address >> _deviceShift`) and an "offset" (`address & _offsetMask`).
 - `RegisterDevice(IPortUse, uint)` — `IPortUse`, not `IPortController` (the latter extends `IPortUse`).
 - `ReadPort` returns `ReadPortResult(Data, Status)`; `Status = NullDeviceInput` if there is no device at the address.
 - `WritePort` returns `BiosStatus`: `Success` or `NullDeviceOutput`.
-- `WakeProcessor` — `bool` (whether the device was found).
-- `RegisterDevice`/`UnregisterDevice` — direct manipulation of the `_devices` array; **no thread safety** (see `<remarks>` of the type).
+- `WakeProcessor` — `bool` (whether a device was found).
+- `RegisterDevice`/`UnregisterDevice` — direct control of the `_devices` array; **no thread safety** (see `<remarks>` of the type).
 
-### `Device` — Computing Device
+### `Device` — computing device
 
-Owns `MemoryBus` + `Processor` + `byte[] _ioMemory` + `ManualResetEventSlim _wakeSignal`. Implements `IPortController` — can be registered on `PortBus` via `Emulator.RegisterDevice`.
+Own `MemoryBus` + `Processor` + `byte[] _ioMemory` + `ManualResetEventSlim _wakeSignal`. Implements `IPortController` — can be registered on `PortBus` via `ManagerDevices.TryAddDevice`.
 
 | Method | Purpose |
 |---|---|
-| `Run(ulong, long?, bool, Action?, Action<TimeSimulationResult>?)` | blocking execution until completion/fault; `limit` — step limit -> `InfinityLoop` |
-| `DebugRun(ulong, long, int, Action?, Action<ProcessorSnapshot>?, Action?)` | execution with a delay and a per-step callback |
-| `BreakPointerLaunchDevice(ulong?, Action?)` | initialization without starting the execution loop; `start ?? 0` — if `null`, `rIP` is set to `0` (not "from the end of RAM" — the end of RAM is only assigned to `rSP` in `LaunchProgramm`) |
+| `Run(ulong, long?, bool, Action?, Action<TimeSimulationResult>?)` | blocking run until completion/failure; `limit` — step limit -> `InfinityLoop` |
+| `DebugRun(ulong, long, int, Action?, Action<ProcessorSnapshot>?, Action?)` | run with delay and per-step callback |
+| `BreakPointerLaunchDevice(ulong?, Action?)` | initialization without starting the loop; `start ?? 0` — if `null`, `rIP` is set to `0` (not "from the end of RAM" — the end of RAM is only used for `rSP` in `LaunchProgramm`) |
 | `StepDebug(Action<ProcessorSnapshot>?)` / `BatchStepDebug(int, Action<ProcessorSnapshot>?)` | manual steps; read `Processor.CurrentProcessorSnapshot` (property) |
 | `Step()` / `BatchStep(int)` | manual steps |
-| `LoadProgram(ReadOnlySpan<byte>, ulong)` / `TryLoadProgram` | loading + `rHP` initialization (`(loadAddress + programLength).AlignUp(8)`) |
+| `LoadProgram(ReadOnlySpan<byte>, ulong)` / `TryLoadProgram` | load + initialize `rHP` (`(loadAddress + programLength).AlignUp(8)`) |
 | `Stop()` / `WakeProcessor()` / `EnqueueExternalCommand(uint)` | from another thread: `Enqueue*` + `_wakeSignal.Set()` |
 | `CopyRegisters` / `GetLastFault` / `ResetMemoryRam` / `ClearRegisters` | snapshots |
-| `ReadPort` / `WritePort` | **no bounds checking** — return `0`/ignore when exceeding `_ioMemory.Length` (type `<remarks>` states "I/O ports"; implementation does not throw) |
+| `ReadPort` / `WritePort` | **no bounds checking** — return `0`/ignore on out-of-bounds of `_ioMemory.Length` (in the type's `<remarks>` — "I/O ports", the implementation does not throw) |
 
-`Stop`/`WakeProcessor`/`EnqueueExternalCommand` are the only methods safe to call from another thread (they use `Enqueue*` + `_wakeSignal.Set()`). `Run`/`DebugRun`/`NextStep*` are not.
+`Stop`/`WakeProcessor`/`EnqueueExternalCommand` — the only methods safe from another thread (they use `Enqueue*` + `_wakeSignal.Set()`). `Run`/`DebugRun`/`NextStep*` — are not.
 
-### `Emulator` — Entry Point
-
-- Constructor `Emulator(PortSize ports, DevicePortSize portsOnDev)` — creates `PortBus` and `ManagerDevices`.
+### `ManagerDevices` — registry
 - `CreateDevice(RamSize, IProcessorPolicy)` — a new `Device`.
-- `RegisterDevice(IPortController, string?, uint, out int)` — registers an external controller; on failure **disposes** `device` (`device.Dispose()` inside `ManagerDevices.TryAddDevice`).
+- `TryAddDevice` — `IdState.Valid` on success; otherwise `NotAssigned` (registry full), `OutOfRange` (sector occupied), `NoFreeSlot` (no slot and no ID), `Rejected` (`PortBus.RegisterDevice` returned `false`, the device is **disposed**). `out int id` on failure receives `-1`/`-2`/`-3`/`-4`.
+- Slots (`DeviceEntry`) are reused: `IsFreed = true` preserves `Id` so that on re-registration `Id` stays the same.
+- `Count` — O(n) every time (not cached); called in `TryAddDevice` on every add.
+- `Dispose` **does not remove** devices from `PortBus` — `_portBus._devices[sector]` continues to reference the disposed controller (see [What to fix](#what-to-fix)).
 - `GetDevice(int)` / `TryGetDevice<T>(int, out T?)` — by `Id`.
-- `UnregisterDevice(int)` / `ChangeDeviceSector(int, uint)`.
+- Constructor — `MangerDevices(PortSize ports, DevicePortSize portsOnDev)` creates `PortBus`.
 
-### `ManagerDevices` — Registry
-
-- `TryAddDevice` — `IdState.Valid` on success; otherwise `NotAssigned` (registry full), `OutOfRange` (sector occupied), `NoFreeSlot` (no slot and no ID), `Rejected` (`PortBus.RegisterDevice` returned `false`, the device is **disposed**). `out int id` on failure gets `-1`/`-2`/`-3`/`-4`.
-- Slots (`DeviceEntry`) are reused: `IsFreed = true` preserves `Id` so that on re-registration the `Id` remains the same.
-- `Count` — O(n) every time (not cached); called in `TryAddDevice` on every addition.
-- `Dispose` **does not remove** devices from `PortBus` — `_portBus._devices[sector]` continues to reference the disposed controller (see [What to Fix](#what-to-fix)).
-
-## API Examples
+## API examples
 
 **Minimal launch:**
 
 ```csharp
 using Nantuc.Common;
 using Nantuc.Contracts;
-using Nantuc.Kernel.Utilites;
+using Nantuc.Kernel.Utilities;
 
-using var emulator = new Emulator(PortSize.KB64, DevicePortSize.B64);
+using var manager = new ManagerDevices(PortSize.KB64, DevicePortSize.B64);
 
-using Device device = emulator.CreateDevice(RamSize.MB16, IProcessorPolicy.Default);
+using Device device = manager.CreateDevice(RamSize.MB16, IProcessorPolicy.Default);
 
 byte[] program = [/* bytes: 32-bit instruction words */];
 device.LoadProgram(program, loadAddress: 0x0);
@@ -217,11 +209,10 @@ Console.WriteLine($"{fault.Status} @ 0x{fault.InstructionPointer:X}");
 ```csharp
 device.BreakPointerLaunchDevice(start: 0, titleAct: null);
 
-device.StepDebug(step => Console.WriteLine(\$"IP=0x{step.GetRegister(RegType.rIP):X}"));
+device.StepDebug(step => Console.WriteLine($"IP=0x{step.GetRegister(RegType.rIP):X}"));
 device.BatchStepDebug(3, onStep: null);
 ```
-
-**Fast step-by-step execution:**
+**Quick step-by-step execution:**
 
 ```csharp
 device.BreakPointerLaunchDevice(start: 0, titleAct: null);
@@ -254,7 +245,7 @@ nuint n = (nuint)Math.Min((ulong)ram.Length, 64UL);
 for (nuint i = 0; i < n; i++)
     Console.Write($"{ram[i]:X2} ");
 
-// ⚠ after device.Dispose() indexing will throw ObjectDisposedException
+// !! after device.Dispose() indexing will throw ObjectDisposedException
 ```
 
 **Checked read via MemoryBus (inside your own handler):**
@@ -267,91 +258,90 @@ if (st != BiosStatus.Success)
     Console.Error.WriteLine($"{st} @ 0x{memoryBus.FaultData:X}");
 ```
 
-## Module Proximity to the User
+## Proximity of the module to the user
 
 Medium (higher than `Common`/`Contracts`, lower than `VmApplication`).
 
-- The extension device author works with `Emulator`/`Device`/`PortBus` — this is their primary API.
+- The author of device extensions works with `ManagerDevices`/`Device`/`PortBus` — this is their main API.
 - The `VmApplication` user does not import this layer directly, but it is `Device.Run`/`DebugRun` that are called from `VmApplication`.
 - The compiler author does not work with this layer — only with `Common`/`Contracts`.
-- For production code embedding the emulator: `Emulator` is the entry point; `ManagerDevices` is a detail.
 
 **What you should do:**
-- Use `Emulator.CreateDevice` + `Device.Run`, rather than creating `Device`/`Processor`/`MemoryBus` manually.
+- Use `ManagerDevices.CreateDevice` + `Device.Run`, rather than creating `Device`/`Processor`/`MemoryBus` manually.
 - After every checked `MemoryBus` operation — call `UpdateAndReadStatus()`; the status is reset.
-- Remember that `ReadPort`/`WritePort` in `Device` **do not throw** — out-of-bounds gives `0`/ignore, not an exception.
+- Remember that `ReadPort`/`WritePort` in `Device` **do not throw** — out-of-bounds yields `0`/ignore, not an exception.
 - Call `Stop`/`WakeProcessor`/`EnqueueExternalCommand` from another thread, and `Run`/`NextStep*` — only from a single coordinator thread.
-- After `device.Dispose()`, read RAM only via `NativeReadOnlyBuffer` — there it will be `ObjectDisposedException`, not UB.
-- `Processor.CurrentProcessorSnapshot` (property) returns a new `ProcessorSnapshot`; it can be saved and used after the next step.
+- After `device.Dispose()`, read RAM only through `NativeReadOnlyBuffer` — there it will be `ObjectDisposedException`, not UB.
+- `Processor.CurrentProcessorSnapshot` (property) returns a new `ProcessorSnapshot`; it can be stored and used after the next step.
 
 **What you should not do:**
-- Rely on `_lastStatus` between operations without `UpdateAndReadStatus` — the status will "stick."
+- Rely on `_lastStatus` between operations without `UpdateAndReadStatus` — the status will "stick".
 - Read/write `_ioMemory`/`NativeMemoryBuffer` directly from another thread during `Run`.
 - Register/unregister devices (`RegisterDevice`/`UnregisterDevice`/`ChangeDeviceSector`) during `Device.Run` — there is no synchronization.
 - Use `NativeMemoryBuffer` directly after `Dispose` — UB, not an exception (only `NativeReadOnlyView` is protected).
-- Keep an `IReadOnlyNativeBuffer` obtained from `Device.NativeReadOnlyBuffer` after the device's `Dispose()` — `ObjectDisposedException` on the next indexing.
-- Expect `GetDiagnosticData()` to be reset by `Processor.Reset()`: `_faultData` is **not** reset in `Reset()` — after a reset, `GetDiagnosticData()` will return the last failure of the previous run.
+- Store the `IReadOnlyNativeBuffer` obtained from `Device.NativeReadOnlyBuffer` after the device's `Dispose()` — `ObjectDisposedException` on the next indexing.
+- Expect `GetDiagnosticData()` to be reset by `Processor.Reset()`: `_faultData` is **not reset** in `Reset()` — after a reset, `GetDiagnosticData()` returns the last fault of the previous run.
 
-## Special Information
+## Special information
 
-### WASM / Cross-Platform
+### WASM / cross-platform
 
 | Aspect | Status | Comment |
 |---|---|---|
-| Build to WASM | ⚠️ | Builds for `browser-wasm` without csproj changes, but `Device.Run`/`DebugRun` are synchronous blocking methods. On single-threaded WASM they block the UI thread. Requires moving to a Web Worker or replacing with an async loop. |
-| `NativeMemory` | ⚠️ | `NativeMemory.AllocZeroed`/`Free`/`Clear` work on WASM (emscripten linear memory). But allocating 2 GiB (`RamSize.GB2`) in a browser will almost certainly throw `OutOfMemoryException` — the WASM linear memory limit is ~4 GiB for the whole process, with fragmentation. `MemoryBus`/`Device` do not check this limit. |
-| `unsafe` / `byte*` | ✅ | `NativeMemoryBuffer` is `unsafe`; WASM supports pointers. `Unsafe.ReadUnaligned`/`WriteUnaligned` work. |
-| `stackalloc` / `InlineArray` | ✅ | `stackalloc` is not used in hot paths, except `Processor.CurrentProcessorSnapshot` (32 × 8 bytes per access). `[InlineArray(32)]` in `Processor` — compile-time, AOT-friendly. |
-| `Interlocked` / `Volatile` | ⚠️ | `Interlocked.Exchange` in `MemoryBus.Dispose` and `Device.Dispose`, `Volatile.Read/Write` in `NativeMemoryBuffer.Dispose` and `Processor` — on single-threaded WASM (without `SharedArrayBuffer`) this is a no-op, but the code works. With threaded WASM — atomic. |
-| `ConcurrentQueue<T>` | ✅ | Two queues in `Processor` (`_externalCommands`, `_statusFromSimulation`). On single-threaded WASM — just a queue; on threaded — lock-free. |
-| `ManualResetEventSlim.Wait(...)` | ⚠️⚠️ | In `Device.RunSimulationLoop`/`RunSimulationLoopWithLimit`/`RunSimulationLoopDebug` — `_wakeSignal.Wait(_processorPolicy.SleepWaitTimeout)` blocks the current thread when `IsSleeping`. In a browser — blocks the UI. Replacement: `await Task.Delay` + async loop, or a Web Worker. |
-| `Thread.Sleep(delay)` | ⚠️⚠️ | `RunSimulationLoopDebug` — `Thread.Sleep(delay)`. In a browser — blocks the UI. |
-| `Stopwatch` | ✅ | `Run` with `snowTimer: true` — `Stopwatch.StartNew()`; on WASM works via a `performance.now`-like timer. |
+| Building to WASM | !!️ | Builds for `browser-wasm` without csproj changes, but `Device.Run`/`DebugRun` are synchronous blocking methods. On single-threaded WASM they block the UI thread. Requires moving to a Web Worker or replacing with an async loop. |
+| `NativeMemory` | !!️ | `NativeMemory.AllocZeroed`/`Free`/`Clear` work on WASM (emscripten linear memory). But allocating 2 GiB (`RamSize.GB2`) in a browser will almost certainly throw `OutOfMemoryException` — the WASM linear memory limit is ~4 GiB for the whole process, with fragmentation. `MemoryBus`/`Device` do not check this limit. |
+| `unsafe` / `byte*` | - | `NativeMemoryBuffer` — `unsafe`; WASM supports pointers. `Unsafe.ReadUnaligned`/`WriteUnaligned` work. |
+| `stackalloc` / `InlineArray` | - | `stackalloc` is not used in hot paths, except `Processor.CurrentProcessorSnapshot` (32 × 8 bytes per access). `[InlineArray(32)]` in `Processor` — compile-time, AOT-friendly. |
+| `Interlocked` / `Volatile` | !!️ | `Interlocked.Exchange` in `MemoryBus.Dispose` and `Device.Dispose`, `Volatile.Read/Write` in `NativeMemoryBuffer.Dispose` and `Processor` — on single-threaded WASM (without `SharedArrayBuffer`) these are no-ops, but the code works. With threaded WASM — atomic. |
+| `ConcurrentQueue<T>` | - | Two queues in `Processor` (`_externalCommands`, `_statusFromSimulation`). On single-threaded WASM — just a queue; on threaded — lock-free. |
+| `ManualResetEventSlim.Wait(...)` | !!️!!️ | In `Device.RunSimulationLoop`/`RunSimulationLoopWithLimit`/`RunSimulationLoopDebug` — `_wakeSignal.Wait(_processorPolicy.SleepWaitTimeout)` blocks the current thread when `IsSleeping`. In the browser — UI blocking. Replacement: `await Task.Delay` + async loop, or a Web Worker. |
+| `Thread.Sleep(delay)` | !!️!!️ | `RunSimulationLoopDebug` — `Thread.Sleep(delay)`. In the browser — UI blocking. |
+| `Stopwatch` | - | `Run` with `snowTimer: true` — `Stopwatch.StartNew()`; on WASM works via a `performance.now`-like timer. |
 | `IFileService` | n/a | There is no interface in this batch of files. If it appears in other layers, the WASM implementation is separate. |
-| `Regex` / trimming | ✅ | Regex is not used; no reflection, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-compatible. |
-| AOT | ✅ | No `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. The `switch` over opcodes in `Step` is AOT-friendly. Generic code — only `TryGetDevice<T>` (monomorphized for the `T` used). |
+| `Regex` / trimming | - | Regex is not used; there is no reflection, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-compatible. |
+| AOT | - | No `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. The `switch` over opcodes in `Step` is AOT-friendly. Generic code — only `TryGetDevice<T>` (monomorphized for the used `T`s). |
 
-**Summary:** the code builds for WASM and AOT, but the **synchronous blocking execution model** (`Run`, `Thread.Sleep`, `ManualResetEventSlim.Wait`) is not suitable for browser-WASM in single-threaded mode. `NativeMemory.AllocZeroed` works, but large `RamSize` (≥ `MB512`–`GB1`) risk `OutOfMemoryException`. For production in a browser — Web Worker + async loop + RAM ≤ ~256 MiB.
+**Summary:** the code builds for WASM and AOT, but the **synchronous blocking execution model** (`Run`, `Thread.Sleep`, `ManualResetEventSlim.Wait`) is not suitable for browser-WASM in single-threaded mode. `NativeMemory.AllocZeroed` works, but large `RamSize` (≥ `MB512`–`GB1`) risk `OutOfMemoryException`. For production in the browser — Web Worker + async loop + RAM ≤ ~256 MiB.
 
-### `Processor.Step` — Processing Order
+### `Processor.Step` — processing order
 
-1. `Volatile.Read(ref _hasCommand)` — if `true`, **first** `Volatile.Write(ref _hasCommand, false)` (reset before processing so that new commands arriving during processing are not lost), then `Volatile.Read(ref _hasExternalCommand)` -> `ProcessExternalCommandsSlow`, `Volatile.Read(ref _hasSimulationStatus)` -> `ProcessSimulationStatusSlow`.
+1. `Volatile.Read(ref _hasCommand)` — if `true`, **first** `Volatile.Write(ref _hasCommand, false)` (reset before processing, so that new commands arriving during processing are not lost), then `Volatile.Read(ref _hasExternalCommand)` -> `ProcessExternalCommandsSlow`, `Volatile.Read(ref _hasSimulationStatus)` -> `ProcessSimulationStatusSlow`.
 2. If `!_isRunning | _isSleeping` — exit (note: `|`, not `||`).
 3. `ip = rIP`; `rawInst = _ram.ReadInt32LEUnSafe(ip)`; `rIP += 4` (before calling the handler — the handler sees the next word already).
 4. `switch` over the opcode -> `BiosStatus`.
 5. If `dat != Success` — `_faultData = (dat, _lastFaultData, ip, opCode)`, `Volatile.Write(ref _isRunning, !IsTerminal(dat) && _processorPolicy.ShouldContinue(_faultData))`.
 
-**Immediate operands:** `Get64IntData()` reads `rIP`, aligns up to 8 (`AlignUp(8)`), reads `ulong` via `_ram.ReadInt64LEUnSafe`, then **assigns `rIP = aligned_ip + 8`** — called by the handlers of `LOAD`/`STORE`/`LDI`/`JMP`/`JZ`/`JNZ`/`JG`/`JL`/`CALL` and their `*_UNSAFE` variants. `LOAD_IND`/`STORE_IND`/`CALL_IND`/`JMP_IND` and their `*_UNSAFE` — indirect via a register, do not call `Get64IntData`.
+**Immediate operands:** `Get64IntData()` reads `rIP`, aligns up by 8 (`AlignUp(8)`), reads `ulong` via `_ram.ReadInt64LEUnSafe`, then **assigns `rIP = aligned_ip + 8`** — called by the `LOAD`/`STORE`/`LDI`/`JMP`/`JZ`/`JNZ`/`JG`/`JL`/`CALL` handlers and their `*_UNSAFE` variants. `LOAD_IND`/`STORE_IND`/`CALL_IND`/`JMP_IND` and their `*_UNSAFE` — indirect via a register, do not call `Get64IntData`.
 
-`CanRead64IntDataInst()` checks `AlignUp(rIP, 8) > _ram.Length - 8`; if `_ram.Length < 8`, underflow is possible (the check formally passes, the read goes out of bounds — it will not actually trigger only if `_ram.Length ≥ 8`).
+`CanRead64IntDataInst()` checks `AlignUp(rIP, 8) > _ram.Length - 8`; if `_ram.Length < 8`, underflow is possible (the check formally passes, the read will go out of bounds — there will be no actual trigger only if `_ram.Length ≥ 8`).
 
-### `rFL` Flags and Jumps
+### `rFL` flags and jumps
 
-`ZeroFlagSet` — `(rFL & 1) != 0`; `NegativeFlagSet` — `(rFL & 2) != 0`. `CMP`/`TEST` set `zeroFlag | (negativeFlag << 1)` via bit hacks. `JG` checks `!Negative & !Zero`, `JL` — `Negative` only, `JZ`/`JNZ` — `Zero`/`!Zero`. `rFL` is reset to `0` on `LaunchProgramm`.
+`ZeroFlagSet` — `(rFL & 1) != 0`; `NegativeFlagSet` — `(rFL & 2) != 0`. `CMP`/`TEST` set `zeroFlag | (negativeFlag << 1)` via bit hacks. `JG` checks `!Negative & !Zero`, `JL` — only `Negative`, `JZ`/`JNZ` — `Zero`/`!Zero`. `rFL` is reset to `0` on `LaunchProgramm`.
 
-### Stack and Heap
+### Stack and heap
 
-`rSP` is initialized in `LaunchProgramm` as `_ram.Length & ~0x7UL`; `rHP` — in `Device.InitHeap` as `(loadAddress + programLength).AlignUp(8)`. `PUSH`/`CALL` decrement `rSP` by 8 and check the `rHP >= sp` collision; `POP`/`RET` increment by 8. `RET` checks `sp >= _stackBase` (empty stack -> `StackUnderflow`). With `rHP = 0` (e.g., `BreakPointerLaunchDevice` without `LoadProgram`), the `rHP >= sp` check passes everything except `sp == 0`.
+`rSP` is initialized in `LaunchProgramm` as `_ram.Length & ~0x7UL`; `rHP` — in `Device.InitHeap` as `(loadAddress + programLength).AlignUp(8)`. `PUSH`/`CALL` decrease `rSP` by 8 and check the collision `rHP >= sp`; `POP`/`RET` increase it by 8. `RET` checks `sp >= _stackBase` (empty stack -> `StackUnderflow`). With `rHP = 0` (e.g., `BreakPointerLaunchDevice` without `LoadProgram`), the check `rHP >= sp` lets everything through except `sp == 0`.
 
-### Thread Safety
+### Thread safety
 
 - `Processor.Step`/`LaunchProgramm`/`Reset` — not thread-safe.
-- `EnqueueBiosStatus`/`EnqueueExternalCommand` — safe from another thread (queue + `Volatile.Write`), but `EnqueueBiosStatus` has an inverted flag write order (see [What to Fix](#what-to-fix)).
+- `EnqueueBiosStatus`/`EnqueueExternalCommand` — safe from another thread (queue + `Volatile.Write`), but `EnqueueBiosStatus` has an inverted flag write order (see [What to fix](#what-to-fix)).
 - `Device.Stop`/`WakeProcessor`/`EnqueueExternalCommand` — safe (delegate to `Processor` + `_wakeSignal.Set()`).
 - `PortBus.RegisterDevice`/`UnregisterDevice` — not thread-safe.
-- `ManagerDevices`/`Emulator` — not thread-safe (see `<remarks>`).
+- `ManagerDevices` — not thread-safe (see `<remarks>`).
 - `MemoryBus` — not thread-safe (`_lastStatus`/`_faultData` without synchronization).
-- `NativeMemoryBuffer.Dispose` — `Volatile.Read/Write` on `bool`, but check-then-act is not atomic; with simultaneous `Dispose` from two threads, double-free is possible.
+- `NativeMemoryBuffer.Dispose` — `Volatile.Read/Write` on `bool`, but check-then-act is not atomic; with simultaneous `Dispose` from two threads, a double-free is possible.
 - `Processor.CurrentProcessorSnapshot` — not thread-safe (reads registers without synchronization with `Step`); `_faultData` itself is also read without `Volatile`, so the snapshot may be slightly "smeared" relative to the last step.
 
-### Platform Limitations
+### Platform limitations
 
 - Target framework: `net10.0`; `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>`.
 - `unsafe` — only in `NativeMemoryBuffer`; `MemoryBus`/`PortBus`/`Processor`/`Device` — managed.
-- `[MethodImpl(AggressiveInlining)]`/`[AggressiveOptimization]` — JIT optimization; in AOT/WASM the inliner behaves differently.
+- `[MethodImpl(AggressiveInlining)]`/`[AggressiveOptimization]` — optimization for JIT; in AOT/WASM the inliner behaves differently.
 - `Nullable=enable`, `ImplicitUsings=enable`.
 
-### What This Module Does Not Do
+### What this module does not do
 
 - Does not contain an `IFileService` implementation — only works with RAM and ports.
 - Does not provide an async API — everything is synchronous (`Run`, `NextStep*`).

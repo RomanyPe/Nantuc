@@ -684,19 +684,19 @@ CodeGen_IncrementOfConst  = 1317,   // "Cannot increment/decrement const '{0}'"
 
 | Aspect | Status | Comment |
 |---|---|---|
-| Build in WASM | ✅ | No `unsafe`, `DllImport`, `LibraryImport`. `stackalloc` only in `Assembler.Align8` and `IRAssembler.Build` (0–7 bytes). |
-| `NativeMemory` | ✅ | Not used. |
-| `stackalloc` / `InlineArray` | ✅ | `stackalloc byte[pad]` (0..7 bytes) in `Assembler.Align8`; `stackalloc byte[7]` in `IRAssembler.Build`. |
-| `Interlocked` / `Volatile` | ✅ | Not used. |
-| `System.Collections.Frozen` | ✅ | `FrozenSet` + **`FrozenDictionary`** (`_regMap`/`_opMap`). |
-| `[GeneratedRegex]` | ✅ | `AssemblerParser.GetRexExtensionAsm()` — the only regex in the hot path. |
-| `Regex` without `Compiled` | ✅ | `AsmLanguageDefinition._mnemonicsRegex`/`regex`, `WordRegexBuilder.Build` — without `Compiled`. |
-| `Enum.ToString()` | ⚠️ | **Removed from diagnostics** — replaced by `TokenTypeExtension.AsText` / `OpCode.AsText`. |
-| `DiagnosticData` | ✅ | Ready string on creation, no boxing and no reflection. |
-| `AsmInstruction(uint, ulong, bool)` | ⚠️ | `TargetLabel = absoluteTarget.ToString()` — fallback, dead branch (item 7). |
-| Trimming | ⚠️ | `using System.Security.Cryptography;` in one of the `C/AST/` files — not used, but sloppy. |
-| AOT | ⚠️ | Main risk — `RegexOptions.Compiled`. |
-| `switch` on `OpCode`/`TokenType` | ✅ | Jump-table, AOT-friendly. |
+| Build in WASM | - | No `unsafe`, `DllImport`, `LibraryImport`. `stackalloc` only in `Assembler.Align8` and `IRAssembler.Build` (0–7 bytes). |
+| `NativeMemory` | - | Not used. |
+| `stackalloc` / `InlineArray` | - | `stackalloc byte[pad]` (0..7 bytes) in `Assembler.Align8`; `stackalloc byte[7]` in `IRAssembler.Build`. |
+| `Interlocked` / `Volatile` | - | Not used. |
+| `System.Collections.Frozen` | - | `FrozenSet` + **`FrozenDictionary`** (`_regMap`/`_opMap`). |
+| `[GeneratedRegex]` | - | `AssemblerParser.GetRexExtensionAsm()` — the only regex in the hot path. |
+| `Regex` without `Compiled` | - | `AsmLanguageDefinition._mnemonicsRegex`/`regex`, `WordRegexBuilder.Build` — without `Compiled`. |
+| `Enum.ToString()` | !!️ | **Removed from diagnostics** — replaced by `TokenTypeExtension.AsText` / `OpCode.AsText`. |
+| `DiagnosticData` | - | Ready string on creation, no boxing and no reflection. |
+| `AsmInstruction(uint, ulong, bool)` | !!️ | `TargetLabel = absoluteTarget.ToString()` — fallback, dead branch (item 7). |
+| Trimming | !!️ | `using System.Security.Cryptography;` in one of the `C/AST/` files — not used, but sloppy. |
+| AOT | !!️ | Main risk — `RegexOptions.Compiled`. |
+| `switch` on `OpCode`/`TokenType` | - | Jump-table, AOT-friendly. |
 
 **Result:** builds under WASM and AOT if `RegexOptions.Compiled` is removed.
 
@@ -833,14 +833,14 @@ What this gives for AOT:
 |---|---|---|
 | Storage | `MemoryStream` + `BinaryWriter` | `List<AsmItem>` |
 | Label patching | `_patches` in `Build()` | `labelAddresses` in the first pass (`ComputeLabelAddresses`) |
-| IR | ❌ | ✅ |
-| `HasNeed64IntData` check | ❌ (only on `EmitInstruction64`, `EmitInstruction64WithLabel` does not check — item 12) | ✅ on `EmitInstruction64` (also not on `EmitInstruction64WithLabel`) |
-| Duplicate label validation | ✅ | ✅ |
-| Two-pass Build | ❌ | ✅ (`Layout` -> `Emit`) |
-| `.data` via `AssemblerParser` | ✅ | ✅ |
+| IR | ❌ | - |
+| `HasNeed64IntData` check | ❌ (only on `EmitInstruction64`, `EmitInstruction64WithLabel` does not check — item 12) | - on `EmitInstruction64` (also not on `EmitInstruction64WithLabel`) |
+| Duplicate label validation | - | - |
+| Two-pass Build | ❌ | - (`Layout` -> `Emit`) |
+| `.data` via `AssemblerParser` | - | - |
 | `EmitData` | `Align8()` + `MarkLabel` + bytes | padding-`AsmData(alignment: 8)` + `MarkLabel` + `AsmData(data, alignment: 1)` |
 | Padding buffer | `stackalloc byte[pad]` (0..7) per call | `stackalloc byte[7]` once per `Build()` (alignment limit ≤ 8, item 21) |
-| `GetItems()` mutable | — | ✅ (internal `List<AsmItem>`) |
+| `GetItems()` mutable | — | - (internal `List<AsmItem>`) |
 
 ## What to fix
 

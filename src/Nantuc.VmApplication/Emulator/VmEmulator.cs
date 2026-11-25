@@ -2,19 +2,20 @@
 using Nantuc.Contracts;
 using Nantuc.Kernel.BiosSystem;
 using Nantuc.Kernel.ControllersData;
+using Nantuc.Kernel.Utilities;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Nantuc.VmApplication.Emulator;
 
 /// <summary>
-/// API эмулятора, СОЗДАВАТЬ ТОЛЬКО С ПОМОЩЬЮ <see cref="VmEmulatorBuilder"/>, только при владении <see cref="Kernel.Utilites.Emulator"/> создавать вручную.
+/// API эмулятора, СОЗДАВАТЬ ТОЛЬКО С ПОМОЩЬЮ <see cref="VmEmulatorBuilder"/>, только при владении <see cref="ManagerDevices"/> создавать вручную.
 /// </summary>
 /// <param name="emulator">Класс низкоуровнего эмулятора из слоя <![CDATA[Kernel]]></param>
-public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
+public sealed class VmEmulator(ManagerDevices emulator) : IDisposable
 {
-    private readonly Kernel.Utilites.Emulator _emulator = emulator;
+    private readonly ManagerDevices _emulator = emulator;
     internal PortBus RawPortBus => _emulator.PortBus;
-    internal Kernel.Utilites.Emulator RawEmulator => _emulator;
+    internal ManagerDevices RawManagerDevices => _emulator;
     /// <summary>
     /// Интерфейс шины портов
     /// </summary>
@@ -26,13 +27,13 @@ public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
     /// <param name="id">Id устройство в системе</param>
     /// <param name="newSector">Его новый сектор</param>
     /// <returns>Успех смены сектора</returns>
-    public bool ChangeDeviceSector(int id, uint newSector) => _emulator.ChangeDeviceSector(id, newSector);
+    public bool ChangeDeviceSector(int id, uint newSector) => _emulator.ChangeSector(id, newSector);
 
     /// <summary>
     /// Снапшот всех устройств в системе, содержит <see cref="DeviceInfo"/>
     /// </summary>
     public IReadOnlyList<DeviceInfo> GetAllDevices()
-        => _emulator.AllDeviceInfo;
+        => _emulator.GetAllDevices();
 
     /// <summary>
     /// Метод для регистрации устройства реализующего <see cref="IPortController"/>, не рекомендуется если регистрация происходит динамически, тоесть параметры не константны
@@ -45,7 +46,7 @@ public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
         string? name,
         uint sector)
     {
-        _emulator.RegisterDevice(ioDevice, name, sector, out int id);
+        _emulator.TryAddDevice(ioDevice, name, sector, out int id);
         return id;
     }
 
@@ -73,7 +74,7 @@ public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
         string? name,
         uint sector, out int id)
     {
-        return _emulator.RegisterDevice(ioDevice, name, sector, out id);
+        return _emulator.TryAddDevice(ioDevice, name, sector, out id);
     }
 
     /// <summary>
@@ -87,7 +88,7 @@ public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
         uint sector, out int id)
     {
         var device = _emulator.CreateDevice(spec.RamSize, spec.ProcessorFaultPolicy);
-        return _emulator.RegisterDevice(device, spec.Name, sector, out id);
+        return _emulator.TryAddDevice(device, spec.Name, sector, out id);
     }
     /// <summary>
     /// Метод для получения контекста Nantuc устройства, не рекомендуется если регистрация происходит динамически, тоесть параметры не константны
@@ -119,7 +120,7 @@ public sealed class VmEmulator(Kernel.Utilites.Emulator emulator) : IDisposable
     /// </summary>
     /// <param name="id">Id устройства</param>
     /// <returns>успех удаления</returns>
-    public bool UnregisterDevice(int id) => _emulator.UnregisterDevice(id);
+    public bool UnregisterDevice(int id) => _emulator.RemoveDevice(id);
 
     public void Dispose() => _emulator.Dispose();
 }

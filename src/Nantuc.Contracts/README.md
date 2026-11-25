@@ -241,10 +241,10 @@ Medium. Contracts are what the extension author and the `VmApplication` user see
 
 | Aspect | Status | Comment |
 |---|---|---|
-| Building for WASM | ✅ | No `unsafe`, `DllImport`, `LibraryImport`. All types are `interface`/`readonly struct`. Builds for `browser-wasm` without csproj changes. |
-| `Interlocked` / `Volatile` | ✅ | Not used. `IProcessorPolicy.Default` is a `static` property with a cached instance (static initializer). |
-| `Regex` / trimming | ✅ | Regex is not used; there is no reflection, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` validates the string character by character (`foreach (char c in value)`, without `Regex`). Trimming-compatible. |
-| AOT | ✅ | No `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |
+| Building for WASM | - | No `unsafe`, `DllImport`, `LibraryImport`. All types are `interface`/`readonly struct`. Builds for `browser-wasm` without csproj changes. |
+| `Interlocked` / `Volatile` | - | Not used. `IProcessorPolicy.Default` is a `static` property with a cached instance (static initializer). |
+| `Regex` / trimming | - | Regex is not used; there is no reflection, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` validates the string character by character (`foreach (char c in value)`, without `Regex`). Trimming-compatible. |
+| AOT | - | No `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |
 
 **Bottom line:** the contracts are fully compatible with WASM (interpreter and AOT) and trimming.
 

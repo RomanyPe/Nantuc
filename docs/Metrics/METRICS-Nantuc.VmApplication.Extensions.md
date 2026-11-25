@@ -8,7 +8,7 @@ Path: `src/Nantuc.VmApplication.Extension/Nantuc.VmApplication.Extensions.csproj
 | --- | ---: |
 | Members analysed | 198 |
 | C# files | 36 |
-| Total lines | 3964 |
+| Total lines | 3963 |
 | C# classes | 30 |
 | C# records | 6 |
 | C# enums | 3 |
@@ -54,10 +54,10 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 198 me
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\RemoveUnusedVariablesRule.cs | 109 | RemoveUnusedVariablesRule | RemoveUnusedFromBlock | 16 | 10 | 19 | 3 | 3 | 51.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\PropagateConstantsRule.cs | 40 | PropagateConstantsRule | CollectAssignedVariables | 16 | 9 | 20 | 3 | 2 | 51.9 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\IRAsmRules\ReplaceSafeMemAccessWithUnsafeRule.cs | 18 | ReplaceSafeMemAccessWithUnsafeRule | TryOptimize | 15 | 19 | 37 | 2 | 4 | 41.4 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Debugging\Debugger.cs | 169 | Debugger | Continue | 15 | 13 | 22 | 3 | 1 | 49.2 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Debugging\Debugger.cs | 168 | Debugger | Continue | 15 | 13 | 22 | 3 | 1 | 49.2 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\IRAsmRules\ConstantFoldingRule.cs | 15 | ConstantFoldingRule | TryOptimize | 14 | 19 | 38 | 1 | 4 | 40.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\PropagateConstantsRule.cs | 68 | PropagateConstantsRule | CollectConstantsFromBlock | 14 | 10 | 18 | 3 | 3 | 52.5 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Debugging\Debugger.cs | 105 | Debugger | StepOver | 13 | 13 | 20 | 2 | 0 | 50.3 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Debugging\Debugger.cs | 104 | Debugger | StepOver | 13 | 13 | 20 | 2 | 0 | 50.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\PropagateConstantsRule.cs | 94 | PropagateConstantsRule | ReplaceVariablesWithConstants | 13 | 11 | 32 | 3 | 2 | 44.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Bytecode\BytecodeExtension.cs | 18 | BytecodeExtension. | GetOpCodeSafety | 13 | 10 | 32 | 3 | 0 | 45.0 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Bytecode\BytecodeExtension.cs | 83 | BytecodeExtension. | GetUnsafeOpCodes | 13 | 10 | 38 | 3 | 1 | 43.0 |

@@ -1,9 +1,10 @@
 ﻿using Nantuc.Common;
 using Nantuc.Contracts;
+using Nantuc.Kernel.BiosSystem;
 using Nantuc.Kernel.ControllersData;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Nantuc.Kernel.Utilites;
+namespace Nantuc.Kernel.Utilities;
 
 /// <summary>
 /// Реестр устройств эмулятора: выделяет секторы портов, присваивает идентификаторы,
@@ -19,7 +20,7 @@ namespace Nantuc.Kernel.Utilites;
 /// Потокобезопасность не гарантируется; предполагается использование из одного потока-координатора.
 /// </para>
 /// </remarks>
-public class ManagerDevices(PortBus portBus) : IDisposable
+public class ManagerDevices : IDisposable
 {
     private sealed class DeviceEntry
     {
@@ -29,17 +30,26 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         public IPortController? Device;
         public bool IsFreed;
 
+        public DeviceInfo CreateInfo() => new(Id, Sector, Name);
+
         public bool IsValid => !IsFreed && Device != null;
     }
 
-    private readonly List<DeviceEntry> _devices = new((int)portBus.SectorCount);
-    private readonly int _count = (int)portBus.SectorCount;
+    private readonly List<DeviceEntry> _devices;
+    private readonly int _count;
     private int _nextId = 0;
-    private bool _disposed;
+    private bool _disposed = false;
     private int _liveCount;
     private bool _isDirty;
+    public PortBus PortBus { get; }
 
-    private readonly PortBus _portBus = portBus;
+    public ManagerDevices(PortSize ports, DevicePortSize portsOnDev)
+    {
+        var portBus = new PortBus(ports, portsOnDev);
+        _devices = new((int)portBus.SectorCount);
+        _count = (int)portBus.SectorCount;
+        PortBus = portBus;
+    }
 
     /// <summary>
     /// Количество живых (не освобождённых) устройств в реестре.
@@ -56,8 +66,23 @@ public class ManagerDevices(PortBus portBus) : IDisposable
             for (int i = 0; i < _devices.Count; i++)
                 if (_devices[i].IsValid) n++;
             _liveCount = n;
+            _isDirty = false;
             return _liveCount;
         }
+    }
+
+
+    /// <summary>
+    /// Создаёт новое вычислительное устройство с собственной ОЗУ и процессором.
+    /// </summary>
+    /// <param name="size">Размер ОЗУ устройства.</param>
+    /// <param name="processorFaultPolicy">Политика обработки сбоев процессора.</param>
+    /// <returns>Новый экземпляр <see cref="Device"/>.</returns>
+    public Device CreateDevice(
+        RamSize size,
+        IProcessorPolicy processorFaultPolicy)
+    {
+        return new Device(PortBus, size, processorFaultPolicy);
     }
 
     private DeviceEntry? FindEntry(int id)
@@ -94,7 +119,7 @@ public class ManagerDevices(PortBus portBus) : IDisposable
             var e = _devices[i];
             if (!e.IsValid) continue;
 
-            res.Add(new(e.Id, e.Sector, e.Name));
+            res.Add(e.CreateInfo());
         }
         return res;
     }
@@ -154,7 +179,7 @@ public class ManagerDevices(PortBus portBus) : IDisposable
             return IdState.NotAssigned;
         }
 
-        if (!_portBus.IsFreeSector(sector))
+        if (!PortBus.IsFreeSector(sector))
         {
             id = -2;
             return IdState.OutOfRange;
@@ -167,7 +192,7 @@ public class ManagerDevices(PortBus portBus) : IDisposable
             return IdState.NoFreeSlot;
         }
 
-        if (!_portBus.RegisterDevice(device, sector))
+        if (!PortBus.RegisterDevice(device, sector))
         {
             device.Dispose();
             id = -4;
@@ -210,7 +235,7 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         var e = FindValid(id);
         if (e == null) return false;
         _isDirty = true;
-        _portBus.UnregisterDevice(e.Sector);
+        PortBus.UnregisterDevice(e.Sector);
         e.Device?.Dispose();
         e.Device = null;
         e.Name = null;
@@ -235,11 +260,11 @@ public class ManagerDevices(PortBus portBus) : IDisposable
     {
         var e = FindValid(id);
         if (e == null) return false;
-        if (newSector >= _portBus.SectorCount) return false;
+        if (newSector >= PortBus.SectorCount) return false;
 
-        if (!_portBus.RegisterDevice(e.Device!, newSector)) return false;
+        if (!PortBus.RegisterDevice(e.Device!, newSector)) return false;
 
-        _portBus.UnregisterDevice(e.Sector);
+        PortBus.UnregisterDevice(e.Sector);
         e.Sector = newSector;
         return true;
     }
@@ -250,10 +275,13 @@ public class ManagerDevices(PortBus portBus) : IDisposable
     /// <remarks>Повторный вызов безопасен.</remarks>
     public void Dispose()
     {
-        if (_disposed) return;
+        if (Volatile.Read(ref _disposed)) return;
         _isDirty = true;
+        for (uint i = 0; i < PortBus.SectorCount; i++)
+            PortBus.UnregisterDevice(i);
+        
         for (int i = 0; i < _devices.Count; i++)
-        {
+        { 
             _devices[i].Device?.Dispose();
             _devices[i].Device = null;
             _devices[i].Name = null;
@@ -261,7 +289,7 @@ public class ManagerDevices(PortBus portBus) : IDisposable
         }
         _devices.Clear();
         _nextId = 0;
-        _disposed = true;
+        Volatile.Write(ref _disposed, true);
         GC.SuppressFinalize(this);
     }
 }

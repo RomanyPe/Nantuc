@@ -196,7 +196,7 @@ new Regex(
 2. `SaveFileProject` + `SaveFileInclude` для `monitor.nanasm` и `commander.nanasm`.
 3. `_frameBuffer = new byte[W*H]`, `_monitor = new MonochromeMonitor(W, H, OnFrameProduced)`, `_commander = new SnakeCommander()`.
 4. `RegisterDevice(DeviceSpec.Create(RamSize.MB16, ...), 0)` — VM, `RegisterDevice(_monitor, 1)`, `RegisterDevice(_commander, 2)`.
-   ⚠️ Используется **старый** `RegisterDevice` + `GetDeviceContext(cpuId)!` (не `Try*`), см. [Что исправить, п.1](#что-исправить).
+   !!️ Используется **старый** `RegisterDevice` + `GetDeviceContext(cpuId)!` (не `Try*`), см. [Что исправить, п.1](#что-исправить).
 5. `CompileToIR(0, optimize: false).Build()`; при ошибке — `_status = "Compile: ..."`.
 6. `TryLoadProgram`; при ошибке — `_status = "Load: ..."`.
 7. **`_ctx.RunStepMode(startAddress: 0)`** — переводит CPU в step-режим, инструкции выполняются только через `BatchStep`.

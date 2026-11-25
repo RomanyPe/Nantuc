@@ -3,7 +3,6 @@ using Nantuc.Diagnostics;
 using Nantuc.VmApplication;
 using Nantuc.VmApplication.Emulator.Abstraction;
 using Nantuc.VmApplication.Extensions.Diagnostics;
-using System.Collections.Frozen;
 
 namespace Nantuc.Tests;
 

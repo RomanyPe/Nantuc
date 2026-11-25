@@ -26,4 +26,5 @@ public interface IPortBus
     /// <param name="address">адрес порта</param>
     /// <returns>пробуждено ли устройство</returns>
     bool WakeProcessor(ulong address);
+
 }

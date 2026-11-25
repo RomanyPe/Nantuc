@@ -196,7 +196,7 @@ State fields:
 2. `SaveFileProject` + `SaveFileInclude` for `monitor.nanasm` and `commander.nanasm`.
 3. `_frameBuffer = new byte[W*H]`, `_monitor = new MonochromeMonitor(W, H, OnFrameProduced)`, `_commander = new SnakeCommander()`.
 4. `RegisterDevice(DeviceSpec.Create(RamSize.MB16, ...), 0)` — VM, `RegisterDevice(_monitor, 1)`, `RegisterDevice(_commander, 2)`.
-   ⚠️ The **old** `RegisterDevice` + `GetDeviceContext(cpuId)!` is used (not `Try*`), see [What to fix, item 1](#what-to-fix).
+   !!️ The **old** `RegisterDevice` + `GetDeviceContext(cpuId)!` is used (not `Try*`), see [What to fix, item 1](#what-to-fix).
 5. `CompileToIR(0, optimize: false).Build()`; on error — `_status = "Compile: ..."`.
 6. `TryLoadProgram`; on error — `_status = "Load: ..."`.
 7. **`_ctx.RunStepMode(startAddress: 0)`** — switches the CPU into step mode, instructions are executed only through `BatchStep`.

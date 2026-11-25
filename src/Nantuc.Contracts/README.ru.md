@@ -241,10 +241,10 @@ foreach (OptimizationLogEntry e in entries)
 
 | Аспект | Статус | Комментарий |
 |---|---|---|
-| Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — `interface`/`readonly struct`. Собирается под `browser-wasm` без правок csproj. |
-| `Interlocked` / `Volatile` | ✅ | Не используются. `IProcessorPolicy.Default` — `static`-свойство с кэшированным экземпляром (static initializer). |
-| `Regex` / trimming | ✅ | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` валидирует строку посимвольно (`foreach (char c in value)`), без `Regex`. Trimming-совместимо. |
-| AOT | ✅ | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |
+| Сборка в WASM | - | Нет `unsafe`, `DllImport`, `LibraryImport`. Все типы — `interface`/`readonly struct`. Собирается под `browser-wasm` без правок csproj. |
+| `Interlocked` / `Volatile` | - | Не используются. `IProcessorPolicy.Default` — `static`-свойство с кэшированным экземпляром (static initializer). |
+| `Regex` / trimming | - | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. `OptimizationId` валидирует строку посимвольно (`foreach (char c in value)`), без `Regex`. Trimming-совместимо. |
+| AOT | - | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `in ProcessorFault` — AOT-friendly. |
 
 **Итог:** контракты полностью совместимы с WASM (interpreter и AOT) и trimming.
 

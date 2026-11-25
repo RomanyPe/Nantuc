@@ -25,10 +25,9 @@ public sealed class Device : IPortController
     private readonly ManualResetEventSlim _wakeSignal = new(false);
     private readonly MemoryBus _ram;
     private readonly Processor _processor;
-    private readonly PortBus _portBus;
     private readonly IProcessorPolicy _processorPolicy;
     private long stepCounter = 0;
-    private int _disposed;
+    private int _disposed = 0;
 
     /// <summary>
     /// Прямой доступ к ОЗУ устройства только для чтения (нативное представление).
@@ -60,10 +59,9 @@ public sealed class Device : IPortController
     public Device(PortBus portBus, RamSize size, IProcessorPolicy processorFaultPolicy)
     {
         _processorPolicy = processorFaultPolicy;
-        _portBus = portBus;
         _ram = new MemoryBus(size);
-        _processor = new Processor(_ram, _portBus, _processorPolicy);
-        _ioMemory = new byte[_portBus.PortsOnDevice];
+        _processor = new Processor(_ram, portBus, _processorPolicy);
+        _ioMemory = new byte[portBus.PortsOnDevice];
     }
 
     /// <summary>
@@ -86,14 +84,14 @@ public sealed class Device : IPortController
     /// </exception>
     public void LoadProgram(ReadOnlySpan<byte> program, ulong loadAddress)
     {
+        ThrowIfDisposed();
         ulong ramLength = _ram.Length;
         ulong programLength = (ulong)program.Length;
 
-        if (loadAddress + programLength < loadAddress || loadAddress + programLength > ramLength)
-        {
+        if (loadAddress > ramLength || programLength > ramLength - loadAddress)
             throw new InvalidOperationException(
-                $"Failed to write the program to the address 0x{_ram.FaultData:X}");
-        }
+                $"Failed to write the program to the address 0x{loadAddress:X}");
+        
         _ram.LoadProgram(program, loadAddress);
         InitHeap(loadAddress, (ulong)program.Length);
     }
@@ -106,13 +104,14 @@ public sealed class Device : IPortController
     /// <returns><see langword="false"/>, если программа не помещается в ОЗУ; иначе <see langword="true"/>.</returns>
     public bool TryLoadProgram(ReadOnlySpan<byte> program, ulong loadAddress)
     {
+        if (Volatile.Read(ref _disposed) != 0) return false;
+
         ulong ramLength = _ram.Length;
         ulong programLength = (ulong)program.Length;
 
-        if (loadAddress + programLength < loadAddress || loadAddress + programLength > ramLength)
-        {
+        if (loadAddress > ramLength || programLength > ramLength - loadAddress)
             return false;
-        }
+        
         _ram.LoadProgram(program, loadAddress);
         InitHeap(loadAddress, (ulong)program.Length);
         return true;
@@ -133,7 +132,7 @@ public sealed class Device : IPortController
                     Action? onLaunch,
                     Action<TimeSimulationResult>? onEnd)
     {
-
+        ThrowIfDisposed();
         onLaunch?.Invoke();
         stepCounter = 0;
 
@@ -179,6 +178,7 @@ public sealed class Device : IPortController
                         Action<ProcessorSnapshot>? onStep,
                         Action? onEnd)
     {
+        ThrowIfDisposed();
         bool useSleepMode = delay != 0;
 
         onLaunch?.Invoke();
@@ -202,6 +202,7 @@ public sealed class Device : IPortController
     /// <param name="titleAct">Необязательный колбэк, вызываемый перед инициализацией.</param>
     public void BreakPointerLaunchDevice(ulong? start, Action? titleAct)
     {
+        ThrowIfDisposed();
         titleAct?.Invoke();
         stepCounter = 0;
         ulong startIndex = start ?? 0;
@@ -403,6 +404,10 @@ public sealed class Device : IPortController
         _processor.Reset();
     }
 
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+    }
     /// <summary>
     /// Возвращает диагностические данные о последнем сбое/остановке процессора.
     /// </summary>

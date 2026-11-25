@@ -10,6 +10,29 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.24.0] - 2026-11-26
+
+### Добавлено
+- `ThrowIfDisposed` в `Device`
+- Проверки освобождения (disposal) в методах выполнения и загрузки программ (!без проверок для `Step` или уже запущенного устройства!)
+- Фабричный метод `Device CreateDevice(RamSize, IProcessorPolicy)` в `ManagerDevices`
+- Потокобезопасная реализация `Dispose` в `ManagerDevices` с использованием класса `Volatile`
+
+### Изменено
+- Переработан класс `PortBus`: его 6 полей заменены свойствами, возвращающими результаты битового сдвига
+- Немного переписано условие в `Device.LoadProgram` и `Device.TryLoadProgram` для более безопасного и предсказуемого поведения
+- **BREAKING:** Переименовано пространство имён `Nantuc.Kernel.Utilies` (`Utilies` -> `Utilities`)
+- **BREAKING:** Переименован метод `VmEmulatorUnsafeExtension.GetRawEmulator` (`GetRawEmulator` -> `GetRawManagerDevices`)
+- **BREAKING:** Первичный конструктор `ManagerDevices(PortBus)` заменён на `ManagerDevices(PortSize, DevicePortSize)` в `ManagerDevices`
+- **BREAKING:** Исправлена опечатка в имени класса `VmPojectUnsafeExtension` -> `VmProjectUnsafeExtension`
+
+### Удалено
+- Приватное поле `PortBus` в `Device`
+- **BREAKING:** Файл `Emulator.cs` и класс `Emulator`
+
+### Исправлено
+- `ManagerDevices.Count`: флаг `_isDirty` не сбрасывался обратно в `false` после пересчёта
+
 ## [0.23.0] - 2026-11-25
 
 ### Добавлено

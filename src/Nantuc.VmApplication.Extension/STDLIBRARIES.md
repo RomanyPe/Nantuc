@@ -125,7 +125,7 @@ ulong HDR_FTR = 16;       // 8 hdr + 8 ftr
 
 `mergeRight` stops at `heapCur` (the bump has not advanced further). `mergeLeft` stops at `heapStart` (there is no left neighbor).
 
-> ⚠️ In the current string constant `alloc_minic`, at the beginning of `free` there is the line `if (blkFree(b)) return;` **before** the declaration of `b` — this is a bug (reference to an undeclared variable) that needs to be removed; the target behavior is described above.
+> !!️ In the current string constant `alloc_minic`, at the beginning of `free` there is the line `if (blkFree(b)) return;` **before** the declaration of `b` — this is a bug (reference to an undeclared variable) that needs to be removed; the target behavior is described above.
 
 ## io.nanasm
 

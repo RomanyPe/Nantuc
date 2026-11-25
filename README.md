@@ -223,7 +223,7 @@ All modules are published as NuGet packages on [nuget.org](https://www.nuget.org
 | `Nantuc.Common` | Opcodes, registers, RAM/port sizes, `BiosStatus`, `ProcessorFault`, `IdState` (default-safe), decoder | [README](src/Nantuc.Common/README.md) |
 | `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.md) |
 | `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ErrorReporter`, `CodeException` | [README](src/Nantuc.Diagnostics/README.md) |
-| `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` -> `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` -> `ProcessorFault`) | [README](src/Nantuc.Kernel/README.md) |
+| `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` -> `IdState`), `Device` (`Run`/`DebugRun` -> `ProcessorFault`) | [README](src/Nantuc.Kernel/README.md) |
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.md) |
 | `Nantuc.VmApplication.Extensions` | Disassembler, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extension/README.md) |

@@ -10,6 +10,29 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.24.0] - 2026-11-26
+
+### Added
+- `ThrowIfDisposed` to `Device`
+- Disposal checks to execution and program-loading methods (!no checks for `Step` or an already running device!)
+- Factory method `Device CreateDevice(RamSize, IProcessorPolicy)` to `ManagerDevices`
+- Thread-safe `Dispose` implementation to `ManagerDevices` using the `Volatile` class
+
+### Changed
+- Refactored the `PortBus` class: replaced its 6 fields with properties that return bit-shift results
+- Slightly rewrote the condition in `Device.LoadProgram` and `Device.TryLoadProgram` for a safer and more predictable behavior
+- **BREAKING:** Renamed namespace `Nantuc.Kernel.Utilies` (`Utilies` -> `Utilities`)
+- **BREAKING:** Renamed method `VmEmulatorUnsafeExtension.GetRawEmulator` (`GetRawEmulator` -> `GetRawManagerDevices`)
+- **BREAKING:** Replaced the primary constructor `ManagerDevices(PortBus)` with `ManagerDevices(PortSize, DevicePortSize)` in `ManagerDevices`
+- **BREAKING:** Fixed a typo in the class name `VmPojectUnsafeExtension` -> `VmProjectUnsafeExtension`
+
+### Removed
+- Private `PortBus` field in `Device`
+- **BREAKING:** `Emulator.cs` file and the `Emulator` class
+
+### Fixed
+- `ManagerDevices.Count`: `_isDirty` flag was not reset back to `false` after recalculation
+
 ## [0.23.0] - 2026-11-25
 
 ### Added

@@ -223,7 +223,7 @@ nantuc lib exist print.minic
 | `Nantuc.Common` | Опкоды, регистры, размеры RAM/портов, `BiosStatus`, `ProcessorFault`, `IdState` (default-safe), декодер | [README](src/Nantuc.Common/README.ru.md) |
 | `Nantuc.Contracts` | `IPortBus`, `IPortUse`, `IPortController`, `ProcessorSnapshot`, `IProcessorPolicy`, `OptimizationId` | [README](src/Nantuc.Contracts/README.ru.md) |
 | `Nantuc.Diagnostics` | `ErrorCode`, `DiagnosticData` (AOT-safe), `IErrorMessageProvider`, `ErrorReporter`, `CodeException` | [README](src/Nantuc.Diagnostics/README.ru.md) |
-| `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` -> `IdState`), `Emulator`, `Device` (`Run`/`DebugRun` -> `ProcessorFault`) | [README](src/Nantuc.Kernel/README.ru.md) |
+| `Nantuc.Kernel` | `Processor`, `MemoryBus`, `PortBus`, `ManagerDevices` (`TryAddDevice` -> `IdState`), `Device` (`Run`/`DebugRun` -> `ProcessorFault`) | [README](src/Nantuc.Kernel/README.ru.md) |
 | `Nantuc.Compiler` | `Lexer`, `Parser`, AST, `FunctionGenerator`, `Assembler`, `IRAssembler`, `AssemblerParser`, `IROptimizer`, `AstOptimizer`, `const`-correctness | [README](src/Nantuc.Compiler/README.ru.md) |
 | `Nantuc.VmApplication` | `VmHost`, `DeviceContext`, `VmEmulator` (`TryRegisterDevice`/`TryGetDeviceContext`), `VmHostProject`, `CompilationResult`, `DeviceSpec` | [README](src/Nantuc.VmApplication/README.ru.md) |
 | `Nantuc.VmApplication.Extensions` | Дизассемблер, `Debugger`, `SynchronousIOStream`/`QueuedIOStream`, `AddStdRules`, `Libraries`, `RunAndKeep`/`RunOnce` | [README](src/Nantuc.VmApplication.Extension/README.ru.md) |

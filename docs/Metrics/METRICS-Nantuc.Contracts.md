@@ -8,7 +8,7 @@ Path: `src/Nantuc.Contracts/Nantuc.Contracts.csproj`
 | --- | ---: |
 | Members analysed | 18 |
 | C# files | 11 |
-| Total lines | 258 |
+| Total lines | 259 |
 | C# classes | 1 |
 | C# records | 4 |
 | C# enums | 0 |

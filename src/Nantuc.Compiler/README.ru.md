@@ -684,19 +684,19 @@ CodeGen_IncrementOfConst  = 1317,   // "Cannot increment/decrement const '{0}'"
 
 | Аспект | Статус | Комментарий |
 |---|---|---|
-| Сборка в WASM | ✅ | Нет `unsafe`, `DllImport`, `LibraryImport`. `stackalloc` только в `Assembler.Align8` и `IRAssembler.Build` (0–7 байт). |
-| `NativeMemory` | ✅ | Не используется. |
-| `stackalloc` / `InlineArray` | ✅ | `stackalloc byte[pad]` (0..7 байт) в `Assembler.Align8`; `stackalloc byte[7]` в `IRAssembler.Build`. |
-| `Interlocked` / `Volatile` | ✅ | Не используются. |
-| `System.Collections.Frozen` | ✅ | `FrozenSet` + **`FrozenDictionary`** (`_regMap`/`_opMap`). |
-| `[GeneratedRegex]` | ✅ | `AssemblerParser.GetRexExtensionAsm()` — единственный regex в горячем пути. |
-| `Regex` без `Compiled` | ✅ | `AsmLanguageDefinition._mnemonicsRegex`/`regex`, `WordRegexBuilder.Build` — без `Compiled`. |
-| `Enum.ToString()` | ⚠️ | **Убран из диагностики** — заменён на `TokenTypeExtension.AsText` / `OpCode.AsText`. |
-| `DiagnosticData` | ✅ | Готовая строка при создании, без боксинга и рефлексии. |
-| `AsmInstruction(uint, ulong, bool)` | ⚠️ | `TargetLabel = absoluteTarget.ToString()` — fallback, мёртвая ветка (п. 7). |
-| Trimming | ⚠️ | `using System.Security.Cryptography;` в одном из файлов `C/AST/` — не используется, но sloppy. |
-| AOT | ⚠️ | Основной риск — `RegexOptions.Compiled`. |
-| `switch` по `OpCode`/`TokenType` | ✅ | Jump-table, AOT-friendly. |
+| Сборка в WASM | - | Нет `unsafe`, `DllImport`, `LibraryImport`. `stackalloc` только в `Assembler.Align8` и `IRAssembler.Build` (0–7 байт). |
+| `NativeMemory` | - | Не используется. |
+| `stackalloc` / `InlineArray` | - | `stackalloc byte[pad]` (0..7 байт) в `Assembler.Align8`; `stackalloc byte[7]` в `IRAssembler.Build`. |
+| `Interlocked` / `Volatile` | - | Не используются. |
+| `System.Collections.Frozen` | - | `FrozenSet` + **`FrozenDictionary`** (`_regMap`/`_opMap`). |
+| `[GeneratedRegex]` | - | `AssemblerParser.GetRexExtensionAsm()` — единственный regex в горячем пути. |
+| `Regex` без `Compiled` | - | `AsmLanguageDefinition._mnemonicsRegex`/`regex`, `WordRegexBuilder.Build` — без `Compiled`. |
+| `Enum.ToString()` | !!️ | **Убран из диагностики** — заменён на `TokenTypeExtension.AsText` / `OpCode.AsText`. |
+| `DiagnosticData` | - | Готовая строка при создании, без боксинга и рефлексии. |
+| `AsmInstruction(uint, ulong, bool)` | !!️ | `TargetLabel = absoluteTarget.ToString()` — fallback, мёртвая ветка (п. 7). |
+| Trimming | !!️ | `using System.Security.Cryptography;` в одном из файлов `C/AST/` — не используется, но sloppy. |
+| AOT | !!️ | Основной риск — `RegexOptions.Compiled`. |
+| `switch` по `OpCode`/`TokenType` | - | Jump-table, AOT-friendly. |
 
 **Итог:** собирается под WASM и AOT, если убрать `RegexOptions.Compiled`.
 
@@ -833,14 +833,14 @@ public readonly record struct DiagnosticData
 |---|---|---|
 | Хранение | `MemoryStream` + `BinaryWriter` | `List<AsmItem>` |
 | Патч меток | `_patches` в `Build()` | `labelAddresses` в первом проходе (`ComputeLabelAddresses`) |
-| IR | ❌ | ✅ |
-| Проверка `HasNeed64IntData` | ❌ (только при `EmitInstruction64`, `EmitInstruction64WithLabel` не проверяет — п. 12) | ✅ при `EmitInstruction64` (тоже не при `EmitInstruction64WithLabel`) |
-| Валидация дублей меток | ✅ | ✅ |
-| Двухпроходный Build | ❌ | ✅ (`Layout` -> `Emit`) |
-| `.data` через `AssemblerParser` | ✅ | ✅ |
+| IR | ❌ | - |
+| Проверка `HasNeed64IntData` | ❌ (только при `EmitInstruction64`, `EmitInstruction64WithLabel` не проверяет — п. 12) | - при `EmitInstruction64` (тоже не при `EmitInstruction64WithLabel`) |
+| Валидация дублей меток | - | - |
+| Двухпроходный Build | ❌ | - (`Layout` -> `Emit`) |
+| `.data` через `AssemblerParser` | - | - |
 | `EmitData` | `Align8()` + `MarkLabel` + bytes | padding-`AsmData(alignment: 8)` + `MarkLabel` + `AsmData(data, alignment: 1)` |
 | Padding-буфер | `stackalloc byte[pad]` (0..7) per call | `stackalloc byte[7]` один на `Build()` (лимит alignment ≤ 8, п. 21) |
-| `GetItems()` мутируемый | — | ✅ (внутренний `List<AsmItem>`) |
+| `GetItems()` мутируемый | — | - (внутренний `List<AsmItem>`) |
 
 ## Что исправить
 

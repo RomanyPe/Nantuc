@@ -180,7 +180,7 @@ dotnet ./out/BenchmarksProject.dll
 
 - The target framework is `net10.0` (see `BenchmarksProject.csproj`). It **unconditionally** has `<Optimize>true</Optimize>`, so `-c Release` mainly affects output paths, not codegen. Nevertheless, `-c Release` is a convention that most readers expect, and it is worth following.
 - `Sum` is marked `[MethodImpl(MethodImplOptions.NoInlining)]` — intentionally, to measure call overhead. The other benchmark methods are invoked via `Func<long>[]`, which also inhibits inlining.
-- ⚠️ **Warmup: one call is not enough.** RyuJIT compiles a method on first call, and tiers (tiering) take seconds to warm up. For fair numbers, use **BenchmarkDotNet** (`[Benchmark]`, `[WarmupCount]`, `[IterationCount]`, `[MemoryDiagnoser]`): it warms up itself, isolates the JIT phase, and provides statistics. The numbers from the current one-off measurement are a guide, not the truth.
+- !!️ **Warmup: one call is not enough.** RyuJIT compiles a method on first call, and tiers (tiering) take seconds to warm up. For fair numbers, use **BenchmarkDotNet** (`[Benchmark]`, `[WarmupCount]`, `[IterationCount]`, `[MemoryDiagnoser]`): it warms up itself, isolates the JIT phase, and provides statistics. The numbers from the current one-off measurement are a guide, not the truth.
 
 ### Java
 
@@ -191,7 +191,7 @@ java Benchmarks
 ```
 
 - `javac` does not need flags: `int` overflow in Java is defined as wrapping, so no `-fwrapv` equivalent is required.
-- ⚠️ **Warmup: one call is not enough.** HotSpot C2 compiles a method after ~10,000 calls/iterations. For fair numbers, use **JMH** (`org.openjdk.jmh`): `@Benchmark`, `@Warmup`, `@Fork`, `@BenchmarkMode(Mode.AverageTime)`, `@State`.
+- !!️ **Warmup: one call is not enough.** HotSpot C2 compiles a method after ~10,000 calls/iterations. For fair numbers, use **JMH** (`org.openjdk.jmh`): `@Benchmark`, `@Warmup`, `@Fork`, `@BenchmarkMode(Mode.AverageTime)`, `@State`.
 - If you want to force C2 in the current one-off measurement, add `-Xbatch`: compilation happens synchronously on the first "hot" call. Note that this **changes the picture**: without a profile, deoptimizations behave differently than in "normal" mode. For comparisons, JMH is better than `-Xbatch`.
 
 ### Rust

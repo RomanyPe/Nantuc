@@ -8,7 +8,7 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 | --- | ---: |
 | Members analysed | 155 |
 | C# files | 25 |
-| Total lines | 3172 |
+| Total lines | 3171 |
 | C# classes | 34 |
 | C# records | 0 |
 | C# enums | 0 |
@@ -55,10 +55,10 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 155 me
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\DefaultErrorMessageProviderTests.cs | 8 | DefaultErrorMessageProviderTests | AllDefinedCodes | 1 | 2 | 4 | 1 | 0 | 72.7 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\DefaultErrorMessageProviderTests.cs | 26 | DefaultErrorMessageProviderTests | DefaultTemplates_HasEntryForEveryDefinedCode | 1 | 2 | 3 | 1 | 0 | 75.4 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Module.Diagnostics\DefaultErrorMessageProviderTests.cs | 128 | DefaultErrorMessageProviderTests.MarkerProvider | TryGetTemplate | 1 | 2 | 3 | 1 | 1 | 77.7 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 12 | TestHost | OpCode_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 24 | TestHost | RegType_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 35 | TestHost | OpCodeSizeSize_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 46 | TestHost | BiosStatus_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 11 | TestHost | OpCode_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 23 | TestHost | RegType_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 34 | TestHost | OpCodeSizeSize_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 45 | TestHost | BiosStatus_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\VMHostTests.cs | 246 | VMHostTests | RunAndKeep_ShouldKeepDeviceAlive | 1 | 2 | 16 | 1 | 0 | 54.9 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmSecurityTests.cs | 305 | VmSecurityTests | RegisterVm | 1 | 1 | 1 | 0 | 2 | 90.8 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmTestBase.cs | 93 | UnsafeOpCodeTests | RegisterVm | 1 | 1 | 1 | 0 | 2 | 90.8 |
