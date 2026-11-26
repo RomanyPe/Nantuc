@@ -60,7 +60,7 @@ public sealed partial class Processor
         if (t >= _ram.Length)
             return RecordFaultContext(BiosStatus.SegmentationFault, t);
 
-        if (CarryFlagSet) _registers[RegType.rIP.Int()] = t;
+        if (NegativeFlagSet) _registers[RegType.rIP.Int()] = t;
         return BiosStatus.Success;
     }
 
@@ -77,7 +77,7 @@ public sealed partial class Processor
         // Использование битового & здесь нужно для производительности:
         // - отсутсвие короткого пути из за которого происходят проблемы с предсказателем перехода
         // - вычисление обоих флагов очень легкая операция и короткий путь здесь не сильно влияет
-        if (!CarryFlagSet & !ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
+        if (!NegativeFlagSet & !ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
         return BiosStatus.Success;
     }
 

@@ -9,6 +9,10 @@ Order of sections within a version:
 
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
+## [0.25.1] - 2026-11-26 [HOT FIX]
+
+### Changed
+- Reverted `JL` and `JG` behavior to their previous state
 
 ## [0.25.0] - 2026-11-26
 
