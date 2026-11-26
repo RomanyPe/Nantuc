@@ -6,7 +6,7 @@
 > [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.md), [Compiler](../../src/Nantuc.Compiler/README.md), [Kernel](../../src/Nantuc.Kernel/README.md)
 
 > [!IMPORTANT]
-> Due to WebAssembly platform specifics, multithreading must be enabled in your `.csproj` file. Otherwise, a `PlatformNotSupportedException` will be thrown at runtime when using threads or synchronization primitives:
+> Due to WebAssembly limitations, the multithreading flag must be enabled in the project file (`.csproj`) when using the synchronous `Device` (`AsyncDevice` does not have this issue); otherwise, a `PlatformNotSupportedException` will be thrown at runtime when working with threads and locks:
 > ```xml
 > <PropertyGroup>
 >   <WasmEnableThreads>true</WasmEnableThreads>

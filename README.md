@@ -7,7 +7,7 @@
 > Written in C# (.NET 10). Compiler and runtime are separated into layers, `unsafe` code is isolated in the core, and the public API is a thin facade with safe `Try*` methods and `IdState` diagnostics.
 
 > [!IMPORTANT]
-> Due to WebAssembly platform specifics, multithreading must be enabled in your `.csproj` file. Otherwise, a `PlatformNotSupportedException` will be thrown at runtime when using threads or synchronization primitives:
+> Due to WebAssembly limitations, the multithreading flag must be enabled in the project file (`.csproj`) when using the synchronous `Device` (`AsyncDevice` does not have this issue); otherwise, a `PlatformNotSupportedException` will be thrown at runtime when working with threads and locks:
 > ```xml
 > <PropertyGroup>
 >   <WasmEnableThreads>true</WasmEnableThreads>
@@ -309,10 +309,10 @@ BenchmarkDotNet artifacts are in `BenchmarkDotNet.Artifacts/`. The IDE profile `
 Additional examples (full cycle with diagnostics, step-by-step debugging, custom optimization, Pause/Resume) — in the READMEs of the corresponding modules (`VmApplication`, `VmApplication.Extensions`, `CLI`).
 
 ## Metrics and quality
-- **Test coverage (xUnit):** **494 automated tests** in two projects (`Nantuc.Tests` — 458, `Nantuc.CLI.Tests` — 36); the full run takes ~3 seconds:
+- **Test coverage (xUnit):** **499 automated tests** in two projects (`Nantuc.Tests` — 463, `Nantuc.CLI.Tests` — 36); the full run takes ~3 seconds:
   - **Compiler (276):** `const`-correctness checks (61), operators (49), type casts (46), pointers (27), control flow, function pointers, structures, arrays, and overflows.
   - **Diagnostics (90):** error message providers (50), AOT-safe diagnostic data (20), exception handling and compiler error checks.
-  - **VM and host (47):** memory isolation and safety (`VmSecurityTests`), protection against unsafe opcodes (`UnsafeOpCodeTests`), `HALT/WAKE` loop and language spec divergence control.
+  - **VM and host (52):** memory isolation and safety (`VmSecurityTests`), protection against unsafe opcodes (`UnsafeOpCodeTests`), `HALT/WAKE` loop and language spec divergence control.
   - **Utilities and CLI (76):** virtual file system (`RamFileServiceTests`, 40) and end-to-end CLI command tests (36).
   - **Consistency checks (5):** verify that all system `enum` members have their own `MaxValue` and `AsText`.
 - Full metrics table — [docs/METRICS.md](docs/METRICS.md).

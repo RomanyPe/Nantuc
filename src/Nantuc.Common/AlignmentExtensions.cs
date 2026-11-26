@@ -75,7 +75,8 @@ public static class AlignmentExtensions
         public T AlignUp(T alignment)
         {
             ThrowIfInvalidAlignment(alignment);
-            return (value + (alignment - T.One)) & ~(alignment - T.One);
+            T mask = alignment - T.One;
+            return (value + mask) & ~mask;
         }
 
         /// <summary>

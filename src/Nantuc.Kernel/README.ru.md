@@ -197,7 +197,7 @@ device.LoadProgram(program, loadAddress: 0x0);
 ProcessorFault fault = device.Run(
     start: 0,
     limit: 10_000,
-    snowTimer: true,
+    showTimer: true,
     onLaunch: () => Console.WriteLine("start"),
     onEnd: r => Console.WriteLine($"steps={r.Steps}, elapsed={r.Elapsed}"));
 
@@ -207,7 +207,7 @@ Console.WriteLine($"{fault.Status} @ 0x{fault.InstructionPointer:X}");
 **Пошаговое выполнение в режиме отладки:**
 
 ```csharp
-device.BreakPointerLaunchDevice(start: 0, titleAct: null);
+device.BreakPointerLaunchDevice(start: 0, onLaunch: null);
 
 device.StepDebug(step => Console.WriteLine($"IP=0x{step.GetRegister(RegType.rIP):X}"));
 device.BatchStepDebug(3, onStep: null);
@@ -215,7 +215,7 @@ device.BatchStepDebug(3, onStep: null);
 **Быстрое пошаговое выполнение:**
 
 ```csharp
-device.BreakPointerLaunchDevice(start: 0, titleAct: null);
+device.BreakPointerLaunchDevice(start: 0, onLaunch: null);
 
 device.Step();
 device.BatchStep(3);
@@ -296,7 +296,7 @@ if (st != BiosStatus.Success)
 | `ConcurrentQueue<T>` | - | Две очереди в `Processor` (`_externalCommands`, `_statusFromSimulation`). На single-threaded WASM — просто очередь; на threaded — lock-free. |
 | `ManualResetEventSlim.Wait(...)` | !!️!!️ | В `Device.RunSimulationLoop`/`RunSimulationLoopWithLimit`/`RunSimulationLoopDebug` — `_wakeSignal.Wait(_processorPolicy.SleepWaitTimeout)` блокирует текущий поток при `IsSleeping`. В браузере — блокировка UI. Замена: `await Task.Delay` + async-цикл, либо Web Worker. |
 | `Thread.Sleep(delay)` | !!️!!️ | `RunSimulationLoopDebug` — `Thread.Sleep(delay)`. В браузере — блокировка UI. |
-| `Stopwatch` | - | `Run` при `snowTimer: true` — `Stopwatch.StartNew()`; на WASM работает через `performance.now`-подобный таймер. |
+| `Stopwatch` | - | `Run` при `showTimer: true` — `Stopwatch.StartNew()`; на WASM работает через `performance.now`-подобный таймер. |
 | `IFileService` | n/a | В этой партии файлов интерфейса нет. При появлении в других слоях WASM-реализация — отдельно. |
 | `Regex` / trimming | - | Regex не используется; нет рефлексии, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-совместимо. |
 | AOT | - | Нет `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. `switch` по опкодам в `Step` — AOT-friendly. Generic-код — только `TryGetDevice<T>` (моноформируется под используемые `T`). |

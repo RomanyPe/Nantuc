@@ -26,7 +26,7 @@ public sealed class Device : IPortController
     private readonly MemoryBus _ram;
     private readonly Processor _processor;
     private readonly IProcessorPolicy _processorPolicy;
-    private long stepCounter = 0;
+    private long _stepCounter = 0;
     private int _disposed = 0;
 
     /// <summary>
@@ -47,7 +47,7 @@ public sealed class Device : IPortController
     /// <summary>
     /// Количество выполненных инструкций с момента последнего запуска.
     /// </summary>
-    public long StepCount => stepCounter;
+    public long StepCount => _stepCounter;
 
 
     /// <summary>
@@ -122,45 +122,43 @@ public sealed class Device : IPortController
     /// </summary>
     /// <param name="start">Адрес первой инструкции.</param>
     /// <param name="limit">Лимит шагов; <see langword="null"/> — без ограничения. При превышении генерируется <see cref="BiosStatus.InfinityLoop"/>.</param>
-    /// <param name="snowTimer"><see langword="true"/>, чтобы замерить время выполнения через <see cref="Stopwatch"/>.</param>
+    /// <param name="showTimer"><see langword="true"/>, чтобы замерить время выполнения через <see cref="Stopwatch"/>.</param>
     /// <param name="onLaunch">Необязательный колбэк, вызываемый перед запуском.</param>
     /// <param name="onEnd">Необязательный колбэк, получающий результат замера времени (или <see langword="null"/>, если таймер не включён).</param>
     /// <returns>Диагностические данные о последнем сбое/остановке.</returns>
     public ProcessorFault Run(ulong startIndex,
                     long? limit,
-                    bool snowTimer,
+                    bool showTimer,
                     Action? onLaunch,
                     Action<TimeSimulationResult>? onEnd)
     {
-        ThrowIfDisposed();
-        onLaunch?.Invoke();
-        stepCounter = 0;
+        GlobalInit(onLaunch, startIndex);
 
-        _wakeSignal.Reset();
-        _processor.Reset();
-        _processor.LaunchProgramm(startIndex);
+        Stopwatch? sw = showTimer ? Stopwatch.StartNew() : null;
+        if (limit.HasValue) RunSimulationLoopWithLimit(limit.Value);
+        else RunSimulationLoop();
 
-        Stopwatch? sw = snowTimer ? Stopwatch.StartNew() : null;
-        if (limit.HasValue)
-            RunSimulationLoopWithLimit(limit.Value);
-        else
-            RunSimulationLoop();
-
-        TimeSimulationResult timeSpan;
-        if (sw != null)
-        {
-            sw.Stop();
-            timeSpan = new(sw.Elapsed, stepCounter);
-        }
-        else
-        {
-            timeSpan = new(TimeSpan.Zero, stepCounter);
-        }
+        TimeSimulationResult timeSpan = CreateTimeSimulationResult(sw);
 
         onEnd?.Invoke(timeSpan);
         return _processor.GetDiagnosticData();
     }
 
+    private TimeSimulationResult CreateTimeSimulationResult(Stopwatch? sw)
+    {
+        TimeSimulationResult timeSpan;
+        if (sw != null)
+        {
+            sw.Stop();
+            timeSpan = new(sw.Elapsed, Interlocked.Read(ref _stepCounter));
+        }
+        else
+        {
+            timeSpan = new(TimeSpan.Zero, Interlocked.Read(ref _stepCounter));
+        }
+
+        return timeSpan;
+    }
     /// <summary>
     /// Запускает программу в режиме отладки с задержкой между шагами и колбэком на каждый шаг.
     /// </summary>
@@ -178,15 +176,8 @@ public sealed class Device : IPortController
                         Action<ProcessorSnapshot>? onStep,
                         Action? onEnd)
     {
-        ThrowIfDisposed();
+        GlobalInit(onLaunch, start);
         bool useSleepMode = delay != 0;
-
-        onLaunch?.Invoke();
-        stepCounter = 0;
-
-        _wakeSignal.Reset();
-        _processor.Reset();
-        _processor.LaunchProgramm(start);
         RunSimulationLoopDebug(delay, useSleepMode, stepLimit, onStep);
 
         onEnd?.Invoke();
@@ -199,15 +190,10 @@ public sealed class Device : IPortController
     /// удобно для ручного пошагового выполнения.
     /// </summary>
     /// <param name="start">Адрес первой инструкции; <see langword="null"/> — старт с конца ОЗУ.</param>
-    /// <param name="titleAct">Необязательный колбэк, вызываемый перед инициализацией.</param>
-    public void BreakPointerLaunchDevice(ulong? start, Action? titleAct)
+    /// <param name="onLaunch">Необязательный колбэк, вызываемый перед инициализацией.</param>
+    public void BreakPointerLaunchDevice(ulong? start, Action? onLaunch)
     {
-        ThrowIfDisposed();
-        titleAct?.Invoke();
-        stepCounter = 0;
-        ulong startIndex = start ?? 0;
-
-        _processor.LaunchProgramm(startIndex);
+        GlobalInit(onLaunch, start ?? 0);
     }
 
 
@@ -244,7 +230,7 @@ public sealed class Device : IPortController
         }
         else if (_processor.IsRunning)
         {
-            stepCounter++;
+            _stepCounter++;
         }
     }
 
@@ -261,7 +247,7 @@ public sealed class Device : IPortController
         while (_processor.IsRunning)
         {
             if (isEndLimit) break;
-            if (stepCounter >= limit)
+            if (_stepCounter >= limit)
             {
                 _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
                 isEndLimit = true;
@@ -278,7 +264,7 @@ public sealed class Device : IPortController
         {
             onStep?.Invoke(_processor.CurrentProcessorSnapshot);
             if (isEndLimit) break;
-            if (stepCounter >= stepLimit)
+            if (_stepCounter >= stepLimit)
             {
                 _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
                 isEndLimit = true;
@@ -288,6 +274,25 @@ public sealed class Device : IPortController
 
             if (useSleepMode) Thread.Sleep(delay);
         }
+    }
+
+    private void GlobalInit(Action? onLaunch, ulong startIndex)
+    {
+        ThrowIfDisposed();
+        ThrowIfRun();
+        onLaunch?.Invoke();
+        _stepCounter = 0;
+        _wakeSignal.Reset();
+        _processor.Reset();
+        _processor.LaunchProgramm(startIndex);
+    }
+
+    private void ThrowIfRun()
+    {
+        if (_processor.IsRunning)
+            throw new InvalidOperationException(
+                "A second Run operation was started on this Device " +
+                "instance before the previous operation completed.");
     }
 
     private void ProcessorSleepWait()

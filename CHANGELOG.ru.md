@@ -10,6 +10,39 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.25.0] - 2026-11-26
+
+### Добавлено
+- Приватный метод в `Device` и его асинхронная версия; `GlobalInit` необходим для синхронизации методов инициализации в `Debug`, `Step` и `Run`
+- Добавлен файл `AsyncDevice.cs`; `AsyncDevice`: полнофункциональная копия `Device` из `Kernel`, полностью асинхронная
+- Добавлен файл `AsyncDeviceContext.cs`; `AsyncDeviceContext`: полнофункциональная копия `DeviceContext`, включая большинство методов расширения
+- Добавлен файл `AsyncDeviceExtension.cs`; полностью воспроизводит API-методы `GetRamAsNewArray`, `CopyRamTo`, `TryCopyRamTo` и `ReadRam<T>`; добавляет расширение API:
+	- `ManagerDevices`:
+		- `AsyncDevice CreateAsyncDevice(RamSize, IProcessorPolicy)` - аналогично нативному `ManagerDevices.CreateDevice`
+	- `VmEmulator`:
+		- `AsyncDeviceContext? GetAsyncDeviceContext(int)` - аналогично нативному `VmEmulator.GetDeviceContext`
+		- `bool TryGetAsyncDeviceContext(int, out AsyncDeviceContext?)` - аналогично нативному `VmEmulator.TryGetDeviceContext`
+		- `int RegisterAsyncDevice(DeviceSpec, uint)` - аналогично нативному `VmEmulator.RegisterDevice`
+		- `IdState TryRegisterAsyncDevice(DeviceSpec, uint, out int)` - аналогично нативному `VmEmulator.TryRegisterDevice`
+- Добавлен файл `ReusableWakeSignal.cs`; компонент `ReusableWakeSignal` для работы `AsyncDevice` в асинхронной среде, использует только `AsyncDevice`
+- Асинхронные варианты `*` для `RunAndKeep`, `RunOnce`, `RunAndCleanup`, а также новый класс `AsyncRunOutcome`
+- Тесты для стандартных библиотек
+- Тесты на детерминированность асинхронных и синхронных ВМ
+- Тесты функциональности сна асинхронной ВМ
+- Тесты перезапуска ВМ после остановки (проверка того, что каждый запуск сбрасывает все состояния)
+- Добавлен `CarryFlagSet`: Занимает 3-й бит (`4UL`) в регистре флагов `rFL`.
+
+### Изменено
+- `DiagnosticResult.ToString()` явно переопределён с форматом `"[{(int)ErrorCode}] {Message}"` для устранения отражения
+- `ProcessorSnapshot.ToString()` явно переопределён, больше не использует `enum.ToString()`
+- `DecodeInstructionResult.ToString()` явно переопределён, больше не использует `enum.ToString()`
+- Переписана `InstructionCMP`: Теперь она явно вычисляет беззнаковое условие `v1 < v2` и передаёт его в `SetFlags` как `carryFlag`. Это гарантирует, что при `0 - 0xFFFFFFFFFFFFFFFF` флаг переноса будет установлен в 1.
+- Обновлена `InstructionTEST`: Явно передаёт 0UL для флага переноса, поскольку логические операции (`AND`) не генерируют перенос (согласно стандартам `x86`/`ARM`).
+
+### Исправлено
+- Исправлена `InstructionJL`: Теперь проверяет `CarryFlagSet` вместо `NegativeFlagSet`, делая её корректной инструкцией "Jump if Below" для беззнаковых чисел.
+- Исправлена `InstructionJG`: Теперь проверяет `!CarryFlagSet & !ZeroFlagSet` (классическое условие "Jump if Above" для беззнаковых чисел)
+
 ## [0.24.0] - 2026-11-26
 
 ### Добавлено

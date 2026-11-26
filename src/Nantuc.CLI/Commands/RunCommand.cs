@@ -10,7 +10,7 @@ using System.Text;
 
 namespace Nantuc.CLI.Commands;
 
-public class RunCommand(string path, PortSize portSize, DevicePortSize devicePortSize, RamSize ram, long limit, bool snowTimer, string? pathToDumbMemory, string? pathToDumbRegisters, TextWriter wr, IFileSystem fs, IFileService file)
+public class RunCommand(string path, PortSize portSize, DevicePortSize devicePortSize, RamSize ram, long limit, bool showTimer, string? pathToDumbMemory, string? pathToDumbRegisters, TextWriter wr, IFileSystem fs, IFileService file)
 {
     private static bool HaveTimerArg(ReadOnlySpan<string> args) => CLIHelper.HaveFlag(["-timer", "-lt", "-t"], args);
     
@@ -71,7 +71,7 @@ public class RunCommand(string path, PortSize portSize, DevicePortSize devicePor
         }
 
         ProcessorFault res = ctx.Run(new LaunchOptions(
-            0, limit, snowTimer,
+            0, limit, showTimer,
             OnEnd: c => wr.WriteLine($"Total steps: {c.Steps}, Elapsed: {c.Elapsed:mm\\:ss\\.fff}")));
 
         if (res.Status != BiosStatus.EndProgram)

@@ -1,4 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
+using System.Text;
 
 namespace Nantuc.Common;
 
@@ -80,5 +82,61 @@ public readonly struct ProcessorSnapshot
         var arr = new Arr();
         span.CopyTo(arr);
         return arr;
+    }
+
+    public override string ToString()
+    {
+        var sb = new StringBuilder(1024);
+
+        // ── Состояние процессора ─────────────────────────────────────────────
+        sb.Append(nameof(IsRunning))
+            .Append(": ")
+            .Append(IsRunning ? "true" : "false")
+            .Append('\n');
+
+        sb.Append(nameof(IsSleeping))
+            .Append(": ")
+            .Append(IsSleeping ? "true" : "false")
+            .Append('\n');
+
+        // ── BIOS-статус и данные по инструкции ───────────────────────────────
+        sb.Append(nameof(CurrentBiosStatus))
+            .Append(": ")
+            .Append(CurrentBiosStatus.AsText)
+            .Append('\n');
+
+        sb.Append(nameof(DataByInstruction))
+            .Append(": ")
+            .Append(DataByInstruction)
+            .Append('\n');
+
+        sb.Append(nameof(DataFault))
+            .Append(": ")
+            .Append(DataFault)
+            .Append('\n');
+
+        // ── Сырая инструкция и её декодирование ──────────────────────────────
+        sb.Append(nameof(RawInstruction))
+            .Append(": 0x")
+            .Append(RawInstruction.ToString("X8"))
+            .Append('\n');
+
+        sb.Append("Decoded instruction")
+            .Append(":\n")
+            .Append(new DecodeInstructionResult(OpCode, FirstRegister, SecondRegister, DataSizeCode).ToString())
+            .Append('\n');
+
+        // ── Регистры ─────────────────────────────────────────────────────────
+        sb.Append("Registers:\n");
+        for (RegType i = 0; i <= RegTypeExtension.LastValue; i++)
+        {
+            sb.Append("  [")
+                .Append(i.AsText)
+                .Append("] = ")
+                .Append(GetRegister(i))
+                .Append('\n');
+        }
+
+        return sb.ToString();
     }
 }

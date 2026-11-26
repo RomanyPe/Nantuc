@@ -46,4 +46,10 @@ public readonly record struct ProcessorFault(
     BiosStatus Status,
     ulong FaultData,
     ulong InstructionPointer,
-    OpCode OpCode);
+    OpCode OpCode)
+{
+    public override string ToString()
+    {
+        return $"Status: {Status.AsText}, FaultData: {FaultData}, InstructionPointer: {InstructionPointer}, OpCode {OpCode.AsText}";
+    }
+}

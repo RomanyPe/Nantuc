@@ -197,7 +197,7 @@ device.LoadProgram(program, loadAddress: 0x0);
 ProcessorFault fault = device.Run(
     start: 0,
     limit: 10_000,
-    snowTimer: true,
+    showTimer: true,
     onLaunch: () => Console.WriteLine("start"),
     onEnd: r => Console.WriteLine($"steps={r.Steps}, elapsed={r.Elapsed}"));
 
@@ -207,7 +207,7 @@ Console.WriteLine($"{fault.Status} @ 0x{fault.InstructionPointer:X}");
 **Step-by-step execution in debug mode:**
 
 ```csharp
-device.BreakPointerLaunchDevice(start: 0, titleAct: null);
+device.BreakPointerLaunchDevice(start: 0, onLaunch: null);
 
 device.StepDebug(step => Console.WriteLine($"IP=0x{step.GetRegister(RegType.rIP):X}"));
 device.BatchStepDebug(3, onStep: null);
@@ -215,7 +215,7 @@ device.BatchStepDebug(3, onStep: null);
 **Quick step-by-step execution:**
 
 ```csharp
-device.BreakPointerLaunchDevice(start: 0, titleAct: null);
+device.BreakPointerLaunchDevice(start: 0, onLaunch: null);
 
 device.Step();
 device.BatchStep(3);
@@ -296,7 +296,7 @@ Medium (higher than `Common`/`Contracts`, lower than `VmApplication`).
 | `ConcurrentQueue<T>` | - | Two queues in `Processor` (`_externalCommands`, `_statusFromSimulation`). On single-threaded WASM — just a queue; on threaded — lock-free. |
 | `ManualResetEventSlim.Wait(...)` | !!️!!️ | In `Device.RunSimulationLoop`/`RunSimulationLoopWithLimit`/`RunSimulationLoopDebug` — `_wakeSignal.Wait(_processorPolicy.SleepWaitTimeout)` blocks the current thread when `IsSleeping`. In the browser — UI blocking. Replacement: `await Task.Delay` + async loop, or a Web Worker. |
 | `Thread.Sleep(delay)` | !!️!!️ | `RunSimulationLoopDebug` — `Thread.Sleep(delay)`. In the browser — UI blocking. |
-| `Stopwatch` | - | `Run` with `snowTimer: true` — `Stopwatch.StartNew()`; on WASM works via a `performance.now`-like timer. |
+| `Stopwatch` | - | `Run` with `showTimer: true` — `Stopwatch.StartNew()`; on WASM works via a `performance.now`-like timer. |
 | `IFileService` | n/a | There is no interface in this batch of files. If it appears in other layers, the WASM implementation is separate. |
 | `Regex` / trimming | - | Regex is not used; there is no reflection, `Type.GetType`, `Activator.CreateInstance`, `dynamic`. Trimming-compatible. |
 | AOT | - | No `Expression.Compile`, `MakeGenericMethod`/`MakeGenericType`. The `switch` over opcodes in `Step` is AOT-friendly. Generic code — only `TryGetDevice<T>` (monomorphized for the used `T`s). |

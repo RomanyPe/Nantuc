@@ -1,4 +1,6 @@
-﻿namespace Nantuc.Common;
+﻿using System.Text;
+
+namespace Nantuc.Common;
 
 /// <summary>
 /// Результат декодирования одного 32-битного слова инструкции: набор полей,
@@ -28,4 +30,31 @@
 public readonly record struct DecodeInstructionResult(OpCode OpCode,
                                                       RegType Reg1,
                                                       RegType Reg2,
-                                                      OpCodeSize DataSizeCode);
+                                                      OpCodeSize DataSizeCode)
+{
+    public override string ToString()
+    {
+        var sb = new StringBuilder(128);
+
+        sb.Append(nameof(OpCode))
+            .Append(": ")
+            .Append(OpCode.AsText)
+            .Append('\n');
+
+        sb.Append(nameof(Reg1))
+            .Append(": ")
+            .Append(Reg1.AsText)
+            .Append('\n');
+
+        sb.Append(nameof(Reg2))
+            .Append(": ")
+            .Append(Reg2.AsText)
+            .Append('\n');
+
+        sb.Append(nameof(DataSizeCode))
+            .Append(": ")
+            .Append(DataSizeCode.AsText);
+
+        return sb.ToString();
+    }
+}

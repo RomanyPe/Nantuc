@@ -6,22 +6,22 @@ Path: `src/Nantuc.VmApplication.Extension/Nantuc.VmApplication.Extensions.csproj
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 198 |
-| C# files | 36 |
-| Total lines | 3963 |
-| C# classes | 30 |
-| C# records | 6 |
-| C# enums | 3 |
-| Analysed LOC | 1612 |
-| Cognitive avg | 3.1 |
-| Cognitive median | 1 |
-| Cognitive p90 | 12 |
+| Members analysed | 290 |
+| C# files | 40 |
+| Total lines | 5227 |
+| C# classes | 34 |
+| C# records | 7 |
+| C# enums | 4 |
+| Analysed LOC | 2012 |
+| Cognitive avg | 2.4 |
+| Cognitive median | 0 |
+| Cognitive p90 | 8 |
 | Cognitive max | 31 |
-| Cyclomatic avg | 3.9 |
-| Cyclomatic median | 2 |
-| Cyclomatic p90 | 11 |
+| Cyclomatic avg | 3.3 |
+| Cyclomatic median | 1 |
+| Cyclomatic p90 | 9 |
 | Cyclomatic max | 56 |
-| MI avg | 74.7 |
+| MI avg | 75.9 |
 | MI minimum | 27.5 |
 
 Highest risk member: `Disassembler..Disassemble` (cognitive 31, cyclomatic 16) — `Disassembler.cs:12`
@@ -31,14 +31,14 @@ Lowest maintainability: `IRLog.FormatAsmItem` (MI 27.5) — `IRLog.cs:22`
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 163 |
-| Moderate | 6-10 | 10 |
-| High | 11-20 | 22 |
+| Light | 0-5 | 253 |
+| Moderate | 6-10 | 11 |
+| High | 11-20 | 23 |
 | Severe | 21+ | 3 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 198 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 290 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -58,8 +58,8 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 198 me
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\IRAsmRules\ConstantFoldingRule.cs | 15 | ConstantFoldingRule | TryOptimize | 14 | 19 | 38 | 1 | 4 | 40.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\PropagateConstantsRule.cs | 68 | PropagateConstantsRule | CollectConstantsFromBlock | 14 | 10 | 18 | 3 | 3 | 52.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Debugging\Debugger.cs | 104 | Debugger | StepOver | 13 | 13 | 20 | 2 | 0 | 50.3 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Host\HostExtensions.cs | 32 | VMHostRunExtensions. | RunAndKeep | 13 | 13 | 34 | 2 | 8 | 41.7 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Host\HostExtensions.cs | 129 | VMHostRunExtensions. | AsyncRunAndKeep | 13 | 13 | 34 | 2 | 9 | 41.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\PropagateConstantsRule.cs | 94 | PropagateConstantsRule | ReplaceVariablesWithConstants | 13 | 11 | 32 | 3 | 2 | 44.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Bytecode\BytecodeExtension.cs | 18 | BytecodeExtension. | GetOpCodeSafety | 13 | 10 | 32 | 3 | 0 | 45.0 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Bytecode\BytecodeExtension.cs | 83 | BytecodeExtension. | GetUnsafeOpCodes | 13 | 10 | 38 | 3 | 1 | 43.0 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\IRLog.cs | 22 | IRLog | FormatAsmItem | 12 | 56 | 74 | 3 | 1 | 27.5 |
 

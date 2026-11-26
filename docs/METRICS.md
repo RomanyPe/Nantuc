@@ -6,22 +6,22 @@ Path: `Nantuc.slnx`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 1464 |
-| C# files | 294 |
-| Total lines | 26442 |
-| C# classes | 252 |
-| C# records | 29 |
-| C# enums | 13 |
-| Analysed LOC | 9007 |
-| Cognitive avg | 1.9 |
+| Members analysed | 1593 |
+| C# files | 301 |
+| Total lines | 28964 |
+| C# classes | 263 |
+| C# records | 30 |
+| C# enums | 14 |
+| Analysed LOC | 9968 |
+| Cognitive avg | 1.8 |
 | Cognitive median | 0 |
-| Cognitive p90 | 6 |
+| Cognitive p90 | 5 |
 | Cognitive max | 53 |
-| Cyclomatic avg | 3.0 |
+| Cyclomatic avg | 2.9 |
 | Cyclomatic median | 1 |
-| Cyclomatic p90 | 7 |
+| Cyclomatic p90 | 6 |
 | Cyclomatic max | 56 |
-| MI avg | 76.3 |
+| MI avg | 76.2 |
 | MI minimum | 25.1 |
 
 Highest risk member: `InterferenceGraph.Build` (cognitive 53, cyclomatic 20) — `InterferenceGraph.cs:10`
@@ -31,14 +31,14 @@ Lowest maintainability: `CfgBuilder.Stmt` (MI 25.1) — `CfgBuilder.cs:76`
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 1314 |
-| Moderate | 6-10 | 73 |
-| High | 11-20 | 62 |
+| Light | 0-5 | 1441 |
+| Moderate | 6-10 | 74 |
+| High | 11-20 | 63 |
 | Severe | 21+ | 15 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1464 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1593 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |

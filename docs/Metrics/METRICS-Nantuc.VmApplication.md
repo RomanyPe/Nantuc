@@ -6,13 +6,13 @@ Path: `src/Nantuc.VmApplication/Nantuc.VmApplication.csproj`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 133 |
+| Members analysed | 134 |
 | C# files | 30 |
-| Total lines | 2090 |
+| Total lines | 2093 |
 | C# classes | 20 |
 | C# records | 8 |
 | C# enums | 2 |
-| Analysed LOC | 414 |
+| Analysed LOC | 415 |
 | Cognitive avg | 0.7 |
 | Cognitive median | 0 |
 | Cognitive p90 | 2 |
@@ -21,7 +21,7 @@ Path: `src/Nantuc.VmApplication/Nantuc.VmApplication.csproj`
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 3 |
 | Cyclomatic max | 16 |
-| MI avg | 83.5 |
+| MI avg | 83.6 |
 | MI minimum | 43.8 |
 
 Highest risk member: `RamFileService.Normalize` (cognitive 21, cyclomatic 16) — `RamFileService.cs:80`
@@ -31,14 +31,14 @@ Lowest maintainability: `ProjectBuilder.Build` (MI 43.8) — `ProjectBuilder.cs:
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 130 |
+| Light | 0-5 | 131 |
 | Moderate | 6-10 | 2 |
 | High | 11-20 | 0 |
 | Severe | 21+ | 1 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 133 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 134 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |

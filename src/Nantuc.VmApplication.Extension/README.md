@@ -1,6 +1,6 @@
 # Nantuc.VmApplication.Extensions — README
 
-> Extensions to the main API: disassembler, debugger, I/O devices, standard optimizations (AST and IR), "one-liner" compilation utilities, built-in MiniC/NANASM libraries.
+> Extensions to the main API: disassembler, debugger, I/O devices, async device, standard optimizations (AST and IR), "one-liner" compilation utilities, built-in MiniC/NANASM libraries.
 > Depends on `[Nantuc.VmApplication]` (transitively on `Diagnostics`, `Kernel`, `Contracts`, `Common`; directly from `Common` it uses `OpCode`, `AlignUp`, `InstructionDecoder`).
 > [← Root](../README.md), [VmApplication](../../src/Nantuc.VmApplication/README.md), [Diagnostics](../../src/Nantuc.Diagnostics/README.md), [Kernel](../../src/Nantuc.Kernel/README.md), [Common](../../src/Nantuc.Kernel.Common/README.md), [Contracts](../../src/Nantuc.Kernel.Contracts/README.md), [Diagnostics](../../src/Nantuc.Kernel.Diagnostics/README.md), [STDLIBRARIES](STDLIBRARIES.md)
 
@@ -16,18 +16,19 @@
 
 ## About this module
 
-`Nantuc.VmApplication.Extensions` is the "batteries" for the main API. There are no new kernel abstractions here, only extensions on top of the existing ones: `DeviceContext`, `VmHost`, `VmHostProject`, `VmEmulator`, `IPortController`. You can omit this module — the main API works without it. But with it you get:
+`Nantuc.VmApplication.Extensions` is the "batteries" for the main API. There are no new kernel abstractions here, only extensions on top of the existing ones: `DeviceContext`, `AsyncDeviceContext`, `VmHost`, `VmHostProject`, `VmEmulator`, `IPortController`. You can omit this module — the main API works without it. But with it you get:
 
 - **Disassembler** (`Disassembler`/`StringDisassembler`/`InstructionFormatter`): parses `CompilationResult.Program` into `DecodedInstruction[]` + `DecodedDataChunk[]` and a textual form (like `objdump`).
 - **Debugger** (`Debugger`): step-by-step execution on top of `DeviceContext` — `Step`/`StepOver`/`StepOut`/`Continue`/`ContinueTo`/`RunToEnd`, breakpoints, best-effort call stack, RAM reads (`ReadUInt16/32/64`, `ReadCString`), disassembly of the current instruction via `StringDisassembler`. Does not use `AsRawDevice` or `unsafe` — only the public API of `DeviceContext`/`ProcessorSnapshot`.
 - **I/O devices** (`NumericIOStream`, `SynchronousIOStream`, `QueuedIOStream`): output of bytes/UTF-8/UTF-16 from the VM to a `TextWriter`. Plus `PortCharEncoding` and `OutputPortLayout` (layout of the 8-byte window).
+- **Async device** (`AsyncDevice`, `AsyncDeviceContext`, `AsyncDeviceExtension`, `ReusableWakeSignal`): a VM device with its own RAM, processor and I/O port block; async `Run`/`DebugRun`/`Step`/`StepDebug`, HALT/wake support, Step/Continuous context modes, registration helpers and RAM utilities. Namespace — `Nantuc.VmApplication.Extensions.AsyncDeviceExtensions`.
 - **Standard optimizations**: AST rules (`FoldConstants`, `PropagateConstants`, `RemoveUnusedVariables`, `RemoveUnreachableCode`, `InlineSmallVoidFunctions`) and IR rules (`ConstantFolding`, `RemoveNoopMov`, `RemovePushPopPair`, `RemoveSwapMovPair`, `RemoveJumpToNextLabel`, `RemoveMultiEnd`).
-- **Compilation utilities** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIR("int main(){}", 0, true, SourceLanguage.MiniC)` and `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — one line instead of a pipeline. `RunAndKeep`/`RunOnce`/`RunAndCleanup` can register a UART via `QueuedIOStream` when `output` is passed.
+- **Compilation utilities** (`ProjectExtension`, `VMHostRunExtensions`): `host.Project.CompileToIR("int main(){}", 0, true, SourceLanguage.MiniC)` and `host.RunAndKeep(...)`, `host.RunOnce(...)`, `host.RunAndCleanup(...)` — one line instead of a pipeline — plus async counterparts `host.AsyncRunAndKeep(...)`, `host.AsyncRunOnce(...)`, `host.AsyncRunAndCleanup(...)` built on `AsyncDeviceContext`. All variants can register a UART via `QueuedIOStream` when `output` is passed.
 - **Built-in libraries** (`Libraries`): string constants `heap_nanasm`, `alloc_minic`, `io_nanasm`, `print_minic`, `imath_minic`, `bitops_minic`, `ovf_minic` for `#include`. See [STDLIBRARIES.md](STDLIBRARIES.md) for details.
-- **RAM utilities** (`DeviceContextExtensions`): `GetRamAsNewArray` / `GetAllRamAsNewArray`, `CopyRamTo` into `Span<byte>` / `byte[]` / `Memory<byte>` / `Stream`, `ReadRam<T>` / `CopyRamTo<T>` for `unmanaged` types, `TryCopyRamTo` without exceptions — read RAM of a **stopped** VM (all except `TryCopyRamTo` throw `InvalidOperationException` when `ctx.IsRunning`).
+- **RAM utilities** (`DeviceContextExtensions`, plus the same set on `AsyncDeviceContext`): `GetRamAsNewArray` / `GetAllRamAsNewArray`, `CopyRamTo` into `Span<byte>` / `byte[]` / `Memory<byte>` / `Stream`, `ReadRam<T>` / `CopyRamTo<T>` for `unmanaged` types, `TryCopyRamTo` without exceptions — read RAM of a **stopped** VM (all except `TryCopyRamTo` throw `InvalidOperationException` when `ctx.IsRunning`).
 - **Bytecode utilities** (`BytecodeExtension`): `GetOpCodeSafety` / `GetUnsafeOpCodes` — static analysis of `CompilationResult.Program` for `*_UNSAFE` opcodes (`OpCodeSafety.Safe`/`HasUnsafe`/`Unknown`) and locating them (`UnsafeOpCodeLocation(OpCode, Offset, Ip)`). Useful for checking untrusted code before running and for verifying the result of `ReplaceSafeMemAccessWithUnsafeRule`.
 
-The key idea is not to change the `Nantuc.VmApplication` contract but to extend it. All rules implement `IAstOptimizationRule`/`IOptimizerIRRule` from the compiler, all I/O devices inherit `PortControlBase` from `VmApplication`, and the debugger works through `DeviceContext.RunStepMode`/`StepDebug`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`. No new interfaces in `Kernel.Contracts`.
+The key idea is not to change the `Nantuc.VmApplication` contract but to extend it. All rules implement `IAstOptimizationRule`/`IOptimizerIRRule` from the compiler, all I/O devices inherit `PortControlBase` from `VmApplication`, the debugger works through `DeviceContext.RunStepMode`/`StepDebug`/`GetRegistersSnapshot`/`NativeReadOnlyBuffer`, and `AsyncDevice` implements `IPortController` while owning its own `MemoryBus`/`Processor`. No new interfaces in `Kernel.Contracts`.
 
 ## Local project tree
 
@@ -36,6 +37,11 @@ Namespaces match folders:
 ```
 Nantuc.VmApplication.Extensions/
 ├── Nantuc.VmApplication.Extensions.csproj   # net10.0, ref -> VmApplication
+├── AsyncDevice/
+│   ├── AsyncDevice.cs                        # AsyncDevice : IPortController — own RAM + Processor + port block, async Run/DebugRun/Step
+│   ├── AsyncDeviceContext.cs                 # AsyncDeviceContext — Step/Continuous/None modes, launch/step/RAM/ports
+│   ├── AsyncDeviceExtension.cs               # extensions on VmEmulator/ManagerDevices/AsyncDeviceContext + RAM utilities
+│   └── ReusableWakeSignal.cs                 # IValueTaskSource<bool> wake signal for HALT/sleep (internal support)
 ├── Bytecode/
 │   └── BytecodeExtension.cs                  # extension on CompilationResult: GetOpCodeSafety / GetUnsafeOpCodes + OpCodeSafety + UnsafeOpCodeLocation + IsUnsafeOpcode
 ├── Diagnostics/
@@ -61,7 +67,7 @@ Nantuc.VmApplication.Extensions/
 │   ├── QueuedIOStream.cs                     # async: Channel<byte> + background drain
 │   └── SynchronousIOStream.cs                # synchronous: writes characters
 ├── Host/
-│   ├── HostExtensions.cs                     # RunOutcome + RunAndKeep / RunAndCleanup / RunOnce (+ UART via QueuedIOStream when output != null)
+│   ├── HostExtensions.cs                     # RunOutcome + AsyncRunOutcome + RunAndKeep / RunAndCleanup / RunOnce + AsyncRunAndKeep / AsyncRunAndCleanup / AsyncRunOnce (+ UART via QueuedIOStream when output != null)
 │   └── ProjectExtension.cs                   # Compile/CompileToIR from a string/lines + SaveFileInclude/SaveFileProject
 ├── StdLibraries/
 │   └── Libraries.cs                          # static class Libraries: heap_nanasm, alloc_minic, io_nanasm, print_minic, imath_minic, bitops_minic, ovf_minic
@@ -91,8 +97,9 @@ Organization notes:
 - `IRLog.cs` — a separate file (namespace `Nantuc.VmApplication.Extensions.Optimizations`), extracted from `IROptimizerExtension.cs`.
 - `Diagnostics/DiagnosticsCompilerExtension.cs` — an extension on `IReadOnlyDictionary<ErrorCode, string>` (`ValidateAllCodesCovered`/`TryValidateAllCodesCovered`). According to changelog 0.7.2 these methods are marked as removed; the file is still present in the code — see [What to fix](#what-to-fix), item 3.
 - `Debugging/` — a new layer on top of `DeviceContext`, does not change `Nantuc.VmApplication`. The debugger is not thread-safe (except `RequestStop`), which matches the `DeviceContext` model. The call stack is reconstructed heuristically — the VM does not keep a frame pointer. Details in [Special notes](#special-notes).
+- `AsyncDevice/` — namespace `Nantuc.VmApplication.Extensions.AsyncDeviceExtensions`. `AsyncDevice` implements `IPortController`, owns `MemoryBus` and `Processor`, and is registered as a normal device. `AsyncDeviceContext` mirrors the `DeviceContext` launch/step model with explicit `Step`/`Continuous`/`None` modes. `AsyncDeviceExtension` adds registration helpers and RAM utilities. `ReusableWakeSignal` is public only as implementation support for HALT/sleep waiting — it is not the primary API.
 - `Bytecode/` — static analysis of `CompilationResult.Program`, does not touch `DeviceContext`/`VmEmulator`. `IsUnsafeOpcode` is the same set used by `ReplaceSafeMemAccessWithUnsafeRule`, so the module can be used to verify the IR rule's result (after application — all `LOAD`/`STORE`/`LOAD_IND`/`STORE_IND` are replaced with `*_UNSAFE`).
-- `Host/HostExtensions.cs` — in the current version `RunAndKeep` uses only the safe API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`), no `!`. Side effect: on a registration/load error a `RunOutcome` with `Device == null` is returned instead of an NRE. UART is registered at `sector + 1` if `output` is passed.
+- `Host/HostExtensions.cs` — sync `RunAndKeep`/`RunOnce`/`RunAndCleanup` all accept `deviceName`/`sector`/`output`/`encoding` and use only the safe API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`), no `!` — except one unconditional `UnregisterDevice(uartId!.Value)` at the end of `RunAndKeep`, which is a bug when `output == null` (see [What to fix](#what-to-fix), item 19). Async `AsyncRunAndKeep`/`AsyncRunOnce`/`AsyncRunAndCleanup` mirror the sync API on top of `AsyncDeviceContext`, but currently do not unregister the UART at all (see item 20).
 
 ## API
 
@@ -286,7 +293,7 @@ Behavior:
 - **`Load`** — `ctx.LoadProgram` + `ctx.RunStepMode(startAddress)`; after the call `IsActive == true`, but no instruction has been executed yet. `Debugger` is one-shot per `Load` — a repeated call throws `InvalidOperationException` (protection against leaking step mode; for a new run — a new `Debugger`).
 - **`Step`** — one instruction via `ctx.StepDebug(onStep)`; the result is a `DebugStop` with a processor snapshot from the callback (`ProcessorSnapshot` from the VM — with correct `IsSleeping`).
 - **`StepOver`** — if the current instruction is `CALL`/`CALL_IND`, runs to the return address (`ip + 4` for `CALL_IND`, `AlignUp(ip + 4, 8) + 8` for `CALL`); otherwise behaves like `Step`.
-- **`StepOut`** — runs `Step` until `rSP` becomes larger than the value at call time. Best-effort: if the function uses `PUSH`/`POP` for temporaries, semantics break — see [What to fix](#what-to-fix), item 12.
+- **`StepOut`** — runs `Step` until `rSP` becomes larger than the value at call time. Best-effort: if the function uses `PUSH`/`POP` for temporaries, semantics break — see [What to fix](#what-to-fix), item 11.
 - **`Continue`** — runs `StepDebug` until `Breakpoint`/`Completed`/`Faulted`/`Sleeping`/`StepLimit`/`UserStop`. At start it checks `_skipBreakpointOnce` (see [Special notes](#special-notes)) so that `Continue` -> breakpoint -> `Continue` does not loop.
 - **`ContinueTo(addr)`** — temporarily adds a breakpoint at `addr`, calls `Continue`, removes the breakpoint. If `addr` already had a user breakpoint — it is preserved.
 - **`RunToEnd`** — `Continue` with a temporarily cleared set of breakpoints (to "run to the end, ignoring points").
@@ -298,6 +305,210 @@ Behavior:
 - **`CurrentInstruction`/`DisassembleAt`/`DisassembleProgram`** — use `StringDisassembler.Disassemble`; format is like `objdump`. `DisassembleProgram` disassembles the range `[startAddress, loadAddress + program.Length)` fixed in `Load`.
 - **`GetCallStack`** — best-effort: scans the stack (`[rSP, RamSize)`) for 8-byte values in the range `[ProgramStart, ProgramEnd)`, aligned to 4. False positives are possible (values of local variables). `maxDepth` limits the depth (default 16). See [Special notes](#special-notes).
 - **`Stopped`** — an event fired after every `DebugStop` (including the final one). Convenient for logging/visualization.
+
+### Async device
+
+Namespace: `Nantuc.VmApplication.Extensions.AsyncDeviceExtensions`.
+
+**`AsyncDevice`** — `sealed class : IPortController`:
+
+```csharp
+public sealed class AsyncDevice : IPortController
+{
+    public AsyncDevice(PortBus portBus, RamSize size, IProcessorPolicy processorFaultPolicy);
+
+    public IReadOnlyNativeBuffer NativeReadOnlyBuffer { get; }
+    public bool IsRunning { get; }
+    public ulong MaxRamSize { get; }
+    public long StepCount { get; }
+
+    public void CopyRegisters(Span<ulong> destination);
+
+    public void LoadProgram(ReadOnlySpan<byte> program, ulong loadAddress);
+    public bool TryLoadProgram(ReadOnlySpan<byte> program, ulong loadAddress);
+
+    public ValueTask<ProcessorFault> Run(
+        ulong startIndex,
+        long? limit,
+        bool showTimer,
+        Action? onLaunch,
+        Action<TimeSimulationResult>? onEnd,
+        CancellationToken ctx = default);
+
+    public ValueTask<ProcessorFault> DebugRun(
+        ulong start,
+        long stepLimit,
+        int delay,
+        Action? onLaunch,
+        Action<ProcessorSnapshot>? onStep,
+        Action? onEnd,
+        CancellationToken ctx = default);
+
+    public void BreakPointerLaunchDevice(ulong? start, Action? onLaunch);
+
+    public void Stop();                         // safe from another thread
+    public ValueTask Step();
+    public ValueTask BatchStep(int count);
+    public ValueTask StepDebug(Action<ProcessorSnapshot>? onStep);
+    public ValueTask BatchStepDebug(int count, Action<ProcessorSnapshot>? onStep);
+
+    public byte ReadPort(ulong offset);
+    public void WritePort(ulong offset, byte value);
+
+    public void WakeProcessor();                 // safe from another thread
+    public void EnqueueExternalCommand(uint instruction); // safe from another thread
+
+    public void ResetMemoryRam();
+    public void ClearRegisters();
+    public ProcessorFault GetLastFault();
+    public void Dispose();
+}
+```
+
+Behavior:
+
+- **Own RAM/CPU/ports** — `AsyncDevice` creates its own `MemoryBus` (`RamSize`) and `Processor` on the shared `PortBus`; `MaxRamSize` is the RAM length, `NativeReadOnlyBuffer` is the read-only RAM view. It implements `IPortController`, so it is registered as a normal device.
+- **Not thread-safe** — `Run`, `DebugRun`, `Step`, `BatchStep`, `StepDebug`, `BatchStepDebug`, `LoadProgram` and `BreakPointerLaunchDevice` must not be called concurrently. `Stop`, `WakeProcessor` and `EnqueueExternalCommand` are the safe cross-thread methods.
+- **`LoadProgram`** — aligns `loadAddress` up to 8, checks `loadAddress + program.Length <= RAM`, loads via `MemoryBus.LoadProgram`, then initializes heap pointer via `InitRegHP(AlignUp(loadAddress + length, 8))`. Throws `InvalidOperationException` if the program does not fit. `TryLoadProgram` returns `false` in that case (and if the device is disposed).
+- **`Run`** — blocking async loop via `await Step()`. With `limit`, every iteration checks `StepCount >= limit` and enqueues `BiosStatus.InfinityLoop`; cancellation enqueues `BiosStatus.HostStopped` and performs one extra `Step()` so the processor can observe the stop status. Returns `ProcessorFault` from `GetDiagnosticData()`.
+- **`DebugRun`** — same loop with an optional `delay` (ms) between steps and an `onStep` callback. **Current implementation invokes `onStep` before each `Step()`** (pre-step snapshot), and also before the step-limit check. See [Special notes](#special-notes).
+- **`Step`** — executes one processor step. If the processor is sleeping (`HALT`), awaits `ReusableWakeSignal.WaitAsync(_processorPolicy.SleepWaitTimeout)`; otherwise, if still running, increments `StepCount`. Every `0xFFFF` steps yields via `Task.Yield()`.
+- **`BreakPointerLaunchDevice`** — resets the processor and launches at `start ?? 0` (aligned up to 8) without running the loop; useful for manual `Step`/`StepDebug`. The XML comment mentions “end of RAM” for `null`, but the current code uses `0`.
+- **`Stop`** — enqueues `BiosStatus.HostStopped`, sets the wake signal, and cancels the current `Run`/`DebugRun` CTS if present. Safe from another thread.
+- **Ports** — `ReadPort` returns `0` for an out-of-range offset; `WritePort` ignores an out-of-range offset.
+- **`WakeProcessor` / `EnqueueExternalCommand`** — enqueue an external command (`WAKE`, or an arbitrary raw instruction) and set the wake signal.
+- **`Dispose`** — idempotent: `Stop()`, dispose RAM and wake signal.
+
+**`AsyncDeviceContext`** — `public class`:
+
+```csharp
+public class AsyncDeviceContext
+{
+    public bool IsRunning { get; }
+    public long StepCount { get; }
+    public ulong RamSize { get; }
+    public IReadOnlyNativeBuffer NativeReadOnlyBuffer { get; }
+
+    public ValueTask Stop();
+
+    public void LoadProgram(
+        ReadOnlySpan<byte> program,
+        ulong loadAddress = ProjectBuilder.BaseAddressProgram);
+
+    public bool TryLoadProgram(
+        ReadOnlySpan<byte> program,
+        ulong loadAddress,
+        [NotNullWhen(false)] out string? error);
+
+    public ValueTask<ProcessorFault> Run(
+        LaunchOptions? opt = null,
+        CancellationToken ctx = default);
+
+    public ValueTask<ProcessorFault> DebugRun(
+        LaunchOptionsDebug? opt = null,
+        CancellationToken ctx = default);
+
+    public void RunStepMode(
+        ulong startAddress = ProjectBuilder.BaseAddressProgram,
+        Action? onLaunch = null);
+
+    public ValueTask StepDebug(Action<ProcessorSnapshot>? onStep = null);
+    public ValueTask BatchStepDebug(int count = 5, Action<ProcessorSnapshot>? onStep = null);
+    public ValueTask Step();
+    public ValueTask BatchStep(int count);
+    public ValueTask EndStepMode();
+
+    public void ResetMemoryRam();
+    public byte ReadPort(ulong offset);
+    public void CopyRegisters(Span<ulong> destination);
+    public SnapshotRegisters GetRegistersSnapshot();
+    public ProcessorFault GetLastFault();
+
+    public void Pause();
+    public void Resume();
+}
+```
+
+Behavior:
+
+- **Modes** — `AsyncDeviceContext` guards a single device with an internal `Step` / `Continuous` / `None` mode. `Run`/`DebugRun` set `Continuous` and reset to `None` in `finally`; `RunStepMode` sets `Step`; `Stop`/`EndStepMode` reset to `None`. A conflicting mode throws `InvalidOperationException`.
+- **`Run` / `DebugRun`** — use `LaunchOptions.Default` / `LaunchOptionsDebug.Default` when `opt == null`; throw if the device is already running or another mode is set.
+- **`RunStepMode`** — initializes the device for manual stepping via `BreakPointerLaunchDevice`; does not execute an instruction.
+- **`StepDebug` / `BatchStepDebug`** — require `Step` mode; delegate to `AsyncDevice.StepDebug` / `BatchStepDebug`. As with `AsyncDevice`, the callback is invoked **before** the step in the current implementation.
+- **`Stop`** — calls `_device.Stop()`; if the context is in `Step` mode, additionally calls `await _device.StepDebug(null)` so the processor can observe the stop status, then resets mode to `None`.
+- **`LoadProgram` / `ResetMemoryRam`** — throw `InvalidOperationException` if the device is running. `TryLoadProgram` returns `false` with an `error` string if running or out of bounds.
+- **`Pause` / `Resume`** — enqueue `OpCode.HALT` / `OpCode.WAKE` via `EnqueueExternalCommand`.
+- **Not thread-safe** — the context mode is not protected by a lock; use it from a single coordinator thread, as with `DeviceContext`.
+
+**`AsyncDeviceExtension`** — `public static class`:
+
+```csharp
+public static class AsyncDeviceExtension
+{
+    extension(VmEmulator vm)
+    {
+        public bool TryGetAsyncDeviceContext(int id, [NotNullWhen(true)] out AsyncDeviceContext? ctx);
+        public AsyncDeviceContext? GetAsyncDeviceContext(int id);
+
+        public int RegisterAsyncDevice(DeviceSpec spec, uint sector);
+        public IdState TryRegisterAsyncDevice(DeviceSpec spec, uint sector, out int id);
+    }
+
+    extension(ManagerDevices md)
+    {
+        public AsyncDevice CreateAsyncDevice(RamSize size, IProcessorPolicy processorFaultPolicy);
+    }
+
+    extension(AsyncDeviceContext ctx)
+    {
+        // ===== Arrays =====
+        public byte[] GetRamAsNewArray(nuint start, nuint length);
+        public byte[] GetRamAsNewArray(nuint start);
+        public byte[] GetAllRamAsNewArray();
+
+        // ===== Span / Memory / byte[] =====
+        public void CopyRamTo(Span<byte> destination, nuint start);
+        public void CopyRamTo(Span<byte> destination, nuint start, nuint length);
+        public void CopyRamTo(byte[] destination, int destinationIndex, nuint start, int length);
+        public void CopyRamTo(Memory<byte> destination, nuint start);
+
+        // ===== Try* (no exceptions) =====
+        public bool TryCopyRamTo(Span<byte> destination, nuint start);
+
+        // ===== Typed reads (unmanaged) =====
+        public T ReadRam<T>(nuint byteOffset) where T : unmanaged;
+        public void CopyRamTo<T>(Span<T> destination, nuint byteOffset) where T : unmanaged;
+
+        // ===== Stream =====
+        public void CopyRamTo(Stream stream, nuint start, nuint length, int bufferSize = 81920);
+    }
+}
+```
+
+Behavior:
+
+- **`RegisterAsyncDevice`** — creates `AsyncDevice` from `spec.RamSize` / `spec.ProcessorFaultPolicy` and registers it via `VmEmulator.RegisterDevice` (the throwing form). **`TryRegisterAsyncDevice`** returns `IdState` and an `id`.
+- **`TryGetAsyncDeviceContext` / `GetAsyncDeviceContext`** — wrap an existing `AsyncDevice` registered in the emulator into a new `AsyncDeviceContext`.
+- **RAM utilities** — mirror `DeviceContextExtensions`: all methods except `TryCopyRamTo` throw `InvalidOperationException` when `ctx.IsRunning`; `TryCopyRamTo` returns `false` in that case. Bounds are checked with `ArgumentOutOfRangeException`; copying is byte-by-byte via `NativeReadOnlyBuffer`; typed reads use `MemoryMarshal` and do not require `unsafe`.
+
+**`ReusableWakeSignal`** — `public sealed class : IValueTaskSource<bool>, IDisposable`:
+
+```csharp
+public sealed class ReusableWakeSignal : IValueTaskSource<bool>, IDisposable
+{
+    public ValueTask<bool> WaitAsync(TimeSpan timeout);
+    public void Set();
+    public void Dispose();
+}
+```
+
+Behavior:
+
+- `Set()` while nobody is waiting latches the signal; the next `WaitAsync` returns `true` immediately and consumes the latch.
+- `WaitAsync(timeout)` returns `false` on timeout.
+- Reentrant `WaitAsync` is not supported: if a wait is already in progress, another `WaitAsync` returns `true` immediately.
+- Continuations are asynchronous (`RunContinuationsAsynchronously = true`).
+- Used by `AsyncDevice.Step()` when the processor enters `HALT`/sleep.
 
 ### I/O devices
 
@@ -364,7 +575,7 @@ Standard AST rules (`AddStdRules`):
 3. `RemoveUnusedVariablesRule` — removes `VariableNode`s that are never read and never assigned (assignment counts as use), only if the initializer is side-effect-free. Side-effect-free: `NumberNode`, `IdentifierNode`, `BinaryOpNode`, `UnaryOpNode`, and `null`.
 4. `RemoveUnreachableCodeRule` — removes code after `return`; `if(false)` is replaced with the contents of `else` (or removed); `if(true)` is replaced with the contents of `then`; `while(false)` and `for(...; false; ...)` are removed. Recursively over nested blocks.
 5. `InlineSmallVoidFunctionsRule` — inlines `void` functions with `CountStatements(body) ≤ 10` (counting nested), without direct self-recursion (`!ContainsCallTo(body, name)`). Mutual recursion of two candidates (`A` calls `B`, `B` calls `A`) is **not** filtered out — duplicate expansion is possible, but not infinite (single pass). `main` bodies are not inlined.
-6. `RemoveUnreachableCodeRule` — once more (after inlining). See [What to fix](#what-to-fix), item 9.
+6. `RemoveUnreachableCodeRule` — once more (after inlining). See [What to fix](#what-to-fix), item 8.
 
 **`IROptimizerExtension`**:
 
@@ -392,7 +603,7 @@ public static readonly OptimizationId ReplaceSafeAccess;        // IR.replace-sa
 Standard IR rules (`AddStdRules`):
 1. `RemoveNoopMovRule` — `MOV rX, rX` (not immediately after a label).
 2. `RemovePushPopPairRule` — `PUSH rX; POP rX` (neither `PUSH` nor `POP` immediately after a label).
-3. `RemoveSwapMovPairRule` — `MOV rA, rB; MOV rB, rA` (not immediately after a label). See the note in [What to fix](#what-to-fix), item 15: with the typical `MOV dst, src` semantics this pattern is not a no-op; the rule is kept for backward compatibility and must be verified against the real `OpCode.MOV` semantics.
+3. `RemoveSwapMovPairRule` — `MOV rA, rB; MOV rB, rA` (not immediately after a label). See the note in [What to fix](#what-to-fix), item 14: with the typical `MOV dst, src` semantics this pattern is not a no-op; the rule is kept for backward compatibility and must be verified against the real `OpCode.MOV` semantics.
 4. `RemoveJumpToNextLabelRule` — `JMP label; label:` -> remove `JMP`.
 5. `ConstantFoldingRule` — `LDI rA, X; LDI rB, Y; OP rA, rB` -> `LDI opInstr.FirstReg, X op Y` (no labels between `ldi1`, `ldi2`, `op`). Supported opcodes: `ADD`, `SUB`, `MULT_INT`, `DIV`, `AND`, `OR`, `XOR`, `SHR`. The "reverse" register order is allowed (`ldi1.FirstReg == op.SecondReg && ldi2.FirstReg == op.FirstReg`). With `DIV` and `right == 0` the rule is a **no-op** (does not touch the instructions).
 6. `RemoveMultiEndPairRule` — `END; END` -> a single `END` (chains of >2 `END`s are collapsed sequentially, because `newIndex == index`).
@@ -460,8 +671,19 @@ public sealed record RunOutcome(
     IReadOnlyList<string> Diagnostics,
     ProcessorFault FaultInfo);
 
+public sealed record AsyncRunOutcome(
+    AsyncDeviceContext? Device,
+    int? DeviceId,
+    CompilationResult Compilation,
+    long StepCount,
+    bool Success,
+    IReadOnlyList<string> Diagnostics,
+    ProcessorFault FaultInfo);
+
 extension(VmHost host)
 {
+    // ===== Sync (DeviceContext) =====
+
     public RunOutcome RunAndKeep(
         string source, SourceLanguage lang,
         RamSize? ram = null, bool optimize = false,
@@ -471,17 +693,57 @@ extension(VmHost host)
 
     public bool RunAndCleanup(
         string source, SourceLanguage lang,
-        RamSize? ram = null, bool optimize = false, uint sector = 0);
+        RamSize? ram = null, bool optimize = false,
+        string deviceName = "run", uint sector = 0,
+        TextWriter? output = null,
+        PortCharEncoding encoding = PortCharEncoding.Utf16);
 
     public RunOutcome RunOnce(
         string source, SourceLanguage lang,
-        RamSize? ram = null, bool optimize = false, uint sector = 0);
+        RamSize? ram = null, bool optimize = false,
+        string deviceName = "run", uint sector = 0,
+        TextWriter? output = null,
+        PortCharEncoding encoding = PortCharEncoding.Utf16);
+
+    // ===== Async (AsyncDeviceContext) =====
+
+    public ValueTask<AsyncRunOutcome> AsyncRunAndKeep(
+        string source, SourceLanguage lang,
+        RamSize? ram = null, bool optimize = false,
+        string deviceName = "run", uint sector = 0,
+        TextWriter? output = null,
+        PortCharEncoding encoding = PortCharEncoding.Utf16,
+        CancellationToken token = default);
+
+    public ValueTask<bool> AsyncRunAndCleanup(
+        string source, SourceLanguage lang,
+        RamSize? ram = null, bool optimize = false,
+        string deviceName = "run", uint sector = 0,
+        TextWriter? output = null,
+        PortCharEncoding encoding = PortCharEncoding.Utf16,
+        CancellationToken token = default);
+
+    public ValueTask<AsyncRunOutcome> AsyncRunOnce(
+        string source, SourceLanguage lang,
+        RamSize? ram = null, bool optimize = false,
+        string deviceName = "run", uint sector = 0,
+        TextWriter? output = null,
+        PortCharEncoding encoding = PortCharEncoding.Utf16,
+        CancellationToken token = default);
 }
 ```
 
-- `RunAndKeep` — compiles `source`, registers a VM (`DeviceSpec` with `RamSize.MB16` by default if `ram == null`) at `sector`, loads and runs. If `output != null` is passed, additionally registers `QueuedIOStream(output, encoding)` as a device named `"{deviceName}-console"` at `sector + 1`; on UART registration failure the VM is rolled back. `Success` = `fault.Status == BiosStatus.EndProgram` (not "the fact of launch"). All operations go through the safe API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`): on failure a `RunOutcome` is returned with `Device == null`, `DeviceId == null`, `Success == false` and diagnostics in `Diagnostics`, without NRE and without exceptions.
-- `RunAndCleanup` — `RunAndKeep` + `UnregisterDevice`. Returns `Success`.
-- `RunOnce` — `RunAndKeep` + `UnregisterDevice`, returns a `RunOutcome` with `Device = null, DeviceId = null`.
+Sync behavior:
+
+- `RunAndKeep` — compiles `source` (`CompileToIR(source, 0, optimize, lang).Build()`), registers a VM (`DeviceSpec` with `RamSize.MB16` by default if `ram == null`) at `sector`, loads and runs. If `output != null` is passed, additionally registers `QueuedIOStream(output, encoding)` as a device named `"{deviceName}-console"` at `sector + 1`; on UART registration failure the VM is rolled back. `Success` = `fault.Status == BiosStatus.EndProgram` (not "the fact of launch"). All operations go through the safe API (`TryRegisterDevice`, `TryGetDeviceContext`, `TryLoadProgram`): on failure a `RunOutcome` is returned with `Device == null`, `DeviceId == null`, `Success == false` and diagnostics in `Diagnostics`, without NRE and without exceptions. **Important current bug:** at the end `RunAndKeep` unconditionally calls `host.Emulator.UnregisterDevice(uartId!.Value)` — when `output == null`, `uartId` is `null` and this throws `InvalidOperationException`. See [What to fix](#what-to-fix), item 19. When `output != null`, the UART is unregistered before return, so a successful "keep" does not keep the UART accessible.
+- `RunAndCleanup` — `RunAndKeep` (with the same `deviceName`/`output`/`encoding`) + `UnregisterDevice(vmId)`. Returns `Success`. UART is already unregistered inside `RunAndKeep`; the `uartId!.Value` bug in `RunAndKeep` applies here too when `output == null`.
+- `RunOnce` — `RunAndKeep` + `UnregisterDevice(vmId)`, returns a `RunOutcome` with `Device = null, DeviceId = null`. Same `uartId!.Value` caveat.
+
+Async behavior:
+
+- `AsyncRunAndKeep` — same pipeline as `RunAndKeep`, but the VM is created via `TryRegisterAsyncDevice` and wrapped into `AsyncDeviceContext`; run via `await ctx.Run(new LaunchOptions(StartAddress: 0), token)`. Returns `AsyncRunOutcome` with `Device` as `AsyncDeviceContext?`. **Inconsistency:** unlike sync `RunAndKeep`, it does **not** unregister the UART before return — the UART stays registered on success and on early-return failures after UART registration (the `TryGetDeviceContext`/`TryLoadProgram` failure paths do release it). See [What to fix](#what-to-fix), item 20.
+- `AsyncRunAndCleanup` — `AsyncRunAndKeep` + `UnregisterDevice(vmId)`; returns `Success`. Since `AsyncRunAndKeep` does not unregister UART, the UART leaks across calls on the same `sector` when `output != null`.
+- `AsyncRunOnce` — `AsyncRunAndKeep` + `UnregisterDevice(vmId)`, returns `AsyncRunOutcome` with `Device = null, DeviceId = null`. Same UART leak caveat.
 
 ### Built-in libraries
 
@@ -544,6 +806,8 @@ Behavior:
 - **`ReadRam<T>` / `CopyRamTo<T>`** — `MemoryMarshal.Read<T>` / `MemoryMarshal.AsBytes(...)` over a temporary byte buffer filled byte by byte. No `unsafe` — only `MemoryMarshal` and `System.Runtime.CompilerServices.Unsafe.SizeOf<T>()` (the latter does not require `<AllowUnsafeBlocks>`).
 - **Byte-by-byte copying** (`for (int i = 0; i < destination.Length; i++) destination[i] = buf[(nuint)i + start];`) — slower than `Buffer.MemoryCopy` but does not require `unsafe`. For large volumes use `CopyRamTo(Stream, ...)` (at least it does not allocate one huge array).
 - **`CopyRamTo<T>` on `Span<T>` with `start` in bytes** (not in elements of `T`): `CopyRamTo<T>(Span<T>, nuint)` takes `MemoryMarshal.AsBytes(destination)` — the `byteOffset` is in RAM bytes.
+
+**The same RAM-utility set on `AsyncDeviceContext`** — see the `AsyncDeviceExtension` section above; the semantics are identical (`IsRunning` guard, `ArgumentOutOfRangeException` on bounds, byte-by-byte copying via `NativeReadOnlyBuffer`, no `unsafe`).
 
 ### Bytecode utilities
 
@@ -644,21 +908,17 @@ dbg.Load(comp.Program!, loadAddress: 0, startAddress: 0);
 dbg.AddBreakpoint(0x00);           // stop at the entry to main
 dbg.Stopped += s => Console.WriteLine($"STOP: {s}");
 
-// Step over CALL
 var stop = dbg.StepOver();
 Console.WriteLine($"after step-over: {stop}");
 Console.WriteLine($"  at: {dbg.CurrentInstruction}");
 
-// Continue to the breakpoint, but no more than 100k steps
 stop = dbg.Continue(stepLimit: 100_000);
 if (stop.Reason == DebugStopReason.Breakpoint)
     Console.WriteLine($"  hit bp at 0x{stop.InstructionPointer:X}");
 
-// Continue to the end, ignoring all breakpoints
 var final = dbg.RunToEnd();
 Console.WriteLine($"final: {final.Reason} after {final.StepCount} steps");
 
-// Inspect RAM and registers
 var regs = dbg.Registers;
 Console.WriteLine($"r0={regs[RegType.r0]}, sp=0x{regs[RegType.rSP]:X}");
 
@@ -692,8 +952,6 @@ var stop = runner.Result;                         // Reason == UserStop
 var stop = dbg.Continue();
 if (stop.Reason == DebugStopReason.Sleeping)
 {
-    // VM is in HALT, waiting for WAKE_INT from a device
-    // … handle sleep externally …
     dbg.Wake();                                    // Resume() -> OpCode.WAKE in the queue
     stop = dbg.Continue();
 }
@@ -704,6 +962,156 @@ if (stop.Reason == DebugStopReason.Sleeping)
 ```csharp
 dbg.ContinueTo(address: 0x200);                    // temporary breakpoint at 0x200
 // afterwards 0x200 is no longer in dbg.Breakpoints
+```
+
+**One-liner run with diagnostics (sync):**
+
+```csharp
+using Nantuc.VmApplication.Extensions.Host;
+using Nantuc.VmApplication.Project;
+using Nantuc.Kernel.Common;
+
+using var host = VmHostFactory.CreateDefault();
+
+bool ok = host.RunAndCleanup("int main() { return 0; }", SourceLanguage.MiniC);
+
+var outcome = host.RunAndKeep("""
+    int main() {
+        int x = 42;
+        return x;
+    }
+    """, SourceLanguage.MiniC);
+
+if (outcome.Success)
+{
+    var regs = outcome.Device!.GetRegistersSnapshot();
+    Console.WriteLine($"r0={regs[RegType.r0]}, steps={outcome.StepCount}");
+
+    if (outcome.FaultInfo.Status != BiosStatus.EndProgram)
+        Console.Error.WriteLine($"VM fault: {outcome.FaultInfo.Status} " +
+                                $"at IP=0x{outcome.FaultInfo.InstructionPointer:X}");
+}
+```
+
+**Run with console output via UART (sync):**
+
+```csharp
+var outcome = host.RunAndKeep(source, SourceLanguage.MiniC, output: Console.Out);
+// UART is registered at sector + 1, default encoding — Utf16.
+// For Utf8 — pass encoding: PortCharEncoding.Utf8.
+```
+
+**Registering on a different sector (sync):**
+
+```csharp
+var outcome = host.RunAndKeep(source, SourceLanguage.MiniC, sector: 5);
+// UART (if output != null) takes sector 6.
+```
+
+**One-liner run with diagnostics (async):**
+
+```csharp
+using Nantuc.VmApplication.Extensions.Host;
+using Nantuc.VmApplication.Project;
+using Nantuc.Kernel.Common;
+
+using var host = VmHostFactory.CreateDefault();
+
+bool ok = await host.AsyncRunAndCleanup(
+    "int main() { return 0; }", SourceLanguage.MiniC);
+
+var outcome = await host.AsyncRunAndKeep("""
+    int main() {
+        int x = 42;
+        return x;
+    }
+    """, SourceLanguage.MiniC);
+
+if (outcome.Success)
+{
+    var regs = outcome.Device!.GetRegistersSnapshot();
+    Console.WriteLine($"r0={regs[RegType.r0]}, steps={outcome.StepCount}");
+}
+
+// Long-running with cancellation:
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+var fault = await host.AsyncRunAndKeep(source, SourceLanguage.MiniC, token: cts.Token);
+```
+
+**Async run with UART output:**
+
+```csharp
+var outcome = await host.AsyncRunAndKeep(
+    source, SourceLanguage.MiniC,
+    output: Console.Out,
+    encoding: PortCharEncoding.Utf8);
+// UART is registered at sector + 1.
+```
+
+**Async device: register, load, run directly (lower level):**
+
+```csharp
+using Nantuc.Kernel.Common;
+using Nantuc.VmApplication;
+using Nantuc.VmApplication.Emulator;
+using Nantuc.VmApplication.Extensions.AsyncDeviceExtensions;
+using Nantuc.VmApplication.Project;
+
+using var host = VmHostFactory.CreateDefault();
+
+var comp = host.Project.Compile("int main() { return 0; }", 0, optimize: false);
+if (!comp.Success) return;
+
+var state = host.Emulator.TryRegisterAsyncDevice(
+    DeviceSpec.Create(ramSize: RamSize.MB16, name: "async"), sector: 0, out int id);
+if (state != IdState.Valid) return;
+if (!host.Emulator.TryGetAsyncDeviceContext(id, out var actx)) return;
+
+actx.LoadProgram(comp.Program!, loadAddress: 0);
+
+var fault = await actx.Run(new LaunchOptions(StartAddress: 0));
+Console.WriteLine($"status={fault.Status}, ip=0x{fault.InstructionPointer:X}, steps={actx.StepCount}");
+```
+
+**Async device: manual step mode:**
+
+```csharp
+using Nantuc.VmApplication.Extensions.AsyncDeviceExtensions;
+
+if (!host.Emulator.TryGetAsyncDeviceContext(id, out var actx)) return;
+
+actx.LoadProgram(comp.Program!, 0);
+actx.RunStepMode(0);                              // prepare Step mode, no instruction yet
+
+await actx.StepDebug(snapshot =>
+{
+    // Current implementation: callback is invoked BEFORE the step.
+    Console.WriteLine($"before step: ip=0x{snapshot.Registers[RegType.rIP]:X}");
+});
+
+await actx.BatchStepDebug(count: 10);
+await actx.EndStepMode();
+```
+
+**Async device: HALT / Resume:**
+
+```csharp
+actx.Pause();                                     // enqueue OpCode.HALT
+// … device is sleeping …
+actx.Resume();                                    // enqueue OpCode.WAKE
+```
+
+**Async device: RAM snapshot:**
+
+```csharp
+using Nantuc.VmApplication.Extensions.AsyncDeviceExtensions;
+
+if (!actx.IsRunning)
+{
+    byte[] ram = actx.GetRamAsNewArray(0, 256);
+    ulong value = actx.ReadRam<ulong>(0x100);
+    Console.WriteLine($"value={value}");
+}
 ```
 
 **I/O output device (UTF-8):**
@@ -748,50 +1156,6 @@ il = host.Project.OptimizationIR(il, IROptimizationCount: 5);
 var comp = il.Build();
 ```
 
-**One-liner run with diagnostics:**
-
-```csharp
-using Nantuc.VmApplication.Extensions.Host;
-using Nantuc.VmApplication.Project;
-using Nantuc.Kernel.Common;
-
-using var host = VmHostFactory.CreateDefault();
-
-bool ok = host.RunAndCleanup("int main() { return 0; }", SourceLanguage.MiniC);
-
-var outcome = host.RunAndKeep("""
-    int main() {
-        int x = 42;
-        return x;
-    }
-    """, SourceLanguage.MiniC);
-
-if (outcome.Success)
-{
-    var regs = outcome.Device!.GetRegistersSnapshot();
-    Console.WriteLine($"r0={regs[RegType.r0]}, steps={outcome.StepCount}");
-
-    if (outcome.FaultInfo.Status != BiosStatus.EndProgram)
-        Console.Error.WriteLine($"VM fault: {outcome.FaultInfo.Status} " +
-                                $"at IP=0x{outcome.FaultInfo.InstructionPointer:X}");
-}
-```
-
-**Run with console output via UART:**
-
-```csharp
-var outcome = host.RunAndKeep(source, SourceLanguage.MiniC, output: Console.Out);
-// UART is registered at sector + 1, default encoding — Utf16.
-// For Utf8 — pass encoding: PortCharEncoding.Utf8.
-```
-
-**Registering on a different sector:**
-
-```csharp
-var outcome = host.RunAndKeep(source, SourceLanguage.MiniC, sector: 5);
-// UART (if output != null) takes sector 6.
-```
-
 **Saving sources into the project:**
 
 ```csharp
@@ -801,12 +1165,24 @@ host.Project.SaveFileProject("main.c", "int main() { return 0; }");
 host.Project.SaveFileInclude("heap.nanasm", Libraries.heap_nanasm);
 ```
 
-**Reading RAM after a run:**
+**Reading RAM after a run (sync):**
 
 ```csharp
 using Nantuc.VmApplication.Extensions.DeviceCtx;
 
 var outcome = host.RunAndKeep("int main() { int x = 42; return x; }", SourceLanguage.MiniC);
+if (outcome.Success)
+{
+    var ram = outcome.Device!.GetRamAsNewArray(0, 256);
+}
+```
+
+**Reading RAM after a run (async):**
+
+```csharp
+using Nantuc.VmApplication.Extensions.AsyncDeviceExtensions;
+
+var outcome = await host.AsyncRunAndKeep("int main() { int x = 42; return x; }", SourceLanguage.MiniC);
 if (outcome.Success)
 {
     var ram = outcome.Device!.GetRamAsNewArray(0, 256);
@@ -824,7 +1200,6 @@ if (!comp.Success) { /* … */ }
 switch (comp.GetOpCodeSafety())
 {
     case OpCodeSafety.Safe:
-        // all memory accesses are *_UNSAFE, potentially unsafe
         break;
     case OpCodeSafety.HasUnsafe:
         foreach (var loc in comp.GetUnsafeOpCodes())
@@ -852,7 +1227,7 @@ if (comp.GetOpCodeSafety() != OpCodeSafety.Safe)
 
 ## Closeness of the module to the user
 
-Medium-high. This is an optional layer on top of the main API. If you just want to "run and look" — connect `Nantuc.VmApplication.Extensions` and use `RunAndKeep`/`RunOnce`/`AddStdRules`. If you are writing an IDE or a debugger — use `Debugger`/`Disassembler`/`StringDisassembler`/`InstructionFormatter`. If you are writing a game — `SynchronousIOStream`/`QueuedIOStream` for UART.
+Medium-high. This is an optional layer on top of the main API. If you just want to "run and look" — connect `Nantuc.VmApplication.Extensions` and use `RunAndKeep`/`RunOnce`/`AsyncRunAndKeep`/`AddStdRules`. If you are writing an IDE or a debugger — use `Debugger`/`Disassembler`/`StringDisassembler`/`InstructionFormatter`. If you are writing a game — `SynchronousIOStream`/`QueuedIOStream` for UART. If you need a device with its own RAM/CPU or async step/run control — use `AsyncDeviceContext` or the `AsyncRun*` one-liners.
 
 **What you should do:**
 - Connect `AddStdRules()` in `VmHostFactory.CreateDefault`-style scenarios to compile with optimizations.
@@ -868,20 +1243,38 @@ Medium-high. This is an optional layer on top of the main API. If you just want 
 - For typical integer operations and overflow checks — `imath.minic`, `bitops.minic`, `ovf.minic` instead of hand-written implementations.
 - For untrusted code — check `comp.GetOpCodeSafety()` and/or enumerate `comp.GetUnsafeOpCodes()` before loading the VM; this is a cheap static check (`*_UNSAFE` opcodes), not a replacement for a sandbox.
 - To output from the VM to the console/file without manually registering a UART — `host.RunAndKeep(source, lang, output: writer)` (UART will be registered at `sector + 1`, default encoding — `Utf16`).
+- For a device with its own RAM/processor — `host.Emulator.TryRegisterAsyncDevice(...)` / `TryGetAsyncDeviceContext(...)`, then `AsyncDeviceContext.Run`/`DebugRun`/`RunStepMode`; or one-liners `host.AsyncRunAndKeep` / `host.AsyncRunOnce` / `host.AsyncRunAndCleanup`.
+- For async manual stepping — `actx.RunStepMode(start)`, then `await actx.StepDebug(...)` / `BatchStepDebug(...)`, and `await actx.EndStepMode()` when done.
+- For HALT/sleep control on an async device — `actx.Pause()` / `actx.Resume()` or `device.WakeProcessor()`.
+- To read RAM of a stopped async device — the same `GetRamAsNewArray` / `CopyRamTo` / `ReadRam<T>` extensions on `AsyncDeviceContext`.
 
 **What you should not do:**
 - Call `RunAndKeep` multiple times on the same `VmHost` with the same `sector` — the sector will be taken. Use `sector:` explicitly or `RunOnce`.
-- Call `RunAndKeep` multiple times on the same `VmHost` with `output != null` without `UnregisterDevice` — the `sector + 1` sector will also be taken by the UART.
+- Call `RunAndKeep`/`AsyncRunAndKeep` multiple times on the same `VmHost` with `output != null` without `UnregisterDevice` — the `sector + 1` sector will also be taken by the UART.
+- Call sync `RunAndKeep`/`RunOnce`/`RunAndCleanup` with `output: null` in the current build — it throws `InvalidOperationException` at the end (`uartId!.Value`). See [What to fix](#what-to-fix), item 19. Pass a `TextWriter` as a workaround until the bug is fixed.
+- Call async `AsyncRunAndCleanup`/`AsyncRunOnce` repeatedly with `output != null` on the same `sector` — the UART is not released and `sector + 1` will leak. See item 20.
 - Use `RunAndKeep` for untrusted code — it registers the VM on the given sector without a sandbox.
 - Rely on `AddStdRules` for IR — `ReplaceSafeMemAccessWithUnsafeRule` is **not** added automatically.
-- Expect `RunOutcome.Success` to reflect only the fact of launch — `Success == (fault.Status == BiosStatus.EndProgram)`, i.e. the program actually reached `END`. Runtime faults are visible both in `Success` and in `FaultInfo`.
-- Use `Libraries.alloc_minic` as a "reference" — it still uses globals as legacy (the workaround is no longer needed, but the code has not been simplified yet), and there is a bug in `free` (see [What to fix](#what-to-fix), item 14).
-- Call `Step`/`Continue`/`Load` from different threads on the same `Debugger` — it is not thread-safe (except `RequestStop`). The model is the same as for `DeviceContext`.
+- Expect `RunOutcome.Success` / `AsyncRunOutcome.Success` to reflect only the fact of launch — `Success == (fault.Status == BiosStatus.EndProgram)`. Runtime faults are visible both in `Success` and in `FaultInfo`.
+- Expect the UART registered by `RunAndKeep` to remain accessible after it returns — the current implementation unregisters it before return.
+- Use `Libraries.alloc_minic` as a "reference" — it still uses globals as legacy, and there is a bug in `free` (see [What to fix](#what-to-fix), item 13).
+- Call `Step`/`Continue`/`Load` from different threads on the same `Debugger` — it is not thread-safe (except `RequestStop`).
 - Expect an exact call stack from `GetCallStack()` — the VM does not keep a frame pointer, reconstruction is heuristic; false positives are possible.
 - Rely on `stop.Snapshot.IsSleeping` in `Continue` — the sleep flag only comes from `_stepSnapshot` (after `StepDebug`); when stopping via `RequestStop` it may be `false` even if the VM is in `HALT`. For `HALT`, `stop.Reason == Sleeping` is more reliable.
-- Use a single `Debugger` for several `Load`s — after the program finishes (or after a manual `Dispose`), create a new instance. A repeated `Load` throws `InvalidOperationException` (protection against leaking step mode).
-- Expect `Debugger.ReadRam` to guard against `IsRunning` (like `DeviceContextExtensions.GetRamAsNewArray`) — the debugger reads RAM during a stop; if you call `ReadRam` from another thread during `Continue`, the data will be race-y.
-- Assume `GetOpCodeSafety() == Safe` is a memory-safety guarantee. `Safe` is "no `*_UNSAFE`", not "no arbitrary addresses": ordinary `LOAD`/`STORE` also write to an address taken from a register. For real protection — a combination of `ReplaceSafeMemAccessWithUnsafeRule`, `SizeRam` = actual RAM size, and `Device`/`MemoryBus` bounds. `GetOpCodeSafety` is a signal "are there `*_UNSAFE`s", not "is the code safe".
+- Use a single `Debugger` for several `Load`s — a repeated `Load` throws `InvalidOperationException`.
+- Assume `GetOpCodeSafety() == Safe` is a memory-safety guarantee. `Safe` is "no `*_UNSAFE`", not "no arbitrary addresses".
+- Call `AsyncDeviceContext` methods from multiple threads — the context mode is not thread-safe. Only `AsyncDevice.Stop`, `WakeProcessor` and `EnqueueExternalCommand` are safe from another thread.
+- Expect `AsyncDevice.StepDebug` / `BatchStepDebug` / `DebugRun` to invoke `onStep` **after** the step — the current implementation invokes it **before** the step (pre-step snapshot).
+- Rely on `BreakPointerLaunchDevice(start: null)` meaning "end of RAM" — the current implementation uses `start ?? 0`; pass an explicit start address.
+- Call `AsyncDeviceContext.LoadProgram` / `ResetMemoryRam` while the device is running — they throw `InvalidOperationException`; call `await actx.Stop()` first.
+
+## What was fixed in this version
+
+- `RunAndCleanup`/`RunOnce` (sync) now accept `deviceName`, `output`, `encoding` and pass them through to `RunAndKeep` — the previous API asymmetry (old "What to fix", item 6) is resolved.
+- Added `AsyncRunOutcome` and the async pipeline: `AsyncRunAndKeep` / `AsyncRunAndCleanup` / `AsyncRunOnce` on top of `AsyncDeviceContext`.
+- Added the `AsyncDevice` module (`AsyncDevice`, `AsyncDeviceContext`, `AsyncDeviceExtension`, `ReusableWakeSignal`) — a VM device with its own RAM/CPU, async step/run and RAM utilities. See the new "Async device" API section.
+
+Remaining issues after this change are tracked in [What to fix](#what-to-fix); the new ones are items 19 (`uartId!.Value` in sync `RunAndKeep`) and 20 (async UART leak / inconsistent UART lifecycle).
 
 ## Special notes
 
@@ -928,6 +1321,24 @@ An exact stack requires a frame pointer (which the VM does not have) or a separa
 
 For `CALL` (immediate) the instruction length is 12 bytes (4 + 4 padding + 8 immediate), so the return address is `AlignUp(ip + 4, 8) + 8`. For `CALL_IND` (indirect) the length is 4 bytes, the return address is `ip + 4`. This matches §3.2 and §5.6 of [`bytecode.md`](../docs/bytecode.md). An error here would cause "falling into" the called function.
 
+### Async device: modes, pre-step callbacks, HALT
+
+`AsyncDeviceContext` has an explicit `Mode` (`Step` / `Continuous` / `None`):
+- `Run` / `DebugRun` set `Continuous` and reset to `None` in `finally`.
+- `RunStepMode` sets `Step`.
+- `Stop` / `EndStepMode` reset to `None`.
+- A conflicting mode throws `InvalidOperationException`.
+
+`AsyncDevice` itself is not thread-safe; only `Stop`, `WakeProcessor` and `EnqueueExternalCommand` are safe from another thread. The context is also not thread-safe — use one coordinator thread.
+
+`AsyncDevice.StepDebug` / `BatchStepDebug` and `DebugRun` invoke `onStep` **before** `Step()` in the current implementation. The snapshot is therefore pre-instruction. `DebugRun` also invokes `onStep` before the step-limit check. For a post-step view, call `await actx.Step()` and then `actx.GetRegistersSnapshot()`.
+
+HALT/sleep: `AsyncDevice.Step()` calls `_processor.Step()`; if the processor is sleeping, it awaits `ReusableWakeSignal.WaitAsync(_processorPolicy.SleepWaitTimeout)`. `ReusableWakeSignal` latches `Set()` when nobody is waiting; the next `WaitAsync` returns `true` immediately. Reentrant `WaitAsync` returns `true` immediately. Wake via `WakeProcessor()`, `Resume()`, or `Stop()`.
+
+`BreakPointerLaunchDevice(ulong? start, Action? onLaunch)` resets the processor and launches at `start ?? 0` (aligned up to 8). The XML comment says `null` means “end of RAM”, but the current code uses `0`; pass an explicit start address.
+
+`AsyncDeviceContext.Stop()` in `Step` mode performs `_device.Stop()` and then `await _device.StepDebug(null)` so the processor can observe `BiosStatus.HostStopped`; if the processor is already not running, `StepDebug` no-ops.
+
 ### `Libraries.alloc_minic`
 
 Block layout:
@@ -939,7 +1350,7 @@ Block layout:
 ```
 `payload` starts at `+8`. The minimum block is 24 bytes. `HDR_FTR = 16` (8 hdr + 8 ftr) is added to the aligned `payload` in `alloc`: `need = ((size + 7) & ~7) + HDR_FTR`, but not less than `MIN_BLOCK`. On free: `blkMark(b, size, 1)` -> `mergeRight(b)` -> `mergeLeft(b)` -> `blkPush(b)`. On alloc: first-fit over `heapFreeList`, if the size is sufficient — `split` (if `csz - need >= MIN_BLOCK`), otherwise `blkMark(curr, csz, 0)` (no split); otherwise bump via `GetSP()`.
 
-**Known bug in the current version:** at the start of `free` there is `if (blkFree(b)) return;` **before** the declaration `ulong b = ptr - 8;` — a reference to an undeclared variable. See [What to fix](#what-to-fix), item 14.
+**Known bug in the current version:** at the start of `free` there is `if (blkFree(b)) return;` **before** the declaration `ulong b = ptr - 8;` — a reference to an undeclared variable. See [What to fix](#what-to-fix), item 13.
 
 **Historical note:** earlier `alloc_minic` kept all state in globals because of the `FunctionGenerator.GenerateFunction` bug in the compiler (asymmetric push/pop of callee-saved registers with 3-4 locals). The bug is fixed — the workaround is no longer needed, but the current code has not yet been migrated to locals. Details in [STDLIBRARIES.md](STDLIBRARIES.md).
 
@@ -955,11 +1366,17 @@ Details in [STDLIBRARIES.md](STDLIBRARIES.md).
 
 ### `HostExtensions` and `sector`
 
-`RunAndKeep`/`RunOnce`/`RunAndCleanup` take `sector` (default `0`). If `sector` is taken by another device, `TryRegisterDevice` returns a non-`Valid` `IdState`, and `RunOutcome` will have `Success == false` with the diagnostic `"register vm: {state}"` in `Diagnostics` — no NRE anymore (the safe API is used). If `output != null` is passed, the UART is registered at `sector + 1`; on UART registration failure the VM is rolled back via `UnregisterDevice` and `RunOutcome` is returned with `Success == false`, `Device == null`, diagnostic `"register uart: {state}"`. `RunOnce` and `RunAndCleanup` release **only the VM** (`UnregisterDevice(vmId)`), the UART remains registered — a potential leak if `output != null` and `RunOnce`/`RunAndCleanup` are called repeatedly with the same `sector`. See [What to fix](#what-to-fix), item 16.
+`RunAndKeep`/`RunOnce`/`RunAndCleanup` and their async counterparts take `sector` (default `0`). If `sector` is taken by another device, `TryRegisterDevice`/`TryRegisterAsyncDevice` returns a non-`Valid` `IdState`, and the outcome has `Success == false` with the diagnostic `"register vm: {state}"` in `Diagnostics` — no NRE (the safe API is used). If `output != null`, the UART is registered at `sector + 1`; on UART registration failure the VM is rolled back via `UnregisterDevice` and the outcome is returned with `Success == false`, `Device == null`, diagnostic `"register uart: {state}"`.
+
+UART lifecycle is currently inconsistent between sync and async:
+- Sync `RunAndKeep` unconditionally unregisters the UART **before returning** via `host.Emulator.UnregisterDevice(uartId!.Value)`. On the one hand this avoids leaking the `sector + 1` slot across repeated calls; on the other hand it throws `InvalidOperationException` when `output == null` (`uartId` is `null`). Also, a successful "keep" does not keep the UART accessible afterwards. See [What to fix](#what-to-fix), item 19.
+- Sync `RunAndCleanup`/`RunOnce` release only the VM — the UART is already released by `RunAndKeep`, so this is correct for the success path but subject to the same `uartId!.Value` bug when `output == null`.
+- Async `AsyncRunAndKeep` does **not** unregister the UART at all — it stays registered (matching "keep" semantics), but `AsyncRunOnce`/`AsyncRunAndCleanup` only unregister the VM, so the UART leaks across repeated calls on the same `sector`. See item 20.
+- Early-return failure paths inside `RunAndKeep` (registration, context, load) release both the VM and (if already registered) the UART via `if (uartId is int u) host.Emulator.UnregisterDevice(u)` — the same is true for `AsyncRunAndKeep`. Only the final unconditional call in sync `RunAndKeep` is wrong.
 
 ### `RunOutcome.FaultInfo` and `Success`
 
-`FaultInfo` is the `ProcessorFault` from `ctx.Run(new LaunchOptions(StartAddress: 0))`. `Success` in `RunAndKeep` is `fault.Status == BiosStatus.EndProgram`, not "the fact of launch" and not "compilation success". On compilation/registration/load failure `RunOutcome.Success == false`, `Device == null`, `FaultInfo == default(ProcessorFault)`, and the reason is in `Diagnostics`. Important: `_faultData` in `Processor` is not reset in `LaunchProgramm` — a second `Run` on the same `Device` may return a fault from the first one if the first one crashed.
+`FaultInfo` is the `ProcessorFault` from `ctx.Run(new LaunchOptions(StartAddress: 0))` (sync) or `await ctx.Run(new LaunchOptions(StartAddress: 0), token)` (async). `Success` is `fault.Status == BiosStatus.EndProgram`, not "the fact of launch" and not "compilation success". On compilation/registration/load failure `Success == false`, `Device == null`, `FaultInfo == default(ProcessorFault)`, and the reason is in `Diagnostics`. Important: `_faultData` in `Processor` is not reset in `LaunchProgramm` — a second `Run` on the same `Device` may return a fault from the first one if the first one crashed.
 
 ### `BytecodeExtension`: truncated program and `fullyScanned`
 
@@ -979,49 +1396,60 @@ Reason: `Program` is a `byte[]`, and truncation means either `Program` is broken
 - `ImmutableArray<T>` — works in AOT/WASM, but each mutation through `CreateBuilder` allocates. For large programs (10k+ instructions) `DisassemblyResult` can take a lot of memory. For streaming — `StringDisassembler.Disassemble`.
 - `Guid.NewGuid().GetHashCode()` in `InlineSmallVoidFunctionsRule` — stable within a process, but not across processes. For deterministic builds — a problem.
 - `Debugger` — `StepDebug` works in WASM (one instruction — synchronously), but `Continue`/`StepOver`/`StepOut`/`GetCallStack` are synchronous loops that block the current thread. In browser-WASM (single-threaded) — UI blocking. For an in-browser IDE — move to a Web Worker or use `Task.Run` with `RequestStop`.
+- `AsyncDevice` — async loops use `ValueTask`, `Task.Yield()` and `ReusableWakeSignal`; `Run`/`DebugRun`/`Step` are awaitable, but the device/context themselves are not thread-safe. In browser-WASM, long `Run` loops still occupy the single thread between awaits; use `Stop`/cancellation and explicit `await` points.
 
 ## What to fix
 
-6. **[API] `RunAndCleanup` and `RunOnce` do not let you choose `deviceName` and do not accept `output`/`encoding`.**  
-   File: `Host/HostExtensions.cs`. `RunAndKeep` takes `deviceName`, `output`, `encoding`; `RunAndCleanup`/`RunOnce` do not (always `"run"`, no UART). This is asymmetric and gets in the way during debugging and when running with output.  
-   Fix: add the same parameters to `RunAndCleanup`/`RunOnce` and pass them through to `RunAndKeep`.
-
-7. **[API/XML] `SaveFileInclude`/`SaveFileProject` — path traversal.**  
+1. **[API/XML] `SaveFileInclude`/`SaveFileProject` — path traversal.**  
    File: `Host/ProjectExtension.cs`. `localPath` is not checked for `..` and absolute paths.  
    Fix: validate `localPath` (`Path.IsPathRooted` + absence of `..` in segments) or document that the call is trusted input.
 
-8. **[XML] `ReplaceSafeMemAccessWithUnsafeRule.SizeRam` — default is underestimated.**  
+2. **[XML] `ReplaceSafeMemAccessWithUnsafeRule.SizeRam` — default is underestimated.**  
    File: `Optimizations/IRAsmRules/ReplaceSafeMemAccessWithUnsafeRule.cs`. `RamSize.B128` is not a "safe" default but a minimum; the rule silently no-ops if the user does not set the size.  
    Fix: either default to the `RamSize` from `Device` (but the rule does not know about `Device`), or add a `<remarks>` with an explicit "you must set `SizeRam` to the device RAM size, otherwise the rule is a no-op".
 
-9. **[API] `AddStdRules` for AST contains `RemoveUnreachableCodeRule` twice.**  
+3. **[API] `AddStdRules` for AST contains `RemoveUnreachableCodeRule` twice.**  
    File: `Optimizations/AstOptimizerExtension.cs`. The duplication is intentional (after inlining), but non-obvious.  
    Fix: a `<remarks>` on `AddStdRules` explaining why the second pass is needed, or extract it into a separate composite method `AddStdRulesWithCleanup()`.
 
-10. **[API] `Debugger` — one-shot per `Load`.**  
+4. **[API] `Debugger` — one-shot per `Load`.**  
     File: `Debugging/Debugger.cs`. A repeated `Load` throws `InvalidOperationException` so that step mode does not leak (`ctx.RunStepMode` without `EndStepMode`).  
     Fix: either `Reset()` (clears step mode, clears breakpoints, but keeps `Context`), or an explicit `Unload()`/`Reload(program)`. For now — a new instance per run.
 
-11. **[API] `Debugger.ReadRam` is not guarded against `IsRunning`.**  
+5. **[API] `Debugger.ReadRam` is not guarded against `IsRunning`.**  
     File: `Debugging/Debugger.cs`. Unlike `DeviceContextExtensions.GetRamAsNewArray`/`CopyRamTo` (which throw `InvalidOperationException` when `ctx.IsRunning`), the debugger reads RAM **during a stop** — that is its normal scenario. But if the user calls `ReadRam` from another thread during `Continue`, the data will be race-y.  
     Fix: either check `_isStepping` (a flag "a `StepDebug` is in progress"), or document it in `<remarks>` (currently — only in the README).
 
-12. **[API/XML] `Debugger.StepOut` — a heuristic on `rSP`.**  
+6. **[API/XML] `Debugger.StepOut` — a heuristic on `rSP`.**  
     File: `Debugging/Debugger.cs`. The semantics "`rSP` became larger than it was" breaks if the function uses `PUSH`/`POP` for temporaries (typical for `print_minic`/`alloc_minic`). In such cases `StepOut` may leave the function earlier than expected.  
     Fix: either document the limitation, or add a "call depth" via `GetCallStack` (frame count) instead of `rSP` — but that is more expensive.
 
-13. **[API] `Debugger.GetCallStack` — best-effort, false positives.**  
+7. **[API] `Debugger.GetCallStack` — best-effort, false positives.**  
     File: `Debugging/Debugger.cs`. The VM does not keep a frame pointer; the stack is reconstructed by scanning `[rSP, RamSize)` for 8-byte values in the code range. Local `ulong`s that happen to fall in the range will produce false frames.  
     Fix: either a `/// <remarks>` with an explicit warning (currently — in the README), or implement a frame pointer in `Processor` (a breaking change for bytecode).
 
-14. **[API] `alloc_minic.free` — reference to `b` before its declaration.**  
+8. **[API] `alloc_minic.free` — reference to `b` before its declaration.**  
     File: `StdLibraries/Libraries.cs`. At the start of `free(ulong ptr)` there is `if (blkFree(b)) return;`, but `b` is declared below (`ulong b = ptr - 8;`). This is a bug — a reference to an undeclared variable.  
     Fix: remove the extra line `if (blkFree(b)) return;` (double free is not supported anyway, and the `if (ptr == 0) return;` check is already there), or move it **after** the declaration of `b`: `ulong b = ptr - 8; if (blkFree(b)) return;`.
 
-15. **[API/semantics] `RemoveSwapMovPairRule` removes `MOV rA, rB; MOV rB, rA`, assuming "net effect is zero".**  
+9. **[API/semantics] `RemoveSwapMovPairRule` removes `MOV rA, rB; MOV rB, rA`, assuming "net effect is zero".**  
     File: `Optimizations/IRAsmRules/RemoveSwapMovPairRule.cs`. With the typical `MOV dst, src` semantics (`dst = src`) this pattern is **not** a no-op: after `MOV A, B` we have `A = old B`, after `MOV B, A` — `B = old B`; the net result is `A = old B, B = old B`. The rule is correct only if `OpCode.MOV` in the VM has swap semantics (extremely unusual) or if the author of the rule relied on a different convention.  
     Fix: (a) clarify the `OpCode.MOV` semantics in `docs/bytecode.md`; (b) either remove the rule from `AddStdRules` or rewrite it for swap (`XCHG`/`SWAP`) if such an opcode exists; (c) at a minimum — add a `<remarks>` with an explicit warning.
 
-16. **[API] `RunOnce`/`RunAndCleanup` do not release the UART registered at `sector + 1`.**  
-    File: `Host/HostExtensions.cs`. With `output != null`, `RunAndKeep` registers `QueuedIOStream` at `sector + 1`; `RunOnce`/`RunAndCleanup` release only the VM (`UnregisterDevice(vmId)`), but not the UART. A repeated call with the same `sector` and `output != null` will fail on UART registration.  
-    Fix: `RunAndKeep` should return `UartDeviceId` in `RunOutcome` (or in a separate out parameter), and `RunOnce`/`RunAndCleanup` should release it too. At a minimum — document that with `output != null`, `sector + 1` is also taken.
+10. **[API/XML] `AsyncDevice.StepDebug` / `BatchStepDebug` / `DebugRun` invoke `onStep` before the step.**  
+    File: `AsyncDevice/AsyncDevice.cs`. The callback receives `_processor.CurrentProcessorSnapshot` **before** `await Step()`, so the snapshot is pre-instruction. This is easy to misread as a post-step snapshot (especially compared with the `Debugger` layer).  
+    Fix: either move the callback after `await Step()` (if post-step semantics are intended) or keep the current behavior but document it explicitly in XML `<remarks>`; the README already notes this.
+
+11. **[XML] `AsyncDevice.BreakPointerLaunchDevice` — `start: null` does not mean “end of RAM”.**  
+    File: `AsyncDevice/AsyncDevice.cs`. The XML comment says `null` starts from the end of RAM, but the implementation uses `GlobalInit(onLaunch, start ?? 0)`.  
+    Fix: either change the implementation to use the actual end-of-RAM address or fix the XML comment to say `null` means `0`.
+
+12. **[API] `AsyncRunAndKeep`/`AsyncRunOnce`/`AsyncRunAndCleanup` — no early cancellation check and not all failure paths symmetric with the sync variant.**  
+    File: `Host/HostExtensions.cs`. Async variants do not check `token` before starting the pipeline; the compile step is synchronous and cannot be cancelled; `AsyncRunAndKeep` runs on `AsyncDeviceContext`, so thread-safety is limited by the device context (single coordinator thread). Cancellation during `Run` is honoured by the processor loop, but cancellation of the compile step is not possible.  
+    Fix: call `token.ThrowIfCancellationRequested()` at the start of `AsyncRunAndKeep` (and at the entry of the `AsyncRunAndCleanup`/`AsyncRunOnce` wrappers), and document the single-threaded `AsyncDeviceContext` model in `<remarks>`.
+
+13. **[API] Inconsistent UART lifecycle between sync and async `Run*` variants.**  
+    File: `Host/HostExtensions.cs`. Sync `RunAndKeep` unregisters the UART before returning; async `AsyncRunAndKeep` does not. As a result:
+    - sync: `RunAndKeep` with `output != null` does not keep the UART accessible (arguably surprising for a "keep" method), but `RunOnce`/`RunAndCleanup` do not leak;
+    - async: `AsyncRunAndKeep` keeps the UART, which matches the "keep" name, but `AsyncRunOnce`/`AsyncRunAndCleanup` only unregister the VM — the `sector + 1` slot leaks across repeated calls with the same `sector` and `output != null`.  
+    Fix: pick one model and apply it to both sync and async. For example: `RunAndKeep`/`AsyncRunAndKeep` return the UART id (e.g. `UartDeviceId` in `RunOutcome`/`AsyncRunOutcome` or a separate `out`/return value) and **do not** unregister it; `RunOnce`/`RunAndCleanup` and their async counterparts release both the VM and the UART. That gives "keep" semantics for the `*AndKeep` methods and no leak for the `*Once`/`*AndCleanup` methods. At a minimum, document the chosen behaviour.

@@ -10,6 +10,39 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.25.0] - 2026-11-26
+
+### Added
+- Private method in `Device` and an asynchronous version; `GlobalInit` is needed for synchronizing initialization methods in `Debug`, `Step`, and `Run`
+- Added file `AsyncDevice.cs`; `AsyncDevice`: full functional copy of `Device` from `Kernel`, fully asynchronous
+- Added file `AsyncDeviceContext.cs`; `AsyncDeviceContext`: full functional copy of `DeviceContext` including most extension methods
+- Added file `AsyncDeviceExtension.cs`; fully replicates the API methods `GetRamAsNewArray`, `CopyRamTo`, `TryCopyRamTo`, and `ReadRam<T>`; adds extension API:
+	- `ManagerDevices`:
+		- `AsyncDevice CreateAsyncDevice(RamSize, IProcessorPolicy)` - analogous to the native `ManagerDevices.CreateDevice`
+	- `VmEmulator`:
+		- `AsyncDeviceContext? GetAsyncDeviceContext(int)` - analogous to the native `VmEmulator.GetDeviceContext`
+		- `bool TryGetAsyncDeviceContext(int, out AsyncDeviceContext?)` - analogous to the native `VmEmulator.TryGetDeviceContext`
+		- `int RegisterAsyncDevice(DeviceSpec, uint)` - analogous to the native `VmEmulator.RegisterDevice`
+		- `IdState TryRegisterAsyncDevice(DeviceSpec, uint, out int)` - analogous to the native `VmEmulator.TryRegisterDevice`
+- Added file `ReusableWakeSignal.cs`; `ReusableWakeSignal` component for `AsyncDevice` operation in an asynchronous environment, uses only `AsyncDevice`
+- `Async*` variations for `RunAndKeep`, `RunOnce`, `RunAndCleanup`, and a new class `AsyncRunOutcome`
+- Tests for standard libraries
+- Tests for determinism of asynchronous and synchronous VMs
+- Tests for asynchronous VM sleep functionality
+- Tests for restarting the VM after stopping (verifying that each run resets all states)
+- Added `CarryFlagSet`: Occupies the 3rd bit (`4UL`) in the flags register `rFL`.
+
+### Changed
+- `DiagnosticResult.ToString()` explicitly overridden with format `"[{(int)ErrorCode}] {Message}"` to eliminate reflection
+- `ProcessorSnapshot.ToString()` explicitly overridden, no longer uses `enum.ToString()`
+- `DecodeInstructionResult.ToString()` explicitly overridden, no longer uses `enum.ToString()`
+- Rewritten `InstructionCMP`: Now it explicitly calculates the unsigned condition `v1 < v2` and passes it to `SetFlags` as `carryFlag`. This ensures that when `0 - 0xFFFFFFFFFFFFFFFF`, the carry flag will be set to 1.
+- Updated `InstructionTEST`: Explicitly passes 0UL for the carry flag, since logical operations (`AND`) do not generate a carry (according to `x86`/`ARM` standards).
+
+### Fixed
+- Fixed `InstructionJL`: Now checks `CarryFlagSet` instead of `NegativeFlagSet`, making it a correct "Jump if Below" instruction for unsigned numbers.
+- Fixed `InstructionJG`: Now checks `!CarryFlagSet & !ZeroFlagSet` (the classic "Jump if Above" condition for unsigned numbers)
+
 ## [0.24.0] - 2026-11-26
 
 ### Added

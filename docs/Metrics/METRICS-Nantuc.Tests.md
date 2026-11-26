@@ -6,14 +6,14 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 155 |
-| C# files | 25 |
-| Total lines | 3171 |
-| C# classes | 34 |
+| Members analysed | 184 |
+| C# files | 28 |
+| Total lines | 4315 |
+| C# classes | 41 |
 | C# records | 0 |
 | C# enums | 0 |
-| Analysed LOC | 852 |
-| Cognitive avg | 0.2 |
+| Analysed LOC | 1355 |
+| Cognitive avg | 0.3 |
 | Cognitive median | 0 |
 | Cognitive p90 | 1 |
 | Cognitive max | 5 |
@@ -21,7 +21,7 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 2 |
 | Cyclomatic max | 5 |
-| MI avg | 75.7 |
+| MI avg | 74.1 |
 | MI minimum | 43.0 |
 
 Highest risk member: `HaltWakeTests.HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode` (cognitive 5, cyclomatic 5) — `HaltWakeTests.cs:98`
@@ -31,22 +31,26 @@ Lowest maintainability: `HaltWakeTests.HALT_SetsSleepingFlagAndDoesNotAdvanceFur
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 155 |
+| Light | 0-5 | 184 |
 | Moderate | 6-10 | 0 |
 | High | 11-20 | 0 |
 | Severe | 21+ | 0 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 155 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 184 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 98 | HaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode | 5 | 5 | 26 | 3 | 0 | 47.5 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\AsyncHaltWakeTests.cs | 106 | AsyncHaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode_Async | 5 | 5 | 26 | 3 | 0 | 47.5 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 69 | CompileTestBase | RunCompile_WithLibs | 3 | 5 | 23 | 1 | 3 | 48.4 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 40 | HaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_DebugRun | 3 | 4 | 38 | 2 | 0 | 43.0 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmTestBase.cs | 64 | UnsafeOpCodeTests | StepDebug_WithAllowUnsafeOpCodesFalse_StopsAtUnsafeOpCode | 3 | 3 | 12 | 2 | 0 | 57.9 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\AsyncHaltWakeTests.cs | 45 | AsyncHaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_DebugRun_Async | 3 | 4 | 38 | 2 | 0 | 43.1 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\UnsafeOpCodeTests.cs | 64 | UnsafeOpCodeTests | StepDebug_WithAllowUnsafeOpCodesFalse_StopsAtUnsafeOpCode | 3 | 3 | 12 | 2 | 0 | 57.9 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 16 | CompileTestBase | RunCompile | 2 | 4 | 21 | 1 | 2 | 49.7 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\AsyncVmReuseTests.cs | 81 | AsyncVmReuseTests | MultipleRuns_RestartAfterHalt_RequiresStopAndContinues | 2 | 2 | 38 | 2 | 0 | 43.6 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\SyncVmReuseTests.cs | 79 | SyncVmReuseTests | MultipleRuns_RestartAfterHalt_RequiresStopAndContinues | 2 | 2 | 38 | 2 | 0 | 43.5 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\VMHostTests.cs | 15 | VMHostTests | RunProgramWithIO | 1 | 3 | 14 | 1 | 4 | 54.5 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 49 | CompileTestBase | RunCompile_Error | 1 | 2 | 13 | 1 | 1 | 56.4 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\LanguageDefinitionDriftTests.cs | 13 | LanguageDefinitionDriftTests | MiniC_KeywordRegex_matches_every_keyword | 1 | 2 | 2 | 1 | 0 | 81.5 |
@@ -58,8 +62,4 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 155 me
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 11 | TestHost | OpCode_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 23 | TestHost | RegType_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 34 | TestHost | OpCodeSizeSize_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\TestHost.cs | 45 | TestHost | BiosStatus_AllValuesDefined_AndNamesMatch | 1 | 2 | 5 | 1 | 0 | 68.6 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\VMHostTests.cs | 246 | VMHostTests | RunAndKeep_ShouldKeepDeviceAlive | 1 | 2 | 16 | 1 | 0 | 54.9 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmSecurityTests.cs | 305 | VmSecurityTests | RegisterVm | 1 | 1 | 1 | 0 | 2 | 90.8 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\VmTestBase.cs | 93 | UnsafeOpCodeTests | RegisterVm | 1 | 1 | 1 | 0 | 2 | 90.8 |
 
