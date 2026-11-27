@@ -10,6 +10,12 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.26.0] - 2026-11-27
+
+### Изменено
+- `Device` появился приватный контейнер для `Processor`, `MemoryBus`, `ManualResetEventSlim`: `DeviceScope` с более безопасным `Dispose`; после `Dispose`: `Processor`, `MemoryBus`, `ManualResetEventSlim` становтся `null`
+- `AsyncDevice` использует `AsyncDeviceScope`; полную копию `DeviceScope`
+
 ## [0.25.1] - 2026-11-26 [HOT FIX]
 
 ### Изменено

@@ -21,10 +21,48 @@ namespace Nantuc.Kernel.BiosSystem;
 /// </remarks>
 public sealed class Device : IPortController
 {
+    private sealed class DeviceScope(Processor processor, MemoryBus memoryBus) : IDisposable
+    {
+        private const int MaxSpinCount = 1024;
+        private Processor? _processor = processor;
+        private MemoryBus? _ram = memoryBus;
+        private ManualResetEventSlim? _wakeSignal = new(false);
+
+        public Processor Processor => _processor!;
+        public MemoryBus Ram => _ram!;
+        public ManualResetEventSlim WakeSignal => _wakeSignal!;
+
+        public void Dispose()
+        {
+            if (_processor is { IsRunning: true })
+            {
+                _processor.EnqueueBiosStatus(BiosStatus.HostStopped);
+                _wakeSignal?.Set();
+
+                var spin = new SpinWait();
+                for (int i = 0; i < MaxSpinCount && _processor.IsRunning; i++)
+                {
+                    spin.SpinOnce();
+                }
+
+                if (_processor.IsRunning)
+                {
+                    _processor.Step();
+                }
+            }
+
+            _processor = null;
+
+            _ram?.Dispose();
+            _ram = null;
+
+            _wakeSignal?.Dispose();
+            _wakeSignal = null;
+        }
+    }
+
     private readonly byte[] _ioMemory;
-    private readonly ManualResetEventSlim _wakeSignal = new(false);
-    private readonly MemoryBus _ram;
-    private readonly Processor _processor;
+    private readonly DeviceScope _scope;
     private readonly IProcessorPolicy _processorPolicy;
     private long _stepCounter = 0;
     private int _disposed = 0;
@@ -32,17 +70,17 @@ public sealed class Device : IPortController
     /// <summary>
     /// Прямой доступ к ОЗУ устройства только для чтения (нативное представление).
     /// </summary>
-    public IReadOnlyNativeBuffer NativeReadOnlyBuffer => _ram.NativeReadOnlyBuffer;
+    public IReadOnlyNativeBuffer NativeReadOnlyBuffer => _scope.Ram.NativeReadOnlyBuffer;
 
     /// <summary>
     /// Признак того, что процессор устройства в данный момент исполняет программу.
     /// </summary>
-    public bool IsRunning => _processor.IsRunning;
+    public bool IsRunning => _scope.Processor.IsRunning;
 
     /// <summary>
     /// Размер ОЗУ устройства в байтах.
     /// </summary>
-    public ulong MaxRamSize => _ram.Length;
+    public ulong MaxRamSize => _scope.Ram.Length;
 
     /// <summary>
     /// Количество выполненных инструкций с момента последнего запуска.
@@ -59,8 +97,9 @@ public sealed class Device : IPortController
     public Device(PortBus portBus, RamSize size, IProcessorPolicy processorFaultPolicy)
     {
         _processorPolicy = processorFaultPolicy;
-        _ram = new MemoryBus(size);
-        _processor = new Processor(_ram, portBus, _processorPolicy);
+        var ram = new MemoryBus(size);
+        var processor = new Processor(ram, portBus, _processorPolicy);
+        _scope = new DeviceScope(processor, ram);
         _ioMemory = new byte[portBus.PortsOnDevice];
     }
 
@@ -71,7 +110,7 @@ public sealed class Device : IPortController
     /// <exception cref="ArgumentException">Если <paramref name="destination"/> короче 32 элементов.</exception>
     public void CopyRegisters(Span<ulong> destination)
     {
-        _processor.CopyRegisters(destination);
+        _scope.Processor.CopyRegisters(destination);
     }
 
     /// <summary>
@@ -85,14 +124,14 @@ public sealed class Device : IPortController
     public void LoadProgram(ReadOnlySpan<byte> program, ulong loadAddress)
     {
         ThrowIfDisposed();
-        ulong ramLength = _ram.Length;
+        ulong ramLength = _scope.Ram.Length;
         ulong programLength = (ulong)program.Length;
 
         if (loadAddress > ramLength || programLength > ramLength - loadAddress)
             throw new InvalidOperationException(
                 $"Failed to write the program to the address 0x{loadAddress:X}");
         
-        _ram.LoadProgram(program, loadAddress);
+        _scope.Ram.LoadProgram(program, loadAddress);
         InitHeap(loadAddress, (ulong)program.Length);
     }
 
@@ -106,13 +145,13 @@ public sealed class Device : IPortController
     {
         if (Volatile.Read(ref _disposed) != 0) return false;
 
-        ulong ramLength = _ram.Length;
+        ulong ramLength = _scope.Ram.Length;
         ulong programLength = (ulong)program.Length;
 
         if (loadAddress > ramLength || programLength > ramLength - loadAddress)
             return false;
         
-        _ram.LoadProgram(program, loadAddress);
+        _scope.Ram.LoadProgram(program, loadAddress);
         InitHeap(loadAddress, (ulong)program.Length);
         return true;
     }
@@ -141,7 +180,7 @@ public sealed class Device : IPortController
         TimeSimulationResult timeSpan = CreateTimeSimulationResult(sw);
 
         onEnd?.Invoke(timeSpan);
-        return _processor.GetDiagnosticData();
+        return _scope.Processor.GetDiagnosticData();
     }
 
     private TimeSimulationResult CreateTimeSimulationResult(Stopwatch? sw)
@@ -181,7 +220,7 @@ public sealed class Device : IPortController
         RunSimulationLoopDebug(delay, useSleepMode, stepLimit, onStep);
 
         onEnd?.Invoke();
-        return _processor.GetDiagnosticData();
+        return _scope.Processor.GetDiagnosticData();
     }
 
 
@@ -203,32 +242,32 @@ public sealed class Device : IPortController
     /// <remarks>Безопасно вызывать из другого потока.</remarks>
     public void Stop()
     {
-        _processor.EnqueueBiosStatus(BiosStatus.HostStopped);
-        _wakeSignal.Set();
+        _scope.Processor.EnqueueBiosStatus(BiosStatus.HostStopped);
+        _scope.WakeSignal.Set();
     }
 
     private void InitHeap(ulong loadAddress, ulong length)
     {
         ulong programEnd = loadAddress + length;
         ulong heapStart = programEnd.AlignUp(8UL);
-        _processor.InitRegHP(heapStart);
+        _scope.Processor.InitRegHP(heapStart);
     }
 
     private void RunSimulationLoop()
     {
-        while (_processor.IsRunning)
+        while (_scope.Processor.IsRunning)
             Step();
     }
 
     public void Step()
     {
-        _processor.Step();
+        _scope.Processor.Step();
 
-        if (_processor.IsSleeping)
+        if (_scope.Processor.IsSleeping)
         {
             ProcessorSleepWait();
         }
-        else if (_processor.IsRunning)
+        else if (_scope.Processor.IsRunning)
         {
             _stepCounter++;
         }
@@ -236,21 +275,19 @@ public sealed class Device : IPortController
 
     public void BatchStep(int count)
     {
-        for (int i = 0; _processor.IsRunning && i < count; i++)
+        for (int i = 0; _scope.Processor.IsRunning && i < count; i++)
             Step();
         
     }
     private void RunSimulationLoopWithLimit(long limit)
     {
-        bool isEndLimit = false;
-
-        while (_processor.IsRunning)
+        while (_scope.Processor.IsRunning)
         {
-            if (isEndLimit) break;
             if (_stepCounter >= limit)
             {
-                _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
-                isEndLimit = true;
+                _scope.Processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+                _scope.Processor.Step();
+                break;
             }
 
             Step();
@@ -259,15 +296,14 @@ public sealed class Device : IPortController
 
     private void RunSimulationLoopDebug(int delay, bool useSleepMode, long stepLimit, Action<ProcessorSnapshot>? onStep)
     {
-        bool isEndLimit = false;
-        while (_processor.IsRunning)
+        while (_scope.Processor.IsRunning)
         {
-            onStep?.Invoke(_processor.CurrentProcessorSnapshot);
-            if (isEndLimit) break;
+            onStep?.Invoke(_scope.Processor.CurrentProcessorSnapshot);
             if (_stepCounter >= stepLimit)
             {
-                _processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
-                isEndLimit = true;
+                _scope.Processor.EnqueueBiosStatus(BiosStatus.InfinityLoop);
+                _scope.Processor.Step();
+                break;
             }
 
             Step();
@@ -282,14 +318,14 @@ public sealed class Device : IPortController
         ThrowIfRun();
         onLaunch?.Invoke();
         _stepCounter = 0;
-        _wakeSignal.Reset();
-        _processor.Reset();
-        _processor.LaunchProgramm(startIndex);
+        _scope.WakeSignal.Reset();
+        _scope.Processor.Reset();
+        _scope.Processor.LaunchProgramm(startIndex);
     }
 
     private void ThrowIfRun()
     {
-        if (_processor.IsRunning)
+        if (_scope.Processor.IsRunning)
             throw new InvalidOperationException(
                 "A second Run operation was started on this Device " +
                 "instance before the previous operation completed.");
@@ -297,8 +333,8 @@ public sealed class Device : IPortController
 
     private void ProcessorSleepWait()
     {
-        _wakeSignal.Wait(_processorPolicy.SleepWaitTimeout);
-        _wakeSignal.Reset();
+        _scope.WakeSignal.Wait(_processorPolicy.SleepWaitTimeout);
+        _scope.WakeSignal.Reset();
 
     }
 
@@ -332,8 +368,8 @@ public sealed class Device : IPortController
     /// <remarks>Безопасно вызывать из другого потока.</remarks>
     public void WakeProcessor()
     {
-        _processor.EnqueueExternalCommand((uint)OpCode.WAKE);
-        _wakeSignal.Set();
+        _scope.Processor.EnqueueExternalCommand((uint)OpCode.WAKE);
+        _scope.WakeSignal.Set();
     }
 
     /// <summary>
@@ -343,8 +379,8 @@ public sealed class Device : IPortController
     /// <remarks>Безопасно вызывать из другого потока.</remarks>
     public void EnqueueExternalCommand(uint instruction)
     {
-        _processor.EnqueueExternalCommand(instruction);
-        _wakeSignal.Set();
+        _scope.Processor.EnqueueExternalCommand(instruction);
+        _scope.WakeSignal.Set();
     }
 
     /// <summary>
@@ -354,9 +390,9 @@ public sealed class Device : IPortController
     /// <remarks>Если процессор не запущен, метод ничего не делает.</remarks>
     public void StepDebug(Action<ProcessorSnapshot>? OnStep)
     {
-        if (!_processor.IsRunning) return;
+        if (!_scope.Processor.IsRunning) return;
 
-        OnStep?.Invoke(_processor.CurrentProcessorSnapshot);
+        OnStep?.Invoke(_scope.Processor.CurrentProcessorSnapshot);
         Step();
     }
 
@@ -368,13 +404,13 @@ public sealed class Device : IPortController
     /// <remarks>Если процессор не запущен, метод ничего не делает.</remarks>
     public void BatchStepDebug(int count, Action<ProcessorSnapshot>? OnStep)
     {
-        if (!_processor.IsRunning) return;
+        if (!_scope.Processor.IsRunning) return;
         bool needLog = OnStep != null;
-        for (int i = 0; _processor.IsRunning && i < count; i++)
+        for (int i = 0; _scope.Processor.IsRunning && i < count; i++)
         {
             if (needLog)
             {
-                OnStep!.Invoke(_processor.CurrentProcessorSnapshot);
+                OnStep!.Invoke(_scope.Processor.CurrentProcessorSnapshot);
             }
             Step();
         }
@@ -384,7 +420,7 @@ public sealed class Device : IPortController
     /// <summary>
     /// Очищает ОЗУ устройства.
     /// </summary>
-    public void ResetMemoryRam() => _ram.ClearMemory();
+    public void ResetMemoryRam() => _scope.Ram.ClearMemory();
 
     /// <summary>
     /// Останавливает устройство и освобождает ОЗУ.
@@ -394,10 +430,7 @@ public sealed class Device : IPortController
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
-
-        Stop();
-        _ram?.Dispose();
-        _wakeSignal.Dispose();
+        _scope.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -406,7 +439,7 @@ public sealed class Device : IPortController
     /// </summary>
     public void ClearRegisters()
     {
-        _processor.Reset();
+        _scope.Processor.Reset();
     }
 
     private void ThrowIfDisposed()
@@ -417,5 +450,5 @@ public sealed class Device : IPortController
     /// Возвращает диагностические данные о последнем сбое/остановке процессора.
     /// </summary>
     /// <returns>Снимок <see cref="ProcessorFault"/>.</returns>
-    public ProcessorFault GetLastFault() => _processor.GetDiagnosticData();
+    public ProcessorFault GetLastFault() => _scope.Processor.GetDiagnosticData();
 }

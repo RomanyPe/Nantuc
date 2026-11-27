@@ -6,18 +6,18 @@ Path: `src/Nantuc.VmApplication.Extension/Nantuc.VmApplication.Extensions.csproj
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 290 |
+| Members analysed | 294 |
 | C# files | 40 |
-| Total lines | 5227 |
-| C# classes | 34 |
+| Total lines | 5266 |
+| C# classes | 35 |
 | C# records | 7 |
 | C# enums | 4 |
-| Analysed LOC | 2012 |
+| Analysed LOC | 2027 |
 | Cognitive avg | 2.4 |
 | Cognitive median | 0 |
 | Cognitive p90 | 8 |
 | Cognitive max | 31 |
-| Cyclomatic avg | 3.3 |
+| Cyclomatic avg | 3.2 |
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 9 |
 | Cyclomatic max | 56 |
@@ -31,14 +31,14 @@ Lowest maintainability: `IRLog.FormatAsmItem` (MI 27.5) — `IRLog.cs:22`
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 253 |
-| Moderate | 6-10 | 11 |
+| Light | 0-5 | 256 |
+| Moderate | 6-10 | 12 |
 | High | 11-20 | 23 |
 | Severe | 21+ | 3 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 290 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 294 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |

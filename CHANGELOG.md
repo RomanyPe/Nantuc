@@ -9,6 +9,13 @@ Order of sections within a version:
 
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
+
+## [0.26.0] - 2026-11-27
+
+### Changed
+- `Device` now includes a private container for `Processor`, `MemoryBus`, and `ManualResetEventSlim`: `DeviceScope` with a safer `Dispose` implementation; after `Dispose`, `Processor`, `MemoryBus`, and `ManualResetEventSlim` are set to `null`.
+- `AsyncDevice` now uses `AsyncDeviceScope`, an exact copy of `DeviceScope`.
+
 ## [0.25.1] - 2026-11-26 [HOT FIX]
 
 ### Changed
