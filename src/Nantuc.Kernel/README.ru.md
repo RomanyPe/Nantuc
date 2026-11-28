@@ -15,7 +15,7 @@
 
 ## Об этом модуле
 
-`Nantuc.Kernel` — это слой исполнения. Здесь живут: процессор (`Processor` + `ProcessorSnapshot`), управляемая обёртка над нативной ОЗУ (`MemoryBus` + `NativeMemoryBuffer` + `NativeReadOnlyView`), шина портов (`PortBus`), реестр устройств (`ManagerDevices`), а также «вычислительное устройство» (`Device`), владеющее ОЗУ и процессором и реализующее `IPortController` из `Contracts`.
+`Nantuc.Kernel` — это слой исполнения. Здесь живут: процессор (`Processor` + `ProcessorSnapshot`), управляемая обёртка над нативной ОЗУ (`MemoryBus` + `NativeMemoryBuffer` + `NativeReadOnlyView`), шина портов (`PortBus`), реестр устройств (`ManagerDevices`), а также "вычислительное устройство" (`Device`), владеющее ОЗУ и процессором и реализующее `IPortController` из `Contracts`.
 
 Модуль — единственный в платформе, где разрешён `unsafe` (`<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` в `Nantuc.csproj`). Всё нативное — в `NativeMemoryBuffer`: `NativeMemory.AllocZeroed`, `NativeMemory.Free`, `byte*`, `Unsafe.ReadUnaligned` / `Unsafe.WriteUnaligned`. Остальной код работает с управляемыми обёртками.
 
@@ -27,7 +27,7 @@
 
 Модуль зависит от `Common` (типы ISA) и `Contracts` (интерфейсы). Не зависит от `VmApplication`/`Extensions` — стрелка зависимостей всегда внутрь.
 
-> **XML-документация полная на публичной поверхности.** Все публичные типы, методы и параметры документированы. Оставшиеся дефекты — не XML, а поведение: порядок `Volatile.Write` в `Processor.EnqueueBiosStatus` (`_hasCommand` пишется раньше `_hasSimulationStatus` — статус может «залипнуть» в очереди до следующего `Enqueue`/`Reset`), отсутствие `ObjectDisposedException` на `MemoryBus.ReadInt*LE` после `Dispose`, порядок проверки стека в `InstructionPUSH`, `CurrentProcessorSnapshot` как property создаёт новый объект на каждое обращение, блокирующий `_wakeSignal.Wait(...)` на single-threaded WASM. Подробности — в разделе [Что исправить](#что-исправить).
+> **XML-документация полная на публичной поверхности.** Все публичные типы, методы и параметры документированы. Оставшиеся дефекты — не XML, а поведение: порядок `Volatile.Write` в `Processor.EnqueueBiosStatus` (`_hasCommand` пишется раньше `_hasSimulationStatus` — статус может "залипнуть" в очереди до следующего `Enqueue`/`Reset`), отсутствие `ObjectDisposedException` на `MemoryBus.ReadInt*LE` после `Dispose`, порядок проверки стека в `InstructionPUSH`, `CurrentProcessorSnapshot` как property создаёт новый объект на каждое обращение, блокирующий `_wakeSignal.Wait(...)` на single-threaded WASM. Подробности — в разделе [Что исправить](#что-исправить).
 
 ## Дерево локального проекта
 
@@ -100,7 +100,7 @@ Nantuc.Kernel/
 | `LoadProgram(ReadOnlySpan<byte>, ulong)` | копирует программу в ОЗУ | `ArgumentOutOfRangeException` при выходе за границы |
 | `ClearMemory()` | зануляет буфер | — |
 
-**Гонка статуса:** `_lastStatus` и `_faultData` — не `volatile`, не защищены блокировкой. `UpdateAndReadStatus` сбрасывает статус — потребитель обязан вызывать его после каждой проверяемой операции, иначе ошибка «залипнет».
+**Гонка статуса:** `_lastStatus` и `_faultData` — не `volatile`, не защищены блокировкой. `UpdateAndReadStatus` сбрасывает статус — потребитель обязан вызывать его после каждой проверяемой операции, иначе ошибка "залипнет".
 
 ### `NativeMemoryBuffer` — нативный буфер
 
@@ -144,7 +144,7 @@ Nantuc.Kernel/
 
 ### `PortBus` — секторная шина портов
 
-- Адрес раскладывается на «сектор» (`address >> _deviceShift`) и «смещение» (`address & _offsetMask`).
+- Адрес раскладывается на "сектор" (`address >> _deviceShift`) и "смещение" (`address & _offsetMask`).
 - `RegisterDevice(IPortUse, uint)` — `IPortUse`, не `IPortController` (последний расширяет `IPortUse`).
 - `ReadPort` возвращает `ReadPortResult(Data, Status)`; `Status = NullDeviceInput`, если по адресу нет устройства.
 - `WritePort` возвращает `BiosStatus`: `Success` или `NullDeviceOutput`.
@@ -159,13 +159,13 @@ Nantuc.Kernel/
 |---|---|
 | `Run(ulong, long?, bool, Action?, Action<TimeSimulationResult>?)` | блокирующий запуск до завершения/сбоя; `limit` — лимит шагов -> `InfinityLoop` |
 | `DebugRun(ulong, long, int, Action?, Action<ProcessorSnapshot>?, Action?)` | запуск с задержкой и колбэком на шаг |
-| `BreakPointerLaunchDevice(ulong?, Action?)` | инициализация без запуска цикла; `start ?? 0` — если `null`, `rIP` выставляется в `0` (не «с конца ОЗУ» — конец ОЗУ идёт только в `rSP` в `LaunchProgramm`) |
+| `BreakPointerLaunchDevice(ulong?, Action?)` | инициализация без запуска цикла; `start ?? 0` — если `null`, `rIP` выставляется в `0` (не "с конца ОЗУ" — конец ОЗУ идёт только в `rSP` в `LaunchProgramm`) |
 | `StepDebug(Action<ProcessorSnapshot>?)` / `BatchStepDebug(int, Action<ProcessorSnapshot>?)` | ручные шаги; читают `Processor.CurrentProcessorSnapshot` (property) |
 | `Step()` / `BatchStep(int)` | ручные шаги |
 | `LoadProgram(ReadOnlySpan<byte>, ulong)` / `TryLoadProgram` | загрузка + инициализация `rHP` (`(loadAddress + programLength).AlignUp(8)`) |
 | `Stop()` / `WakeProcessor()` / `EnqueueExternalCommand(uint)` | с другого потока: `Enqueue*` + `_wakeSignal.Set()` |
 | `CopyRegisters` / `GetLastFault` / `ResetMemoryRam` / `ClearRegisters` | снимки |
-| `ReadPort` / `WritePort` | **без проверки границ** — возвращают `0`/игнорируют при выходе за `_ioMemory.Length` (в `<remarks>` типа — «порты ввода-вывода», реализация не бросает) |
+| `ReadPort` / `WritePort` | **без проверки границ** — возвращают `0`/игнорируют при выходе за `_ioMemory.Length` (в `<remarks>` типа — "порты ввода-вывода", реализация не бросает) |
 
 `Stop`/`WakeProcessor`/`EnqueueExternalCommand` — единственные методы, безопасные из другого потока (используют `Enqueue*` + `_wakeSignal.Set()`). `Run`/`DebugRun`/`NextStep*` — нет.
 
@@ -275,7 +275,7 @@ if (st != BiosStatus.Success)
 - `Processor.CurrentProcessorSnapshot` (свойство) возвращает новый `ProcessorSnapshot`; его можно сохранять и использовать после следующего шага.
 
 **Что не стоит делать:**
-- Полагаться на `_lastStatus` между операциями без `UpdateAndReadStatus` — статус «залипнет».
+- Полагаться на `_lastStatus` между операциями без `UpdateAndReadStatus` — статус "залипнет".
 - Читать/писать в `_ioMemory`/`NativeMemoryBuffer` напрямую из другого потока во время `Run`.
 - Регистрировать/снимать устройства (`RegisterDevice`/`UnregisterDevice`/`ChangeDeviceSector`) во время работы `Device.Run` — синхронизации нет.
 - Использовать `NativeMemoryBuffer` напрямую после `Dispose` — UB, не исключение (защищён только `NativeReadOnlyView`).
@@ -332,7 +332,7 @@ if (st != BiosStatus.Success)
 - `ManagerDevices` — не потокобезопасен (см. `<remarks>`).
 - `MemoryBus` — не потокобезопасен (`_lastStatus`/`_faultData` без синхронизации).
 - `NativeMemoryBuffer.Dispose` — `Volatile.Read/Write` на `bool`, но check-then-act не атомарен; при одновременном `Dispose` из двух потоков возможен double-free.
-- `Processor.CurrentProcessorSnapshot` — не потокобезопасен (читает регистры без синхронизации с `Step`); сам `_faultData` тоже читается без `Volatile`, поэтому снимок может быть слегка «размазан» относительно последнего шага.
+- `Processor.CurrentProcessorSnapshot` — не потокобезопасен (читает регистры без синхронизации с `Step`); сам `_faultData` тоже читается без `Volatile`, поэтому снимок может быть слегка "размазан" относительно последнего шага.
 
 ### Ограничения платформ
 

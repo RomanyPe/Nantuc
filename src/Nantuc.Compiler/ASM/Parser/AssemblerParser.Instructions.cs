@@ -105,6 +105,8 @@ public partial class AssemblerParser
             case "JNZ":
             case "JG":
             case "JL":
+            case "JB":
+            case "JA":
             case "CALL":
                 FormatJumpType(tokens, baseMnemonic, opCode);
                 break;

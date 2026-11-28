@@ -8,11 +8,11 @@ Path: `src/Nantuc.Common/Nantuc.Common.csproj`
 | --- | ---: |
 | Members analysed | 124 |
 | C# files | 18 |
-| Total lines | 2092 |
+| Total lines | 2105 |
 | C# classes | 7 |
 | C# records | 2 |
 | C# enums | 5 |
-| Analysed LOC | 331 |
+| Analysed LOC | 333 |
 | Cognitive avg | 0.2 |
 | Cognitive median | 0 |
 | Cognitive p90 | 1 |
@@ -20,12 +20,12 @@ Path: `src/Nantuc.Common/Nantuc.Common.csproj`
 | Cyclomatic avg | 2.1 |
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 2 |
-| Cyclomatic max | 46 |
+| Cyclomatic max | 48 |
 | MI avg | 88.9 |
-| MI minimum | 34.0 |
+| MI minimum | 33.2 |
 
 Highest risk member: `ProcessorSnapshot.ToString` (cognitive 3, cyclomatic 4) — `ProcessorSnapshot.cs:87`
-Lowest maintainability: `OpCodeExtension..AsText` (MI 34.0) — `OpCodeExtension.cs:12`
+Lowest maintainability: `OpCodeExtension..AsText` (MI 33.2) — `OpCodeExtension.cs:12`
 
 ## Risk bands
 
@@ -47,7 +47,7 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 124 me
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Common\DevicePortSize.cs | 83 | DevicePortSize | Equals | 2 | 2 | 1 | 0 | 1 | 90.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Common\PortSize.cs | 115 | PortSize | Equals | 2 | 2 | 1 | 0 | 1 | 90.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Common\RamSize.cs | 153 | RamSize | Equals | 2 | 2 | 1 | 0 | 1 | 90.3 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Common\OpCodeExtension.cs | 12 | OpCodeExtension. | AsText | 1 | 46 | 47 | 1 | 0 | 34.0 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Common\OpCodeExtension.cs | 12 | OpCodeExtension. | AsText | 1 | 48 | 49 | 1 | 0 | 33.2 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Common\RegTypeExtension.cs | 22 | RegTypeExtension. | AsText | 1 | 33 | 34 | 1 | 0 | 40.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Common\BiosStatusExtension.cs | 10 | BiosStatusExtension. | AsText | 1 | 14 | 15 | 1 | 0 | 53.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Common\InstructionDecoder.cs | 115 | InstructionDecoder | HasNeed64IntData | 1 | 12 | 14 | 1 | 1 | 56.6 |

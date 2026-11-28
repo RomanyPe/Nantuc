@@ -9,7 +9,7 @@ public sealed class SnakeCommander : PortControlBase
     public const byte R_TICK_READY = 0x01; // 0|1, auto-consume
 
     // Write (VM пишет)
-    public const byte W_YIELD = 0x00; // 1 = «кадр готов, управление вернулось»
+    public const byte W_YIELD = 0x00; // 1 = "кадр готов, управление вернулось"
     public const byte W_GAME_OVER = 0x02; // 1 = змейка умерла
     public const byte W_SCORE = 0x03; // текущий счёт
 

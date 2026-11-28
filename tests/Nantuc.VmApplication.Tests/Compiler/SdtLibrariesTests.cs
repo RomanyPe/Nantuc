@@ -203,7 +203,7 @@ public class SdtLibrariesTests(ITestOutputHelper outPut) : CompileTestBase(outPu
         int r = add_ovf_u64(max_u64, 1, &out);
         return r; // Ожидаем 1 (перенос)
     }
-    """, 1, Skip = "Временно отключено до рефакторинга флагов")]
+    """, 1)]
 
     [InlineData(
     """
@@ -217,7 +217,7 @@ public class SdtLibrariesTests(ITestOutputHelper outPut) : CompileTestBase(outPu
             return -1;
         }
     }
-    """, 30, Skip = "Временно отключено до рефакторинга флагов")]
+    """, 30)]
 
     // ============ sub_ovf_u64 ============
     [InlineData(
@@ -298,7 +298,7 @@ public class SdtLibrariesTests(ITestOutputHelper outPut) : CompileTestBase(outPu
             // Сумма: 1 + 1 + 1 + 1 + 0 + 30 = 34
             return r1 + r2 + r3 + r4 + r5 + out5;
         }
-        """, 34, Skip = "Временно отключено до рефакторинга флагов")]
+        """, 34)]
     public void OverflowTest(string content, ulong value)
         => RunCompile_WithLibs(content, value,
             [("ovf.minic", Libraries.ovf_minic)]);

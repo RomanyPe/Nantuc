@@ -63,7 +63,7 @@ Nantuc.Diagnostics/
 | **`ErrorReporter`** | **`class`** (не `static`) **[BREAKING]** | — | Instance-фасад для бросания `CodeException` |
 | `CodeException` | `class : Exception` | — | Исключение с `ErrorCode` и `NumericCode` |
 
-**Default-реализация интерфейса есть только у `IErrorMessageProvider`** — через `static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();`. Это согласуется с `IProcessorPolicy.Default` в `Contracts` и даёт единый паттерн «где живёт default» — на самом интерфейсе, а не на `ErrorReporter`.
+**Default-реализация интерфейса есть только у `IErrorMessageProvider`** — через `static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();`. Это согласуется с `IProcessorPolicy.Default` в `Contracts` и даёт единый паттерн "где живёт default" — на самом интерфейсе, а не на `ErrorReporter`.
 
 ### `ErrorCode` — единый enum
 
@@ -77,7 +77,7 @@ Nantuc.Diagnostics/
 | 1300–1317 | CodeGen | `CodeGen_UnknownTypeSize` (1300) … `CodeGen_DirectStructLoadStore` (1313), `CodeGen_BreakOutsideLoop` (1314), `CodeGen_ContinueOutsideLoop` (1315), **`CodeGen_AssignmentToConst` (1316)**, **`CodeGen_IncrementOfConst` (1317)** **[NEW]** |
 | 1400–1404 | Asm | `Asm_UndefinedLabel`, `Asm_DuplicateLabel`, `Asm_InvalidInstruction`, `Asm_UnknownRegister`, `Asm_UnknownMnemonic` |
 
-Правило «код ошибки — это контракт»: **не меняйте числа существующих кодов** после релиза. Тесты компилятора и внешние тулы будут опираться на них. Новые коды — только с новым номером.
+Правило "код ошибки — это контракт": **не меняйте числа существующих кодов** после релиза. Тесты компилятора и внешние тулы будут опираться на них. Новые коды — только с новым номером.
 
 ### `IErrorMessageProvider` — точка расширения
 
@@ -89,7 +89,7 @@ public interface IErrorMessageProvider
 }
 ```
 
-- `static Default` — единая точка «что такое default-провайдер». `ErrorReporter` инициализируется через него, а не создаёт `new DefaultErrorMessageProvider()` у себя.
+- `static Default` — единая точка "что такое default-провайдер". `ErrorReporter` инициализируется через него, а не создаёт `new DefaultErrorMessageProvider()` у себя.
 - `params ReadOnlySpan<DiagnosticData>` — C# 13+ (`params` для `ReadOnlySpan`). Для `DiagnosticData` (value type) нулевой набор -> `ReadOnlySpan<DiagnosticData>.Empty`, без аллокаций; 1+ аргумент — аллокация `DiagnosticData[]` (не `object[]`, без боксинга). **[NEW]**
 - Контракт не требует бросать из `GetMessage` для неизвестного кода — это решает реализация. `DefaultErrorMessageProvider` бросает `InvalidOperationException`, но кастомный провайдер вправе вернуть `$"Error {(int)code}"`.
 
@@ -173,7 +173,7 @@ public class ErrorReporter(IErrorMessageProvider? provider)
 - `ErrorMessageProvider` — **instance поле** (не статическое свойство). Глобального mutable state нет. Это устраняет прежнюю проблему с thread-safety при подмене провайдера в рантайме.
 - **`provider == null`** -> используется `IErrorMessageProvider.Default`.
 - `Throw(code, args)` — бросает `CodeException(code, provider.GetMessage(code, args))`. `[DoesNotReturn]` + `[MethodImpl(NoInlining)]` — JIT не инлайнит бросающий путь.
-- `Throw<T>(code, args)` — то же, но возвращает `T`, чтобы использовать в выражениях: `return x ?? thrower.Throw<Foo>(code)`. `[DoesNotReturn]` гарантирует, что компилятор не будет ругаться на «возврат без значения».
+- `Throw<T>(code, args)` — то же, но возвращает `T`, чтобы использовать в выражениях: `return x ?? thrower.Throw<Foo>(code)`. `[DoesNotReturn]` гарантирует, что компилятор не будет ругаться на "возврат без значения".
 - **Extension-методы `ValidateAllCodesCovered`/`TryValidateAllCodesCovered` удалены.** Валидация покрытия теперь — задача тестов (см. [Что исправить, п. 9](#что-исправить)). **[BREAKING]**
 
 ### `CodeException` — исключение
@@ -339,8 +339,8 @@ var throwerB = new ErrorReporter(provider: null);   // -> Default (англий�
 
 | Механизм | Модуль | Когда | Что значит |
 |---|---|---|---|
-| `ErrorCode` + `CodeException` | `Diagnostics` | компиляция/ассемблирование | «ваш исходник не компилируется» |
-| `BiosStatus` + `ProcessorFault` | `Common` | исполнение байткода | «ваша программа упала в рантайме» |
+| `ErrorCode` + `CodeException` | `Diagnostics` | компиляция/ассемблирование | "ваш исходник не компилируется" |
+| `BiosStatus` + `ProcessorFault` | `Common` | исполнение байткода | "ваша программа упала в рантайме" |
 
 `Diagnostics` не используется ядром (`Kernel`/`Contracts`/`Common`). Если вы пишете runtime-код и хотите сообщить об ошибке — используйте `BiosStatus`/`ProcessorFault`, а не `CodeException`.
 
@@ -358,7 +358,7 @@ var throwerB = new ErrorReporter(provider: null);   // -> Default (англий�
 static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider();
 ```
 
-Это C# 11+ static-член интерфейса с реализацией по умолчанию. Он не виртуален для реализаций (`Default` — это `static`, а не `static abstract`), поэтому `MyProvider.Default` вернёт тот же `DefaultErrorMessageProvider`, а не `MyProvider`. Это ожидаемо: `Default` — «что считается дефолтом в платформе», а не «дефолт для этого типа».
+Это C# 11+ static-член интерфейса с реализацией по умолчанию. Он не виртуален для реализаций (`Default` — это `static`, а не `static abstract`), поэтому `MyProvider.Default` вернёт тот же `DefaultErrorMessageProvider`, а не `MyProvider`. Это ожидаемо: `Default` — "что считается дефолтом в платформе", а не "дефолт для этого типа".
 
 ### `DiagnosticData` и AOT **[NEW]**
 
@@ -374,7 +374,7 @@ static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider(
 | `string.Format(template, string[])` | нет (элементы уже строки, нет `IFormattable`-пути) | — |
 | `$"No message template for error code {code}"` в `GetMessage` | **есть**: `ErrorCode.ToString()` -> reflection-adjacent | Только fallback-путь при забытом шаблоне; для AOT-чистоты — заменить на `((int)code).ToString(InvariantCulture)` |
 
-**Итог:** `DiagnosticData` полностью AOT-safe для всех типовых вызовов (`string`, `char`, `int`, `uint`, `long`, `ulong`, `bool`). Для `Of<T>` и `Enum` — действует соглашение «передавать готовую строку».
+**Итог:** `DiagnosticData` полностью AOT-safe для всех типовых вызовов (`string`, `char`, `int`, `uint`, `long`, `ulong`, `bool`). Для `Of<T>` и `Enum` — действует соглашение "передавать готовую строку".
 
 ### `params ReadOnlySpan<DiagnosticData>` — особенности
 
@@ -397,6 +397,6 @@ static IErrorMessageProvider Default { get; } = new DefaultErrorMessageProvider(
 - Не содержит severity-уровней (Error/Warning/Info) — только ошибки.
 - Не содержит source-позиций (файл, строка, столбец) как полей — они передаются аргументами в шаблон.
 - Не знает про `IProcessorPolicy`/`BiosStatus` — это runtime-модель, отдельно.
-- Не зависит от других проектов Nantuc — можно подключать в любой .NET-проект как «Nantuc-style diagnostics».
+- Не зависит от других проектов Nantuc — можно подключать в любой .NET-проект как "Nantuc-style diagnostics".
 
-Правило «куда положить тип»: код ошибки/исключение/провайдер сообщений/аргумент диагностики -> `Diagnostics`; runtime-статус -> `Common`; контракт -> `Contracts`; реализация исполнения -> `Kernel`.
+Правило "куда положить тип": код ошибки/исключение/провайдер сообщений/аргумент диагностики -> `Diagnostics`; runtime-статус -> `Common`; контракт -> `Contracts`; реализация исполнения -> `Kernel`.

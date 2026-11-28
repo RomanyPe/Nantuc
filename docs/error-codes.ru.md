@@ -107,7 +107,7 @@
 | `CodeGen_DirectStructLoadStore` | 1313 | `Direct load/store of struct variable '{0}' is not supported` | Прямая загрузка/сохранение структуры без доступа к полям. |
 | `CodeGen_BreakOutsideLoop` | 1314 | `Operator "break" outside loop` | `break` вне цикла. |
 | `CodeGen_ContinueOutsideLoop` | 1315 | `Operator "continue" outside loop` | `continue` вне цикла. |
-| `CodeGen_AssignmentToConst` | 1316 | `Cannot assign to const '{0}'` | Присваивание `const`-сущности (`=`, `+=`, `*p =`, `arr[i] =`). См. раздел «Константность» в README компилятора. |
+| `CodeGen_AssignmentToConst` | 1316 | `Cannot assign to const '{0}'` | Присваивание `const`-сущности (`=`, `+=`, `*p =`, `arr[i] =`). См. раздел "Константность" в README компилятора. |
 | `CodeGen_IncrementOfConst` | 1317 | `Cannot increment/decrement const '{0}'` | `++`/`--` у `const` (префикс и постфикс, `*p`, `arr[i]`). |
 
 > **Группа `const`-correctness** (1316–1317) добавлена в 0.7.2. Если
@@ -160,8 +160,8 @@ using Nantuc.Kernel.Diagnostics;
 
 var overrides = new Dictionary<ErrorCode, string>
 {
-    [ErrorCode.Parser_UnknownType] = "Неизвестный тип «{0}»",
-    [ErrorCode.CodeGen_AssignmentToConst] = "Нельзя присвоить const-переменной «{0}»",
+    [ErrorCode.Parser_UnknownType] = "Неизвестный тип "{0}"",
+    [ErrorCode.CodeGen_AssignmentToConst] = "Нельзя присвоить const-переменной "{0}"",
 }.ToFrozenDictionary();
 
 var provider = new DefaultErrorMessageProvider(overrides);
@@ -169,7 +169,7 @@ var thrower = new ErrorReporter(provider);
 
 // Дальше — как обычно:
 thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo");
-// -> CodeException: "Неизвестный тип «Foo»"
+// -> CodeException: "Неизвестный тип "Foo""
 ```
 
 Семантика — **мерж поверх дефолтов**, не замена: коды, которых нет в

@@ -17,9 +17,9 @@
 
 ## Об этом модуле
 
-`Nantuc.VmApplication` — фасад над двумя подсистемами: компилятором (`Nantuc.Compiler`) и рантаймом (`Nantuc.Kernel`). Все типы ядра, которые пользователю «не положено» видеть (`Processor`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Assembler`), спрятаны за тонким слоем обёрток. Пользователь работает с пятью основными абстракциями:
+`Nantuc.VmApplication` — фасад над двумя подсистемами: компилятором (`Nantuc.Compiler`) и рантаймом (`Nantuc.Kernel`). Все типы ядра, которые пользователю "не положено" видеть (`Processor`, `MemoryBus`, `NativeMemoryBuffer`, `PortBus`, `ManagerDevices`, `Assembler`), спрятаны за тонким слоем обёрток. Пользователь работает с пятью основными абстракциями:
 
-- `VmHost` — «всё в одном»: проект (`VmHostProject`) + эмулятор (`VmEmulator`). Создаётся через `VmHostFactory.CreateDefault()`.
+- `VmHost` — "всё в одном": проект (`VmHostProject`) + эмулятор (`VmEmulator`). Создаётся через `VmHostFactory.CreateDefault()`.
 - `VmHostProject` — компиляция: `GetSourceFiles()` -> `Compile()` / `CompileToIR()` -> `CompilationResult` / `CompilationToIRResult`. Конфигурируется через `CompilerContext` (строится `VmHostProjectBuilder`).
 - `CompilerContext` — неизменяемый снимок конфигурации компилятора: `Optimizator` + `Paths` + `FileService` + `ErrorReporter`.
 - `VmEmulator` — исполнение: регистрация устройств, включая VM (`DeviceSpec`), выдача `DeviceContext`, доступ к `IPortBus`. Настраивается через `VmEmulatorBuilder`.
@@ -29,7 +29,7 @@
 
 Модуль таргетит `net10.0`
 
-API следует паттерну «Try + IdState + ProcessorFault»:
+API следует паттерну "Try + IdState + ProcessorFault":
 - `TryRegisterDevice` / `TryGetDeviceContext` — без `!` и магических `-1..-4`.
 - `IdState` — классификация возвратов `TryRegisterDevice`.
 - `Run` / `DebugRun` -> `ProcessorFault` — статус завершения вместо ручного `IProcessorPolicy`.
@@ -650,7 +650,7 @@ var project = new VmHostProjectBuilder()
 - Держать `DeviceContext` после `host.Dispose()` — внутри лежит `Device`, который уже освобождён.
 - Вызывать `Run` без остановки предыдущего прогона — `ThrowByMode` бросит `InvalidOperationException`.
 - Использовать `DeviceContextUnsafeExtensions.AsRawDevice()` без острой необходимости.
-- Полагаться на `GetLastFault()` как «результат последнего шага» — `_faultData` не обновляется каждую итерацию (для оптимизации) и не сбрасывается в `LaunchProgramm`. См. [Особенная информация](#особенная-информация).
+- Полагаться на `GetLastFault()` как "результат последнего шага" — `_faultData` не обновляется каждую итерацию (для оптимизации) и не сбрасывается в `LaunchProgramm`. См. [Особенная информация](#особенная-информация).
 - Передавать `null` в `WithOptimizator` — это допустимо (создастся новый `VmCompilerOptimizator`), но лучше контролировать явно.
 
 ## Особенная информация
@@ -685,11 +685,11 @@ var project = new VmHostProjectBuilder()
 
 ### `ProcessorFault` из `Run`/`DebugRun`/`GetLastFault`
 
-`Run` и `DebugRun` возвращают `ProcessorFault` из `_device.Run(...)`/`_device.DebugRun(...)`. `GetLastFault()` — публичный доступ к `_faultData` в `Processor`. Важно: `_faultData` не сбрасывается в `LaunchProgramm` (`[Nantuc.Kernel](../../src/Nantuc.Kernel/README.ru.md)`, [Что исправить, п.2](../../src/Nantuc.Kernel/README.ru.md#что-исправить)) — второй `Run` может вернуть fault от первого. XML-doc на `GetLastFault` это отражает: «Не обновляется каждую итерацию ради оптимизаций».
+`Run` и `DebugRun` возвращают `ProcessorFault` из `_device.Run(...)`/`_device.DebugRun(...)`. `GetLastFault()` — публичный доступ к `_faultData` в `Processor`. Важно: `_faultData` не сбрасывается в `LaunchProgramm` (`[Nantuc.Kernel](../../src/Nantuc.Kernel/README.ru.md)`, [Что исправить, п.2](../../src/Nantuc.Kernel/README.ru.md#что-исправить)) — второй `Run` может вернуть fault от первого. XML-doc на `GetLastFault` это отражает: "Не обновляется каждую итерацию ради оптимизаций".
 
 ### `RamFileService` — мок, а не полноценная ФС
 
-`RamFileService` реализует **только** контракт `IFileService`. Операций `Delete`/`CreateDirectory`/`Move`/`Copy` нет ни в интерфейсе, ни в классе — их добавление без соответствующего расширения контракта нарушило бы принцип «реализация не делает больше, чем обещает интерфейс», а тесты на «мёртвые» методы не валидировали бы продакшн-сценарии. Если в будущем понадобится запись/удаление — сначала расширьте `IFileService` (или добавьте `IWritableFileService : IFileService`), затем реализуйте в обоих классах.
+`RamFileService` реализует **только** контракт `IFileService`. Операций `Delete`/`CreateDirectory`/`Move`/`Copy` нет ни в интерфейсе, ни в классе — их добавление без соответствующего расширения контракта нарушило бы принцип "реализация не делает больше, чем обещает интерфейс", а тесты на "мёртвые" методы не валидировали бы продакшн-сценарии. Если в будущем понадобится запись/удаление — сначала расширьте `IFileService` (или добавьте `IWritableFileService : IFileService`), затем реализуйте в обоих классах.
 
 Известное ограничение `GetNameFiles`: `IncludePath` сравнивается через `StartsWith` **без проверки границы пути**, поэтому `IncludePath = /base/include` ошибочно исключает `/base/include2/file.c`. Исправление — проверка следующего символа после префикса (`/` или `\`).
 

@@ -3,7 +3,7 @@
 public static class OpCodeExtension
 {
     public const int LastValueInt = (int)LastValue;
-    public const OpCode LastValue = OpCode.CASTS;
+    public const OpCode LastValue = OpCode.JB;
 
     extension(OpCode op)
     {
@@ -56,6 +56,8 @@ public static class OpCodeExtension
             OpCode.TEST => nameof(OpCode.TEST),
             OpCode.CASTZ => nameof(OpCode.CASTZ),
             OpCode.CASTS => nameof(OpCode.CASTS),
+            OpCode.JA => nameof(OpCode.JA),
+            OpCode.JB => nameof(OpCode.JB),
             _ => op.ToUint().ToString()
         };
     }

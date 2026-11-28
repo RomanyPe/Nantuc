@@ -85,7 +85,15 @@ public abstract class CompileTestBase(ITestOutputHelper outPut)
         Assert.True(comp.Success);
         Assert.True(deviceCtx.TryLoadProgram(comp.Program!, 0, out var err), err);
 
-        deviceCtx.Run();
+        var resultRun = deviceCtx.Run();
+        bool c = resultRun.Status == BiosStatus.EndProgram;
+        
+        if (!c)
+        {
+            _outPut.WriteLine(resultRun.ToString());
+        }
+        Assert.True(c);
+
         var regs = deviceCtx.GetRegistersSnapshot();
         bool v = res == regs[RegType.r0];
 

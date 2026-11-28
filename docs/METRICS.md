@@ -6,13 +6,13 @@ Path: `Nantuc.slnx`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 1601 |
-| C# files | 301 |
-| Total lines | 29036 |
-| C# classes | 265 |
+| Members analysed | 1611 |
+| C# files | 302 |
+| Total lines | 29195 |
+| C# classes | 266 |
 | C# records | 30 |
 | C# enums | 14 |
-| Analysed LOC | 9996 |
+| Analysed LOC | 10075 |
 | Cognitive avg | 1.8 |
 | Cognitive median | 0 |
 | Cognitive p90 | 5 |
@@ -31,14 +31,14 @@ Lowest maintainability: `CfgBuilder.Stmt` (MI 25.1) — `CfgBuilder.cs:76`
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 1448 |
+| Light | 0-5 | 1457 |
 | Moderate | 6-10 | 75 |
 | High | 11-20 | 63 |
-| Severe | 21+ | 15 |
+| Severe | 21+ | 16 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1601 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1611 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -56,10 +56,10 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 1601 m
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\Lexer\Lexer.cs | 28 | Lexer | Tokenize | 22 | 14 | 20 | 2 | 0 | 49.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\ASM\IR\IROptimizer.cs | 15 | IROptimizer | Optimize | 22 | 9 | 24 | 5 | 2 | 49.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Statement\StatementTypeResolver.cs | 138 | StatementTypeResolver | ResolveRootStructType | 21 | 18 | 26 | 3 | 1 | 45.6 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Conditions.cs | 56 | ExpressionGenerator | GenerateComparisonJump | 21 | 17 | 36 | 2 | 4 | 43.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication\Default\RamFileService.cs | 80 | RamFileService | Normalize | 21 | 16 | 27 | 3 | 1 | 45.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\InlineSmallVoidFunctionsRule.cs | 126 | InlineSmallVoidFunctionsRule | CloneStatementWithRename | 20 | 23 | 66 | 2 | 2 | 33.3 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\Parser\Parser.Expressions.cs | 197 | Parser | ParseUnary | 19 | 22 | 23 | 2 | 0 | 46.7 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Sizeof.cs | 86 | ExpressionGenerator | GetIndexedElemSizeBytes | 19 | 12 | 15 | 3 | 1 | 52.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\InlineSmallVoidFunctionsRule.cs | 45 | InlineSmallVoidFunctionsRule | InlineCallsInBlock | 19 | 12 | 31 | 3 | 4 | 44.6 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.VmApplication.Extension\Optimizations\AstRules\RemoveUnreachableCodeRule.cs | 33 | RemoveUnreachableCodeRule | OptimizeBlock | 19 | 11 | 35 | 3 | 2 | 44.0 |
 

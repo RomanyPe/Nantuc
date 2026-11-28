@@ -152,7 +152,7 @@ Help for all commands — `nantuc help`. Details — in [`src/Nantuc.CLI/README.
 
 ## Safe API
 
-The public `Nantuc.VmApplication` API follows the “Try + IdState + ProcessorFault” pattern:
+The public `Nantuc.VmApplication` API follows the "Try + IdState + ProcessorFault" pattern:
 
 | Scenario | Old (raw) path | Safe path |
 |---|---|---|
@@ -210,7 +210,7 @@ The layers go bottom-up. Each subsequent layer depends only on the previous ones
 Key invariants:
 - **`Diagnostics` does not depend on any Nantuc project** — a compiler author does not pull in the unsafe core just for error codes.
 - **The compiler does not depend on the runtime** — `Nantuc.Compiler` knows only `Common` + `Contracts` + `Diagnostics`.
-- **`VmApplication` is the only module that knows both the compiler and the runtime**; it glues together “compile” and “run”. The debugger, disassembler, and benchmarks live higher in the layers.
+- **`VmApplication` is the only module that knows both the compiler and the runtime**; it glues together "compile" and "run". The debugger, disassembler, and benchmarks live higher in the layers.
 - **`Nantuc.CLI` is the top layer**: it contains no logic of its own, only parses arguments and calls `VmApplication`/`Extensions`.
 - **`Nantuc.Samples.InWeb` is the top layer** (Blazor WebAssembly): it contains no VM logic of its own, only `VmHost` + `DeviceContext` + custom `IPortController` (`MonochromeMonitor`, `SnakeCommander`) and JS Interop for `<canvas>`.
 
@@ -355,4 +355,4 @@ See [`LICENSE`](LICENSE) in the repository root.
 - CLI: [`src/Nantuc.CLI/README.md`](src/Nantuc.CLI/README.md)
 - Comparison with other languages (OtherLangs): [`benchmarks/OtherLangs/README.md`](benchmarks/OtherLangs/README.md)
 - Sample READMEs: [`samples/Nantuc.Samples.Minimal/README.md`](samples/Nantuc.Samples.Minimal/README.md), [`samples/Nantuc.Samples.Scratch/README.md`](samples/Nantuc.Samples.Scratch/README.md), [`samples/Nantuc.Samples.InWeb/README.md`](samples/Nantuc.Samples.InWeb/README.md)
-- Module READMEs: see the “README” column in the [Modules and NuGet](#modules-and-nuget) section
+- Module READMEs: see the "README" column in the [Modules and NuGet](#modules-and-nuget) section

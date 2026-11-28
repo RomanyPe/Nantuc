@@ -63,7 +63,7 @@ public static class Stats
         return sum / (end - start);
     }
 
-    /// <summary>Среднее геометрическое. Для MIPS осмысленно, если значения — «скорости».</summary>
+    /// <summary>Среднее геометрическое. Для MIPS осмысленно, если значения — "скорости".</summary>
     public static double GeometricMean(IReadOnlyList<double> v)
     {
         if (v.Count == 0) return 0;

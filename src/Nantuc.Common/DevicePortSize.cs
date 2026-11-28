@@ -135,7 +135,7 @@ public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<
     public static bool operator !=(DevicePortSize a, DevicePortSize b) => !a.Equals(b);
 
     /// <summary>
-    /// Оператор «меньше»: сравнивает <see cref="Log2"/> левого и правого значений.
+    /// Оператор "меньше": сравнивает <see cref="Log2"/> левого и правого значений.
     /// </summary>
     /// <param name="a">Левое значение.</param>
     /// <param name="b">Правое значение.</param>
@@ -150,7 +150,7 @@ public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<
     public static bool operator <(DevicePortSize a, DevicePortSize b) => a.Log2 < b.Log2;
 
     /// <summary>
-    /// Оператор «больше»: сравнивает <see cref="Log2"/> левого и правого значений.
+    /// Оператор "больше": сравнивает <see cref="Log2"/> левого и правого значений.
     /// </summary>
     /// <param name="a">Левое значение.</param>
     /// <param name="b">Правое значение.</param>
@@ -161,7 +161,7 @@ public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<
     public static bool operator >(DevicePortSize a, DevicePortSize b) => a.Log2 > b.Log2;
 
     /// <summary>
-    /// Оператор «меньше или равно»: сравнивает <see cref="Log2"/> левого и правого значений.
+    /// Оператор "меньше или равно": сравнивает <see cref="Log2"/> левого и правого значений.
     /// </summary>
     /// <param name="a">Левое значение.</param>
     /// <param name="b">Правое значение.</param>
@@ -172,7 +172,7 @@ public readonly struct DevicePortSize : IEquatable<DevicePortSize>, IComparable<
     public static bool operator <=(DevicePortSize a, DevicePortSize b) => a.Log2 <= b.Log2;
 
     /// <summary>
-    /// Оператор «больше или равно»: сравнивает <see cref="Log2"/> левого и правого значений.
+    /// Оператор "больше или равно": сравнивает <see cref="Log2"/> левого и правого значений.
     /// </summary>
     /// <param name="a">Левое значение.</param>
     /// <param name="b">Правое значение.</param>

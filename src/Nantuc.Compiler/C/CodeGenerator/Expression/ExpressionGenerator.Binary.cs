@@ -123,11 +123,13 @@ public partial class ExpressionGenerator
         RestoreRegFromStack(slot, RegType.r1);
         _asm.EmitCmp(RegType.r1, RegType.r0);
 
+        bool isUnsigned = !IsExpressionSigned(binop.Left) || !IsExpressionSigned(binop.Right);
+
         string trueLabel = _getLabel();
         string endLabel = _getLabel();
 
         _asm.EmitLdi(targetReg, 0);
-        GenerateComparisonJump(binop.Operator, trueLabel, endLabel);
+        GenerateComparisonJump(binop.Operator, trueLabel, endLabel, isUnsigned);
         _asm.MarkLabel(trueLabel);
         _asm.EmitLdi(targetReg, 1);
         _asm.MarkLabel(endLabel);

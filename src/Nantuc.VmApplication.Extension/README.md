@@ -373,7 +373,7 @@ Behavior:
 - **`Run`** — blocking async loop via `await Step()`. With `limit`, every iteration checks `StepCount >= limit` and enqueues `BiosStatus.InfinityLoop`; cancellation enqueues `BiosStatus.HostStopped` and performs one extra `Step()` so the processor can observe the stop status. Returns `ProcessorFault` from `GetDiagnosticData()`.
 - **`DebugRun`** — same loop with an optional `delay` (ms) between steps and an `onStep` callback. **Current implementation invokes `onStep` before each `Step()`** (pre-step snapshot), and also before the step-limit check. See [Special notes](#special-notes).
 - **`Step`** — executes one processor step. If the processor is sleeping (`HALT`), awaits `ReusableWakeSignal.WaitAsync(_processorPolicy.SleepWaitTimeout)`; otherwise, if still running, increments `StepCount`. Every `0xFFFF` steps yields via `Task.Yield()`.
-- **`BreakPointerLaunchDevice`** — resets the processor and launches at `start ?? 0` (aligned up to 8) without running the loop; useful for manual `Step`/`StepDebug`. The XML comment mentions “end of RAM” for `null`, but the current code uses `0`.
+- **`BreakPointerLaunchDevice`** — resets the processor and launches at `start ?? 0` (aligned up to 8) without running the loop; useful for manual `Step`/`StepDebug`. The XML comment mentions "end of RAM" for `null`, but the current code uses `0`.
 - **`Stop`** — enqueues `BiosStatus.HostStopped`, sets the wake signal, and cancels the current `Run`/`DebugRun` CTS if present. Safe from another thread.
 - **Ports** — `ReadPort` returns `0` for an out-of-range offset; `WritePort` ignores an out-of-range offset.
 - **`WakeProcessor` / `EnqueueExternalCommand`** — enqueue an external command (`WAKE`, or an arbitrary raw instruction) and set the wake signal.
@@ -1335,7 +1335,7 @@ For `CALL` (immediate) the instruction length is 12 bytes (4 + 4 padding + 8 imm
 
 HALT/sleep: `AsyncDevice.Step()` calls `_processor.Step()`; if the processor is sleeping, it awaits `ReusableWakeSignal.WaitAsync(_processorPolicy.SleepWaitTimeout)`. `ReusableWakeSignal` latches `Set()` when nobody is waiting; the next `WaitAsync` returns `true` immediately. Reentrant `WaitAsync` returns `true` immediately. Wake via `WakeProcessor()`, `Resume()`, or `Stop()`.
 
-`BreakPointerLaunchDevice(ulong? start, Action? onLaunch)` resets the processor and launches at `start ?? 0` (aligned up to 8). The XML comment says `null` means “end of RAM”, but the current code uses `0`; pass an explicit start address.
+`BreakPointerLaunchDevice(ulong? start, Action? onLaunch)` resets the processor and launches at `start ?? 0` (aligned up to 8). The XML comment says `null` means "end of RAM", but the current code uses `0`; pass an explicit start address.
 
 `AsyncDeviceContext.Stop()` in `Step` mode performs `_device.Stop()` and then `await _device.StepDebug(null)` so the processor can observe `BiosStatus.HostStopped`; if the processor is already not running, `StepDebug` no-ops.
 
@@ -1440,7 +1440,7 @@ Reason: `Program` is a `byte[]`, and truncation means either `Program` is broken
     File: `AsyncDevice/AsyncDevice.cs`. The callback receives `_processor.CurrentProcessorSnapshot` **before** `await Step()`, so the snapshot is pre-instruction. This is easy to misread as a post-step snapshot (especially compared with the `Debugger` layer).  
     Fix: either move the callback after `await Step()` (if post-step semantics are intended) or keep the current behavior but document it explicitly in XML `<remarks>`; the README already notes this.
 
-11. **[XML] `AsyncDevice.BreakPointerLaunchDevice` — `start: null` does not mean “end of RAM”.**  
+11. **[XML] `AsyncDevice.BreakPointerLaunchDevice` — `start: null` does not mean "end of RAM".**  
     File: `AsyncDevice/AsyncDevice.cs`. The XML comment says `null` starts from the end of RAM, but the implementation uses `GlobalInit(onLaunch, start ?? 0)`.  
     Fix: either change the implementation to use the actual end-of-RAM address or fix the XML comment to say `null` means `0`.
 

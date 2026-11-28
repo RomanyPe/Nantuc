@@ -61,7 +61,7 @@ public class DefaultErrorMessageProviderTests
         Assert.Equal("Expected ';', got '}' at 10:5", message);
     }
 
-    // ── overrides: регресс на «замена vs мерж» ───────────────────────
+    // ── overrides: регресс на "замена vs мерж" ───────────────────────
     [Fact]
     public void Overrides_MergeWithDefaults_Regression()
     {

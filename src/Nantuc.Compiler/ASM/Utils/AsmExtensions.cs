@@ -72,6 +72,10 @@ public static class AsmExtensions
             => asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JL.ToUint()), label);
         public void EmitJg(string label)
             => asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JG.ToUint()), label);
+        public void EmitJb(string label)
+            => asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JB.ToUint()), label);
+        public void EmitJa(string label)
+            => asm.EmitJump(InstructionEncoder.EncodeJ(OpCode.JA.ToUint()), label);
         public void EmitStore(RegType dst, OpCodeSize size, string label)
             => asm.EmitInstruction64WithLabel(InstructionEncoder.EncodeSTORE(dst.ToUint(), size.ToUint()), label);
         public void EmitStore(RegType dst, OpCodeSize size, ulong adrr)

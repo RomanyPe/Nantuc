@@ -79,6 +79,8 @@ public sealed partial class Processor
                 OpCode.JNZ => InstructionJNZ(),
                 OpCode.JG => InstructionJG(),
                 OpCode.JL => InstructionJL(),
+                OpCode.JA => InstructionJA(),
+                OpCode.JB => InstructionJB(),
 
                 OpCode.PUSH => InstructionPUSH(GetReg1(rawInst)),
                 OpCode.POP => InstructionPOP(GetReg1(rawInst)),

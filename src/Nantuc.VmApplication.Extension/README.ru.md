@@ -4,7 +4,7 @@
 
 # Nantuc.VmApplication.Extensions — README
 
-Расширения для основного API: дизассемблер, отладчик, устройства ввода-вывода, асинхронное устройство, стандартные оптимизации (AST и IR), утилиты компиляции «в одну строку», встроенные библиотеки MiniC/NANASM.
+Расширения для основного API: дизассемблер, отладчик, устройства ввода-вывода, асинхронное устройство, стандартные оптимизации (AST и IR), утилиты компиляции "в одну строку", встроенные библиотеки MiniC/NANASM.
 
 Зависит от `[Nantuc.VmApplication]` (транзитивно от `Diagnostics`, `Kernel`, `Contracts`, `Common`; напрямую из `Common` использует `OpCode`, `AlignUp`, `InstructionDecoder`).
 
@@ -24,7 +24,7 @@
 
 ## Об этом модуле
 
-`Nantuc.VmApplication.Extensions` — это «готовые решения» («батарейки») для основного API. Здесь нет новых абстракций ядра, только расширения поверх существующих: `DeviceContext`, `AsyncDeviceContext`, `VmHost`, `VmHostProject`, `VmEmulator`, `IPortController`. Вы можете не подключать этот модуль — основной API работает и без него. Но с ним вы получаете:
+`Nantuc.VmApplication.Extensions` — это "готовые решения" ("батарейки") для основного API. Здесь нет новых абстракций ядра, только расширения поверх существующих: `DeviceContext`, `AsyncDeviceContext`, `VmHost`, `VmHostProject`, `VmEmulator`, `IPortController`. Вы можете не подключать этот модуль — основной API работает и без него. Но с ним вы получаете:
 
 - **Дизассемблер** (`Disassembler` / `StringDisassembler` / `InstructionFormatter`): разбирает `CompilationResult.Program` на `DecodedInstruction[]` + `DecodedDataChunk[]` и текстовое представление (как `objdump`).
 - **Отладчик** (`Debugger`): пошаговое выполнение поверх `DeviceContext` — `Step` / `StepOver` / `StepOut` / `Continue` / `ContinueTo` / `RunToEnd`, точки останова, попытка восстановления стека вызовов (best-effort), чтение оперативной памяти (`ReadUInt16/32/64`, `ReadCString`), дизассемблирование текущей инструкции через `StringDisassembler`. Не использует `AsRawDevice` или `unsafe` — только публичный API `DeviceContext` / `ProcessorSnapshot`.

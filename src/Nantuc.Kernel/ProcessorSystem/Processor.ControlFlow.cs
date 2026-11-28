@@ -80,6 +80,38 @@ public sealed partial class Processor
         if (!NegativeFlagSet & !ZeroFlagSet) _registers[RegType.rIP.Int()] = t;
         return BiosStatus.Success;
     }
+    private BiosStatus InstructionJB()
+    {
+        BiosStatus status = CanRead64IntDataInst();
+        if (status != BiosStatus.Success) return status;
+
+        ulong t = Get64IntData();
+
+        if (t >= _ram.Length)
+            return RecordFaultContext(BiosStatus.SegmentationFault, t);
+
+        if (CarryFlagSet) _registers[RegType.rIP.Int()] = t;
+        return BiosStatus.Success;
+    }
+
+    private BiosStatus InstructionJA()
+    {
+        BiosStatus status = CanRead64IntDataInst();
+        if (status != BiosStatus.Success) return status;
+
+        ulong t = Get64IntData();
+
+        if (t >= _ram.Length)
+            return RecordFaultContext(BiosStatus.SegmentationFault, t);
+
+        // Использование битового & здесь нужно для производительности:
+        // - отсутсвие короткого пути из за которого происходят проблемы с предсказателем перехода
+        // - вычисление обоих флагов очень легкая операция и короткий путь здесь не сильно влияет
+
+        // эквевалент !CarryFlagSet & !ZeroFlagSet
+        if ((_registers[RegType.rFL.Int()] & 5UL) == 0UL) _registers[RegType.rIP.Int()] = t;
+        return BiosStatus.Success;
+    }
 
     private BiosStatus InstructionJMP_IND(RegType r)
     {

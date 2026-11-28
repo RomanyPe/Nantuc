@@ -9,8 +9,8 @@ namespace Nantuc.Diagnostics;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Инкапсулирует связку «получить текст сообщения по <see cref="ErrorCode"/> -> бросить
-/// <see cref="CodeException"/>». Избавляет места вызова от повторяющегося кода
+/// Инкапсулирует связку "получить текст сообщения по <see cref="ErrorCode"/> -> бросить
+/// <see cref="CodeException"/>". Избавляет места вызова от повторяющегося кода
 /// <c>throw new CodeException(code, provider.GetMessage(code, args))</c>.
 /// </para>
 /// <para>
@@ -69,7 +69,7 @@ public sealed class ErrorReporter(IErrorMessageProvider? provider)
     /// не заводя отдельную ветку с <see langword="throw"/>.
     /// </summary>
     /// <typeparam name="T">
-    /// Тип, который «якобы» возвращается методом. Фактически управление не возвращается —
+    /// Тип, который "якобы" возвращается методом. Фактически управление не возвращается —
     /// тип нужен только для того, чтобы вызов подходил по типу в контексте выражения.
     /// </typeparam>
     /// <param name="code">Код ошибки компилятора.</param>

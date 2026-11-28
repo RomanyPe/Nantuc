@@ -158,6 +158,7 @@ Nantuc.Compiler/
     │   │   ├── ExpressionGenerator.Increment.cs  # GenerateIncrement + const-проверки
     │   │   ├── ExpressionGenerator.MemberAccess.cs # GenerateMemberAddress + arrow/dot
     │   │   ├── ExpressionGenerator.PointerOps.cs # ApplyPointerArithmeticScaling + AddressOf/Dereference
+    │   │   ├── ExpressionGenerator.Signedness.cs # IsExpressionSigned
     │   │   ├── ExpressionGenerator.Sizeof.cs     # SizeofType/SizeofExpr
     │   │   └── ExpressionGenerator.Unary.cs      # GenerateUnaryOp (-, !, ~)
     │   │
@@ -181,7 +182,7 @@ Nantuc.Compiler/
 - **AST-узлы вынесены в отдельный namespace `Nantuc.Compiler.C.AST` и физически разложены по файлам в `C/AST/`** (по одному узлу на файл, кроме базового `ASTNode.cs`).
 - **`Lexer` разложен по папке `C/Lexer/`** (`Nantuc.Compiler.C.Lexer`): `Lexer` + 3 partial'а + `Token` + `TokenType` + `TokenTypeExtension`.
 - **`Parser` — partial class из 6 файлов в `C/Parser/`** (`Nantuc.Compiler.C.Parser`). Публичный API один — `Parse()`; partial-разбиение только для читаемости.
-- **`ExpressionGenerator` — partial class из 12 файлов в `CodeGenerator/Expression/`** (`Nantuc.Compiler.C.CodeGenerator.Expression`). **`StatementGenerator` — partial class из 6 файлов в `CodeGenerator/Statement/`** (`Nantuc.Compiler.C.CodeGenerator.Statement`) + `StatementTypeResolver.cs`. Разбиение сделано для XML-документации и навигации; API-методы не изменились.
+- **`ExpressionGenerator` — partial class из 13 файлов в `CodeGenerator/Expression/`** (`Nantuc.Compiler.C.CodeGenerator.Expression`). **`StatementGenerator` — partial class из 6 файлов в `CodeGenerator/Statement/`** (`Nantuc.Compiler.C.CodeGenerator.Statement`) + `StatementTypeResolver.cs`. Разбиение сделано для XML-документации и навигации; API-методы не изменились.
 - **`FunctionGenerator` — partial class из 5 файлов в `CodeGenerator/FunctionGen/`** (`Nantuc.Compiler.C.CodeGenerator.FunctionGen`): оркестратор + DataSection + Prologue + Epilogue + `ConstantEvaluator` + `LocalVarCollector`.
 - **`FunctionContext`/`SaveDepthEstimator`/`VariableLayoutBuilder` — в `CodeGenerator/FunctionCtx/`** (`Nantuc.Compiler.C.CodeGenerator.FunctionCtx`).
 - **`RegisterAllocator`/`RegisterAllocator.Interference`/`GreedyGraphColorer`/`VariableAccessAnalyzer`/`RegisterAllocationResult` — в `CodeGenerator/RegistersAlloc/`** (`Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`).
@@ -214,7 +215,7 @@ Nantuc.Compiler/
 | `FunctionContext` | `C.CodeGenerator.FunctionCtx` | `class` | `Create(...)` -> `VarMap`, `TotalLocalSize`, `SaveAreaSize`; **`ReturnSize`/`ReturnIsSigned`/`ReturnIsVoid`**, **`VarLocation.IsSigned`** |
 | `SaveDepthEstimator` | `C.CodeGenerator.FunctionCtx` | `static class` | `Estimate(ASTNode)` — максимальная глубина `ExpressionSaveDepth` |
 | `VariableLayoutBuilder` | `C.CodeGenerator.FunctionCtx` | `internal static class` | `VarInfo` -> `VarLocation` (регистр или стек); вычисляет `TypeSize`/`IsSigned`/`StructTypeName` |
-| `ExpressionGenerator` | `C.CodeGenerator.Expression` | `partial class` (12 файлов) | Генерация выражений; **`GenerateAssignmentExpr` с 4 lvalue-ветками**, **`CheckConstTarget`** (internal), **overflow-касты** |
+| `ExpressionGenerator` | `C.CodeGenerator.Expression` | `partial class` (13 файлов) | Генерация выражений; **`GenerateAssignmentExpr` с 4 lvalue-ветками**, **`CheckConstTarget`** (internal), **overflow-касты** |
 | `StatementGenerator` | `C.CodeGenerator.Statement` | `partial class` (6 файлов) | Генерация операторов; **вызывает `_exprGen.CheckConstTarget`**; **overflow-касты на всех lvalue** |
 | `StatementTypeResolver` | `C.CodeGenerator.Statement` | `static class` | `IsArrayElemSigned`/`IsPointedSigned`/`IsFieldSigned` — вынесено из `StatementGenerator` |
 | `FunctionGenerator` | `C.CodeGenerator.FunctionGen` | `partial class` (5 файлов) | `Generate(ProgramNode)`, пролог/эпилог; **каст аргументов r0..r3 и pseudo-globals** |
@@ -293,14 +294,14 @@ Nantuc.Compiler/
 **`VariableLayoutBuilder`** (`Nantuc.Compiler.C.CodeGenerator.FunctionCtx`) — `internal static class`. `Build(VarInfo, stackOffset, allocation, structTable, er, out consumedBytes)` -> `VarLocation`. Логика: если переменная — скаляр/не массив/не структура и `RegisterAllocator` дал регистр -> `MakeRegisterLocation`; иначе -> `MakeStackLocation` (с `TypeSize`/`StructTypeName`/`IsSigned`).
 
 **`RegisterAllocator.AllocateRegisters`** (`Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`) — жадная раскраска:
-- Резервирует `r0..r4`, `r27`, `rFL`, `rSP`, `rHP`, `rIP` — **22 доступных** (`r5..r26`; комментарий в коде «23 регистра» — неверен, см. п. 14).
+- Резервирует `r0..r4`, `r27`, `rFL`, `rSP`, `rHP`, `rIP` — **22 доступных** (`r5..r26`; комментарий в коде "23 регистра" — неверен, см. п. 14).
 - **Исключает переменные, чей адрес берётся (`&x`)** — `VariableAccessAnalyzer.CollectAddressTakenVars` до раскраски.
 - Строит граф по `[firstDef, lastUse]` в `RegisterAllocator.Interference.cs`, порядок раскраски — по убыванию степени (`GreedyGraphColorer`).
 - Возвращает `RegisterAllocationResult` (`VarToRegister` + `UsedRegisters`).
 
 **`VariableAccessAnalyzer`** (`Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`) — два независимых прохода: `CollectAddressTakenVars` (имена `x`, к которым применён `&x`) и `CollectVarEvents` (позиции def/use в линейном обходе). Важно: проходы НЕ объединены — по-разному обходят `AssignmentNode` (см. п. 14).
 
-**`ExpressionGenerator`** — `partial class` из 12 файлов (namespace `Nantuc.Compiler.C.CodeGenerator.Expression`, папка `Expression/`). Публичный API один — `GenerateExpression(expr)` (в `r0`) и `GenerateExpression(expr, targetReg)`; внутри распределено по partial'ам:
+**`ExpressionGenerator`** — `partial class` из 13 файлов (namespace `Nantuc.Compiler.C.CodeGenerator.Expression`, папка `Expression/`). Публичный API один — `GenerateExpression(expr)` (в `r0`) и `GenerateExpression(expr, targetReg)`; внутри распределено по partial'ам:
 - `ExpressionGenerator.cs` — корень + `GenerateExpression(expr)` / `GenerateExpression(expr, targetReg)`.
 - `ExpressionGenerator.Assignment.cs` — `GenerateAssignmentExpr(assign, targetReg)` — **assignment-as-expression** (результат = новое значение). Покрывает:
   - `arr[i] = value` (через `StoreR0ToArrayElement`)
@@ -323,6 +324,7 @@ Nantuc.Compiler/
 - `ExpressionGenerator.Helpers.cs` — `SaveRegToStack`/`RestoreRegFromStack`; `ExpressionSaveDepth`, слот = `TotalLocalSize + ExpressionSaveDepth * 8`, адрес через `ADDR_SCRATCH_REG_EN = r27`.
 - `ExpressionGenerator.Increment.cs` — **`GenerateIncrement`** — `++`/`--` для `Identifier`/`ArrayAccess`/`Dereference`/`MemberAccess`. В начале — `const`-проверки. После `Inc`/`Dec` и после load — `EmitCastToType`.
 - `ExpressionGenerator.MemberAccess.cs` — `GenerateMemberAddress` + `.`/`->`.
+- `ExpressionGenerator.Signedness.cs` — `IsExpressionSigned`.
 - `ExpressionGenerator.Sizeof.cs` — `SizeofTypeNode`/`SizeofExprNode`.
 - `ExpressionGenerator.Unary.cs` — `GenerateUnaryOp` (для `-`, `!`, `~`).
 
@@ -593,7 +595,7 @@ InstructionEncoder.Decode(raw);   // "ADD r1, r2" / "CASTS.S32 r0" / "UNKNOWN" �
 | `MemberAccessNode` | `Object`, `FieldName`, `IsArrow` | `Parser.Expressions.cs` -> `ParsePostfixMemberAndIncrement` |
 | `SizeofTypeNode` / `SizeofExprNode` | `TypeName`/`IsPointer`, `Operand` | `Parser.Expressions.cs` -> `ParseUnary` |
 
-Итого 28 наследников. **Кто ходит по AST в кодогенераторе:** `ExpressionGenerator` (все partial'ы), `StatementGenerator` (все partial'ы + `StatementTypeResolver`), `SaveDepthEstimator`, `RegisterAllocator` (`VariableAccessAnalyzer.CollectVarEvents`, `CollectAddressTakenVars`), `LocalVarCollector.Collect`, `ConstantEvaluator`. При добавлении узла — обновите все эти места.
+Итого 29 наследников. **Кто ходит по AST в кодогенераторе:** `ExpressionGenerator` (все partial'ы), `StatementGenerator` (все partial'ы + `StatementTypeResolver`), `SaveDepthEstimator`, `RegisterAllocator` (`VariableAccessAnalyzer.CollectVarEvents`, `CollectAddressTakenVars`), `LocalVarCollector.Collect`, `ConstantEvaluator`. При добавлении узла — обновите все эти места.
 
 ### Переполнение узких целых типов
 
@@ -891,7 +893,7 @@ public readonly record struct DiagnosticData
 
 14. **[API] `RegisterAllocator.BuildInterferenceGraph` — линейные live-диапазоны, не учитывают циклы.**
     Файл: `RegisterAllocator.Interference.cs` + `VariableAccessAnalyzer.CollectVarEvents`.
-    **Фикс:** задокументировать как «best effort» или реализовать реальный live-range analysis.
+    **Фикс:** задокументировать как "best effort" или реализовать реальный live-range analysis.
 
 15. **[API] `FunctionGenerator.GenerateGlobalInit` — инициализация структур не поддерживается молча.**
     Файл: `FunctionGenerator.cs`.
@@ -900,7 +902,7 @@ public readonly record struct DiagnosticData
 
 ### Дом
 
-16. **[Дом] AST разложен по файлам `C/AST/`, но без «карты» в шапке папки.**
+16. **[Дом] AST разложен по файлам `C/AST/`, но без "карты" в шапке папки.**
     `CodeGenerator` уже разложен по `Expression/`/`Statement/`/`FunctionCtx/`/`FunctionGen/`/`RegistersAlloc/`, а AST — нет.
     **Фикс:** добавить `C/AST/README.md` или `#region`-карту.
 

@@ -10,6 +10,24 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.27.0] - 2026-11-28
+
+### Added
+- New `OpCode` entries: `JA` and `JB` for unsigned comparison and conditional jump (appended to the end of the `enum` to maintain backwards compatibility)
+- `Processor`: new instructions `InstructionJA` and `InstructionJB`
+- `ExpressionGenerator.Signedness.cs`: `IsExpressionSigned` method to determine expression signedness for literals, identifiers, array indexing, dereferencing, field access, `sizeof`, `&`, function calls, unary/binary operators, `++/--`, assignments, and type casts (following usual arithmetic conversions: binary arithmetic results are unsigned if at least one operand is unsigned)
+- Unsigned comparison support in the C code generator: `<`, `>`, `<=`, and `>=` now emit `JB`/`JA` instead of `JL`/`JG` when operands are unsigned (or pointers)
+
+### Changed
+- Corresponding updates in `OpCodeExtension`
+- `ExpressionGenerator.Conditions.cs`: added `isUnsigned` parameter to `GenerateComparisonJump`; `<`, `>`, `<=`, and `>=` branches now switch between `JB`/`JA` and `JL`/`JG`
+- `ExpressionGenerator.Binary.cs`: `GenerateComparisonAsValue` now determines operand signedness and passes the flag to `GenerateComparisonJump`
+- `>`, `<=`, and `>=` comparisons now emit a **single** conditional branch + `JMP` (`JA`/`JG` instead of a `JL` + `JZ` pair): reduces size by 4–8 bytes and improves branch predictor performance (aligned with bitwise `&` comments in `Processor.ControlFlow.cs`)
+- `==`/`!=` remain unchanged — they still use `JZ`/`JNZ` as signedness does not affect equality checks
+
+### Fixed
+- C code with unsigned types (`uint`, `ulong`, `ushort`, `byte`) and pointers now compares properly across all contexts (`if`, `while`, `for`, and value expressions)
+
 ## [0.26.0] - 2026-11-27
 
 ### Changed
@@ -184,10 +202,10 @@ Short labels:
 ### Changed
 - `Processor` was split into 12 partial files by subsystem (flags, memory, arithmetic, control flow, stack, ports, interrupts, snapshot, faults). Method bodies were not changed — the refactoring is purely structural. `MaskOf`/`SignExtend` were moved into `InstructionHelpers`. Dead code `SetStatusNotSupportedOpCode` was removed.
 - **BREAKING:** moved to `IR/Emitter`. `IRAssembler` was split into 3 partial files: `.cs` (public API + `MarkLabel` / `Emit*` / `GetItems`), `.Layout.cs` (first pass — computing label addresses and section sizes), `.Emit.cs` (second pass — byte emission).
-  - `Build()` (~90 lines, two nested `switch` statements with manual offset/alignment) was decomposed into `ComputeLabelAddresses()` (pass 1) + `EmitItem(...)` (pass 2). `Build()` itself is 15 lines with a clear “layout → emit” structure.
+  - `Build()` (~90 lines, two nested `switch` statements with manual offset/alignment) was decomposed into `ComputeLabelAddresses()` (pass 1) + `EmitItem(...)` (pass 2). `Build()` itself is 15 lines with a clear "layout → emit" structure.
   - Duplicated alignment logic was extracted into shared helpers `Align(offset, alignment)` and `AdvanceInstructionOffset(instr, offset)` — a single point for both passes. Changing alignment (e.g., a 16-byte boundary for SSE-like instructions in the future) becomes one edit instead of two.
   - `EmitItem` was decomposed by item type: `EmitInstructionItem` (flat, with an early `return` when `!HasImmediate && !IsJump` instead of two nested `if`s), `EmitDataItem`, `PadTo`. Jump label resolution — `ResolveJumpTarget`.
-  - Padding buffer `new byte[7]` (heap allocation on every `Build()`) → `stackalloc byte[7]` (zero-alloc). The size 7 is calculated for alignment ≤ 8 — all current `EmitData` calls use 1 or 8. The latent limitation is preserved (see “Known Limitations”).
+  - Padding buffer `new byte[7]` (heap allocation on every `Build()`) → `stackalloc byte[7]` (zero-alloc). The size 7 is calculated for alignment ≤ 8 — all current `EmitData` calls use 1 or 8. The latent limitation is preserved (see "Known Limitations").
 - **BREAKING:** moved to `ASM/Parser`. **`AssemblerParser`** was split into 5 partial files: `.cs` (API + fields), `.Lexing.cs` (strings, comments, sections), `.Instructions.cs` (`ParseInstruction` + `Format*`), `.DataSection.cs` (data directives), `.Numbers.cs` (numeric and register helpers). `_regMap` / `_opMap` (85 lines of manually maintained dictionaries) were moved to `AsmLanguageDefinition.MnemonicMap` / `RegisterMap` — a single source of truth with `FrozenSet` for regexes. `ProcessLines` (70 lines) was decomposed into `ProcessSectionDirective` / `ProcessDataLine` / `ProcessCodeLine`. `Format*` methods use a shared `RequireOperands` instead of 3× repetition of `if (tokens.Length < N) Throw`. The dead line `line.IndexOf(';')` was removed (the `;` delimiter is already consumed by `Split`). The typo `FormateLOAD_IND__STORE_IND` → `FormatLOAD_IND_STORE_IND` was fixed.
 
 ## [0.15.0] - 2026-11-15
@@ -376,7 +394,7 @@ Short labels:
 	- `RegType FirstRegister { get; }` — decoded `Reg1`
 	- `RegType SecondRegister { get; }` — decoded `Reg2`
 	- `OpCodeSize DataSizeCode { get; }` — decoded `OpCodeSize` (meaningful for `LOAD`/`STORE`/`*_IND`)
-- added file [`docs/error-code.md`](docs/error-code.md) with a table “code -> arguments -> template”
+- added file [`docs/error-code.md`](docs/error-code.md) with a table "code -> arguments -> template"
 - added an approximate translation for the documentation; the Russian documentation remains — just add `*.ru.*` before `*.md`
 
 
@@ -415,14 +433,14 @@ Short labels:
 - Compiler tests have been split into smaller files.
 
 ### Documentation
-- **VmApplication README:** fixed sections “API and constructors”, “Callbacks and results”, “Types and return values”, “Files, loading, and documentation”.
+- **VmApplication README:** fixed sections "API and constructors", "Callbacks and results", "Types and return values", "Files, loading, and documentation".
 - **Root README:** code metrics moved to `docs/METRICS.md`.
 - Minor documentation edits.
 
 ## [0.7.2] - 2026-10-30
 
 ### Added
-- The compiler recognizes `const` (see the “Constness” section in the compiler README).
+- The compiler recognizes `const` (see the "Constness" section in the compiler README).
 - New `ErrorCode`: `CodeGen_AssignmentToConst = 1316`, `CodeGen_IncrementOfConst = 1317`.
 - `TokenTypeExtension.AsText` — no reflection (AOT-safe).
 - `DiagnosticData` (`Nantuc.Kernel.Diagnostics`) — typed diagnostic argument.
@@ -441,7 +459,7 @@ Short labels:
 - **BREAKING:** `ValidateAllCodesCovered` / `TryValidateAllCodesCovered`
 
 ### Documentation
-- **Compiler README:** new sections “Constness (`const`)” and “Diagnostics: `DiagnosticData`”; updated tree, API table, pipeline, “What to fix”, “What has been done”.
+- **Compiler README:** new sections "Constness (`const`)" and "Diagnostics: `DiagnosticData`"; updated tree, API table, pipeline, "What to fix", "What has been done".
 - **Kernel.Diagnostics README:** new section about `DiagnosticData` and AOT; `ErrorReporter` described as instance; updated `ErrorCode`, `DefaultErrorMessageProvider`, examples.
 
 ## [0.7.1] - 2026-10-30
@@ -451,8 +469,8 @@ Short labels:
 - New `HostStopped` member in `BiosStatus` — sent to the processor when `Stop()` is called on `Device` or `DeviceContext`.
 
 ### Changed
-- **Sandbox:** the sandbox policy on the host is partially implemented; out of the box, the Nantuc VM runs only in a fully isolated sandbox — it can only send data and receive it on request via `IN`/`OUT`. The definition of “sandbox” in the root README has been corrected.
-- `ResetMemoryRam` now passes the message `"Cannot clear RAM while device is running. Call Stop() first."` to `ThrowIfRunning()` instead of the default “Cannot launch program while device is running…”.
+- **Sandbox:** the sandbox policy on the host is partially implemented; out of the box, the Nantuc VM runs only in a fully isolated sandbox — it can only send data and receive it on request via `IN`/`OUT`. The definition of "sandbox" in the root README has been corrected.
+- `ResetMemoryRam` now passes the message `"Cannot clear RAM while device is running. Call Stop() first."` to `ThrowIfRunning()` instead of the default "Cannot launch program while device is running…".
 
 ### Fixed
 - `InstructionDecode.HasNeed64IntData(Opcode opcode)` previously ignored `LOAD_UNSAFE` and `STORE_UNSAFE` — they are now included in the table.

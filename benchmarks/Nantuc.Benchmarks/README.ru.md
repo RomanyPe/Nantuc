@@ -48,7 +48,7 @@ Nantuc.Benchmarks/
 
 Замечания по организации:
 - `BenchRunner.cs` содержит и `BenchRunner`, и file-local `ListExtensions` (extension `ComputeVariance`). Для навигации неудобно (grep `ComputeVariance` ведёт в файл с другим именем).
-- `Program.cs` — уже не «монолит с источниками»: все MiniC-программы вынесены в `SourceCasesMiniC.cs`. Остаётся `Main` + `PrintTestHeader` / `PrintProgress` / `AppendStatsExtended` / `AppendIterations`. Дальнейшее расширение набора кейсов — через `SourceCasesMiniC` + строку в массиве `cases`.
+- `Program.cs` — уже не "монолит с источниками": все MiniC-программы вынесены в `SourceCasesMiniC.cs`. Остаётся `Main` + `PrintTestHeader` / `PrintProgress` / `AppendStatsExtended` / `AppendIterations`. Дальнейшее расширение набора кейсов — через `SourceCasesMiniC` + строку в массиве `cases`.
 
 ## API
 
@@ -220,14 +220,14 @@ if (runner.Program is { } comp)
 
 ## Приближенность модуля к пользователю
 
-**Средняя.** Это не библиотека, а «продукт» — образец использования и инструмент для оценки производительности VM. Конечному пользователю MiniC бенчмарк не нужен; автору ядра/компилятора — полезен для регрессий.
+**Средняя.** Это не библиотека, а "продукт" — образец использования и инструмент для оценки производительности VM. Конечному пользователю MiniC бенчмарк не нужен; автору ядра/компилятора — полезен для регрессий.
 
 **Что стоит делать:**
 - Запускать на **изолированной машине** (или хотя бы без нагрузки) — иначе affinity/priority не помогут.
 - На Linux для `PriorityClass.High` — `sudo`, иначе будет `[Предупреждение]` и обычный приоритет.
 - Читать логи из `logs/` — консоль может обрезать вывод (`PrintProgress` пишет в одну строку с `\r`).
 - Расширять набор кейсов через `BenchCase` + `SourceCasesMiniC`, а не через форк `BenchRunner`.
-- Для сравнения «с оптимизациями vs без» — добавьте флаг `optimize` в `BenchCase` и пробросьте его в `BenchRunner.TryPrepare` вместо жёсткого `true`.
+- Для сравнения "с оптимизациями vs без" — добавьте флаг `optimize` в `BenchCase` и пробросьте его в `BenchRunner.TryPrepare` вместо жёсткого `true`.
 
 **Что не стоит делать:**
 - Запускать бенчмарк в CI/headless — `Console.ReadLine()` в конце `Main` заблокирует процесс, а `Console.Clear()` может бросить.
@@ -241,7 +241,7 @@ if (runner.Program is { } comp)
 
 `BenchRunner.TryPrepare` вызывает `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.MiniC).Build()`. Для MiniC-источников `optimize: true` включает AST-оптимизации компилятора, но **не** включает IR: `VmIROptimizer.AddStdRules` никто не вызывает, а `OptimizationIR(..., IROptimizationCount)` в `BenchRunner`/`Program` не используется. Поэтому все 14 кейсов — это AST-оптимизированный, но не IR-оптимизированный код.
 
-Если хотите сравнить «с IR vs без», нужно явно:
+Если хотите сравнить "с IR vs без", нужно явно:
 
 ```csharp
 host.Project.Optimizator.VMIROptimizer.AddStdRules();
@@ -253,16 +253,16 @@ var comp = il.Build();
 ### `Stats` — почему несколько метрик
 
 - `Mean` — чувствителен к выбросам (GC-паузы, thermal throttling).
-- `Median` — устойчив, но не показывает «средний» сценарий.
+- `Median` — устойчив, но не показывает "средний" сценарий.
 - `TrimmedMean10` — компромисс: отбрасывает 10% сверху и снизу, игнорирует выбросы, показывает типичное значение. **Основная метрика** для отчёта.
 - `CV` — коэффициент вариации; `CV < 5%` — стабильно, `CV > 15%` — шумно.
-- `Skewness > 0` — хвост вправо (выбросы «медленные прогоны»); `< 0` — хвост влево.
+- `Skewness > 0` — хвост вправо (выбросы "медленные прогоны"); `< 0` — хвост влево.
 - `FirstHalfMean`/`SecondHalfMean` — JIT/warmup: если `firstHalf > secondHalf` на 20%+, JIT ещё не прогрелся к концу warmup'а, стоит увеличить `WarmupRuns`.
 
 ### Вывод и формат лога
 
 `Program.cs` использует:
-- `PrintProgress` с `\r` и ANSI-символами `▓░✓✗-` — в CI/redirected output `Console.IsOutputRedirected` пропускает прогресс-бар, но `Console.Clear()` в конце `Main` — **не** пропускает (см. [Что исправить, п.4](#что-исправить)).
+- `PrintProgress` с `\r` и ANSI-символами `▓░+✗-` — в CI/redirected output `Console.IsOutputRedirected` пропускает прогресс-бар, но `Console.Clear()` в конце `Main` — **не** пропускает (см. [Что исправить, п.4](#что-исправить)).
 - `AppendStatsExtended` — все 20 полей `StatsResult` в формате `\t    name: value`.
 - `AppendIterations` — по одному значению на строку, формат `F4`.
 
@@ -306,7 +306,7 @@ var comp = il.Build();
 
 5. **`BenchCase.ExpectedInstructions` не используется.**  
    Файл: `BenchCase.cs` (поле) + `Program.cs` (все `new BenchCase(...)` без него) + `BenchRunner` (не читает).  
-   Поле есть, но `BenchRunner` не сверяет фактические `StepsLogs` с ожидаемыми. Если VM выдаст аномальное число шагов (например, из-за бага в `Processor.Step`), бенчмарк это не заметит — MIPS будет «правильный», но шаги — нет.  
+   Поле есть, но `BenchRunner` не сверяет фактические `StepsLogs` с ожидаемыми. Если VM выдаст аномальное число шагов (например, из-за бага в `Processor.Step`), бенчмарк это не заметит — MIPS будет "правильный", но шаги — нет.  
    Фикс: в `BenchRunner.RunOnce` после прогона: `if (_case.ExpectedInstructions is { } expected && steps[^1] != expected) Console.Error.WriteLine($"Steps mismatch: expected {expected}, got {steps[^1]}");`. Заполнить `ExpectedInstructions` для всех кейсов (значения можно взять из эталонного прогона).
 
 6. **`Program.cs` — `PrintProgress` для `fail` передаёт `done=0, phaseTotal=0`.**  
@@ -315,7 +315,7 @@ var comp = il.Build();
    PrintProgress(testIndex, testTotal, name, "fail", 0, 0,
                  phaseTotal, phaseTotal, globalStep, totalSteps, forceNewLine: true, failed: true);
    ```
-   `done=0, phaseTotal=0` — в `phaseStr` не используется (`phase == "fail"` -> `$"{phase,-4}"`), но в `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, так что процент считается по `phaseStep/phaseTotal = 1.0`. Не баг, но параметры «0, 0» вводят в заблуждение — либо `phaseTotal, phaseTotal`, либо добавить комментарий.
+   `done=0, phaseTotal=0` — в `phaseStr` не используется (`phase == "fail"` -> `$"{phase,-4}"`), но в `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, так что процент считается по `phaseStep/phaseTotal = 1.0`. Не баг, но параметры "0, 0" вводят в заблуждение — либо `phaseTotal, phaseTotal`, либо добавить комментарий.
 
 7. **`Stats.Percentile`/`Median`/`TrimmedMean` — `OrderBy().ToArray()` на каждый вызов.**  
    Файл: `Stats.cs`, методы `Percentile`, `Median`, `TrimmedMean`.  
@@ -339,11 +339,11 @@ var comp = il.Build();
     Program = res;
     if (!ctx.TryLoadProgram(res.Program, 0, out string? errorMath)) { ... return false; }
     ```
-    Если загрузка упала, `Program` уже установлен, а `IsPrepared = false`. Если вызывающий код смотрит на `Program`, он увидит «успешную» компиляцию, но программа не загружена.  
+    Если загрузка упала, `Program` уже установлен, а `IsPrepared = false`. Если вызывающий код смотрит на `Program`, он увидит "успешную" компиляцию, но программа не загружена.  
     Фикс: `Program = res` после успешной загрузки. Или задокументировать, что `Program` — результат компиляции, не загрузки.
 
 11. **`BenchRunner.TryPrepare` — жёсткий `optimize: true` и отсутствие IR.**  
     Файл: `BenchRunner.cs`, `TryPrepare` + `BenchCase.cs`.  
     `optimize: true` захардкожен, `BenchCase` не позволяет сравнить с `optimize: false`. Плюс IR не вызывается (см. [Особенная информация](#особенная-информация)).  
-    Фикс: добавить в `BenchCase` флаг `OptimizeAst` (по умолчанию `true`) и, опционально, `RunIR` — чтобы можно было измерять эффект оптимизаций, а не только «голый» запуск.
+    Фикс: добавить в `BenchCase` флаг `OptimizeAst` (по умолчанию `true`) и, опционально, `RunIR` — чтобы можно было измерять эффект оптимизаций, а не только "голый" запуск.
 ```

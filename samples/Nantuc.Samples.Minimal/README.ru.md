@@ -1,7 +1,7 @@
 ﻿# Nantuc.Samples.Minimal — README
 
-> Минимальный рабочий пример платформы Nantuc: компилирует MiniC-программу «Hello world. Привет мир», запускает её на виртуальной машине и выводит UTF-16 строку в `Console.Out` через порт-устройство.
-> Показывает полный путь «исходник -> байткод -> VM -> I/O» на одном экране.
+> Минимальный рабочий пример платформы Nantuc: компилирует MiniC-программу "Hello world. Привет мир", запускает её на виртуальной машине и выводит UTF-16 строку в `Console.Out` через порт-устройство.
+> Показывает полный путь "исходник -> байткод -> VM -> I/O" на одном экране.
 > Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
 > [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
@@ -16,7 +16,7 @@
 
 ## Об этом модуле
 
-`Nantuc.Samples.Minimal` — это **один файл `Program.cs` с top-level statements** (без `class Program`, без namespace). Проект — `Exe`, `net10.0`, зависит только от `VmApplication.Extensions`. Это «hello world» для платформы: если вы никогда не видели Nantuc, начните отсюда.
+`Nantuc.Samples.Minimal` — это **один файл `Program.cs` с top-level statements** (без `class Program`, без namespace). Проект — `Exe`, `net10.0`, зависит только от `VmApplication.Extensions`. Это "hello world" для платформы: если вы никогда не видели Nantuc, начните отсюда.
 
 Что демонстрирует пример:
 
@@ -74,7 +74,7 @@ Nantuc.Samples.Minimal/
 
 `CompileToIR(ulong, bool)` — extension из `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (`ProjectExtension`). Внутри вызывает `ProjectBuilder.GetSourceFiles(proj.FileService, proj.Paths)` и `ProjectBuilder.Build`.
 
-`TryRegisterDevice`/`TryGetDeviceContext` — новый API эмулятора, возвращает `IdState`/`bool` вместо «магических» отрицательных id и `null`. См. раздел «`IdState` vs `int` / `null`» ниже.
+`TryRegisterDevice`/`TryGetDeviceContext` — новый API эмулятора, возвращает `IdState`/`bool` вместо "магических" отрицательных id и `null`. См. раздел "`IdState` vs `int` / `null`" ниже.
 
 ## Примеры для API
 
@@ -116,7 +116,7 @@ using var host = VmHostFactory.CreateDefault(fileService: fs);
 
 ## Приближенность модуля к пользователю
 
-**Максимальная.** Это учебный пример — «скопируй, запусти, получи Hello world + Привет мир». Предназначен для:
+**Максимальная.** Это учебный пример — "скопируй, запусти, получи Hello world + Привет мир". Предназначен для:
 
 - Нового пользователя платформы, который хочет увидеть Nantuc в действии.
 - Автора расширений, которому нужен минимальный каркас для собственного устройства или оптимизации.
@@ -144,7 +144,7 @@ using var host = VmHostFactory.CreateDefault(fileService: fs);
 - `TryGetDeviceContext(id, out vm)` возвращает `bool`.
 - `TryLoadProgram(...)` возвращает `bool` с `out string error`.
 
-Это позволяет не полагаться на «магические» отрицательные id и не писать `!` для `GetDeviceContext`.
+Это позволяет не полагаться на "магические" отрицательные id и не писать `!` для `GetDeviceContext`.
 
 ### Порты: откуда `0x10` и `0x12`
 
@@ -187,7 +187,7 @@ char c = (char)(pendingLowByte.Value | (b << 8));
 
 ### `optimize: true` — no-op
 
-`CompileToIR(0, optimize: true)` включает только AST-оптимизации. Но `VmHostProject.Optimizator.VMAstOptimizer` создаётся пустым — если не вызвать `AddStdRules()`, ни одно правило не применится. В этом примере `optimize: true` — «флаг на будущее». См. [Что исправить, п.2](#что-исправить).
+`CompileToIR(0, optimize: true)` включает только AST-оптимизации. Но `VmHostProject.Optimizator.VMAstOptimizer` создаётся пустым — если не вызвать `AddStdRules()`, ни одно правило не применится. В этом примере `optimize: true` — "флаг на будущее". См. [Что исправить, п.2](#что-исправить).
 
 ### `Run()` и `QueuedIOStream`
 
@@ -198,7 +198,7 @@ char c = (char)(pendingLowByte.Value | (b << 8));
 - **`net10.0`**, без `AllowUnsafeBlocks` — пример не трогает нативную память напрямую.
 - **`QueuedIOStream`** использует `Task.Run` + `Channel<byte>` — в WASM работает, но фоновый drain может не завершиться до конца синхронного `Main`. Для WASM-примера используйте `SynchronousIOStream`.
 - **Кириллица в `Console.Out`** — на Windows без `Console.OutputEncoding = Encoding.UTF8` строка `"Привет мир"` может отображаться как `????`. См. [Что исправить, п.3](#что-исправить).
-- **`RamFileService`** не зависит от ОС (in-memory), но `Combine` с `\\` — не «нативный» путь. Для реальной ФС — `DefaultFileService` + `Path.Combine`.
+- **`RamFileService`** не зависит от ОС (in-memory), но `Combine` с `\\` — не "нативный" путь. Для реальной ФС — `DefaultFileService` + `Path.Combine`.
 
 ## Что исправить
 

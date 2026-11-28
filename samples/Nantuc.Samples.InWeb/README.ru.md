@@ -1,8 +1,8 @@
 ﻿# Nantuc.Samples.InWeb — README
 
-> Демонстрационный модуль платформы Nantuc, собранный как **Blazor WebAssembly**-приложение и работающий **в браузере**. Содержит две страницы: `/` — универсальный запуск MiniC-программ (компиляция + исполнение в WASM, вывод через UART) и `/snake` — интерактивная «Змейка» с монохромным монитором 32×16, управляемая стрелками клавиатуры.
+> Демонстрационный модуль платформы Nantuc, собранный как **Blazor WebAssembly**-приложение и работающий **в браузере**. Содержит две страницы: `/` — универсальный запуск MiniC-программ (компиляция + исполнение в WASM, вывод через UART) и `/snake` — интерактивная "Змейка" с монохромным монитором 32×16, управляемая стрелками клавиатуры.
 > Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
-> Связан с консольным сэмплом: [`Nantuc.Samples.Scratch`](../Nantuc.Samples.Scratch/README.ru.md) — тот же «движок» змейки, но без браузера.
+> Связан с консольным сэмплом: [`Nantuc.Samples.Scratch`](../Nantuc.Samples.Scratch/README.ru.md) — тот же "движок" змейки, но без браузера.
 > [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
 > [!IMPORTANT]
@@ -26,7 +26,7 @@
 
 `Nantuc.Samples.InWeb` — это **два независимых сценария на одной WASM-сборке**, каждый на своей странице Blazor:
 
-1. **`/` (`pages/Home.razor`) — «Nantuc VM в браузере».** Универсальный раннер: текстовый редактор MiniC-кода с подсветкой синтаксиса, кнопка «Скомпилировать и запустить». При нажатии:
+1. **`/` (`pages/Home.razor`) — "Nantuc VM в браузере".** Универсальный раннер: текстовый редактор MiniC-кода с подсветкой синтаксиса, кнопка "Скомпилировать и запустить". При нажатии:
    - `VmHostFactory.CreateDefault()`;
    - в проект пишется `main.minic` + include-библиотеки `io.nanasm` / `print.minic`;
    - `TryRegisterDevice` (`DeviceSpec.Create(RamSize.MB16, ...)`) на `sector 0` — VM;
@@ -35,9 +35,9 @@
    - `vm.Run()` (не StepMode) — выполнение до `EndProgram` или до fault;
    - `wr.ToString()` возвращается на страницу и рендерится в `<pre>`.
 
-   Так модуль показывает **«чистый» синхронный сценарий** компиляции/исполнения без кооперативного планировщика — в противоположность змейке.
+   Так модуль показывает **"чистый" синхронный сценарий** компиляции/исполнения без кооперативного планировщика — в противоположность змейке.
 
-2. **`/snake` (`pages/Snake.razor`) — «Змейка» в браузере.** Полноценная игра:
+2. **`/snake` (`pages/Snake.razor`) — "Змейка" в браузере.** Полноценная игра:
    - VM на `sector 0`, `MonochromeMonitor` 32×16 на `sector 1`, `SnakeCommander` на `sector 2`;
    - `CompileToIR(0, optimize: false)` компилирует `LibCode.snake_minic` (с `monitor.nanasm` и `commander.nanasm`);
    - `_ctx.RunStepMode(startAddress: 0)` — VM переводится в **step-режим** (не `Run()`), потому что игра работает кооперативно;
@@ -64,7 +64,7 @@ dotnet run
 
 **Что показывает модуль:**
 - как интегрировать `VmApplication` в браузер (без потоков, без `Console`, без `Thread.Sleep`);
-- паттерн **RunStepMode + BatchStep + кооперативный yield через порт** — VM сама говорит «я отрисовала кадр, разбуди меня на следующем тике»;
+- паттерн **RunStepMode + BatchStep + кооперативный yield через порт** — VM сама говорит "я отрисовала кадр, разбуди меня на следующем тике";
 - интеграцию с **JS Interop** (`snake.js` + `<canvas>`) — VM не знает про `CanvasRenderingContext2D`, монитор отдаёт `byte[]`, а JS рисует;
 - два подхода к вводу: **событие Blazor** (Snake) vs **текстовый редактор** (Home);
 - безопасный API `TryRegisterDevice` / `TryGetDeviceContext` (в отличие от `Nantuc.Samples.Scratch`, где ещё встречается `RegisterDevice` + `!`).
@@ -93,7 +93,7 @@ Nantuc.Samples.InWeb/
 
 Замечания по организации:
 - `MonochromeMonitor` и `SnakeCommander` — почти копии `Nantuc.Samples.Scratch`, но с уточнённым контрактом (см. ниже). Логика почти та же — это осознанная дубликация, чтобы сэмплы были независимы.
-- `LibCode.snake_minic` в InWeb **сильно отличается** от Scratch: `Halt()` заменён на `CmdWaitTick()`, добавлен `commander_nanasm`, добавлены `CmdSetScore`/`CmdGameOver`/`CmdYield`, убрана смерть «прямо в `tick()`» (вместо `resetGame` из `tick` возвращается `1`, `main` сам решает, что делать).
+- `LibCode.snake_minic` в InWeb **сильно отличается** от Scratch: `Halt()` заменён на `CmdWaitTick()`, добавлен `commander_nanasm`, добавлены `CmdSetScore`/`CmdGameOver`/`CmdYield`, убрана смерть "прямо в `tick()`" (вместо `resetGame` из `tick` возвращается `1`, `main` сам решает, что делать).
 - `wwwroot/index.html` — стандартный шаблон с Blazor-WASM loading-progress (переменные `--blazor-load-percentage` и `--blazor-load-percentage-text` устанавливает boot-скрипт `_framework/blazor.webassembly.js`).
 - `Pages/LibCode.cs` содержит **три** исходника: `monitor_nanasm`, `commander_nanasm`, `snake_minic` — как и в Scratch, но `input_nanasm`/`halt_nanasm` отсутствуют (их роль выполняет `commander_nanasm`).
 
@@ -119,7 +119,7 @@ await builder.Build().RunAsync();
 | Поле | Назначение |
 |---|---|
 | `SourceCode` | текущий текст в `<textarea>` (двусторонняя привязка, `oninput`) |
-| `HighlightedCode` | вычисляемая «подсвеченная» версия — regex + `WebUtility.HtmlEncode`, вставляется как `MarkupString` в `<pre>` под textarea |
+| `HighlightedCode` | вычисляемая "подсвеченная" версия — regex + `WebUtility.HtmlEncode`, вставляется как `MarkupString` в `<pre>` под textarea |
 | `Output` | вывод UART (или сообщение об ошибке) |
 | `IsRunning` / `HasError` | блокировка кнопки и цвет `<pre>` |
 
@@ -223,7 +223,7 @@ while (!ct.IsCancellationRequested && _running)
         {
             _ctx!.BatchStep(StepChunk);
             total += StepChunk;
-            if (_commander.ConsumeYielded()) break;   // VM сказала «кадр готов»
+            if (_commander.ConsumeYielded()) break;   // VM сказала "кадр готов"
         }
 
         _score = _commander.Score;
@@ -270,7 +270,7 @@ public sealed class SnakeCommander : PortControlBase
     public const byte R_TICK_READY = 0x01; // 0|1, auto-consume
 
     // Write (VM пишет)
-    public const byte W_YIELD     = 0x00; // 1 = «кадр готов, управление вернулось»
+    public const byte W_YIELD     = 0x00; // 1 = "кадр готов, управление вернулось"
     public const byte W_GAME_OVER = 0x02;
     public const byte W_SCORE     = 0x03;
 
@@ -288,7 +288,7 @@ public sealed class SnakeCommander : PortControlBase
 
 - Регистрируется на `sector 2`. При дефолтном `DevicePortSize.B16` (`PortsOnDevice = 16 = 0x10`) база = `2 * 16 = 0x20`. Смещения `0x00..0x03` -> адреса `0x20..0x23` — совпадает с `commander_nanasm`.
 - `R_INPUT` и `W_YIELD` — один и тот же offset `0x00`, но **разные направления** (чтение vs запись). В `SnakeCommander` это разведено через `ReadPort`/`WritePort`.
-- `SetInput` намеренно не пишет `0` — «нет нажатия» и «нет нового нажатия» — разные состояния. Сброс `_pendingInput` происходит **на чтении** `R_INPUT` (`ConsumeInput`).
+- `SetInput` намеренно не пишет `0` — "нет нажатия" и "нет нового нажатия" — разные состояния. Сброс `_pendingInput` происходит **на чтении** `R_INPUT` (`ConsumeInput`).
 - `Score` — `int`, но `W_SCORE` — `byte`, поэтому счёт фактически ограничен `0..255` (см. [Что исправить, п.2](#что-исправить)).
 
 ### `pages/MonochromeMonitor.cs` — монохромный монитор
@@ -355,7 +355,7 @@ public static class LibCode
 - `tick()` — `CmdReadInput`, поворот (с защитой от разворота), шаг, **wrap по краям 32×16**, проверка столкновения; при смерти **не** вызывает `resetGame`, возвращает `1` (чтобы Blazor успел показать кадр);
 - `main()` — `resetGame(); render(); CmdYield(); while(1) { CmdWaitTick(); if (tick()) { render(); CmdGameOver(); CmdYield(); resetGame(); } else { render(); CmdYield(); } }`.
 
-Обратите внимание: **нет `Halt()`**, ожидание тика — `CmdWaitTick()` через `R_TICK_READY`. Это позволяет `BatchStep` не «съедать» цикл вхолостую, а останавливаться по `ConsumeYielded`. См. [Особенная информация](#особенная-информация).
+Обратите внимание: **нет `Halt()`**, ожидание тика — `CmdWaitTick()` через `R_TICK_READY`. Это позволяет `BatchStep` не "съедать" цикл вхолостую, а останавливаться по `ConsumeYielded`. См. [Особенная информация](#особенная-информация).
 
 ### `wwwroot/js/snake.js` — рендер кадра
 
@@ -416,7 +416,7 @@ void main() {
 }
 ```
 
-Нажмите «Скомпилировать и запустить» — в `<pre>` под кнопкой появится та же строка (UTF-16-строка прошла через `print16` -> UART -> `StringWriter` -> Blazor).
+Нажмите "Скомпилировать и запустить" — в `<pre>` под кнопкой появится та же строка (UTF-16-строка прошла через `print16` -> UART -> `StringWriter` -> Blazor).
 
 **Изменить программу на `/`:**
 
@@ -486,11 +486,11 @@ void main() {
 
 ## Приближенность модуля к пользователю
 
-**Высокая** для «хочу показать Nantuc в браузере»: две готовые страницы, живая игра, JS-канвас, подсветка синтаксиса, безопасный `Try*` API.
+**Высокая** для "хочу показать Nantuc в браузере": две готовые страницы, живая игра, JS-канвас, подсветка синтаксиса, безопасный `Try*` API.
 
-**Средняя** для «хочу писать свои игры на Nantuc»: `Snake.razor` — плотный пример, но с заметной спецификой — step-режим, кооперативный yield, двойная буферизация кадра. Автору своей игры придётся разобраться, зачем `RunStepMode`/`BatchStep`, а не `Run()`.
+**Средняя** для "хочу писать свои игры на Nantuc": `Snake.razor` — плотный пример, но с заметной спецификой — step-режим, кооперативный yield, двойная буферизация кадра. Автору своей игры придётся разобраться, зачем `RunStepMode`/`BatchStep`, а не `Run()`.
 
-**Низкая** для «хочу изучить внутренности VM»: этот сэмпл — про интеграцию, а не про архитектуру (для этого — `Nantuc.VmApplication`, `Nantuc.Compiler`, `Nantuc.Kernel`).
+**Низкая** для "хочу изучить внутренности VM": этот сэмпл — про интеграцию, а не про архитектуру (для этого — `Nantuc.VmApplication`, `Nantuc.Compiler`, `Nantuc.Kernel`).
 
 **Что стоит делать:**
 - Запускать `dotnet run` и открывать обе страницы — они показывают два разных сценария.
@@ -499,7 +499,7 @@ void main() {
 - Передавать в `MonochromeMonitor` колбэк, **копирующий** `fb`, а не сохраняющий ссылку.
 
 **Что не стоит делать:**
-- Ждать, что `BatchStep` сам вернёт управление «когда надо» — надо проверять `ConsumeYielded()`.
+- Ждать, что `BatchStep` сам вернёт управление "когда надо" — надо проверять `ConsumeYielded()`.
 - Менять `StepChunk`/`MaxStepsPerTick` без понимания, что `BatchStep` — синхронный: слишком большой `StepChunk` заморозит UI, слишком маленький — увеличит накладные расходы.
 - Полагаться на то, что `_commander.SetInput` доставит все нажатия между тиками — см. [Что исправить, п.5](#что-исправить).
 - Использовать `RegisterDevice` + `GetDeviceContext(id)!` — как в `Snake.razor.StartAsync`; лучше `Try*` (см. [Что исправить, п.1](#что-исправить)).
@@ -508,11 +508,11 @@ void main() {
 
 ### `RunStepMode` + `BatchStep` + кооперативный yield
 
-В браузере нет `Thread.Sleep`, `Console.ReadKey` и нет «фонового потока VM». Поэтому игра построена иначе, чем в `Nantuc.Samples.Scratch`:
+В браузере нет `Thread.Sleep`, `Console.ReadKey` и нет "фонового потока VM". Поэтому игра построена иначе, чем в `Nantuc.Samples.Scratch`:
 
 - `_ctx.RunStepMode(0)` — VM **не выполняется**, пока не позовут `BatchStep`.
 - `_ctx.BatchStep(StepChunk)` — выполнить до `StepChunk` инструкций.
-- `_commander.SignalTick()` — VM «разбужена»: `CmdWaitTick()` увидит `R_TICK_READY = 1`.
+- `_commander.SignalTick()` — VM "разбужена": `CmdWaitTick()` увидит `R_TICK_READY = 1`.
 - `_commander.ConsumeYielded()` — VM закончила тик: `CmdYield()` записала `W_YIELD = 1`.
 
 Порядок в `GameLoopAsync`:
@@ -552,9 +552,9 @@ void main() {
 
 Это позволяет `input_nanasm`/`commander_nanasm` использовать **один** адрес `0x20` и для чтения, и для записи. `OUT r0, r1` с `r1 = 0x20` никогда не путается с `IN r0, r1` с тем же `r1` — на шине разные операции.
 
-### `SetInput` и «последнее нажатие выигрывает»
+### `SetInput` и "последнее нажатие выигрывает"
 
-`_input` — `ConcurrentQueue<byte>`, но `SnakeCommander.SetInput` перезаписывает `_pendingInput`. Если два нажатия пришли между `CmdReadInput` (200 мс — окно), второе затрёт первое. Для змейки это нормально (хотим «последнее направление»), но для более сложных игр — потеря ввода. См. [Что исправить, п.5](#что-исправить).
+`_input` — `ConcurrentQueue<byte>`, но `SnakeCommander.SetInput` перезаписывает `_pendingInput`. Если два нажатия пришли между `CmdReadInput` (200 мс — окно), второе затрёт первое. Для змейки это нормально (хотим "последнее направление"), но для более сложных игр — потеря ввода. См. [Что исправить, п.5](#что-исправить).
 
 ### Game Over: сброс **до** показа оверлея
 
@@ -569,7 +569,7 @@ if (tick()) {
 }
 ```
 
-`resetGame` вызывается **после** `CmdYield`. Это значит, что к моменту `ConsumeYielded` и `_score = _commander.Score` (в `GameLoopAsync`) VM **уже** сброшена: счёт уже 0. А `_showGameOver = true` покажет оверлей на 900 мс. За это время `GameLoopAsync` успеет сделать ещё ~6 тиков (900/150) — и новая игра уже будет идти. Игрок увидит: «GAME OVER» 900 мс, счёт 0, затем оверлей исчезает — а змейка уже сдвинулась на 6 клеток. Не баг, но UX-особенность. См. [Что исправить, п.3](#что-исправить).
+`resetGame` вызывается **после** `CmdYield`. Это значит, что к моменту `ConsumeYielded` и `_score = _commander.Score` (в `GameLoopAsync`) VM **уже** сброшена: счёт уже 0. А `_showGameOver = true` покажет оверлей на 900 мс. За это время `GameLoopAsync` успеет сделать ещё ~6 тиков (900/150) — и новая игра уже будет идти. Игрок увидит: "GAME OVER" 900 мс, счёт 0, затем оверлей исчезает — а змейка уже сдвинулась на 6 клеток. Не баг, но UX-особенность. См. [Что исправить, п.3](#что-исправить).
 
 ### `Home.razor`: `RegexOptions.Compiled` в WASM — no-op
 
@@ -618,7 +618,7 @@ if (tick()) {
 5. **`SnakeCommander.SetInput` теряет промежуточные нажатия между тиками.**
    Файл: `pages/SnakeCommander.cs`, `public void SetInput(byte key) { if (key != 0) _pendingInput = key; }`.
    За 150 мс пользователь может нажать 2–3 стрелки; `_input` (`ConcurrentQueue`) их сохранит, но `GameLoopAsync` дренирует очередь каждые 8 мс, вызывая `SetInput` на каждую; `SetInput` перезаписывает `_pendingInput`. В итоге `CmdReadInput` увидит только **последнее**.
-   Фикс: либо `_pendingInputs` — очередь в `SnakeCommander` (с лимитом, чтобы не росла), либо в `GameLoopAsync` передавать только последнюю нажатие (как сейчас, но **осознанно**), задокументировав «last wins». Для змейки это ОК, для RTS/файтинга — нет.
+   Фикс: либо `_pendingInputs` — очередь в `SnakeCommander` (с лимитом, чтобы не росла), либо в `GameLoopAsync` передавать только последнюю нажатие (как сейчас, но **осознанно**), задокументировав "last wins". Для змейки это ОК, для RTS/файтинга — нет.
 
 6. **`Snake.razor.GameLoopAsync` — `await Task.Delay(900, ct)` вне `try/catch`.**
    Файл: `pages/Snake.razor`. Если `ct` отменён во время Game Over, `OperationCanceledException` уйдёт из `GameLoopAsync`, `_showGameOver = false` не выполнится. `StopAsync` ловит `await _loopTask` в `try/catch`, но оверлей останется висеть до перерендера.
@@ -644,7 +644,7 @@ if (tick()) {
 
 11. **`Home.razor` — `vm.Run()` синхронный, блокирует UI.**
     Файл: `pages/Home.razor`, `RunNantucVm`. Для длинных программ — фриз Blazor WASM (анимация, ввод).
-    Фикс: перейти на `RunStepMode` + `BatchStep` с `await Task.Delay(0)` между чанками (как в `Snake.razor`), либо оставить как есть и показать предупреждение «выполняется...».
+    Фикс: перейти на `RunStepMode` + `BatchStep` с `await Task.Delay(0)` между чанками (как в `Snake.razor`), либо оставить как есть и показать предупреждение "выполняется...".
 
 12. **`Home.razor` — `HasError` определяется по префиксу `Output`.**
     Файл: `pages/Home.razor`, `HasError = Output.StartsWith("[ERROR]") || Output.StartsWith("VM fault:");`.
@@ -661,7 +661,7 @@ if (tick()) {
 
 15. **`Snake.razor` — `_score`/`_showGameOver`/`_status` не `volatile`.**
     Файл: `pages/Snake.razor`. В WASM single-threaded — безопасно. При переносе на Server/Blazor Hybrid с фоновым потоком — гонка.
-    Фикс (профилактически): либо задокументировать «single-threaded assumption», либо `volatile` / `lock`.
+    Фикс (профилактически): либо задокументировать "single-threaded assumption", либо `volatile` / `lock`.
 
 16. **`LibCode.input_nanasm` — гонка двух нажатий (нет в InWeb, но есть в Scratch).**
     В InWeb `snake_minic` использует `commander_nanasm`, а не `input_nanasm`. Но `SnakeCommander.SetInput` всё равно теряет промежуточные нажатия (см. п.5).
@@ -674,7 +674,7 @@ if (tick()) {
     Файл: `pages/Home.razor`, `SourceCode`. Если компилятор MiniC не поддерживает нерусские строковые литералы в UTF-8 — программа не скомпилируется. В текущей версии — компилируется (UTF-8 в WASM работает), но это стоит проверить на CI.
 
 19. **`pages/Snake.razor` — нет паузы.**
-    Файл: `pages/Snake.razor`. Только Start/Stop. «Пауза» реализуется как Stop+Start (пересоздание `VmHost` и VM, счёт теряется). Для отладки — неудобно.
+    Файл: `pages/Snake.razor`. Только Start/Stop. "Пауза" реализуется как Stop+Start (пересоздание `VmHost` и VM, счёт теряется). Для отладки — неудобно.
     Фикс: `_running = false` без `_ctx.EndStepMode()` и `_host.Dispose()` — тогда можно возобновить с того же места. Или отдельная кнопка Pause.
 
 20. **`pages/Snake.razor` — `lastFrame` объявлен, но не используется.**
@@ -697,4 +697,4 @@ if (tick()) {
 | `Halt` | есть (`halt_nanasm`) | нет (`commander_nanasm`) |
 | `keyboard.nanasm` | есть (не используется) | нет (ввод через `SnakeCommander`) |
 
-Оба сэмпла — про одну и ту же игру, но с **разными транспортными слоями**. Scratch полезен как «как быстро запустить VM в консоли», InWeb — как «как встроить VM в браузерный UI».
+Оба сэмпла — про одну и ту же игру, но с **разными транспортными слоями**. Scratch полезен как "как быстро запустить VM в консоли", InWeb — как "как встроить VM в браузерный UI".

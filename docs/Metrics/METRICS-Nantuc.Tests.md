@@ -8,11 +8,11 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 | --- | ---: |
 | Members analysed | 184 |
 | C# files | 28 |
-| Total lines | 4315 |
+| Total lines | 4323 |
 | C# classes | 41 |
 | C# records | 0 |
 | C# enums | 0 |
-| Analysed LOC | 1355 |
+| Analysed LOC | 1359 |
 | Cognitive avg | 0.3 |
 | Cognitive median | 0 |
 | Cognitive p90 | 1 |
@@ -20,7 +20,7 @@ Path: `tests/Nantuc.VmApplication.Tests/Nantuc.Tests.csproj`
 | Cyclomatic avg | 1.3 |
 | Cyclomatic median | 1 |
 | Cyclomatic p90 | 2 |
-| Cyclomatic max | 5 |
+| Cyclomatic max | 6 |
 | MI avg | 74.1 |
 | MI minimum | 43.0 |
 
@@ -44,7 +44,7 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 184 me
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 98 | HaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode | 5 | 5 | 26 | 3 | 0 | 47.5 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\AsyncHaltWakeTests.cs | 106 | AsyncHaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_StepMode_Async | 5 | 5 | 26 | 3 | 0 | 47.5 |
-| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 69 | CompileTestBase | RunCompile_WithLibs | 3 | 5 | 23 | 1 | 3 | 48.4 |
+| C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Compiler\CompileTestBase.cs | 69 | CompileTestBase | RunCompile_WithLibs | 4 | 6 | 27 | 1 | 3 | 46.3 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\HaltWakeTests.cs | 40 | HaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_DebugRun | 3 | 4 | 38 | 2 | 0 | 43.0 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\AsyncHaltWakeTests.cs | 45 | AsyncHaltWakeTests | HALT_SetsSleepingFlagAndDoesNotAdvanceFurther_DebugRun_Async | 3 | 4 | 38 | 2 | 0 | 43.1 |
 | C:\Users\xity4\source\repos\Nantuc\tests\Nantuc.VmApplication.Tests\Vm\UnsafeOpCodeTests.cs | 64 | UnsafeOpCodeTests | StepDebug_WithAllowUnsafeOpCodesFalse_StopsAtUnsafeOpCode | 3 | 3 | 12 | 2 | 0 | 57.9 |

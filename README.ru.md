@@ -152,7 +152,7 @@ nantuc lib exist print.minic
 
 ## Безопасный API
 
-Публичный API `Nantuc.VmApplication` следует паттерну «Try + IdState + ProcessorFault»:
+Публичный API `Nantuc.VmApplication` следует паттерну "Try + IdState + ProcessorFault":
 
 | Сценарий | Старый (raw) путь | Безопасный путь |
 |---|---|---|
@@ -210,7 +210,7 @@ nantuc lib exist print.minic
 Ключевые инварианты:
 - **`Diagnostics` не зависит ни от одного проекта Nantuc** — автор компилятора не тянет unsafe-ядро ради кодов ошибок.
 - **Компилятор не зависит от рантайма** — `Nantuc.Compiler` знает только `Common` + `Contracts` + `Diagnostics`.
-- **`VmApplication` — единственный модуль, который одновременно знает про компилятор и рантайм**; он склеивает «скомпилировать» и «запустить». Отладчик, дизассемблер и бенчмарки живут выше по слоям.
+- **`VmApplication` — единственный модуль, который одновременно знает про компилятор и рантайм**; он склеивает "скомпилировать" и "запустить". Отладчик, дизассемблер и бенчмарки живут выше по слоям.
 - **`Nantuc.CLI` — верхний слой**: не содержит собственной логики, только разбирает аргументы и вызывает `VmApplication`/`Extensions`.
 - **`Nantuc.Samples.InWeb` — верхний слой** (Blazor WebAssembly): не содержит собственной логики VM, только `VmHost` + `DeviceContext` + кастомные `IPortController` (`MonochromeMonitor`, `SnakeCommander`) и JS Interop для `<canvas>`.
 
@@ -355,4 +355,4 @@ dotnet test -c Release
 - CLI: [`src/Nantuc.CLI/README.ru.md`](src/Nantuc.CLI/README.ru.md)
 - Сравнение с другими языками (OtherLangs): [`benchmarks/OtherLangs/README.ru.md`](benchmarks/OtherLangs/README.ru.md)
 - README сэмплов: [`samples/Nantuc.Samples.Minimal/README.ru.md`](samples/Nantuc.Samples.Minimal/README.ru.md), [`samples/Nantuc.Samples.Scratch/README.ru.md`](samples/Nantuc.Samples.Scratch/README.ru.md), [`samples/Nantuc.Samples.InWeb/README.ru.md`](samples/Nantuc.Samples.InWeb/README.ru.md)
-- README модулей: см. столбец «README» в разделе [Модули и NuGet](#модули-и-nuget)
+- README модулей: см. столбец "README" в разделе [Модули и NuGet](#модули-и-nuget)

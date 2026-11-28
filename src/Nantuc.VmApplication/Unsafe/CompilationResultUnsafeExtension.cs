@@ -30,7 +30,7 @@ public static class CompilationResultUnsafeExtension
         /// Внутренний экземпляр <see cref="IRAssembler"/> или <see langword="null"/>.
         /// </value>
         /// <remarks>
-        /// Свойство предоставляет <see cref="IRAssembler"/> «как есть», без проверок состояния
+        /// Свойство предоставляет <see cref="IRAssembler"/> "как есть", без проверок состояния
         /// и без гарантий целостности после завершения компиляции. Некорректные операции
         /// с ним могут сломать состояние результата компиляции.
         /// </remarks>

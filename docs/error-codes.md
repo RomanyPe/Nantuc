@@ -160,8 +160,8 @@ using Nantuc.Kernel.Diagnostics;
 
 var overrides = new Dictionary<ErrorCode, string>
 {
-    [ErrorCode.Parser_UnknownType] = "Unknown type «{0}»",
-    [ErrorCode.CodeGen_AssignmentToConst] = "Cannot assign to const variable «{0}»",
+    [ErrorCode.Parser_UnknownType] = "Unknown type "{0}"",
+    [ErrorCode.CodeGen_AssignmentToConst] = "Cannot assign to const variable "{0}"",
 }.ToFrozenDictionary();
 
 var provider = new DefaultErrorMessageProvider(overrides);
@@ -169,7 +169,7 @@ var thrower = new ErrorReporter(provider);
 
 // Then — as usual:
 thrower.Throw(ErrorCode.Parser_UnknownType, (DiagnosticData)"Foo");
-// -> CodeException: "Unknown type «Foo»"
+// -> CodeException: "Unknown type "Foo""
 ```
 
 The semantics are a **merge over the defaults**, not a replacement: codes that are not in

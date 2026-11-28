@@ -243,7 +243,7 @@ var summary = BenchmarkRunner.Run<NantucBenchmarks>();
 
 ### `GC.Collect` в `GlobalSetup`
 
-Вызов `GC.Collect(2, GCCollectionMode.Forced, true)` и `GC.WaitForPendingFinalizers()` наследует ручной бенчмарк. BenchmarkDotNet сам выполняет сборку мусора между итерациями, поэтому этот вызов скорее «для успокоения». Можно удалить без потери точности.
+Вызов `GC.Collect(2, GCCollectionMode.Forced, true)` и `GC.WaitForPendingFinalizers()` наследует ручной бенчмарк. BenchmarkDotNet сам выполняет сборку мусора между итерациями, поэтому этот вызов скорее "для успокоения". Можно удалить без потери точности.
 
 ### `LaunchOptions(ShowTimer: true)`
 
@@ -288,7 +288,7 @@ BenchmarkDotNet сохраняет результаты в `BenchmarkDotNet.Arti
 4. **`[ShortRunJob]` может давать шумные результаты.**  
    Файл: `NantucBenchmarks.cs`, атрибут класса.  
    Для сравнения версий VM `ShortRunJob` слишком неточен.  
-   Фикс: заменить на `[MediumRunJob]` (или `[LongRunJob]`) либо оставить `ShortRunJob` с комментарием «для быстрой проверки, для точных цифр — MediumRunJob».
+   Фикс: заменить на `[MediumRunJob]` (или `[LongRunJob]`) либо оставить `ShortRunJob` с комментарием "для быстрой проверки, для точных цифр — MediumRunJob".
 
 5. **`SourceCasesMiniC.AllCases` создаёт новый список при каждом обращении.**  
    Файл: `SourceCasesMiniC.cs`.  

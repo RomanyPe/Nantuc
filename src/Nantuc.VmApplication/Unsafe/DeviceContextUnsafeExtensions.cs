@@ -17,7 +17,7 @@ namespace Nantuc.VmApplication.Unsafe;
 public static class DeviceContextUnsafeExtensions
 {
     /// <param name="context">
-    /// Контекст устройства, из которого извлекается «сырой» <see cref="Device"/>.
+    /// Контекст устройства, из которого извлекается "сырой" <see cref="Device"/>.
     /// Не может быть <see langword="null"/>.
     /// </param>
     extension(DeviceContext context)
@@ -30,7 +30,7 @@ public static class DeviceContextUnsafeExtensions
         /// Если <paramref name="context"/> равен <see langword="null"/>.
         /// </exception>
         /// <remarks>
-        /// <see cref="Device"/> предоставляется «как есть» и почти не имеет ограничений.
+        /// <see cref="Device"/> предоставляется "как есть" и почти не имеет ограничений.
         /// Любые некорректные операции с ним могут сломать состояние эмулятора.
         /// </remarks>
         public Device AsRawDevice()

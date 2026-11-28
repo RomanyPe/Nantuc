@@ -29,7 +29,7 @@ public static class VmEmulatorUnsafeExtension
         /// Если <paramref name="vm"/> равен <see langword="null"/>.
         /// </exception>
         /// <remarks>
-        /// <see cref="PortBus"/> предоставляется «как есть» и почти не имеет ограничений.
+        /// <see cref="PortBus"/> предоставляется "как есть" и почти не имеет ограничений.
         /// Некорректные операции с ним могут сломать эмуляцию I/O-устройств.
         /// </remarks>
         public PortBus GetRawPortBus()

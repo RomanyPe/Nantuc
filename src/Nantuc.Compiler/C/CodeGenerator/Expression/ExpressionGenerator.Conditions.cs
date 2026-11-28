@@ -33,7 +33,9 @@ public partial class ExpressionGenerator
             GenerateExpression(binop.Right, RegType.r0);
             RestoreRegFromStack(slot, RegType.r1);
             _asm.EmitCmp(RegType.r1, RegType.r0);
-            GenerateComparisonJump(binop.Operator, trueLabel, falseLabel);
+
+            bool isUnsigned = !IsExpressionSigned(binop.Left) || !IsExpressionSigned(binop.Right);
+            GenerateComparisonJump(binop.Operator, trueLabel, falseLabel, isUnsigned);
             return;
         }
 
@@ -51,19 +53,19 @@ public partial class ExpressionGenerator
         else if (falseLabel != null) _asm.EmitJz(falseLabel);
     }
 
-    private void GenerateComparisonJump(string op, string? trueLabel, string? falseLabel)
+    private void GenerateComparisonJump(string op, string? trueLabel, string? falseLabel, bool isUnsigned)
     {
         if (trueLabel != null && falseLabel == null)
         {
             string skip = _getLabel();
-            GenerateComparisonJump(op, trueLabel, skip);
+            GenerateComparisonJump(op, trueLabel, skip, isUnsigned);
             _asm.MarkLabel(skip);
             return;
         }
         if (falseLabel != null && trueLabel == null)
         {
             string skip = _getLabel();
-            GenerateComparisonJump(op, skip, falseLabel);
+            GenerateComparisonJump(op, skip, falseLabel, isUnsigned);
             _asm.MarkLabel(skip);
             return;
         }
@@ -71,21 +73,28 @@ public partial class ExpressionGenerator
 
         switch (op)
         {
-            case "==": _asm.EmitJz(trueLabel!); _asm.EmitJmp(falseLabel!); break;
-            case "!=": _asm.EmitJnz(trueLabel!); _asm.EmitJmp(falseLabel!); break;
-            case "<": _asm.EmitJl(trueLabel!); _asm.EmitJmp(falseLabel!); break;
-            case ">":
-                _asm.EmitJl(falseLabel!);
-                _asm.EmitJz(falseLabel!);
-                _asm.EmitJmp(trueLabel!);
-                break;
-            case "<=":
-                _asm.EmitJl(trueLabel!);
+            case "==":
                 _asm.EmitJz(trueLabel!);
                 _asm.EmitJmp(falseLabel!);
                 break;
+            case "!=":
+                _asm.EmitJnz(trueLabel!);
+                _asm.EmitJmp(falseLabel!);
+                break;
+            case "<":
+                if (isUnsigned) _asm.EmitJb(trueLabel!); else _asm.EmitJl(trueLabel!);
+                _asm.EmitJmp(falseLabel!);
+                break;
+            case ">":
+                if (isUnsigned) _asm.EmitJa(trueLabel!); else _asm.EmitJg(trueLabel!);
+                _asm.EmitJmp(falseLabel!);
+                break;
+            case "<=":
+                if (isUnsigned) _asm.EmitJa(falseLabel!); else _asm.EmitJg(falseLabel!);
+                _asm.EmitJmp(trueLabel!);
+                break;
             case ">=":
-                _asm.EmitJl(falseLabel!);
+                if (isUnsigned) _asm.EmitJb(falseLabel!); else _asm.EmitJl(falseLabel!);
                 _asm.EmitJmp(trueLabel!);
                 break;
         }

@@ -158,6 +158,7 @@ Nantuc.Compiler/
     │   │   ├── ExpressionGenerator.Increment.cs  # GenerateIncrement + const checks
     │   │   ├── ExpressionGenerator.MemberAccess.cs # GenerateMemberAddress + arrow/dot
     │   │   ├── ExpressionGenerator.PointerOps.cs # ApplyPointerArithmeticScaling + AddressOf/Dereference
+    │   │   ├── ExpressionGenerator.Signedness.cs # IsExpressionSigned
     │   │   ├── ExpressionGenerator.Sizeof.cs     # SizeofType/SizeofExpr
     │   │   └── ExpressionGenerator.Unary.cs      # GenerateUnaryOp (-, !, ~)
     │   │
@@ -181,7 +182,7 @@ Notes on organization:
 - **AST nodes are placed in a separate namespace `Nantuc.Compiler.C.AST` and physically laid out in files in `C/AST/`** (one node per file, except the base `ASTNode.cs`).
 - **`Lexer` is laid out in the `C/Lexer/` folder** (`Nantuc.Compiler.C.Lexer`): `Lexer` + 3 partials + `Token` + `TokenType` + `TokenTypeExtension`.
 - **`Parser` is a partial class of 6 files in `C/Parser/`** (`Nantuc.Compiler.C.Parser`). The public API is one — `Parse()`; partial splitting is only for readability.
-- **`ExpressionGenerator` is a partial class of 12 files in `CodeGenerator/Expression/`** (`Nantuc.Compiler.C.CodeGenerator.Expression`). **`StatementGenerator` is a partial class of 6 files in `CodeGenerator/Statement/`** (`Nantuc.Compiler.C.CodeGenerator.Statement`) + `StatementTypeResolver.cs`. The split was done for XML documentation and navigation; API methods did not change.
+- **`ExpressionGenerator` is a partial class of 13 files in `CodeGenerator/Expression/`** (`Nantuc.Compiler.C.CodeGenerator.Expression`). **`StatementGenerator` is a partial class of 6 files in `CodeGenerator/Statement/`** (`Nantuc.Compiler.C.CodeGenerator.Statement`) + `StatementTypeResolver.cs`. The split was done for XML documentation and navigation; API methods did not change.
 - **`FunctionGenerator` is a partial class of 5 files in `CodeGenerator/FunctionGen/`** (`Nantuc.Compiler.C.CodeGenerator.FunctionGen`): orchestrator + DataSection + Prologue + Epilogue + `ConstantEvaluator` + `LocalVarCollector`.
 - **`FunctionContext`/`SaveDepthEstimator`/`VariableLayoutBuilder` are in `CodeGenerator/FunctionCtx/`** (`Nantuc.Compiler.C.CodeGenerator.FunctionCtx`).
 - **`RegisterAllocator`/`RegisterAllocator.Interference`/`GreedyGraphColorer`/`VariableAccessAnalyzer`/`RegisterAllocationResult` are in `CodeGenerator/RegistersAlloc/`** (`Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`).
@@ -214,7 +215,7 @@ Notes on organization:
 | `FunctionContext` | `C.CodeGenerator.FunctionCtx` | `class` | `Create(...)` -> `VarMap`, `TotalLocalSize`, `SaveAreaSize`; **`ReturnSize`/`ReturnIsSigned`/`ReturnIsVoid`**, **`VarLocation.IsSigned`** |
 | `SaveDepthEstimator` | `C.CodeGenerator.FunctionCtx` | `static class` | `Estimate(ASTNode)` — maximum depth of `ExpressionSaveDepth` |
 | `VariableLayoutBuilder` | `C.CodeGenerator.FunctionCtx` | `internal static class` | `VarInfo` -> `VarLocation` (register or stack); computes `TypeSize`/`IsSigned`/`StructTypeName` |
-| `ExpressionGenerator` | `C.CodeGenerator.Expression` | `partial class` (12 files) | Expression generation; **`GenerateAssignmentExpr` with 4 lvalue branches**, **`CheckConstTarget`** (internal), **overflow casts** |
+| `ExpressionGenerator` | `C.CodeGenerator.Expression` | `partial class` (13 files) | Expression generation; **`GenerateAssignmentExpr` with 4 lvalue branches**, **`CheckConstTarget`** (internal), **overflow casts** |
 | `StatementGenerator` | `C.CodeGenerator.Statement` | `partial class` (6 files) | Statement generation; **calls `_exprGen.CheckConstTarget`**; **overflow casts on all lvalues** |
 | `StatementTypeResolver` | `C.CodeGenerator.Statement` | `static class` | `IsArrayElemSigned`/`IsPointedSigned`/`IsFieldSigned` — extracted from `StatementGenerator` |
 | `FunctionGenerator` | `C.CodeGenerator.FunctionGen` | `partial class` (5 files) | `Generate(ProgramNode)`, prologue/epilogue; **cast of arguments r0..r3 and pseudo-globals** |
@@ -300,7 +301,7 @@ Notes on organization:
 
 **`VariableAccessAnalyzer`** (`Nantuc.Compiler.C.CodeGenerator.RegistersAlloc`) — two independent passes: `CollectAddressTakenVars` (names `x` to which `&x` is applied) and `CollectVarEvents` (positions of def/use in a linear walk). Important: the passes are NOT merged — they traverse `AssignmentNode` differently (see item 14).
 
-**`ExpressionGenerator`** — `partial class` of 12 files (namespace `Nantuc.Compiler.C.CodeGenerator.Expression`, folder `Expression/`). Public API is one — `GenerateExpression(expr)` (into `r0`) and `GenerateExpression(expr, targetReg)`; internally distributed across partials:
+**`ExpressionGenerator`** — `partial class` of 13 files (namespace `Nantuc.Compiler.C.CodeGenerator.Expression`, folder `Expression/`). Public API is one — `GenerateExpression(expr)` (into `r0`) and `GenerateExpression(expr, targetReg)`; internally distributed across partials:
 - `ExpressionGenerator.cs` — root + `GenerateExpression(expr)` / `GenerateExpression(expr, targetReg)`.
 - `ExpressionGenerator.Assignment.cs` — `GenerateAssignmentExpr(assign, targetReg)` — **assignment-as-expression** (result = new value). Covers:
   - `arr[i] = value` (via `StoreR0ToArrayElement`)
@@ -323,6 +324,7 @@ Notes on organization:
 - `ExpressionGenerator.Helpers.cs` — `SaveRegToStack`/`RestoreRegFromStack`; `ExpressionSaveDepth`, slot = `TotalLocalSize + ExpressionSaveDepth * 8`, address via `ADDR_SCRATCH_REG_EN = r27`.
 - `ExpressionGenerator.Increment.cs` — **`GenerateIncrement`** — `++`/`--` for `Identifier`/`ArrayAccess`/`Dereference`/`MemberAccess`. At the start — `const` checks. After `Inc`/`Dec` and after load — `EmitCastToType`.
 - `ExpressionGenerator.MemberAccess.cs` — `GenerateMemberAddress` + `.`/`->`.
+- `ExpressionGenerator.Signedness.cs` — `IsExpressionSigned`.
 - `ExpressionGenerator.Sizeof.cs` — `SizeofTypeNode`/`SizeofExprNode`.
 - `ExpressionGenerator.Unary.cs` — `GenerateUnaryOp` (for `-`, `!`, `~`).
 
@@ -593,7 +595,7 @@ All nodes are in **`Nantuc.Compiler.C.AST`**, files in `C/AST/`. The base `ASTNo
 | `MemberAccessNode` | `Object`, `FieldName`, `IsArrow` | `Parser.Expressions.cs` -> `ParsePostfixMemberAndIncrement` |
 | `SizeofTypeNode` / `SizeofExprNode` | `TypeName`/`IsPointer`, `Operand` | `Parser.Expressions.cs` -> `ParseUnary` |
 
-Total 28 descendants. **Who walks the AST in the code generator:** `ExpressionGenerator` (all partials), `StatementGenerator` (all partials + `StatementTypeResolver`), `SaveDepthEstimator`, `RegisterAllocator` (`VariableAccessAnalyzer.CollectVarEvents`, `CollectAddressTakenVars`), `LocalVarCollector.Collect`, `ConstantEvaluator`. When adding a node — update all these places.
+Total 29 descendants. **Who walks the AST in the code generator:** `ExpressionGenerator` (all partials), `StatementGenerator` (all partials + `StatementTypeResolver`), `SaveDepthEstimator`, `RegisterAllocator` (`VariableAccessAnalyzer.CollectVarEvents`, `CollectAddressTakenVars`), `LocalVarCollector.Collect`, `ConstantEvaluator`. When adding a node — update all these places.
 
 ### Overflow of narrow integer types
 

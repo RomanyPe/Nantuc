@@ -10,6 +10,24 @@
 Краткие метки:
 - **BREAKING** — обратно несовместимое изменение; может сломать пользовательский код при обновлении.
 
+## [0.27.0] - 2026-11-28
+
+### Добавлено
+- новые `OpCode`: `JA`, `JB` для беззнакового сравнения и последующего перехода (добавлены в конец `enum` ничего не должно ломаться)
+- `Processor`: новые инструкции `InstructionJA` и `InstructionJB`
+- Файл `ExpressionGenerator.Signedness.cs`: метод `IsExpressionSigned` — определение знаковости значения выражения для литералов, идентификаторов, индексации массива, разыменования, доступа к полю, `sizeof`, `&`, вызовов функций, унарных/бинарных операторов, `++/--`, присваиваний и приведений типов (с учётом usual arithmetic conversions: результат бинарной арифметики беззнаковый, если хотя бы один операнд беззнаковый)
+- В генератор C добавлена обработка беззнаковых сравнений: `<`, `>`, `<=`, `>=` теперь эмитят `JB`/`JA` вместо `JL`/`JG`, когда операнды беззнаковые (или указатели)
+
+### Изменено
+- соответсвующее изменения `OpCodeExtension` 
+- `ExpressionGenerator.Conditions.cs`: `GenerateComparisonJump` получил параметр `isUnsigned`; ветки `<`, `>`, `<=`, `>=` переключаются между `JB`/`JA` и `JL`/`JG`
+- `ExpressionGenerator.Binary.cs`: `GenerateComparisonAsValue` определяет знаковость операндов и передаёт флаг в `GenerateComparisonJump`
+- Сравнения `>`, `<=`, `>=` теперь эмитят **одну** условную ветку + `JMP` (`JA`/`JG` вместо пары `JL`+`JZ`): компактнее на 4–8 байт и лучше для предсказателя переходов (соответствует комментариям в `Processor.ControlFlow.cs` про битовые `&`)
+- `==`/`!=` без изменений — работают через `JZ`/`JNZ`, знаковость не влияет
+
+### Исправлено
+- C-код с беззнаковыми типами (`uint`, `ulong`, `ushort`, `byte`) и указателями теперь корректно сравнивается во всех контекстах (`if`, `while`, `for`, значение-выражение)
+
 ## [0.26.0] - 2026-11-27
 
 ### Изменено
@@ -183,10 +201,10 @@
 ### Изменено
 - `Processor` разбит на 12 partial-файлов по подсистемам (флаги, память, арифметика, control flow, стек, порты, прерывания, snapshot, faults). Тела методов не изменены — рефакторинг чисто структурный. `MaskOf`/`SignExtend` вынесены в `InstructionHelpers`. Удалён dead code `SetStatusNotSupportedOpCode`.
 - **BREAKING:** перемещен в `IR/Emitter`. `IRAssembler` разбит на 3 partial-файла: `.cs` (public API + `MarkLabel` / `Emit*` / `GetItems`), `.Layout.cs` (первый проход — вычисление адресов меток и размеров секций), `.Emit.cs` (второй проход — эмиссия байтов).
-  - `Build()` (~90 строк, два вложенных `switch` с ручным offset/alignment) разложен на `ComputeLabelAddresses()` (проход 1) + `EmitItem(...)` (проход 2). Сам `Build()` — 15 строк с ясной структурой «layout → emit».
+  - `Build()` (~90 строк, два вложенных `switch` с ручным offset/alignment) разложен на `ComputeLabelAddresses()` (проход 1) + `EmitItem(...)` (проход 2). Сам `Build()` — 15 строк с ясной структурой "layout → emit".
   - Дублированная логика выравнивания вынесена в общие хелперы `Align(offset, alignment)` и `AdvanceInstructionOffset(instr, offset)` — единая точка для обоих проходов. Изменение выравнивания (например, 16-байтовая граница для SSE-подобных инструкций в будущем) — одна правка вместо двух.
   - `EmitItem` разложен по типу item'а: `EmitInstructionItem` (плоский, с ранним `return` при `!HasImmediate && !IsJump` вместо двух вложенных `if`), `EmitDataItem`, `PadTo`. Разрешение метки перехода — `ResolveJumpTarget`.
-  - Padding-буфер `new byte[7]` (heap-аллокация на каждый `Build()`) → `stackalloc byte[7]` (zero-alloc). Размер 7 рассчитан на alignment ≤ 8 — все текущие вызовы `EmitData` используют 1 или 8. Латентное ограничение сохранено (см. «Известные ограничения»).
+  - Padding-буфер `new byte[7]` (heap-аллокация на каждый `Build()`) → `stackalloc byte[7]` (zero-alloc). Размер 7 рассчитан на alignment ≤ 8 — все текущие вызовы `EmitData` используют 1 или 8. Латентное ограничение сохранено (см. "Известные ограничения").
 - **BREAKING:** перемещен в `ASM/Parser`.**`AssemblerParser`** разбит на 5 partial-файлов: `.cs` (API + поля), `.Lexing.cs` (строки, комментарии, секции), `.Instructions.cs` (`ParseInstruction` + `Format*`), `.DataSection.cs` (директивы данных), `.Numbers.cs` (числовые и регистровые хелперы). `_regMap` / `_opMap` (85 строк ручных словарей) перенесены в `AsmLanguageDefinition.MnemonicMap` / `RegisterMap` — единый source of truth с `FrozenSet` для регексов. `ProcessLines` (70 строк) разложен на `ProcessSectionDirective` / `ProcessDataLine` / `ProcessCodeLine`. `Format*`-методы используют общий `RequireOperands` вместо 3×повтора `if (tokens.Length < N) Throw`. Удалена мёртвая строка `line.IndexOf(';')` (разделитель `;` уже съеден `Split`). Исправлена опечатка `FormateLOAD_IND__STORE_IND` → `FormatLOAD_IND_STORE_IND`.
 
 ## [0.15.0] - 2026-11-15
@@ -375,7 +393,7 @@
 	- `RegType FirstRegister { get; }` — декодированный `Reg1`
 	- `RegType SecondRegister { get; }` — декодированный `Reg2`
 	- `OpCodeSize DataSizeCode { get; }` — декодированный `OpCodeSize` (имеет смысл для `LOAD`/`STORE`/`*_IND`)
-- добавлен файл [`docs/error-code.md`](docs/error-code.md) с таблицей «код -> аргументы -> шаблон»
+- добавлен файл [`docs/error-code.md`](docs/error-code.md) с таблицей "код -> аргументы -> шаблон"
 - добавлен не точный перевод для документации, русская документация остается просто добавляется `*.ru.*` перед `*.md`
 
 
@@ -414,14 +432,14 @@
 - Тесты на работу компилятора разделены на более мелкие файлы.
 
 ### Документация
-- **VmApplication README:** исправлены разделы «API и конструкторы», «Callback’и и результаты», «Типы и возвращаемые значения», «Файлы, загрузка и документация».
+- **VmApplication README:** исправлены разделы "API и конструкторы", "Callback’и и результаты", "Типы и возвращаемые значения", "Файлы, загрузка и документация".
 - **Корневой README:** метрики кода перенесены в `docs/METRICS.md`.
 - Мелкие правки документации.
 
 ## [0.7.2] - 2026-10-30
 
 ### Добавлено
-- Компилятор распознаёт `const` (см. раздел «Константность» в README компилятора).
+- Компилятор распознаёт `const` (см. раздел "Константность" в README компилятора).
 - Новые `ErrorCode`: `CodeGen_AssignmentToConst = 1316`, `CodeGen_IncrementOfConst = 1317`.
 - `TokenTypeExtension.AsText` — без рефлексии (AOT-safe).
 - `DiagnosticData` (`Nantuc.Kernel.Diagnostics`) — типизированный аргумент диагностики.
@@ -440,7 +458,7 @@
 - **BREAKING:** `ValidateAllCodesCovered` / `TryValidateAllCodesCovered`
 
 ### Документация
-- **Compiler README:** новые разделы «Константность (`const`)» и «Диагностика: `DiagnosticData`»; обновлены дерево, API-таблица, пайплайн, «Что исправить», «Что сделано».
+- **Compiler README:** новые разделы "Константность (`const`)" и "Диагностика: `DiagnosticData`"; обновлены дерево, API-таблица, пайплайн, "Что исправить", "Что сделано".
 - **Kernel.Diagnostics README:** новый раздел про `DiagnosticData` и AOT; `ThrowCompiler` описан как instance; обновлены `ErrorCode`, `DefaultErrorMessageProvider`, примеры.
 
 ## [0.7.1] - 2026-10-30
@@ -450,8 +468,8 @@
 - Новый элемент `HostStopped` в `BiosStatus` — отправляется процессору при вызове `Stop()` у `Device` или `DeviceContext`.
 
 ### Изменено
-- **Песочница:** частично реализована политика песочницы на хосте; Nantuc VM из коробки работает только в полностью изолированной песочнице — может только отправлять данные и получать их по запросу `IN`/`OUT`. Определение «песочница» в корневом README скорректировано.
-- `ResetMemoryRam` теперь передаёт в `ThrowIfRunning()` сообщение `"Cannot clear RAM while device is running. Call Stop() first."` вместо дефолтного «Cannot launch program while device is running…».
+- **Песочница:** частично реализована политика песочницы на хосте; Nantuc VM из коробки работает только в полностью изолированной песочнице — может только отправлять данные и получать их по запросу `IN`/`OUT`. Определение "песочница" в корневом README скорректировано.
+- `ResetMemoryRam` теперь передаёт в `ThrowIfRunning()` сообщение `"Cannot clear RAM while device is running. Call Stop() first."` вместо дефолтного "Cannot launch program while device is running…".
 
 ### Исправлено
 - `InstructionDecode.HasNeed64IntData(Opcode opcode)` ранее игнорировал `LOAD_UNSAFE` и `STORE_UNSAFE` — теперь они занесены в таблицу.

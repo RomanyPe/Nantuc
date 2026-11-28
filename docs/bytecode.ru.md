@@ -27,7 +27,7 @@
 | Индекс | Имя   | Назначение |
 |-------:|-------|------------|
 | 0–27   | `r0..r27` | Регистры общего назначения |
-| 28     | `rFL` | Flags: бит 0 = Zero, бит 1 = Negative |
+| 28     | `rFL` | Flags: бит 0 = Zero, бит 1 = Negative, бит 2 = Carry |
 | 29     | `rSP` | Stack Pointer — указатель стека (растёт вниз) |
 | 30     | `rHP` | Heap Pointer — указатель кучи |
 | 31     | `rIP` | Instruction Pointer — адрес следующей инструкции |
@@ -109,18 +109,18 @@
 
 ## 4. Опкоды (реестр)
 
-Все значения — от 0 до **44**; исходное перечисление `OpCode : byte`. Значения зафиксированы порядком объявления и не могут быть переставлены без обновления декодера и сохранённых образов.
+Все значения — от 0 до **46**; исходное перечисление `OpCode : byte`. Значения зафиксированы порядком объявления и не могут быть переставлены без обновления декодера и сохранённых образов.
 
 | # | Мнемоника | Reg1 | Reg2 | Size | Immediate | Краткий смысл |
 |--:|-----------|------|------|:----:|:---------:|---------------|
 | 0  | `NOP`            | — | — | — | — | нет операции |
 | 1  | `END`            | — | — | — | — | штатное завершение программы |
 | 2  | `MOV`            | dst | src | — | — | `dst = src` |
-| 3  | `LOAD`           | dst | — | ✓ | ✓ | `dst = [addr]` (checked) |
-| 4  | `STORE`          | src | — | ✓ | ✓ | `[addr] = src` (checked) |
-| 5  | `LDI`            | dst | — | — | ✓ | `dst = imm` |
-| 6  | `LOAD_IND`       | dst | addr | ✓ | — | `dst = [Reg2]` (checked) |
-| 7  | `STORE_IND`      | src | addr | ✓ | — | `[Reg2] = Reg1` (checked) |
+| 3  | `LOAD`           | dst | — | + | + | `dst = [addr]` (checked) |
+| 4  | `STORE`          | src | — | + | + | `[addr] = src` (checked) |
+| 5  | `LDI`            | dst | — | — | + | `dst = imm` |
+| 6  | `LOAD_IND`       | dst | addr | + | — | `dst = [Reg2]` (checked) |
+| 7  | `STORE_IND`      | src | addr | + | — | `[Reg2] = Reg1` (checked) |
 | 8  | `ADD`            | dst | src | — | — | `dst += src` |
 | 9  | `SUB`            | dst | src | — | — | `dst -= src` |
 | 10 | `MULT_INT`       | dst | src | — | — | `dst *= src` (wrap-around, unsigned) |
@@ -133,14 +133,14 @@
 | 17 | `OR`             | dst | src | — | — | `dst \|= src` |
 | 18 | `XOR`            | dst | src | — | — | `dst ^= src` |
 | 19 | `NOT`            | reg | — | — | — | `reg = ~reg` |
-| 20 | `JMP`            | — | — | — | ✓ | `rIP = target` |
-| 21 | `JZ`             | — | — | — | ✓ | if Z: `rIP = target` |
-| 22 | `JNZ`            | — | — | — | ✓ | if !Z: `rIP = target` |
-| 23 | `JG`             | — | — | — | ✓ | if !N && !Z: `rIP = target` |
-| 24 | `JL`             | — | — | — | ✓ | if N: `rIP = target` |
+| 20 | `JMP`            | — | — | — | + | `rIP = target` |
+| 21 | `JZ`             | — | — | — | + | if Z: `rIP = target` |
+| 22 | `JNZ`            | — | — | — | + | if !Z: `rIP = target` |
+| 23 | `JG`             | — | — | — | + | if !N && !Z: `rIP = target` |
+| 24 | `JL`             | — | — | — | + | if N: `rIP = target` |
 | 25 | `PUSH`           | src | — | — | — | push 8 байт |
 | 26 | `POP`            | dst | — | — | — | pop 8 байт |
-| 27 | `CALL`           | — | — | — | ✓ | push rIP; `rIP = target` |
+| 27 | `CALL`           | — | — | — | + | push rIP; `rIP = target` |
 | 28 | `RET`            | — | — | — | — | `rIP = pop` |
 | 29 | `IN`             | dst | port | — | — | `dst = порт[port]` |
 | 30 | `OUT`            | src | port | — | — | `порт[port] = (byte)src` |
@@ -149,23 +149,25 @@
 | 33 | `HALT`           | — | — | — | — | `IsSleeping = true` |
 | 34 | `WAKE`           | — | — | — | — | no-op в потоке; как внешняя команда — пробуждение |
 | 35 | `WAKE_INT`       | port | — | — | — | пробудить устройство по `порт[Reg1]` |
-| 36 | `LOAD_UNSAFE`    | dst | — | ✓ | ✓ | `dst = [addr]` (unchecked) |
-| 37 | `STORE_UNSAFE`   | src | — | ✓ | ✓ | `[addr] = src` (unchecked) |
-| 38 | `STORE_IND_UNSAFE` | src | addr | ✓ | — | `[Reg2] = Reg1` (unchecked) |
-| 39 | `LOAD_IND_UNSAFE`  | dst | addr | ✓ | — | `dst = [Reg2]` (unchecked) |
+| 36 | `LOAD_UNSAFE`    | dst | — | + | + | `dst = [addr]` (unchecked) |
+| 37 | `STORE_UNSAFE`   | src | — | + | + | `[addr] = src` (unchecked) |
+| 38 | `STORE_IND_UNSAFE` | src | addr | + | — | `[Reg2] = Reg1` (unchecked) |
+| 39 | `LOAD_IND_UNSAFE`  | dst | addr | + | — | `dst = [Reg2]` (unchecked) |
 | 40 | `CMP`            | left | right | — | — | обновляет `rFL` по `left - right` |
 | 41 | `TEST`           | left | right | — | — | обновляет `rFL` по `left & right` |
 | 42 | `MOD`            | dst | src | — | — | `dst %= src` (unsigned), `DivOnZero` при 0 |
-| **43** | **`CASTZ`**  | reg | — | ✓ | — | `reg = zero-extend(reg, size)` — маска младших `size` байт [NEW] |
-| **44** | **`CASTS`**  | reg | — | ✓ | — | `reg = sign-extend(reg, size)` — знаковое расширение [NEW] |
+| 43 | `CASTZ`          | reg | — | + | — | `reg = zero-extend(reg, size)` — маска младших `size` байт |
+| 44 | `CASTS`          | reg | — | + | — | `reg = sign-extend(reg, size)` — знаковое расширение |
+| 45 | `JA`             | — | — | — | + | if !C && !Z: `rIP = target` |
+| 46 | `JB`             | — | — | — | + | if C: `rIP = target` |
 
-> **Важно:** опкод `NOP = 0` и `END = 1` — семантически несовместимы с обычным «нет операции» в контексте `ProcessorFault`; см. § 12 п. 3.
+> **Важно:** опкод `NOP = 0` и `END = 1` — семантически несовместимы с обычным "нет операции" в контексте `ProcessorFault`; см. § 12 п. 3.
 
 Непосредственный операнд присутствует **только** у опкодов, отмеченных `HasNeed64IntData = true`. В эталоне:
 
 ```
 LDI, LOAD, STORE, LOAD_UNSAFE, STORE_UNSAFE,
-CALL, JMP, JZ, JNZ, JG, JL
+CALL, JMP, JZ, JNZ, JG, JL, JB, JA
 ```
 
 > **Исправление:** в прежней версии спецификации в этот список ошибочно попадали `LOAD_IND`/`STORE_IND` и их `_UNSAFE`-варианты. Эти опкоды берут адрес из `Reg2` и **immediate не читают**. Таблица `_has` в `InstructionDecoder.CreateNeedsUlongOperandTable()` содержит ровно 11 записей, перечисленных выше.
@@ -209,7 +211,7 @@ CALL, JMP, JZ, JNZ, JG, JL
 
 **`*_UNSAFE`-варианты** — без проверок. Поведение при выходе за границы или нарушении выравнивания — **неопределённое** (`Unsafe.ReadUnaligned`/`WriteUnaligned` по указателю за пределами буфера).
 
-### 5.2.1. Приведение размера **[NEW]**
+### 5.2.1. Приведение размера
 
 **`CASTZ[.size] Reg1`** — zero-extend (маска):
 1. `mask = MaskOf(size)` — младшие `size` байт (для `S8` — `0xFF`, `S16` — `0xFFFF`, `S32` — `0xFFFFFFFF`, `S64` — `0xFFFFFFFFFFFFFFFF`)
@@ -255,17 +257,19 @@ CALL, JMP, JZ, JNZ, JG, JL
 
 ### 5.5. Сравнения (обновляют `rFL`)
 
-`rFL` (28): бит 0 — **Zero (Z)**, бит 1 — **Negative (N)**. Остальные биты — 0.
+`rFL` (28): бит 0 — **Zero (Z)**, бит 1 — **Negative (N)**, бит 2 - **Carry (C)**. Остальные биты — 0.
 
 **`CMP Reg1, Reg2`** — вычисляется `res = Reg1 - Reg2` (64-бит, беззнаковое):
 - `Z = (res == 0)`
 - `N = (res >> 63) & 1`
+- `c = (v1 < v2) ? 1UL : 0UL`
 
 `Reg1`/`Reg2` не изменяются.
 
 **`TEST Reg1, Reg2`** — вычисляется `res = Reg1 & Reg2`:
 - `Z = (res == 0)`
 - `N = (res >> 63) & 1`
+- `c = (v1 < v2) ? 1UL : 0UL`
 
 `Reg1`/`Reg2` не изменяются.
 
@@ -279,9 +283,13 @@ CALL, JMP, JZ, JNZ, JG, JL
 
 **`JNZ target`** — если `Z=0`, `rIP = target`.
 
-**`JG target`** — если `Z=0` и `N=0`, `rIP = target` (беззнаковое «больше»).
+**`JG target`** — если `Z=0` и `N=0`, `rIP = target` (знаковое "больше").
 
-**`JL target`** — если `N=1`, `rIP = target` (беззнаковое «меньше»).
+**`JL target`** — если `N=1`, `rIP = target` (знаковое "меньше").
+
+**`JA target`** — если `C=0` и `Z=0`, `rIP = target` (беззнаковое "больше").
+
+**`JB target`** — если `C=1`, `rIP = target` (беззнаковое "меньше").
 
 **`JMP_IND Reg1`** — `target = Reg1`.
 
@@ -395,7 +403,7 @@ CALL, JMP, JZ, JNZ, JG, JL
 
 ### 8.2. `ProcessorFault`
 
-При получении статуса ≠ `Success` (включая «штатные» `EndProgram`, `HostStopped`, `InfinityLoop`) формируется снимок:
+При получении статуса ≠ `Success` (включая "штатные" `EndProgram`, `HostStopped`, `InfinityLoop`) формируется снимок:
 
 ```csharp
 ProcessorFault(BiosStatus Status,
@@ -405,10 +413,10 @@ ProcessorFault(BiosStatus Status,
 ```
 
 - `InstructionPointer` — `rIP` сразу после чтения 4-байтного слова инструкции.
-- `OpCode` — реальный опкод; значение `OpCode.NOP` (0) зарезервировано под «неизвестно/нет опкода» (спорное решение, но зафиксировано).
+- `OpCode` — реальный опкод; значение `OpCode.NOP` (0) зарезервировано под "неизвестно/нет опкода" (спорное решение, но зафиксировано).
 - `FaultData` — контекст: адрес памяти, номер порта, опкод и т.п.
 
-Далее вызывается `IProcessorPolicy.ShouldContinue(fault)`; её ответ записывается в `IsRunning`. Политика **обязана** различать «настоящие ошибки» и «штатные» `EndProgram`/`HostStopped`/`InfinityLoop`.
+Далее вызывается `IProcessorPolicy.ShouldContinue(fault)`; её ответ записывается в `IsRunning`. Политика **обязана** различать "настоящие ошибки" и "штатные" `EndProgram`/`HostStopped`/`InfinityLoop`.
 
 ---
 
@@ -449,13 +457,13 @@ ProcessorFault(BiosStatus Status,
 
 - Без операндов: `NOP`, `END`, `RET`, `HALT`, `WAKE`.
 - Один регистр: `INC`, `DEC`, `NOT`, `PUSH`, `POP`, `JMP_IND`, `CALL_IND`, `WAKE_INT`.
-- **Один регистр + size: `CASTZ[.size] reg`, `CASTS[.size] reg`** [NEW].
+- **Один регистр + size: `CASTZ[.size] reg`, `CASTS[.size] reg`**.
 - Два регистра: `MOV`, `ADD`, `SUB`, `AND`, `OR`, `XOR`, `IN`, `OUT`, `SHR`, `SHL`, `DIV`, `MULT_INT`, `MOD`, `CMP`, `TEST`.
 - `LDI reg, imm`: `imm` — число (`0x…` или десятичное) или метка.
 - `LOAD[.size] reg, addr`, `STORE[.size] addr, reg`: `addr` — число или метка.
 - `LOAD_IND[.size] reg, reg`, `STORE_IND[.size] reg, reg` — аналогично.
 - `LOAD_UNSAFE[.size]`, `STORE_UNSAFE[.size]`, `LOAD_IND_UNSAFE[.size]`, `STORE_IND_UNSAFE[.size]` — аналогично без проверок.
-- Переходы: `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `CALL` — метка или абсолютный адрес.
+- Переходы: `JMP`, `JZ`, `JNZ`, `JG`, `JL`, `JA`, `JB`, `CALL` — метка или абсолютный адрес.
 
 **Пример (CASTZ/CASTS):**
 ```asm
@@ -536,7 +544,7 @@ raw = 0x08 | (1 << 8) | (2 << 13) = 0x00004108
 Байты: 08 41 00 00
 ```
 
-### 11.6. `CASTS.S16 r5` **[NEW]**
+### 11.6. `CASTS.S16 r5`
 
 ```
 OpCode = 44 (0x2C)
@@ -552,7 +560,7 @@ raw = 0x2C | (5 << 8) | (1 << 18) = 0x0004052C
 
 ## 12. Ограничения и известные особенности реализации
 
-1. **`NOP` (0) как маркер «неизвестного опкода»** в `ProcessorFault` (`ProcessSimulationStatusSlow`). Спорное соглашение; при появлении реального NOP-сбоя отличить его от «пустого» значения будет невозможно.
+1. **`NOP` (0) как маркер "неизвестного опкода** в `ProcessorFault` (`ProcessSimulationStatusSlow`). Спорное соглашение; при появлении реального NOP-сбоя отличить его от "пустого" значения будет невозможно.
 2. **`WAKE` как инструкция в теле — no-op.** Пробуждение из `HALT` возможно только через `EnqueueExternalCommand(OpCode.WAKE)` или `PortBus.WakeProcessor`.
 3. **`InstructionLOAD`/`InstructionSTORE` не возвращают `AlignmentFault` для невалидного `OpCodeSize`** (там `default` -> `SegmentationFault` у LOAD и `AlignmentFault` у STORE); на практике `OpCodeSize` имеет ровно 4 значения — `default` недостижим.
 4. **`InstructionDecoder.HasNeed64IntData` валидирует `opCode` по `_has.Length` (256), а не по `OpCode.MOD`.** Раньше bound-check был `opCode > OpCode.MOD`, из-за чего любой опкод выше 42 (`CASTZ`, `CASTS`, `CMP`, `TEST`, `HALT`, `WAKE`, `WAKE_INT`, `JMP_IND`, `CALL_IND`) вызывал `ArgumentOutOfRangeException` при дизассемблировании. Исправлено.
@@ -578,7 +586,7 @@ raw = 0x2C | (5 << 8) | (1 << 18) = 0x0004052C
 
 ---
 
-## Приложение A. Модель переполнения целых типов в MiniC **[NEW]**
+## Приложение A. Модель переполнения целых типов в MiniC
 
 ### A.1. Каноническая форма
 
@@ -590,10 +598,10 @@ raw = 0x2C | (5 << 8) | (1 << 18) = 0x0004052C
 | `char` | S16 | да | `−32768 .. 32767`, sign-extended до 64 бит |
 | `short` | S16 | да | `−32768 .. 32767`, sign-extended |
 | `ushort` | S16 | нет | `0 .. 65535` |
-| `int` | S32 | да | `−2³¹ .. 2³¹−1`, sign-extended |
-| `uint` | S32 | нет | `0 .. 2³²−1` |
-| `long` | S64 | да | `−2⁶³ .. 2⁶³−1` |
-| `ulong` | S64 | нет | `0 .. 2⁶⁴−1` |
+| `int` | S32 | да | `−2^31 .. 2^31−1`, sign-extended |
+| `uint` | S32 | нет | `0 .. 2^32−1` |
+| `long` | S64 | да | `−2^63 .. 2^63−1` |
+| `ulong` | S64 | нет | `0 .. 2^64−1` |
 
 > **`char` в MiniC — 16-битный знаковый (`S16`)**, не 8-битный как в стандартном C. Следствия:
 > - `sizeof(char) == 2`
@@ -604,7 +612,7 @@ raw = 0x2C | (5 << 8) | (1 << 18) = 0x0004052C
 
 | Событие | Каст |
 |---------|------|
-| `LOAD[.size]` из памяти | `LOAD` zero-extends -> **`CASTS.S<size>`** для signed-типов (иначе значение знакового типа окажется «положительным») |
+| `LOAD[.size]` из памяти | `LOAD` zero-extends -> **`CASTS.S<size>`** для signed-типов (иначе значение знакового типа окажется "положительным") |
 | `STORE[.size]` в память | `STORE` сам усекает -> каст не нужен |
 | `x = value` (register-переменная) | после `MOV`/`ADD`/`INC` — **`CASTZ`/`CASTS`** |
 | `x op= value`, `x++` | после операции — **`CASTZ`/`CASTS`** в home-регистре |

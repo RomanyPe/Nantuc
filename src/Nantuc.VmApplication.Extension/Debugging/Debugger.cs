@@ -239,7 +239,7 @@ public sealed class Debugger : IDisposable
 
     /// <summary>
     /// Асинхронно просит отладчик остановиться на следующей итерации цикла
-    /// (безопасно из другого потока — например, по кнопке «Stop»).
+    /// (безопасно из другого потока — например, по кнопке "Stop").
     /// </summary>
     public void RequestStop() => _stopRequested = true;
 

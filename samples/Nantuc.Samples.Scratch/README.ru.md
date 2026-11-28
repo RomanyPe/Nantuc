@@ -1,6 +1,6 @@
 ﻿# Nantuc.Samples.Scratch — README
 
-> Песочница для экспериментов на платформе Nantuc: тест аллокатора (`Program.cs`), игра «Змейка» с монохромным монитором и клавиатурой (`SnakeGame/`), готовые библиотеки `monitor.nanasm` / `input.nanasm` / `halt.nanasm` / `snake.minic`.
+> Песочница для экспериментов на платформе Nantuc: тест аллокатора (`Program.cs`), игра "Змейка" с монохромным монитором и клавиатурой (`SnakeGame/`), готовые библиотеки `monitor.nanasm` / `input.nanasm` / `halt.nanasm` / `snake.minic`.
 > Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
 > [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
@@ -17,7 +17,7 @@
 
 `Nantuc.Samples.Scratch` — это **набор экспериментов** (scratchpad), а не один пример. В проекте живут два независимых сценария, переключаемых аргументом командной строки:
 
-1. **Игра «Змейка»** — запускается флагом `-snake <period>` (например, `dotnet run -- -snake 150`). Класс `SnakeGameOnNantuc` создаёт `VmHost`, регистрирует `MonochromeMonitor` (32×16) на `sector 1`, VM на `sector 0`, компилирует `LibCode.snake_minic` (включает `monitor.nanasm`, `input.nanasm`, `halt.nanasm`), запускает VM. Игра крутится в бесконечном цикле `while (1) { Halt(); tick(); render(); }`; `Timer` каждые `period` мс будит процессор (`portBus.WakeProcessor(0)`), клавиатура читается в фоновом потоке и пишется в `portBus.WritePort(0, code)`.
+1. **Игра "Змейка"** — запускается флагом `-snake <period>` (например, `dotnet run -- -snake 150`). Класс `SnakeGameOnNantuc` создаёт `VmHost`, регистрирует `MonochromeMonitor` (32×16) на `sector 1`, VM на `sector 0`, компилирует `LibCode.snake_minic` (включает `monitor.nanasm`, `input.nanasm`, `halt.nanasm`), запускает VM. Игра крутится в бесконечном цикле `while (1) { Halt(); tick(); render(); }`; `Timer` каждые `period` мс будит процессор (`portBus.WakeProcessor(0)`), клавиатура читается в фоновом потоке и пишется в `portBus.WritePort(0, code)`.
 2. **Тест аллокатора** — запускается по умолчанию (без аргументов). Компилирует MiniC-программу, которая делает `alloc`/`free`/`alloc` через `Libraries.alloc_minic`, проверяет возврат кода (`return 1..7` для разных провалов, `return 10` для успеха), запускает VM, снимает регистры, дизассемблирует RAM через `StringDisassembler`.
 
 **Как запустить:**
@@ -283,7 +283,7 @@ Console.WriteLine("Allocator test PASSED");
 
 ## Приближенность модуля к пользователю
 
-**Средняя.** Это песочница, но она ближе к «конечному продукту», чем `Nantuc.Samples.Minimal`: здесь есть играбельная змейка, устройства (монитор, клавиатура), фоновый ввод, таймер. Автору собственных игр/демо — прямой пример; автору ядра — тест-полигон для новых фич.
+**Средняя.** Это песочница, но она ближе к "конечному продукту", чем `Nantuc.Samples.Minimal`: здесь есть играбельная змейка, устройства (монитор, клавиатура), фоновый ввод, таймер. Автору собственных игр/демо — прямой пример; автору ядра — тест-полигон для новых фич.
 
 **Что стоит делать:**
 - Перед запуском змейки — убедиться, что терминал поддерживает ANSI (`\x1b[H`). Windows Terminal — да, старый `cmd.exe` — нет.
@@ -372,7 +372,7 @@ var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);
    var regs = deviceCtx.GetRegistersSnapshot();
    Console.WriteLine($"{RegType.r0.AsText}: {regs[RegType.r0]}");
    ```
-   `source1` возвращает `int` (`return s; // 10`), но `Run()` возвращает `ProcessorFault`, а не код возврата. Фактический результат — в `r0`, но `Program.cs` его только печатает, не сверяет. Тест «проходит» даже при `r0 != 10`.
+   `source1` возвращает `int` (`return s; // 10`), но `Run()` возвращает `ProcessorFault`, а не код возврата. Фактический результат — в `r0`, но `Program.cs` его только печатает, не сверяет. Тест "проходит" даже при `r0 != 10`.
    Фикс: `if (regs[RegType.r0] != 10) { Console.Error.WriteLine($"FAIRED: r0={regs[RegType.r0]} (expected 10)"); return; }` — например, сразу после `Run()`, до дампа.
 
 4. **`SnakeGameOnNantuc` — `portBus.WritePort(0, code)` без проверки результата.**
@@ -398,7 +398,7 @@ var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);
 8. **`SnakeGameOnNantuc` — порты монитора (`0x10..0x13`) жёстко зашиты под `DevicePortSize.B16`.**
    Файл: `SnakeGame/LibCode.cs`, `monitor_nanasm` + `SnakeGame/SnakeGameOnNantuc.cs` (`VmHostFactory.CreateDefault()` без параметров).
    База `sector 1` = `1 * PortsOnDevice`. При дефолтном `B16` = `0x10` — совпадает. При смене `portsPerDevice` — сломается.
-   Фикс: либо задокументировать в комментарии `SnakeGameOnNantuc` («требует DevicePortSize.B16, sector 1 -> base 0x10»), либо передавать `portsPerDevice: DevicePortSize.B16` явно в `CreateDefault`, либо вычислять базу в C# и передавать в `snake_minic` через глобал.
+   Фикс: либо задокументировать в комментарии `SnakeGameOnNantuc` ("требует DevicePortSize.B16, sector 1 -> base 0x10"), либо передавать `portsPerDevice: DevicePortSize.B16` явно в `CreateDefault`, либо вычислять базу в C# и передавать в `snake_minic` через глобал.
 
 9. **`MonochromeMonitor` — `_renderer(_fb, Width, Height)` передаёт живой буфер.**
    Файл: `SnakeGame/MonochromeMonitor.cs`, строка `_renderer(_fb, Width, Height);` в `WritePort(REG_COMMAND, CMD_FLUSH)`.
@@ -413,7 +413,7 @@ var ramSnap = deviceCtx.GetRamAsNewArray(0, (nuint)hpPrt);
 11. **`MonochromeMonitor` — `_frame` не сбрасывается в `CMD_CLEAR`.**
     Файл: `SnakeGame/MonochromeMonitor.cs`, `CMD_CLEAR` вызывает `Array.Clear(_fb); _cx = _cy = 0;`, но не `_frame = 0`.
     Это ок (frame — глобальный счётчик), но читатель может подумать, что clear сбрасывает всё.
-    Фикс: либо задокументировать `_frame` как «lifetime counter, not reset by CMD_CLEAR», либо сбрасывать.
+    Фикс: либо задокументировать `_frame` как "lifetime counter, not reset by CMD_CLEAR", либо сбрасывать.
 
 12. **`LibCode.input_nanasm` — гонка при двух нажатиях между чтениями VM.**
     Файл: `SnakeGame/LibCode.cs`, `input_nanasm`: `IN r0, r1; ... OUT r0, r1;` (чтение + сброс в одном вызове).

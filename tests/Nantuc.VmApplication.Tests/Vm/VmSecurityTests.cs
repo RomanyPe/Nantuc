@@ -10,7 +10,7 @@ using Xunit.Abstractions;
 namespace Nantuc.Tests.Vm;
 
 /// <summary>
-/// Набор «security-тестов»: проверяет, что ВМ нельзя «взломать» через
+/// Набор "security-тестов": проверяет, что ВМ нельзя "взломать" через
 /// небезопасные опкоды, выход за границы ОЗУ, нарушение выравнивания,
 /// порчу стека или произвольный control flow.
 /// </summary>
@@ -94,7 +94,7 @@ public class VmSecurityTests(ITestOutputHelper outPut)
 
         var fault = ctx.Run();
 
-        // Обязательно ошибка, а не «случайное чтение за пределами буфера»
+        // Обязательно ошибка, а не "случайное чтение за пределами буфера"
         Assert.NotEqual(BiosStatus.EndProgram, fault.Status);
         Assert.NotEqual(BiosStatus.Success, fault.Status);
     }
@@ -187,7 +187,7 @@ public class VmSecurityTests(ITestOutputHelper outPut)
     }
 
     // ==================================================================
-    // 4. Стек: нельзя «всплыть» за пределы RAM
+    // 4. Стек: нельзя "всплыть" за пределы RAM
     // ==================================================================
 
     [Fact]
@@ -291,7 +291,7 @@ public class VmSecurityTests(ITestOutputHelper outPut)
             END;
             """);
 
-        // Попытка «внешне» подсунуть небезопасный опкод — таких
+        // Попытка "внешне" подсунуть небезопасный опкод — таких
         // в ExecuteExternalCommand вообще нет, но проверим что запуск
         // штатно завершится END-ом без доступа к unsafe-пути.
         var fault = ctx.Run();

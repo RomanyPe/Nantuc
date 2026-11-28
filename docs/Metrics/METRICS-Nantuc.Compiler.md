@@ -6,21 +6,21 @@ Path: `src/Nantuc.Compiler/Nantuc.Compiler.csproj`
 
 | Metric | Value |
 | --- | ---: |
-| Members analysed | 456 |
-| C# files | 109 |
-| Total lines | 7986 |
-| C# classes | 107 |
+| Members analysed | 464 |
+| C# files | 110 |
+| Total lines | 8090 |
+| C# classes | 108 |
 | C# records | 4 |
 | C# enums | 1 |
-| Analysed LOC | 3551 |
-| Cognitive avg | 3.4 |
+| Analysed LOC | 3608 |
+| Cognitive avg | 3.5 |
 | Cognitive median | 1 |
 | Cognitive p90 | 10 |
 | Cognitive max | 53 |
 | Cyclomatic avg | 4.2 |
 | Cyclomatic median | 2 |
 | Cyclomatic p90 | 10 |
-| Cyclomatic max | 46 |
+| Cyclomatic max | 48 |
 | MI avg | 72.4 |
 | MI minimum | 25.1 |
 
@@ -31,14 +31,14 @@ Lowest maintainability: `CfgBuilder.Stmt` (MI 25.1) — `CfgBuilder.cs:76`
 
 | Band | Range | Members |
 | --- | --- | ---: |
-| Light | 0-5 | 361 |
+| Light | 0-5 | 368 |
 | Moderate | 6-10 | 50 |
 | High | 11-20 | 34 |
-| Severe | 21+ | 11 |
+| Severe | 21+ | 12 |
 
 ## Members
 
-Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 456 member(s).
+Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 464 member(s).
 
 | File | Line | Type | Member | Cognitive | Cyclomatic | LinesOfCode | MaxNesting | Parameters | MaintainabilityIndex |
 | --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -53,13 +53,13 @@ Ranked by cognitive complexity, then cyclomatic complexity. Showing 20 of 456 me
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\Lexer\Lexer.cs | 28 | Lexer | Tokenize | 22 | 14 | 20 | 2 | 0 | 49.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\ASM\IR\IROptimizer.cs | 15 | IROptimizer | Optimize | 22 | 9 | 24 | 5 | 2 | 49.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Statement\StatementTypeResolver.cs | 138 | StatementTypeResolver | ResolveRootStructType | 21 | 18 | 26 | 3 | 1 | 45.6 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Conditions.cs | 56 | ExpressionGenerator | GenerateComparisonJump | 21 | 17 | 36 | 2 | 4 | 43.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\Parser\Parser.Expressions.cs | 197 | Parser | ParseUnary | 19 | 22 | 23 | 2 | 0 | 46.7 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Sizeof.cs | 86 | ExpressionGenerator | GetIndexedElemSizeBytes | 19 | 12 | 15 | 3 | 1 | 52.6 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\ASM\Parser\AssemblerParser.Lexing.cs | 10 | AssemblerParser | ProcessLines | 19 | 10 | 16 | 4 | 1 | 53.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\RegistersAlloc\CoalescingColorer.cs | 109 | CoalescingColorer | Coalesce | 18 | 12 | 23 | 4 | 0 | 46.7 |
+| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Conditions.cs | 12 | ExpressionGenerator | GenerateCondition | 17 | 12 | 25 | 2 | 3 | 47.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Sizeof.cs | 44 | ExpressionGenerator | GetVariableTypeSize | 17 | 10 | 14 | 3 | 1 | 53.5 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\StructLayout.cs | 29 | StructLayout | Resolve | 17 | 9 | 22 | 4 | 2 | 49.1 |
 | C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Assignment.cs | 36 | ExpressionGenerator | GenerateAssignmentExpr | 16 | 13 | 48 | 2 | 2 | 38.3 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Expression\ExpressionGenerator.Conditions.cs | 12 | ExpressionGenerator | GenerateCondition | 16 | 11 | 24 | 2 | 3 | 48.0 |
-| C:\Users\xity4\source\repos\Nantuc\src\Nantuc.Compiler\C\CodeGenerator\Statement\StatementTypeResolver.cs | 33 | StatementTypeResolver | GetArrayElem | 16 | 11 | 16 | 3 | 1 | 52.1 |
 

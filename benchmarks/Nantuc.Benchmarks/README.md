@@ -48,7 +48,7 @@ Nantuc.Benchmarks/
 
 Organization notes:
 - `BenchRunner.cs` contains both `BenchRunner` and a file-local `ListExtensions` (the `ComputeVariance` extension). This is inconvenient for navigation (grepping `ComputeVariance` leads to a file with a different name).
-- `Program.cs` is no longer a “monolith with sources”: all MiniC programs have been moved to `SourceCasesMiniC.cs`. What remains is `Main` + `PrintTestHeader` / `PrintProgress` / `AppendStatsExtended` / `AppendIterations`. Further case expansion should be done via `SourceCasesMiniC` + an entry in the `cases` array.
+- `Program.cs` is no longer a "monolith with sources": all MiniC programs have been moved to `SourceCasesMiniC.cs`. What remains is `Main` + `PrintTestHeader` / `PrintProgress` / `AppendStatsExtended` / `AppendIterations`. Further case expansion should be done via `SourceCasesMiniC` + an entry in the `cases` array.
 
 ## API
 
@@ -220,14 +220,14 @@ if (runner.Program is { } comp)
 
 ## Closeness to the user
 
-**Medium.** This is not a library but a “product” — an example of usage and a tool for evaluating VM performance. End users do not need a MiniC benchmark; core/compiler authors find it useful for regressions.
+**Medium.** This is not a library but a "product" — an example of usage and a tool for evaluating VM performance. End users do not need a MiniC benchmark; core/compiler authors find it useful for regressions.
 
 **What you should do:**
 - Run it on an **isolated machine** (or at least without load) — otherwise affinity/priority will not help.
 - On Linux, `PriorityClass.High` requires `sudo`; otherwise you will get a `[Warning]` and normal priority.
 - Read logs from `logs/` — the console may truncate output (`PrintProgress` writes to a single line with `\r`).
 - Extend the case set via `BenchCase` + `SourceCasesMiniC`, not by forking `BenchRunner`.
-- To compare “with optimizations vs without”, add an `optimize` flag to `BenchCase` and pass it through to `BenchRunner.TryPrepare` instead of the hardcoded `true`.
+- To compare "with optimizations vs without", add an `optimize` flag to `BenchCase` and pass it through to `BenchRunner.TryPrepare` instead of the hardcoded `true`.
 
 **What you should not do:**
 - Run the benchmark in CI/headless — `Console.ReadLine()` at the end of `Main` will block the process, and `Console.Clear()` may throw.
@@ -241,7 +241,7 @@ if (runner.Program is { } comp)
 
 `BenchRunner.TryPrepare` calls `_host.Project.CompileToIR(_case.ProgramText, ProjectBuilder.BaseAddressProgram, optimize: true, SourceLanguage.MiniC).Build()`. For MiniC sources, `optimize: true` enables compiler AST optimizations but **does not** enable IR: nobody calls `VmIROptimizer.AddStdRules`, and `OptimizationIR(..., IROptimizationCount)` is not used in `BenchRunner`/`Program`. Therefore, all 14 cases are AST-optimized but not IR-optimized code.
 
-If you want to compare “with IR vs without”, you need to do it explicitly:
+If you want to compare "with IR vs without", you need to do it explicitly:
 
 ```csharp
 host.Project.Optimizator.VMIROptimizer.AddStdRules();
@@ -253,16 +253,16 @@ var comp = il.Build();
 ### `Stats` — why several metrics
 
 - `Mean` — sensitive to outliers (GC pauses, thermal throttling).
-- `Median` — robust, but does not show the “average” scenario.
+- `Median` — robust, but does not show the "average" scenario.
 - `TrimmedMean10` — a compromise: discards 10% from the top and bottom, ignores outliers, and shows a typical value. **The primary metric** for reporting.
 - `CV` — coefficient of variation; `CV < 5%` is stable, `CV > 15%` is noisy.
-- `Skewness > 0` — right tail (outliers are “slow runs”); `< 0` — left tail.
+- `Skewness > 0` — right tail (outliers are "slow runs"); `< 0` — left tail.
 - `FirstHalfMean`/`SecondHalfMean` — JIT/warmup: if `firstHalf > secondHalf` by 20%+, JIT has not warmed up by the end of warmup and `WarmupRuns` should be increased.
 
 ### Output and log format
 
 `Program.cs` uses:
-- `PrintProgress` with `\r` and ANSI characters `▓░✓✗-` — in CI/redirected output, `Console.IsOutputRedirected` skips the progress bar, but `Console.Clear()` at the end of `Main` does **not** skip it (see [What to fix, item 4](#what-to-fix)).
+- `PrintProgress` with `\r` and ANSI characters `▓░+✗-` — in CI/redirected output, `Console.IsOutputRedirected` skips the progress bar, but `Console.Clear()` at the end of `Main` does **not** skip it (see [What to fix, item 4](#what-to-fix)).
 - `AppendStatsExtended` — all 20 fields of `StatsResult` in the format `\t    name: value`.
 - `AppendIterations` — one value per line, format `F4`.
 
@@ -306,7 +306,7 @@ In descending order of severity. File/method references.
 
 5. **`BenchCase.ExpectedInstructions` is not used.**  
    File: `BenchCase.cs` (field) + `Program.cs` (all `new BenchCase(...)` calls omit it) + `BenchRunner` (does not read it).  
-   The field exists, but `BenchRunner` does not compare actual `StepsLogs` against expected values. If the VM produces an anomalous step count (for example, due to a bug in `Processor.Step`), the benchmark will not notice — MIPS will be “correct”, but steps will not.  
+   The field exists, but `BenchRunner` does not compare actual `StepsLogs` against expected values. If the VM produces an anomalous step count (for example, due to a bug in `Processor.Step`), the benchmark will not notice — MIPS will be "correct", but steps will not.  
    Fix: in `BenchRunner.RunOnce` after a run: `if (_case.ExpectedInstructions is { } expected && steps[^1] != expected) Console.Error.WriteLine($"Steps mismatch: expected {expected}, got {steps[^1]}");`. Fill in `ExpectedInstructions` for all cases (values can be taken from a reference run).
 
 6. **`Program.cs` — `PrintProgress` for `fail` passes `done=0, phaseTotal=0`.**  
@@ -315,7 +315,7 @@ In descending order of severity. File/method references.
    PrintProgress(testIndex, testTotal, name, "fail", 0, 0,
                  phaseTotal, phaseTotal, globalStep, totalSteps, forceNewLine: true, failed: true);
    ```
-   `done=0, phaseTotal=0` — not used in `phaseStr` (`phase == "fail"` -> `$"{phase,-4}"`), but in `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, so the percentage is computed as `phaseStep/phaseTotal = 1.0`. Not a bug, but the “0, 0” parameters are misleading — either pass `phaseTotal, phaseTotal` or add a comment.
+   `done=0, phaseTotal=0` — not used in `phaseStr` (`phase == "fail"` -> `$"{phase,-4}"`), but in `testPct = phaseStepsTotal <= 0 ? 1.0 : ...` — `phaseStepsTotal = phaseTotal > 0`, so the percentage is computed as `phaseStep/phaseTotal = 1.0`. Not a bug, but the "0, 0" parameters are misleading — either pass `phaseTotal, phaseTotal` or add a comment.
 
 7. **`Stats.Percentile`/`Median`/`TrimmedMean` — `OrderBy().ToArray()` on every call.**  
    File: `Stats.cs`, methods `Percentile`, `Median`, `TrimmedMean`.  
@@ -339,12 +339,12 @@ In descending order of severity. File/method references.
     Program = res;
     if (!ctx.TryLoadProgram(res.Program, 0, out string? errorMath)) { ... return false; }
     ```
-    If loading fails, `Program` is already set while `IsPrepared = false`. If the calling code looks at `Program`, it will see a “successful” compilation even though the program was not loaded.  
+    If loading fails, `Program` is already set while `IsPrepared = false`. If the calling code looks at `Program`, it will see a "successful" compilation even though the program was not loaded.  
     Fix: set `Program = res` after successful loading. Or document that `Program` is the compilation result, not the load result.
 
 11. **`BenchRunner.TryPrepare` — hardcoded `optimize: true` and no IR.**  
     File: `BenchRunner.cs`, `TryPrepare` + `BenchCase.cs`.  
     `optimize: true` is hardcoded, and `BenchCase` does not allow comparison with `optimize: false`. In addition, IR is not called (see [Special notes](#special-notes)).  
-    Fix: add an `OptimizeAst` flag to `BenchCase` (default `true`) and, optionally, `RunIR` — so that the effect of optimizations can be measured, not just a “raw” run.
+    Fix: add an `OptimizeAst` flag to `BenchCase` (default `true`) and, optionally, `RunIR` — so that the effect of optimizations can be measured, not just a "raw" run.
 
 ---
