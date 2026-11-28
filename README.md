@@ -5,6 +5,7 @@
 > A platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and public API for embedding.
 > **Project version:** specified in `CHANGELOG.md`, semver guaranteed.
 > Written in C# (.NET 10). Compiler and runtime are separated into layers, `unsafe` code is isolated in the core, and the public API is a thin facade with safe `Try*` methods and `IdState` diagnostics.
+> **Live Demo (WebAssembly AOT):** Try the MiniC compiler, virtual machine, and playable Snake game directly in your browser without installation: **[romanype.github.io/Nantuc](https://romanype.github.io/Nantuc/)**
 
 > [!IMPORTANT]
 > Due to WebAssembly limitations, the multithreading flag must be enabled in the project file (`.csproj`) when using the synchronous `Device` (`AsyncDevice` does not have this issue); otherwise, a `PlatformNotSupportedException` will be thrown at runtime when working with threads and locks:
@@ -300,7 +301,7 @@ BenchmarkDotNet artifacts are in `BenchmarkDotNet.Artifacts/`. The IDE profile `
 |---|---|---|
 | `Nantuc.Samples.Minimal` | Hello world, `TryRegisterDevice` + `TryGetDeviceContext` + `ProcessorFault`, ports `0x10`/`0x12`, `QueuedIOStream` | [README](samples/Nantuc.Samples.Minimal/README.md) |
 | `Nantuc.Samples.Scratch` | `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE loop, ANSI rendering; allocator test (`Libraries.alloc_minic`) | [README](samples/Nantuc.Samples.Scratch/README.md) |
-| `Nantuc.Samples.InWeb` | Blazor WebAssembly: `/` — compile and run MiniC in the browser (UART, syntax highlighting), `/snake` — snake on `<canvas>` (`RunStepMode`+`BatchStep`, `SnakeCommander`, `MonochromeMonitor`, JS Interop, double frame buffering) | [README](samples/Nantuc.Samples.InWeb/README.md) |
+| `Nantuc.Samples.InWeb` | **[Live Demo](https://romanype.github.io/Nantuc/)** (Blazor WebAssembly AOT): `/` — compile and run MiniC in the browser (UART, syntax highlighting), `/snake` — snake on `<canvas>` (`RunStepMode + BatchStep`, `SnakeCommander`, `MonochromeMonitor`, JS Interop, double frame buffering) | [README](samples/Nantuc.Samples.InWeb/README.md) |
 | `Nantuc.Benchmarks` | Manual benchmark of 14 MiniC cases: MIPS, stability, percentiles, CV, JIT-impact | [README](benchmarks/Nantuc.Benchmarks/README.md) |
 | `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet benchmark of 14 MiniC cases: time, allocations, statistics, artifacts | [README](benchmarks/Nantuc.Benchmarks.BenchmarkDotNet/README.md) |
 | `OtherLangs` | Comparison with 10 other languages on the same 14 MiniC cases: separate process, separate runner, summary `results.json`/`results.csv` | [README](benchmarks/OtherLangs/README.md) |
@@ -347,6 +348,7 @@ See [`LICENSE`](LICENSE) in the repository root.
 
 - GitHub: [RomanyPe/Nantuc](https://github.com/RomanyPe/Nantuc)
 - Author's NuGet profile: [nuget.org/profiles/RomanyPe](https://www.nuget.org/profiles/RomanyPe)
+- Live Demo (`Nantuc.Samples.InWeb`): [romanype.github.io/Nantuc](https://romanype.github.io/Nantuc/) — interactive showcase of the project's capabilities and an example of full WASM/AOT compatibility in the browser
 - Changelog: [`CHANGELOG.md`](CHANGELOG.md)
 - Bytecode specification: [`docs/bytecode.md`](docs/bytecode.md)
 - Error code reference: [`docs/error-codes.md`](docs/error-codes.md)

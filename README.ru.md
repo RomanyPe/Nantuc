@@ -5,6 +5,7 @@
 > Платформа для выполнения байткода с собственным языком MiniC (почти полноценный C), ассемблером NANASM, компилятором, виртуальной машиной и публичным API для встраивания.
 > **Версия проекта:** указана в `CHANGELOG.ru.md`, semver гарантирован.
 > Написана на C# (.NET 10). Компилятор и рантайм разделены по слоям, `unsafe`-код изолирован в ядре, публичный API — тонкий фасад с безопасными `Try*`-методами и `IdState`-диагностикой.
+> **Онлайн-демо (WebAssembly AOT):** Попробуйте компилятор MiniC, виртуальную машину и игру «Змейка» прямо в браузере без установки: **[romanype.github.io/Nantuc](https://github.io)**
 
 > [!IMPORTANT]
 > Из-за особенностей WebAssembly в файле проекта (`.csproj`) должен быть включен флаг многопоточности при использование синхронного `Device`, `AsyncDevice` такой проблемы не имеет, иначе в рантайме возникнет `PlatformNotSupportedException` при работе с потоками и блокировками:
@@ -300,7 +301,7 @@ dotnet run --project Nantuc.Benchmarks.BenchmarkDotNet -c Release -- --filter *C
 |---|---|---|
 | `Nantuc.Samples.Minimal` | Hello world, `TryRegisterDevice` + `TryGetDeviceContext` + `ProcessorFault`, порты `0x10`/`0x12`, `QueuedIOStream` | [README](samples/Nantuc.Samples.Minimal/README.ru.md) |
 | `Nantuc.Samples.Scratch` | `SnakeGameOnNantuc`, `MonochromeMonitor` (32×16), HALT/WAKE-цикл, ANSI-рендер; тест аллокатора (`Libraries.alloc_minic`) | [README](samples/Nantuc.Samples.Scratch/README.ru.md) |
-| `Nantuc.Samples.InWeb` | Blazor WebAssembly: `/` — компиляция и запуск MiniC в браузере (UART, подсветка синтаксиса), `/snake` — змейка на `<canvas>` (`RunStepMode`+`BatchStep`, `SnakeCommander`, `MonochromeMonitor`, JS Interop, двойная буферизация кадра) | [README](samples/Nantuc.Samples.InWeb/README.ru.md) |
+| `Nantuc.Samples.InWeb` | **[Онлайн-демо](https://github.io)** (Blazor WebAssembly AOT): `/` — компиляция и запуск MiniC в браузере (UART, подсветка синтаксиса), `/snake` — змейка на `<canvas>` (`RunStepMode + BatchStep`, `SnakeCommander`, `MonochromeMonitor`, JS Interop, двойная буферизация кадров) | [README](samples/Nantuc.Samples.InWeb/README.md) |
 | `Nantuc.Benchmarks` | Ручной бенчмарк 14 MiniC-кейсов: MIPS, стабильность, перцентили, CV, JIT-impact | [README](benchmarks/Nantuc.Benchmarks/README.ru.md) |
 | `Nantuc.Benchmarks.BenchmarkDotNet` | BenchmarkDotNet-бенчмарк 14 MiniC-кейсов: время, аллокации, статистика, артефакты | [README](benchmarks/Nantuc.Benchmarks.BenchmarkDotNet/README.ru.md) |
 | `OtherLangs` | Сравнение с 10 другими языками на тех же 14 MiniC-кейсах: свой процесс, свой раннер, сводный `results.json`/`results.csv` | [README](benchmarks/OtherLangs/README.ru.md) |
@@ -347,6 +348,7 @@ dotnet test -c Release
 
 - GitHub: [RomanyPe/Nantuc](https://github.com/RomanyPe/Nantuc)
 - NuGet-профиль автора: [nuget.org/profiles/RomanyPe](https://www.nuget.org/profiles/RomanyPe)
+- Онлайн-демо (`Nantuc.Samples.InWeb`): [romanype.github.io/Nantuc](https://romanype.github.io/Nantuc/) — интерактивная презентация возможностей проекта и пример полной WASM/AOT-совместимости в браузере
 - История изменений: [`CHANGELOG.ru.md`](CHANGELOG.ru.md)
 - Спецификация байткода: [`docs/bytecode.ru.md`](docs/bytecode.ru.md)
 - Справочник кодов ошибок: [`docs/error-codes.ru.md`](docs/error-codes.ru.md)
