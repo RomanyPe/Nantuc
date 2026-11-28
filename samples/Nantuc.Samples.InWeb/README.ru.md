@@ -1,4 +1,8 @@
-﻿# Nantuc.Samples.InWeb — README
+﻿Ниже — обновлённый `README.ru.md` с учётом изменений в `pages/Snake.razor`: CPU теперь регистрируется как `AsyncDevice` (`RegisterAsyncDevice` / `AsyncDeviceContext`), `BatchStep` и `EndStepMode` вызываются асинхронно.
+
+---
+
+# Nantuc.Samples.InWeb — README
 
 > Демонстрационный модуль платформы Nantuc, собранный как **Blazor WebAssembly**-приложение и работающий **в браузере**. Содержит две страницы: `/` — универсальный запуск MiniC-программ (компиляция + исполнение в WASM, вывод через UART) и `/snake` — интерактивная "Змейка" с монохромным монитором 32×16, управляемая стрелками клавиатуры.
 > Зависит от `[Nantuc.VmApplication.Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md)` (транзитивно — `VmApplication`, `Compiler`, `Kernel`).
@@ -6,12 +10,13 @@
 > [← Корень](../README.ru.md), [VmApplication](../../src/Nantuc.VmApplication/README.ru.md), [Extensions](../../src/Nantuc.VmApplication.Extension/README.ru.md), [Compiler](../../src/Nantuc.Compiler/README.ru.md), [Kernel](../../src/Nantuc.Kernel/README.ru.md)
 
 > [!IMPORTANT]
-> Из-за особенностей WebAssembly в файле проекта (`.csproj`) должен быть включен флаг многопоточности при использование синхронного `Device`, `AsyncDevice` такой проблемы не имеет, иначе в рантайме возникнет `PlatformNotSupportedException` при работе с потоками и блокировками:
+> Из-за особенностей WebAssembly в файле проекта (`.csproj`) должен быть включен флаг многопоточности при использовании синхронного `Device`; `AsyncDevice` такой проблемы не имеет, иначе в рантайме возникнет `PlatformNotSupportedException` при работе с потоками и блокировками:
 > ```xml
 > <PropertyGroup>
 >   <WasmEnableThreads>true</WasmEnableThreads>
 > </PropertyGroup>
 > ```
+> В `Snake.razor` CPU теперь работает через `AsyncDeviceContext`, но `MonochromeMonitor` и `SnakeCommander` всё ещё регистрируются как синхронные устройства, поэтому флаг в проекте сохраняется.
 
 ## Содержание
 - [Об этом модуле](#об-этом-модуле)
@@ -38,11 +43,12 @@
    Так модуль показывает **"чистый" синхронный сценарий** компиляции/исполнения без кооперативного планировщика — в противоположность змейке.
 
 2. **`/snake` (`pages/Snake.razor`) — "Змейка" в браузере.** Полноценная игра:
-   - VM на `sector 0`, `MonochromeMonitor` 32×16 на `sector 1`, `SnakeCommander` на `sector 2`;
+   - CPU/VM на `sector 0` регистрируется через `RegisterAsyncDevice` и работает через `AsyncDeviceContext`;
+   - `MonochromeMonitor` 32×16 на `sector 1`, `SnakeCommander` на `sector 2`;
    - `CompileToIR(0, optimize: false)` компилирует `LibCode.snake_minic` (с `monitor.nanasm` и `commander.nanasm`);
    - `_ctx.RunStepMode(startAddress: 0)` — VM переводится в **step-режим** (не `Run()`), потому что игра работает кооперативно;
    - игровой цикл `GameLoopAsync` — `async`-цикл с `Task.Delay`, `FixedDtMs = 150`, `FrameBudgetMs = 8`, `StepChunk = 1000`, `MaxStepsPerTick = 200_000`;
-   - каждые 150 мс: `_commander.SignalTick()` -> `_ctx.BatchStep(StepChunk)` в цикле -> `_commander.ConsumeYielded()` -> `break`;
+   - каждые 150 мс: `_commander.SignalTick()` -> `await _ctx.BatchStep(StepChunk)` в цикле -> `_commander.ConsumeYielded()` -> `break`;
    - кадр (`CMD_FLUSH` в мониторе) копируется в `_frameBuffer` (`OnFrameProduced`), затем передаётся в `snake.js` через `IJSRuntime`, рисуется на `<canvas>`;
    - ввод с клавиатуры: `@onkeydown` на `div[tabindex=0]` -> `ConcurrentQueue<byte>` -> `_commander.SetInput(code)`;
    - Game Over: оверлей 900 мс, затем `_showGameOver = false` (но см. [Что исправить, п.3](#что-исправить)).
@@ -64,10 +70,11 @@ dotnet run
 
 **Что показывает модуль:**
 - как интегрировать `VmApplication` в браузер (без потоков, без `Console`, без `Thread.Sleep`);
-- паттерн **RunStepMode + BatchStep + кооперативный yield через порт** — VM сама говорит "я отрисовала кадр, разбуди меня на следующем тике";
+- паттерн **RunStepMode + `await BatchStep` + кооперативный yield через порт** — VM сама говорит "я отрисовала кадр, разбуди меня на следующем тике";
+- интеграцию с **`AsyncDeviceContext`** для CPU в браузере;
 - интеграцию с **JS Interop** (`snake.js` + `<canvas>`) — VM не знает про `CanvasRenderingContext2D`, монитор отдаёт `byte[]`, а JS рисует;
 - два подхода к вводу: **событие Blazor** (Snake) vs **текстовый редактор** (Home);
-- безопасный API `TryRegisterDevice` / `TryGetDeviceContext` (в отличие от `Nantuc.Samples.Scratch`, где ещё встречается `RegisterDevice` + `!`).
+- безопасный API `TryRegisterDevice` / `TryGetDeviceContext` в `Home.razor`; в `Snake.razor` для CPU используется `RegisterAsyncDevice` + `GetAsyncDeviceContext`, для monitor/commander — `RegisterDevice` (см. [Что исправить](#что-исправить)).
 
 ## Дерево локального проекта
 
@@ -81,7 +88,7 @@ Nantuc.Samples.InWeb/
 ├── _Imports.razor                    # @using Microsoft.AspNetCore.Components.Web
 ├── pages/
 │   ├── Home.razor                    # VM demo: compile+run MiniC, UART-вывод, подсветка синтаксиса
-│   ├── Snake.razor                   # игра: step-режим, JS-канвас, ввод, game over
+│   ├── Snake.razor                   # игра: AsyncDeviceContext, step-режим, JS-канвас, ввод, game over
 │   ├── LibCode.cs                    # const string: monitor_nanasm, commander_nanasm, snake_minic
 │   ├── SnakeCommander.cs             # PortControlBase: тик/ввод/yield/gameover/score
 │   └── MonochromeMonitor.cs          # PortControlBase: 32×16 framebuffer, 7 портов
@@ -170,7 +177,7 @@ new Regex(
 
 ### `pages/Snake.razor` — игра
 
-Страница `@page "/snake"`, `@implements IAsyncDisposable`, `@inject IJSRuntime JS`.
+Страница `@page "/snake"`, `@implements IAsyncDisposable`, `@inject IJSRuntime JS`. Дополнительно подключается `@using Nantuc.VmApplication.Extensions.AsyncDeviceExtensions`.
 
 Константы:
 
@@ -178,14 +185,14 @@ new Regex(
 |---|---|---|
 | `W`, `H`, `Cell` | `32`, `16`, `20` | размер поля и клетки (canvas 640×320) |
 | `FixedDtMs` | `150` | период тика змейки (6–7 FPS) |
-| `FrameBudgetMs` | `8` | как часто игровой цикл просыпается |
+| `FrameBudgetMs` | `8` | бюджет времени на итерацию игрового цикла |
 | `StepChunk` | `1000` | инструкций за один `BatchStep` |
 | `MaxStepsPerTick` | `200_000` | предохранитель от зависания VM |
 
 Поля состояния:
 - `_canvas`, `_focusHost` — `ElementReference` для JS и фокуса;
 - `_js` — `IJSObjectReference` на `./js/snake.js`;
-- `_host`, `_ctx`, `_monitor`, `_commander` — устройства;
+- `_host`, `_ctx` (`AsyncDeviceContext?`), `_monitor`, `_commander` — хост и устройства;
 - `_cts`, `_loopTask` — жизненный цикл игрового цикла;
 - `_input` — `ConcurrentQueue<byte>` для нажатий;
 - `_frameBuffer`, `_hasNewFrame` — двойная буферизация кадра;
@@ -195,8 +202,8 @@ new Regex(
 1. `_host = VmHostFactory.CreateDefault()`.
 2. `SaveFileProject` + `SaveFileInclude` для `monitor.nanasm` и `commander.nanasm`.
 3. `_frameBuffer = new byte[W*H]`, `_monitor = new MonochromeMonitor(W, H, OnFrameProduced)`, `_commander = new SnakeCommander()`.
-4. `RegisterDevice(DeviceSpec.Create(RamSize.MB16, ...), 0)` — VM, `RegisterDevice(_monitor, 1)`, `RegisterDevice(_commander, 2)`.
-   !!️ Используется **старый** `RegisterDevice` + `GetDeviceContext(cpuId)!` (не `Try*`), см. [Что исправить, п.1](#что-исправить).
+4. `RegisterAsyncDevice(DeviceSpec.Create(RamSize.MB16, ...), 0)` — CPU/VM; `RegisterDevice(_monitor, 1)`, `RegisterDevice(_commander, 2)`; `_ctx = GetAsyncDeviceContext(cpuId)` с проверкой на `null`.
+   Используется **не `Try*` API** для регистрации CPU и старый `RegisterDevice` для monitor/commander, см. [Что исправить, п.1](#что-исправить) и [п.17](#что-исправить).
 5. `CompileToIR(0, optimize: false).Build()`; при ошибке — `_status = "Compile: ..."`.
 6. `TryLoadProgram`; при ошибке — `_status = "Load: ..."`.
 7. **`_ctx.RunStepMode(startAddress: 0)`** — переводит CPU в step-режим, инструкции выполняются только через `BatchStep`.
@@ -208,12 +215,13 @@ new Regex(
 ```csharp
 while (!ct.IsCancellationRequested && _running)
 {
+    long now = Environment.TickCount64;
+
     // 1. INPUT
     while (_input.TryDequeue(out byte key)) _commander!.SetInput(key);
 
     // 3. FIXED UPDATE
-    long now = Environment.TickCount64;
-    if (now - lastTick >= FixedDtMs)
+    if (now - lastTick >= (long)FixedDtMs)
     {
         lastTick = now;
         _commander!.SignalTick();
@@ -221,7 +229,7 @@ while (!ct.IsCancellationRequested && _running)
         int total = 0;
         while (total < MaxStepsPerTick && _running)
         {
-            _ctx!.BatchStep(StepChunk);
+            await _ctx!.BatchStep(StepChunk);
             total += StepChunk;
             if (_commander.ConsumeYielded()) break;   // VM сказала "кадр готов"
         }
@@ -230,7 +238,7 @@ while (!ct.IsCancellationRequested && _running)
         if (_commander.ConsumeGameOver())
         {
             _showGameOver = true;
-            await Task.Delay(900, ct);
+            try { await Task.Delay(900, ct); } catch { break; }
             _showGameOver = false;
         }
     }
@@ -242,12 +250,16 @@ while (!ct.IsCancellationRequested && _running)
         string b64 = Convert.ToBase64String(_frameBuffer);
         await InvokeAsync(async () =>
         {
-            await _js.InvokeVoidAsync("draw", _canvas, b64, W, H);
+            try { await _js.InvokeVoidAsync("draw", _canvas, b64, W, H); }
+            catch { /* component disposed */ }
             StateHasChanged();
         });
+        lastFrame = now;
     }
 
-    await Task.Delay(8, ct);
+    int sleep = Math.Max(1, FrameBudgetMs - (int)(Environment.TickCount64 - now));
+    try { await Task.Delay(sleep, ct); }
+    catch (OperationCanceledException) { break; }
 }
 ```
 
@@ -256,7 +268,7 @@ while (!ct.IsCancellationRequested && _running)
 `OnFrameProduced(byte[] fb, int w, int h)` — **синхронный** колбэк из `MonochromeMonitor.WritePort(REG_COMMAND, CMD_FLUSH)` (тот же поток). Копирует `fb` в `_frameBuffer` и ставит `_hasNewFrame = true`. Это и есть двойная буферизация: `MonochromeMonitor` не отдаёт наружу живой `_fb`, а `_frameBuffer` в `Snake.razor` читается JS-вызовом уже после копирования.
 
 `StopAsync`:
-- `_running = false`, отмена `_cts`, `await _loopTask`, `_ctx?.EndStepMode()`, `_host?.Dispose()`;
+- `_running = false`, отмена `_cts`, `await _loopTask`, `await _ctx.EndStepMode()`, `_host?.Dispose()`;
 - обнуление полей и очереди ввода;
 - `_status = "Stopped. Press Start."`.
 
@@ -436,7 +448,7 @@ void main() {
 
 1. Откройте `/snake`, нажмите **Start** — начнётся компиляция `snake_minic`, затем `RunStepMode` и игровой цикл.
 2. Управление: **стрелки** (Up/Down/Left/Right), выход — **Q** / **Escape**.
-3. **Stop** — остановит VM (`EndStepMode`) и освободит `_host`.
+3. **Stop** — остановит VM (`await EndStepMode()`) и освободит `_host`.
 4. **Start** после Stop — новый `VmHost`, новая VM, счёт с 0.
 
 **Добавить свой пример использования VM в браузере:**
@@ -478,6 +490,8 @@ void main() {
 
 Добавьте ссылку на страницу в `pages/Home.razor` (`<a href="/my-demo">My demo</a>`).
 
+Для асинхронного варианта CPU смотрите `Snake.razor`: `RegisterAsyncDevice` + `GetAsyncDeviceContext` + `await _ctx.BatchStep(...)`.
+
 **Добавить свой порт в монитор:**
 
 1. В `pages/MonochromeMonitor.cs` — новый `REG_*` и ветка в `ReadPort`/`WritePort`.
@@ -486,43 +500,55 @@ void main() {
 
 ## Приближенность модуля к пользователю
 
-**Высокая** для "хочу показать Nantuc в браузере": две готовые страницы, живая игра, JS-канвас, подсветка синтаксиса, безопасный `Try*` API.
+**Высокая** для "хочу показать Nantuc в браузере": две готовые страницы, живая игра, JS-канвас, подсветка синтаксиса, безопасный `Try*` API в `Home.razor`.
 
-**Средняя** для "хочу писать свои игры на Nantuc": `Snake.razor` — плотный пример, но с заметной спецификой — step-режим, кооперативный yield, двойная буферизация кадра. Автору своей игры придётся разобраться, зачем `RunStepMode`/`BatchStep`, а не `Run()`.
+**Средняя** для "хочу писать свои игры на Nantuc": `Snake.razor` — плотный пример, но с заметной спецификой — step-режим, кооперативный yield, `AsyncDeviceContext`, двойная буферизация кадра. Автору своей игры придётся разобраться, зачем `RunStepMode`/`await BatchStep`, а не `Run()`.
 
 **Низкая** для "хочу изучить внутренности VM": этот сэмпл — про интеграцию, а не про архитектуру (для этого — `Nantuc.VmApplication`, `Nantuc.Compiler`, `Nantuc.Kernel`).
 
 **Что стоит делать:**
 - Запускать `dotnet run` и открывать обе страницы — они показывают два разных сценария.
 - Для отладки змейки — уменьшить `FixedDtMs` (например, до 300 мс) или увеличить `FrameBudgetMs`.
-- Использовать `TryRegisterDevice`/`TryGetDeviceContext` в новом коде — как в `Home.razor`.
+- Использовать `TryRegisterDevice`/`TryGetDeviceContext` в новом коде — как в `Home.razor`; для async CPU проверять результат `RegisterAsyncDevice`/`GetAsyncDeviceContext`, как в `Snake.razor`.
 - Передавать в `MonochromeMonitor` колбэк, **копирующий** `fb`, а не сохраняющий ссылку.
 
 **Что не стоит делать:**
 - Ждать, что `BatchStep` сам вернёт управление "когда надо" — надо проверять `ConsumeYielded()`.
-- Менять `StepChunk`/`MaxStepsPerTick` без понимания, что `BatchStep` — синхронный: слишком большой `StepChunk` заморозит UI, слишком маленький — увеличит накладные расходы.
+- Менять `StepChunk`/`MaxStepsPerTick` без понимания, что `BatchStep` хотя и async, но выполняет чанк инструкций пачкой: слишком большой `StepChunk` заморозит UI, слишком маленький — увеличит накладные расходы.
 - Полагаться на то, что `_commander.SetInput` доставит все нажатия между тиками — см. [Что исправить, п.5](#что-исправить).
-- Использовать `RegisterDevice` + `GetDeviceContext(id)!` — как в `Snake.razor.StartAsync`; лучше `Try*` (см. [Что исправить, п.1](#что-исправить)).
+- Использовать `RegisterDevice` без проверки результата — как в `Snake.razor.StartAsync` для monitor/commander; лучше `Try*` (см. [Что исправить, п.17](#что-исправить)).
 
 ## Особенная информация
 
-### `RunStepMode` + `BatchStep` + кооперативный yield
+### `RunStepMode` + `await BatchStep` + кооперативный yield
 
 В браузере нет `Thread.Sleep`, `Console.ReadKey` и нет "фонового потока VM". Поэтому игра построена иначе, чем в `Nantuc.Samples.Scratch`:
 
 - `_ctx.RunStepMode(0)` — VM **не выполняется**, пока не позовут `BatchStep`.
-- `_ctx.BatchStep(StepChunk)` — выполнить до `StepChunk` инструкций.
+- `await _ctx.BatchStep(StepChunk)` — выполнить до `StepChunk` инструкций.
 - `_commander.SignalTick()` — VM "разбужена": `CmdWaitTick()` увидит `R_TICK_READY = 1`.
 - `_commander.ConsumeYielded()` — VM закончила тик: `CmdYield()` записала `W_YIELD = 1`.
 
 Порядок в `GameLoopAsync`:
 1. `SignalTick()` -> `R_TICK_READY = 1`.
-2. Цикл `BatchStep(1000)`, пока VM не сделает `CmdYield` или не наберётся `MaxStepsPerTick`.
+2. Цикл `await BatchStep(1000)`, пока VM не сделает `CmdYield` или не наберётся `MaxStepsPerTick`.
 3. `_score = _commander.Score` — после `ConsumeYielded`.
 4. Если VM умерла и вызвала `CmdGameOver` — оверлей 900 мс.
 5. Кадр (`_hasNewFrame`) отдаётся в JS.
 
 **Важно:** между тиками VM **не выполняется**. Это и есть экономия CPU в браузере. `MaxStepsPerTick = 200_000` — предохранитель: если VM застряла в `while(1)` без `CmdYield`, цикл выйдет по лимиту и UI не зависнет.
+
+### `AsyncDeviceContext` для CPU
+
+В `Snake.razor` CPU регистрируется через `RegisterAsyncDevice` и далее используется `AsyncDeviceContext`:
+
+- `RegisterAsyncDevice(DeviceSpec.Create(RamSize.MB16, ...), sector: 0)`;
+- `GetAsyncDeviceContext(cpuId)`;
+- `_ctx.RunStepMode(startAddress: 0)`;
+- `await _ctx.BatchStep(StepChunk)`;
+- `await _ctx.EndStepMode()`.
+
+При этом `MonochromeMonitor` и `SnakeCommander` всё ещё наследуются от `PortControlBase` и регистрируются через синхронный `RegisterDevice`. Это смешанный сценарий: async CPU + sync портовые устройства.
 
 ### Двойная буферизация кадра
 
@@ -577,7 +603,7 @@ if (tick()) {
 
 ### `Home.razor`: `vm.Run()` блокирует UI
 
-`RunNantucVm` синхронный: `CompileToIR` + `vm.Run()` выполняются в UI-потоке Blazor WASM. Для `Hello world` — миллисекунды, для программы на 100k инструкций — заметный фриз. В WASM нет реальных потоков, `Task.Run` не поможет — только разбивать `vm.Run()` на `RunStepMode`/`BatchStep` и `await Task.Delay(0)` между чанками. Сейчас — сознательный компромисс в пользу простоты.
+`RunNantucVm` синхронный: `CompileToIR` + `vm.Run()` выполняются в UI-потоке Blazor WASM. Для `Hello world` — миллисекунды, для программы на 100k инструкций — заметный фриз. В WASM нет реальных потоков, `Task.Run` не поможет — только разбивать `vm.Run()` на `RunStepMode`/`BatchStep` и `await Task.Delay(0)` между чанками, как в `Snake.razor`. Сейчас — сознательный компромисс в пользу простоты.
 
 ### `@onkeydown:preventDefault="true"` на `<div tabindex="0">`
 
@@ -591,22 +617,23 @@ if (tick()) {
 
 По убыванию серьёзности.
 
-1. **`Snake.razor.StartAsync` — `RegisterDevice` + `GetDeviceContext(cpuId)!` без `Try*`.**
+1. **`Snake.razor.StartAsync` — CPU регистрируется через `RegisterAsyncDevice`/`GetAsyncDeviceContext` без `Try*`.**
    Файл: `pages/Snake.razor`, строки:
    ```csharp
-   int cpuId = _host.Emulator.RegisterDevice(handle, sector: 0);
+   int cpuId = _host.Emulator.RegisterAsyncDevice(handle, sector: 0);
    ...
-   _ctx = _host.Emulator.GetDeviceContext(cpuId)!;
+   _ctx = _host.Emulator.GetAsyncDeviceContext(cpuId);
+   if (_ctx is null) { ... return; }
    ```
-   Если сектор 0 занят, `RegisterDevice` вернёт `-2`, `GetDeviceContext(-2)` вернёт `null`, `!` упадёт NRE уже в `_ctx!.TryLoadProgram(...)`. Это **расхождение с `Home.razor`**, где уже используется `TryRegisterDevice`/`IdState.Valid` — читатель видит два разных API для одной задачи.
-   Фикс: `TryRegisterDevice` + проверка `IdState.Valid` + `TryGetDeviceContext` (как в `Home.razor`). Аналогично для `_monitor` и `_commander`.
+   `GetAsyncDeviceContext` проверяется на `null`, но результат `RegisterAsyncDevice` (`cpuId`) не проверяется на `IdState.Valid`/отрицательное значение. Если `sector 0` занят, ошибка проявится позже или будет неочевидной. Это **расхождение с `Home.razor`**, где используется `TryRegisterDevice`/`IdState.Valid`.
+   Фикс: проверять `cpuId` (или использовать `TryRegisterAsyncDevice`, если он есть) и `TryGetAsyncDeviceContext`, если такой API доступен. Аналогично для `_monitor` и `_commander` — см. п.17.
 
 2. **`SnakeCommander.Score` — `int`, а `W_SCORE` — `byte`.**
    Файл: `pages/SnakeCommander.cs`, `public int Score => _score;` и `case W_SCORE: _score = value; break;`. `value` — `byte`, поэтому счёт ограничен `0..255`. Поле 32×16 = 512 клеток, змейка теоретически может набрать 509.
    Фикс: либо `ushort` через два порта (`W_SCORE_LO`/`W_SCORE_HI`), либо клампить в `Math.Min(value, 255)` и документировать. Или перейти на `W_SCORE_LO` = `byte`, `W_SCORE_HI` = `byte` и `score = lo | (hi << 8)`.
 
 3. **`Snake.razor.GameLoopAsync` — Game Over: новая игра уже идёт под оверлеем.**
-   Файл: `pages/Snake.razor`, блок `if (_commander.ConsumeGameOver()) { _showGameOver = true; await Task.Delay(900, ct); _showGameOver = false; }`.
+   Файл: `pages/Snake.razor`, блок `if (_commander.ConsumeGameOver()) { _showGameOver = true; try { await Task.Delay(900, ct); } catch { break; } _showGameOver = false; }`.
    `resetGame()` в `snake_minic` выполняется сразу после `CmdYield()`, и VM продолжает тикать в следующих итерациях `GameLoopAsync`. За 900 мс оверлея VM успевает сделать ~6 тиков.
    Фикс: на время `_showGameOver` **не** вызывать `_commander.SignalTick()` — тогда VM останется в `CmdWaitTick` до конца оверлея. Либо перенести `resetGame()` в `main` после `CmdWaitTick`-следующего-тика.
 
@@ -620,9 +647,9 @@ if (tick()) {
    За 150 мс пользователь может нажать 2–3 стрелки; `_input` (`ConcurrentQueue`) их сохранит, но `GameLoopAsync` дренирует очередь каждые 8 мс, вызывая `SetInput` на каждую; `SetInput` перезаписывает `_pendingInput`. В итоге `CmdReadInput` увидит только **последнее**.
    Фикс: либо `_pendingInputs` — очередь в `SnakeCommander` (с лимитом, чтобы не росла), либо в `GameLoopAsync` передавать только последнюю нажатие (как сейчас, но **осознанно**), задокументировав "last wins". Для змейки это ОК, для RTS/файтинга — нет.
 
-6. **`Snake.razor.GameLoopAsync` — `await Task.Delay(900, ct)` вне `try/catch`.**
-   Файл: `pages/Snake.razor`. Если `ct` отменён во время Game Over, `OperationCanceledException` уйдёт из `GameLoopAsync`, `_showGameOver = false` не выполнится. `StopAsync` ловит `await _loopTask` в `try/catch`, но оверлей останется висеть до перерендера.
-   Фикс: `try { await Task.Delay(900, ct); } finally { _showGameOver = false; }`.
+6. **`Snake.razor.GameLoopAsync` — при отмене во время Game Over `_showGameOver` не сбрасывается.**
+   Файл: `pages/Snake.razor`, `try { await Task.Delay(900, ct); } catch { break; }`. Если `ct` отменён во время Game Over, цикл выходит по `break` до `_showGameOver = false`. `StopAsync` оверлей не сбрасывает, поэтому он может остаться висеть до следующего `StartAsync`/перерендера.
+   Фикс: `try { await Task.Delay(900, ct); } finally { _showGameOver = false; }` или сбрасывать `_showGameOver` в `StopAsync`.
 
 7. **`Snake.razor` — `@onkeydown:preventDefault="true"` глушит `Tab`/`F5`/`Ctrl+R`.**
    Файл: `pages/Snake.razor`, `<div class="snake-wrap" tabindex="0" @onkeydown:preventDefault="true">`.
@@ -637,9 +664,9 @@ if (tick()) {
    Файл: `pages/MonochromeMonitor.cs`, `CMD_FLUSH`. В `Snake.razor` `OnFrameProduced` копирует — поэтому сейчас безопасно. Но контракт `Action<byte[], int, int>` этого не гарантирует.
    Фикс: XML-doc `/// <summary>Renderer must copy the buffer; it is reused on next flush.</summary>` или передавать копию (лишние 512 байт на кадр — незначительно).
 
-10. **`Snake.razor.GameLoopAsync` — `BatchStep` при `Halted` VM крутит пустые итерации.**
-    Файл: `pages/Snake.razor`, `while (total < MaxStepsPerTick && _running) { _ctx!.BatchStep(StepChunk); ... }`.
-    Если VM дошла до `HALT` (в `snake_minic` этого нет, но в других программах возможно), `BatchStep` вернётся мгновенно, а цикл сделает `200_000 / 1000 = 200` пустых итераций.
+10. **`Snake.razor.GameLoopAsync` — `await BatchStep` при `Halted` VM крутит пустые итерации.**
+    Файл: `pages/Snake.razor`, `while (total < MaxStepsPerTick && _running) { await _ctx!.BatchStep(StepChunk); ... }`.
+    Если VM дошла до `HALT` (в `snake_minic` этого нет, но в других программах возможно), `BatchStep` вернётся быстро, а цикл сделает `200_000 / 1000 = 200` пустых итераций.
     Фикс: проверять `_ctx.IsHalted` (если такое API есть) и выходить из цикла.
 
 11. **`Home.razor` — `vm.Run()` синхронный, блокирует UI.**
@@ -653,7 +680,7 @@ if (tick()) {
 
 13. **`Snake.razor` — `_js` может быть `null` во время `StartAsync`.**
     Файл: `pages/Snake.razor`, `OnAfterRenderAsync(first)` подгружает `snake.js`. Если пользователь нажал Start **до** завершения `OnAfterRenderAsync`, `_js == null`, кадры не рисуются (`_hasNewFrame` сбрасывается в `false` до проверки `_js`). Следующий кадр придёт через 150 мс — не критично, но первые ~2 кадра теряются.
-    Фикс: в `StartAsync` дождаться `_js` (например, `if (_js is null) await OnAfterRenderAsync(...)` — костыльно) или `TaskCompletionSource`, который резолвится в `OnAfterRenderAsync`.
+    Фикс: в `StartAsync` дождаться `_js` (например, `TaskCompletionSource`, который резолвится в `OnAfterRenderAsync`).
 
 14. **`Snake.razor` — `OnFrameProduced` использует `_frameBuffer!` без проверки.**
     Файл: `pages/Snake.razor`, `Buffer.BlockCopy(fb, 0, _frameBuffer!, 0, fb.Length)`. Сейчас безопасно (буфер инициализируется до `RunStepMode`), но `!` — потенциальный NRE при рефакторинге.
@@ -666,8 +693,8 @@ if (tick()) {
 16. **`LibCode.input_nanasm` — гонка двух нажатий (нет в InWeb, но есть в Scratch).**
     В InWeb `snake_minic` использует `commander_nanasm`, а не `input_nanasm`. Но `SnakeCommander.SetInput` всё равно теряет промежуточные нажатия (см. п.5).
 
-17. **`Snake.razor` — `MonochromeMonitor` и `SnakeCommander` используют `RegisterDevice` (bool-непроверяемый) на `sector 1`/`sector 2`.**
-    Файл: `pages/Snake.razor`, `_host.Emulator.RegisterDevice(_monitor, name: "monitor", sector: 1);` — без `out`-параметра. Если `sector 1` занят — исключение/`-2`, не проверяется. То же для `sector 2`.
+17. **`Snake.razor` — `MonochromeMonitor` и `SnakeCommander` регистрируются через `RegisterDevice` без проверки.**
+    Файл: `pages/Snake.razor`, `_host.Emulator.RegisterDevice(_monitor, name: "monitor", sector: 1);` — без `out`-параметра и проверки `IdState.Valid`. Если `sector 1` занят — ошибка не проверяется. То же для `sector 2`.
     Фикс: `TryRegisterDevice(_monitor, "monitor", 1, out _)` + проверка `IdState.Valid`.
 
 18. **`pages/Home.razor` — `char str[]` в строке по умолчанию содержит `Привет мир` (UTF-8 в исходнике).**
@@ -675,7 +702,7 @@ if (tick()) {
 
 19. **`pages/Snake.razor` — нет паузы.**
     Файл: `pages/Snake.razor`. Только Start/Stop. "Пауза" реализуется как Stop+Start (пересоздание `VmHost` и VM, счёт теряется). Для отладки — неудобно.
-    Фикс: `_running = false` без `_ctx.EndStepMode()` и `_host.Dispose()` — тогда можно возобновить с того же места. Или отдельная кнопка Pause.
+    Фикс: `_running = false` без `await _ctx.EndStepMode()` и `_host.Dispose()` — тогда можно возобновить с того же места. Или отдельная кнопка Pause.
 
 20. **`pages/Snake.razor` — `lastFrame` объявлен, но не используется.**
     Файл: `pages/Snake.razor`, `long lastFrame = lastTick;` и `lastFrame = now;` в render-блоке. Мёртвый код.
@@ -687,12 +714,14 @@ if (tick()) {
 
 | Аспект | Scratch (консоль) | InWeb (браузер) |
 |---|---|---|
-| Исполнение VM | `ctx.Run()` (блокирующее) | `RunStepMode` + `BatchStep` (кооперативное) |
+| Исполнение VM | `ctx.Run()` (блокирующее) | `RunStepMode` + `await BatchStep` (кооперативное) |
+| Контекст VM | `DeviceContext` | `AsyncDeviceContext` |
 | Ожидание тика | `Halt()` + `WakeProcessor` | `CmdWaitTick()` (busy-poll через порт) |
 | Ввод | `portBus.WritePort(0, code)` (loopback) | `SnakeCommander` на `sector 2` |
 | Рендер | ANSI в `Console` | `snake.js` + `<canvas>` (JS Interop) |
 | Буферизация кадра | нет (ANSI сразу) | двойная (`_fb` -> `_frameBuffer` -> JS) |
-| Регистрация | `RegisterDevice` + `!` (легаси) | `TryRegisterDevice`/`TryGetDeviceContext` (Home) |
+| Регистрация CPU | `RegisterDevice` + `!` (легаси) | `RegisterAsyncDevice` + `GetAsyncDeviceContext` (Snake); `TryRegisterDevice`/`TryGetDeviceContext` (Home) |
+| Регистрация портов | `RegisterDevice` + `!` | Home — `Try*`; Snake — `RegisterDevice` без `Try*` |
 | Таймер | `System.Threading.Timer` | `Task.Delay` в `async`-цикле |
 | `Halt` | есть (`halt_nanasm`) | нет (`commander_nanasm`) |
 | `keyboard.nanasm` | есть (не используется) | нет (ввод через `SnakeCommander`) |

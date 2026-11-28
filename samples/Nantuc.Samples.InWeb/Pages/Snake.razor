@@ -6,6 +6,7 @@
 @using Nantuc.VmApplication
 @using Nantuc.VmApplication.Emulator
 @using Nantuc.VmApplication.Extensions.Host
+@using Nantuc.VmApplication.Extensions.AsyncDeviceExtensions
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -103,7 +104,7 @@
     private int _score;
 
     private VmHost? _host;
-    private DeviceContext? _ctx;
+    private AsyncDeviceContext? _ctx;
     private MonochromeMonitor? _monitor;
     private SnakeCommander? _commander;
 
@@ -155,11 +156,17 @@
             _commander = new SnakeCommander();
 
             var handle = DeviceSpec.Create(ramSize: RamSize.MB16, name: "SnakeVM");
-            int cpuId = _host.Emulator.RegisterDevice(handle, sector: 0);
+            int cpuId = _host.Emulator.RegisterAsyncDevice(handle, sector: 0);
             _host.Emulator.RegisterDevice(_monitor, name: "monitor", sector: 1);
             _host.Emulator.RegisterDevice(_commander, name: "commander", sector: 2);
 
-            _ctx = _host.Emulator.GetDeviceContext(cpuId)!;
+            _ctx = _host.Emulator.GetAsyncDeviceContext(cpuId);
+            if (_ctx is null)
+            {
+                _status = "Failed to obtain AsyncDeviceContext";
+                StateHasChanged();
+                return;
+            }
 
             var res = _host.Project.CompileToIR(baseAddress: 0, optimize: false).Build();
             if (!res.Success) { _status = "Compile: " + string.Join(" | ", res.Errors!.Select(e => e.Message)); StateHasChanged(); return; }
@@ -197,7 +204,7 @@
         try { _cts?.Cancel(); } catch { }
         try { if (_loopTask is not null) await _loopTask; } catch { }
 
-        try { _ctx?.EndStepMode(); } catch { }
+        try { if (_ctx is not null) await _ctx.EndStepMode(); } catch { }
         _cts?.Dispose(); _cts = null;
         _host?.Dispose();
 
@@ -240,7 +247,7 @@
                 int total = 0;
                 while (total < MaxStepsPerTick && _running)
                 {
-                    _ctx!.BatchStep(StepChunk);
+                    await _ctx!.BatchStep(StepChunk);
                     total += StepChunk;
                     if (_commander.ConsumeYielded()) break;
                 }

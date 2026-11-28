@@ -17,13 +17,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup .NET 10
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: |
+            10.0.x
 
-      - name: Install wasm-tools workload
-        run: dotnet workload install wasm-tools
+      - name: Restore workloads
+        run: dotnet workload restore samples/Nantuc.Samples.InWeb/Nantuc.Samples.InWeb.csproj
 
       - name: Publish Blazor WASM with AOT
         run: dotnet publish samples/Nantuc.Samples.InWeb/Nantuc.Samples.InWeb.csproj -c Release -p:RunAOTCompilation=true -p:WasmEnableThreads=false -o release

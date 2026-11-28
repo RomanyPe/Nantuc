@@ -12,6 +12,7 @@
   <Folder Name="/Элементы решения/.github/" />
   <Folder Name="/Элементы решения/.github/workflows/">
     <File Path=".github/workflows/build-and-tests.yml" />
+    <File Path=".github/workflows/deploy-gh-pages.yml" />
     <File Path=".github/workflows/publish-nuget.yml" />
   </Folder>
   <Folder Name="/Элементы решения/benchmarks/">

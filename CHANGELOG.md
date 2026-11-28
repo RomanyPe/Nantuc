@@ -10,6 +10,14 @@ Order of sections within a version:
 Short labels:
 - **BREAKING** — a backward-incompatible change; may break user code when upgrading.
 
+## [0.27.1] - 2026-11-28
+
+### Added
+- **GitHub Action:** Added `deploy-gh-pages.yml` workflow to automate publishing `Nantuc.Samples.InWeb` as a static page, demonstrating full **Wasm AoT** compatibility.
+
+### Changed
+- Migrated `Snake.razor` to `AsyncDeviceContext` and set `<WasmEnableThreads>false</WasmEnableThreads>`.
+
 ## [0.27.0] - 2026-11-28
 
 ### Added
