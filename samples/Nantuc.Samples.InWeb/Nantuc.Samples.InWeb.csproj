@@ -7,8 +7,6 @@
 	<OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
 	<RunAOTCompilation>true</RunAOTCompilation>
 	<WasmEnableThreads>false</WasmEnableThreads>
-	<JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
-	<TrimMode>full</TrimMode>
   </PropertyGroup>
 
   <ItemGroup>
