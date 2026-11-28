@@ -2,11 +2,10 @@
 @using System.Collections.Concurrent
 @using Microsoft.JSInterop
 @using Nantuc.Common
-@using Nantuc.Samples.InWeb.Pages
 @using Nantuc.VmApplication
 @using Nantuc.VmApplication.Emulator
-@using Nantuc.VmApplication.Extensions.Host
 @using Nantuc.VmApplication.Extensions.AsyncDeviceExtensions
+@using Nantuc.VmApplication.Extensions.Host
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
@@ -23,26 +22,47 @@
         color: #8f8;
         font-family: ui-monospace, Consolas, monospace;
         outline: none;
+        box-sizing: border-box;
+    }
+
+    .snake-stage {
+        position: relative;
+        width: 100%;
+        max-width: 640px;
+        display: flex;
+        justify-content: center;
     }
 
     .snake-canvas {
         border: 2px solid #22ff44;
         image-rendering: pixelated;
+        display: block;
+        width: 100%;
+        max-width: 640px;
+        height: auto;
+        aspect-ratio: 32 / 16;
     }
 
     .snake-hud {
         display: flex;
-        gap: 16px;
+        gap: 12px;
         align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+        text-align: center;
     }
 
     .snake-btn {
         background: #22ff44;
         border: 0;
         color: #111;
-        padding: 6px 14px;
+        padding: 8px 16px;
         font-family: inherit;
+        font-size: 15px;
         cursor: pointer;
+        border-radius: 6px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
 
         .snake-btn:disabled {
@@ -61,16 +81,74 @@
         font-size: 32px;
         font-weight: bold;
         letter-spacing: 2px;
+        pointer-events: none;
     }
 
-    .snake-stage {
-        position: relative;
+    /* ---------- D-pad ---------- */
+    .snake-dpad {
+        display: grid;
+        grid-template-columns: repeat(3, clamp(52px, 15vw, 64px));
+        grid-template-rows: repeat(3, clamp(52px, 15vw, 64px));
+        gap: 8px;
+        margin-top: 8px;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .snake-dpad-btn {
+        background: #22ff44;
+        color: #111;
+        border: 0;
+        font-size: 22px;
+        line-height: 1;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        transition: background .1s, transform .05s;
+    }
+
+        .snake-dpad-btn:active:not(:disabled) {
+            background: #18c433;
+            transform: scale(.94);
+        }
+
+        .snake-dpad-btn:disabled {
+            opacity: .35;
+            cursor: default;
+        }
+
+    @@media (max-width: 600px) {
+        .snake-wrap {
+            padding: 10px;
+            gap: 8px;
+        }
+
+            .snake-wrap h3 {
+                font-size: 16px;
+                margin: 4px 0;
+            }
+
+        .snake-hud {
+            gap: 8px;
+            font-size: 13px;
+        }
     }
 </style>
 
 <div class="snake-wrap" tabindex="0" @ref="_focusHost"
      @onkeydown="HandleKeyDown" @onkeydown:preventDefault="true">
-
+    <div style="margin-bottom: 8px;">
+        <a href="./"
+           style="display: inline-block; padding: 8px 16px; font-size: 14px; font-weight: 500; text-decoration: none; background: #198754; color: white; border-radius: 6px;">
+            Перейти назад
+        </a>
+    </div>
     <h3>Snake — Nantuc VM</h3>
 
     <div class="snake-stage">
@@ -88,14 +166,41 @@
         <span>@_status</span>
         <span>Score: @_score</span>
     </div>
+
+    @* D-pad: крестовина, центр пустой *@
+    <div class="snake-dpad">
+        <span></span>
+        <button class="snake-dpad-btn" @onclick="() => EnqueueInput(1)"
+                disabled="@(!_running)" aria-label="Вверх">
+            ▲
+        </button>
+        <span></span>
+
+        <button class="snake-dpad-btn" @onclick="() => EnqueueInput(3)"
+                disabled="@(!_running)" aria-label="Влево">
+            ◀
+        </button>
+        <span></span>
+        <button class="snake-dpad-btn" @onclick="() => EnqueueInput(4)"
+                disabled="@(!_running)" aria-label="Вправо">
+            ▶
+        </button>
+
+        <span></span>
+        <button class="snake-dpad-btn" @onclick="() => EnqueueInput(2)"
+                disabled="@(!_running)" aria-label="Вниз">
+            ▼
+        </button>
+        <span></span>
+    </div>
 </div>
 
 @code {
     private const int W = 32, H = 16, Cell = 20;
-    private const double FixedDtMs = 150;    // тик змейки
-    private const int FrameBudgetMs = 8;      // как часто просыпаемся
-    private const int StepChunk = 1000;   // шаг BatchStep
-    private const int MaxStepsPerTick = 200_000;// предохранитель
+    private const double FixedDtMs = 150;
+    private const int FrameBudgetMs = 8;
+    private const int StepChunk = 1000;
+    private const int MaxStepsPerTick = 200_000;
 
     private ElementReference _canvas, _focusHost;
     private IJSObjectReference? _js;
@@ -132,11 +237,17 @@
             "ArrowRight" => 4,
             _ => 0
         };
-        if (code != 0) { _input.Enqueue(code); return; }
+        if (code != 0) { EnqueueInput(code); return; }
         if (e.Key is "q" or "Q" or "Escape") _ = StopAsync();
     }
 
-    // ============================ START ============================
+    // Единая точка входа для кнопок и клавиатуры
+    private void EnqueueInput(byte code)
+    {
+        if (!_running) return;
+        _input.Enqueue(code);
+    }
+
     private async Task StartAsync()
     {
         if (_running || _disposed) return;
@@ -177,10 +288,11 @@
             _running = true;
             _score = 0;
             _showGameOver = false;
+            while (_input.TryDequeue(out _)) { }   // на всякий случай
             _cts = new CancellationTokenSource();
             _loopTask = GameLoopAsync(_cts.Token);
 
-            _status = "Running — arrows to move, Q to quit";
+            _status = "Running — стрелки/кнопки, Q — стоп";
             StateHasChanged();
 
             await _focusHost.FocusAsync();
@@ -193,7 +305,6 @@
         }
     }
 
-    // ============================ STOP =============================
     private async Task StopAsync()
     {
         if (!_running) return;
@@ -218,9 +329,6 @@
         StateHasChanged();
     }
 
-    // =====================================================================
-    //  GAME LOOP:  Input → Update → FixedUpdate → Render
-    // =====================================================================
     private async Task GameLoopAsync(CancellationToken ct)
     {
         long lastTick = Environment.TickCount64;
@@ -230,14 +338,9 @@
         {
             long now = Environment.TickCount64;
 
-            // -------------------- 1. INPUT --------------------
             while (_input.TryDequeue(out byte key))
                 _commander!.SetInput(key);
 
-            // -------------------- 2. UPDATE -------------------
-            // (HUD/score читаем из commander'а после тика)
-
-            // -------------------- 3. FIXED UPDATE ------------
             if (now - lastTick >= (long)FixedDtMs)
             {
                 lastTick = now;
@@ -256,14 +359,12 @@
 
                 if (_commander.ConsumeGameOver())
                 {
-                    // показать оверлей и дать паузу до следующего тика
                     _showGameOver = true;
                     try { await Task.Delay(900, ct); } catch { break; }
                     _showGameOver = false;
                 }
             }
 
-            // -------------------- 4. RENDER -------------------
             if (_hasNewFrame && _js is not null && _frameBuffer is not null)
             {
                 _hasNewFrame = false;
@@ -271,8 +372,8 @@
                 await InvokeAsync(async () =>
                 {
                     try { await _js.InvokeVoidAsync("draw", _canvas, b64, W, H); }
-                    catch { /* component disposed */ }
-                    StateHasChanged(); // обновить счёт/оверлей
+                    catch { }
+                    StateHasChanged();
                 });
                 lastFrame = now;
             }
@@ -283,7 +384,6 @@
         }
     }
 
-    // Вызывается синхронно в CMD_FLUSH из VM (тот же поток)
     private void OnFrameProduced(byte[] fb, int w, int h)
     {
         Buffer.BlockCopy(fb, 0, _frameBuffer!, 0, fb.Length);
