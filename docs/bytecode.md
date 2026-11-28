@@ -1,7 +1,7 @@
 # Nantuc Virtual Machine Bytecode Specification
 
 > Format version: 1
-> Target platform: `Nantuc.Kernel.Common` / `Nantuc.Compiler.ASM`
+> Target platform: `Nantuc.Common` / `Nantuc.Compiler`
 > Status: implemented in the reference interpreter (`Processor.Step`, `InstructionDecoder`) and in the MiniC/NANASM code generator.
 
 ---

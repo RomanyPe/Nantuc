@@ -1,7 +1,7 @@
 # Спецификация байт-кода виртуальной машины Nantuc
 
 > Версия формата: 1
-> Целевая платформа: `Nantuc.Kernel.Common` / `Nantuc.Compiler.ASM`
+> Целевая платформа: `Nantuc.Common` / `Nantuc.Compilerss`
 > Статус: реализовано в эталонном интерпретаторе (`Processor.Step`, `InstructionDecoder`) и в кодогенераторе MiniC/NANASM.
 
 ---
