@@ -23,13 +23,11 @@ jobs:
   pack-and-publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      id-token: write
+      contents: read
+      id-token: write 
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-tags: true
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -107,30 +105,7 @@ jobs:
           for nupkg in nupkg/*.nupkg; do
             echo "--- pushing: $(basename "$nupkg") ---"
             dotnet nuget push "$nupkg" \
-              --source "https://nuget.org" \
+              --source "https://api.nuget.org/v3/index.json" \
               --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
               --skip-duplicate
           done
-
-      - name: Get tag annotation
-        id: tag-notes
-        shell: bash
-        env:
-          TAG_NAME: v${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          NOTES=$(git tag -l --format='%(contents)' "$TAG_NAME")
-          {
-            echo "notes<<EOF"
-            echo "$NOTES"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: Release v${{ steps.version.outputs.version }}
-          body: ${{ steps.tag-notes.outputs.notes }}
-          generate_release_notes: true
-          files: nupkg/*.nupkg
