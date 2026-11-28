@@ -5,6 +5,7 @@
 > A platform for executing bytecode with its own MiniC language (almost full C), NANASM assembler, compiler, virtual machine, and public API for embedding.
 > **Project version:** specified in `CHANGELOG.md`, semver guaranteed.
 > Written in C# (.NET 10). Compiler and runtime are separated into layers, `unsafe` code is isolated in the core, and the public API is a thin facade with safe `Try*` methods and `IdState` diagnostics.
+
 > **Live Demo (WebAssembly AOT):** Try the MiniC compiler, virtual machine, and playable Snake game directly in your browser without installation: **[romanype.github.io/Nantuc](https://romanype.github.io/Nantuc/)**
 
 > [!IMPORTANT]
